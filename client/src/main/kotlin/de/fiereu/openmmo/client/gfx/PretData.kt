@@ -19,9 +19,23 @@ enum class GbaGame(
     val tilesInPrimary: Int,
     val metatilesInPrimary: Int,
     val palsInPrimary: Int,
+    /** The server numbers this region's map groups from here (codegen's gbaBankOffset). */
+    val bankOffset: Int,
+    /** The text table under codegen/dialog. */
+    val dialogRegion: String,
 ) {
-  FIRERED("pokefirered", 640, 640, 7),
-  EMERALD("pokeemerald", 512, 512, 6);
+  FIRERED("pokefirered", 640, 640, 7, 0, "kanto"),
+  EMERALD("pokeemerald", 512, 512, 6, 50, "hoenn");
+
+  /** Metatile attribute words: FireRed packs 32 bits, Emerald 16. */
+  fun layerType(attr: Int): Int =
+      if (this == FIRERED) (attr ushr 29) and 0x3 else (attr ushr 12) and 0xF
+
+  fun behavior(attr: Int): Int = if (this == FIRERED) attr and 0x1FF else attr and 0xFF
+
+  /** MB_COUNTER, the tile a shop clerk is talked to across. */
+  val counterBehavior: Int
+    get() = if (this == FIRERED) 0x80 else 0x80
 
   companion object {
     /** Region ids as the server uses them: 0 is Kanto, 1 is Hoenn. */
@@ -48,7 +62,12 @@ class Tileset(
     val palettes: Array<IntArray?>,
     /** 8 tile refs per metatile: 4 bottom layer then 4 top layer, each TL TR BL BR. */
     val metatiles: List<List<TileRef>>,
+    /** Raw `metatile_attributes.bin` words, one per metatile. */
+    val attributes: IntArray = IntArray(0),
 )
+
+/** A map.json connection: [offset] in tiles along the shared edge. */
+data class PretConnection(val direction: String, val offset: Int, val mapName: String)
 
 class LayoutData(
     val name: String,
@@ -58,6 +77,11 @@ class LayoutData(
     val blocks: IntArray,
     val primary: Tileset,
     val secondary: Tileset,
+    /** Border metatiles, drawn around the map where no connection is. */
+    val border: IntArray = IntArray(0),
+    val borderWidth: Int = 2,
+    val borderHeight: Int = 2,
+    val connections: List<PretConnection> = emptyList(),
 ) {
   fun metatileAt(x: Int, y: Int): Int? =
       if (x in 0 until width && y in 0 until height) blocks[y * width + x] and 0x3FF else null
@@ -88,6 +112,21 @@ class PretData(private val root: File, val game: GbaGame) {
         .associateBy { it.getValue("id").jsonPrimitive.content }
   }
 
+  /** `gTileset_X` -> `gMetatileAttributes_X`. */
+  private val attributeSymbols: Map<String, String> by lazy {
+    val text = File(base, "src/data/tilesets/headers.h").readText()
+    Regex("""const struct Tileset (\w+)\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
+        .findAll(text)
+        .mapNotNull { m ->
+          Regex("""\.metatileAttributes\s*=\s*(\w+)""")
+              .find(m.groupValues[2])
+              ?.groupValues
+              ?.get(1)
+              ?.let { m.groupValues[1] to it }
+        }
+        .toMap()
+  }
+
   /** `gTileset_X` -> (tiles symbol, palettes symbol, metatiles symbol). */
   private val tilesetHeaders: Map<String, Triple<String, String, String>> by lazy {
     val text = File(base, "src/data/tilesets/headers.h").readText()
@@ -111,7 +150,7 @@ class PretData(private val root: File, val game: GbaGame) {
     for (f in files) {
       val text = f.readText()
       Regex(
-              """const u(?:16|32) (gTileset\w+|gMetatiles\w+)\[\](?:\[16\])?\s*=\s*(.*?);""",
+              """const u(?:16|32) (gTileset\w+|gMetatiles\w+|gMetatileAttributes\w+)\[\](?:\[16\])?\s*=\s*(.*?);""",
               RegexOption.DOT_MATCHES_ALL)
           .findAll(text)
           .forEach { m ->
@@ -128,7 +167,27 @@ class PretData(private val root: File, val game: GbaGame) {
   private val tilesetCache = mutableMapOf<String, Tileset>()
   private val layoutCache = mutableMapOf<Pair<Int, Int>, LayoutData?>()
 
-  fun mapName(bank: Int, map: Int): String? = groupOrder.getOrNull(bank)?.getOrNull(map)
+  /** [bank] is the server's wire bank, the decomp group shifted by [GbaGame.bankOffset]. */
+  fun mapName(bank: Int, map: Int): String? =
+      groupOrder.getOrNull(bank - game.bankOffset)?.getOrNull(map)
+
+  /** The wire (bank, map) of a map by its `MAP_*` constant or directory name. */
+  fun addressOf(mapConst: String): Pair<Int, Int>? {
+    for ((g, maps) in groupOrder.withIndex()) {
+      for ((i, name) in maps.withIndex()) {
+        if (name == mapConst || mapConstOf(name) == mapConst) return (g + game.bankOffset) to i
+      }
+    }
+    return null
+  }
+
+  private val mapConsts = mutableMapOf<String, String?>()
+
+  private fun mapConstOf(name: String): String? =
+      mapConsts.getOrPut(name) {
+        runCatching { parse("data/maps/$name/map.json").jsonObject["id"]?.jsonPrimitive?.content }
+            .getOrNull()
+      }
 
   fun layout(bank: Int, map: Int): LayoutData? =
       layoutCache.getOrPut(bank to map) {
@@ -139,6 +198,21 @@ class PretData(private val root: File, val game: GbaGame) {
         val width = l.getValue("width").jsonPrimitive.int
         val height = l.getValue("height").jsonPrimitive.int
         val blocks = readU16(File(base, l.getValue("blockdata_filepath").jsonPrimitive.content))
+        val border =
+            l["border_filepath"]
+                ?.jsonPrimitive
+                ?.content
+                ?.let { File(base, it) }
+                ?.takeIf { it.exists() }
+                ?.let(::readU16) ?: IntArray(0)
+        val connections =
+            (mapJson["connections"] as? JsonArray).orEmpty().mapNotNull { c ->
+              val o = c.jsonObject
+              PretConnection(
+                  o["direction"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                  o["offset"]?.jsonPrimitive?.int ?: 0,
+                  o["map"]?.jsonPrimitive?.content ?: return@mapNotNull null)
+            }
         LayoutData(
             name,
             width,
@@ -146,6 +220,10 @@ class PretData(private val root: File, val game: GbaGame) {
             blocks,
             tileset(l.getValue("primary_tileset").jsonPrimitive.content, primary = true),
             tileset(l.getValue("secondary_tileset").jsonPrimitive.content, primary = false),
+            border,
+            l["border_width"]?.jsonPrimitive?.int ?: 2,
+            l["border_height"]?.jsonPrimitive?.int ?: 2,
+            connections,
         )
       }
 
@@ -165,7 +243,13 @@ class PretData(private val root: File, val game: GbaGame) {
         val metaPath = incbins[metaSym]?.firstOrNull() ?: error("no metatiles for $symbol")
         val words = readU16(File(base, metaPath))
         val metatiles = words.toList().chunked(8).map { chunk -> chunk.map(TileRef::of) }
-        Tileset(tiles, palettes, metatiles)
+        val attrs =
+            attributeSymbols[symbol]
+                ?.let { incbins[it]?.firstOrNull() }
+                ?.let { File(base, it) }
+                ?.takeIf { it.exists() }
+                ?.let { if (game == GbaGame.FIRERED) readU32(it) else readU16(it) } ?: IntArray(0)
+        Tileset(tiles, palettes, metatiles, attrs)
       }
 
   private fun parse(path: String) = json.parseToJsonElement(File(base, path).readText())
@@ -174,6 +258,11 @@ class PretData(private val root: File, val game: GbaGame) {
     fun readU16(file: File): IntArray {
       val buf = ByteBuffer.wrap(file.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
       return IntArray(buf.remaining() / 2) { buf.short.toInt() and 0xFFFF }
+    }
+
+    fun readU32(file: File): IntArray {
+      val buf = ByteBuffer.wrap(file.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
+      return IntArray(buf.remaining() / 4) { buf.int }
     }
 
     /** Splits an indexed 4bpp sheet into 8x8 tiles, reading raw colour indices. */

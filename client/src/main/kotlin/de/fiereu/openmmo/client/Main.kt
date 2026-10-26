@@ -61,6 +61,8 @@ fun main(args: Array<String>) {
     val battleScreen = BattleScreen(decomp)
     watchBattles(game)
     SpeciesNames.load(decomp)
+    game.overworld.dataRoot = decomp
+    ScriptCommands.renderer = renderer
 
     if (opts["gui"] == "true") {
       GameWindow(game, renderer, battleScreen = battleScreen, tradeView = TradeView(decomp)).show()
@@ -134,6 +136,7 @@ private fun run(game: GameClient, cmd: String) {
     cmd.isEmpty() -> {}
     runBattleCommand(game, cmd) -> {}
     runTradeCommand(game, cmd) -> {}
+    ScriptCommands.run(game, cmd) -> {}
     else -> if (!runMarketCommand(game, cmd)) println("unknown command: $cmd")
   }
 }
@@ -146,7 +149,10 @@ private fun printStatus(game: GameClient) {
           "pos=${self?.let { "(${it.x},${it.y}) ${it.facing}" }} inWorld=${s.inWorld}")
   s.entities.values
       .filter { it.id != s.selfId }
-      .forEach { println("  other: ${it.name} at (${it.x},${it.y}) ${it.facing}") }
+      .forEach {
+        val who = if (it.isPlayer) it.name else "npc gfx=${it.graphicsId}"
+        println("  other: $who at ${it.map.bankId}:${it.map.mapId} (${it.x},${it.y}) ${it.facing}")
+      }
   s.chat.takeLast(5).forEach { println("  chat ${it.sender}: ${it.message}") }
 }
 

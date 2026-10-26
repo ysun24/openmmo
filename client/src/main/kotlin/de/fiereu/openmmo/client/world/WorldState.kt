@@ -13,6 +13,9 @@ data class Entity(
     val y: Int,
     val facing: Direction,
     val isPlayer: Boolean,
+    /** Decomp OBJ_EVENT_GFX_* id for npcs, -1 for players (drawn with the player sprite). */
+    val graphicsId: Int = -1,
+    val visible: Boolean = true,
 )
 
 data class ChatLine(val sender: String, val message: String)
@@ -31,6 +34,7 @@ class WorldState {
       val entities: Map<Long, Entity>,
       val chat: List<ChatLine>,
       val inWorld: Boolean,
+      val overworld: OverworldState.View? = null,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -46,6 +50,9 @@ class WorldState {
   private val chat = ArrayDeque<ChatLine>()
   private var inWorld = false
 
+  /** Dialog, shop, bag and known maps; see [OverworldState]. */
+  val overworld = OverworldState()
+
   fun snapshot(): Snapshot =
       synchronized(lock) {
         Snapshot(
@@ -56,7 +63,8 @@ class WorldState {
             mapHeight,
             entities.toMap(),
             chat.toList(),
-            inWorld)
+            inWorld,
+            overworld.view())
       }
 
   fun selectCharacter(id: Long, name: String) =
@@ -85,6 +93,24 @@ class WorldState {
         val old = entities[id] ?: return@synchronized
         entities[id] = old.copy(x = x, y = y, facing = facing)
       }
+
+  /** Moves an entity onto another map, as a seamless connection or a server reposition does. */
+  fun relocate(id: Long, key: MapKey, x: Int, y: Int, facing: Direction) =
+      synchronized(lock) {
+        val old = entities[id] ?: return@synchronized
+        entities[id] = old.copy(map = key, x = x, y = y, facing = facing)
+      }
+
+  /** Switches the current map without a reload, keeping the entities that are already known. */
+  fun switchMap(key: MapKey, width: Int, height: Int) =
+      synchronized(lock) {
+        map = key
+        mapWidth = width
+        mapHeight = height
+      }
+
+  fun update(id: Long, f: (Entity) -> Entity) =
+      synchronized(lock) { entities[id]?.let { entities[id] = f(it) } }
 
   fun remove(id: Long) = synchronized(lock) { entities.remove(id) }
 

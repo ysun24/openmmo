@@ -16,6 +16,7 @@ import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchListing
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPagePacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPageRequestPacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSpeciesFilter
+import de.fiereu.openmmo.net.game.packets.market.MarketAction
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketItemStack
@@ -151,7 +152,15 @@ class MarketClient(private val send: (Any) -> Unit, private val onChange: () -> 
 
   fun onResult(p: MarketResultPacket) {
     val line = "${p.action} ${if (p.success) "ok" else "refused"}: ${p.message}"
-    state = state.copy(log = (state.log + line).takeLast(50))
+    var next = state.copy(log = (state.log + line).takeLast(50))
+    // A listing that was bought, cancelled or sold is gone; drop it so the tables don't show it.
+    if (p.success && p.action in GONE_ACTIONS) {
+      next =
+          next.copy(
+              browse = next.browse.filterNot { it.listingId == p.listingId },
+              mine = next.mine.filterNot { it.listingId == p.listingId })
+    }
+    state = next
     results.offer(p)
     onChange()
   }
@@ -247,3 +256,5 @@ object SpeciesNames {
               .replace(" ", "_")
       else null
 }
+
+private val GONE_ACTIONS = setOf(MarketAction.BUY, MarketAction.CANCEL, MarketAction.SOLD)

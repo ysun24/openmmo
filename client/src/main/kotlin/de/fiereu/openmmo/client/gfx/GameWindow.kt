@@ -127,6 +127,7 @@ class GameWindow(
             held.clear()
             return
           }
+          if (overworldKey(e.keyCode)) return
           if (e.keyCode == KeyEvent.VK_T) tradeWindow?.show()
           if (e.keyCode == KeyEvent.VK_M) {
             MarketWindow(client, renderer.decompRoot).show()
@@ -141,6 +142,24 @@ class GameWindow(
           dirOf(e.keyCode)?.let { held.remove(it) }
         }
       }
+
+  /** Z/Space is A, X/Backspace is B; up and down move an open menu's cursor. */
+  private fun overworldKey(code: Int): Boolean {
+    val ow = client.overworld
+    val ui = client.world.snapshot().overworld
+    val menuOpen = ui != null && (ui.dialog != null || ui.shop != null)
+    when (code) {
+      KeyEvent.VK_Z,
+      KeyEvent.VK_SPACE -> ow.interact()
+      KeyEvent.VK_X,
+      KeyEvent.VK_BACK_SPACE -> ow.cancel()
+      KeyEvent.VK_UP -> if (menuOpen) ow.moveCursor(-1) else return false
+      KeyEvent.VK_DOWN -> if (menuOpen) ow.moveCursor(1) else return false
+      else -> return false
+    }
+    held.clear()
+    return true
+  }
 
   private fun dirOf(code: Int): Direction? =
       when (code) {

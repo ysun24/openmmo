@@ -119,6 +119,12 @@ class TradeClient(private val send: (Any) -> Unit, private val onChange: () -> U
     money = packet.money
   }
 
+  /** Money also changes through the market, which reports it as a currency balance. */
+  internal fun onBalance(balance: Int) {
+    money = balance
+    onChange()
+  }
+
   companion object {
     fun describe(p: TradeStatePacket): String = buildString {
       append("phase=${p.phase}")
