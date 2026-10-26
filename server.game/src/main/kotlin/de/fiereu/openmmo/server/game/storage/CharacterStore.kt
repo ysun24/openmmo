@@ -265,6 +265,67 @@ constructor(
           },
       )
 
+  /**
+   * Rewrites two characters at once, both in memory and in one database transaction. [compute] sees
+   * both as they are now and returns their new versions, or null to change nothing. False when
+   * nothing changed: [compute] refused, a character is not cached, or the write failed.
+   *
+   * Both flush locks are held throughout, in id order, so no durable change to either character (a
+   * purchase, a caught monster, another trade) can interleave with the swap.
+   */
+  suspend fun commitPair(
+      aId: Long,
+      bId: Long,
+      compute: (StoredCharacter, StoredCharacter) -> Pair<StoredCharacter, StoredCharacter>?,
+  ): Boolean {
+    require(aId != bId) { "A pair needs two characters" }
+    val (first, second) = if (aId < bId) aId to bId else bId to aId
+    return lockFor(first).withLock {
+      lockFor(second).withLock {
+        val baseA = characters[aId] ?: return@withLock false
+        val baseB = characters[bId] ?: return@withLock false
+        val (newA, newB) = compute(baseA, baseB) ?: return@withLock false
+        try {
+          repository.saveTrade(listOf(persisted[aId] to newA, persisted[bId] to newB))
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          log.warn(e) { "Failed to persist the trade between $aId and $bId" }
+          return@withLock false
+        }
+        persisted[aId] = newA
+        persisted[bId] = newB
+        // A non durable write (a step, a story flag) can land between the read and here. Redo the
+        // swap on top of it rather than dropping it; the result differs from what was written, so
+        // it is marked dirty and the next flush catches the database up.
+        val recomputed =
+            if (characters[aId] === baseA && characters[bId] === baseB) null
+            else characters[aId]?.let { a -> characters[bId]?.let { b -> compute(a, b) } }
+        install(aId, baseA, newA, recomputed?.first)
+        install(bId, baseB, newB, recomputed?.second)
+        true
+      }
+    }
+  }
+
+  private fun install(
+      id: Long,
+      base: StoredCharacter,
+      written: StoredCharacter,
+      redo: StoredCharacter?
+  ) {
+    var diverged = false
+    characters.computeIfPresent(id) { _, current ->
+      if (current === base) {
+        written
+      } else {
+        diverged = true
+        redo ?: written
+      }
+    }
+    if (diverged) markDirty(id)
+  }
+
   /** Set (or clear with null) the runtime destination for MAP_DYNAMIC warps (setdynamicwarp). */
   fun setDynamicWarp(characterId: Long, warp: DynamicWarp?) {
     mutate(characterId) { it.copy(info = it.info.copy(dynamicWarp = warp)) }

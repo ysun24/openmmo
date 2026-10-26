@@ -31,6 +31,8 @@ import de.fiereu.openmmo.net.game.packets.RequestSocialProfilePacket
 import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
 import de.fiereu.openmmo.net.game.packets.ShopSellRequestPacket
 import de.fiereu.openmmo.net.game.packets.TileInteractPacket
+import de.fiereu.openmmo.net.game.packets.TradeActionPacket
+import de.fiereu.openmmo.net.game.packets.TradeSelectMonPacket
 import de.fiereu.openmmo.net.game.packets.UnblockPlayerPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
@@ -64,6 +66,8 @@ import de.fiereu.openmmo.net.game.packets.guild.GuildMemberRankAssignPacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildMotdUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankLabelUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankPermissionUpdatePacket
+import de.fiereu.openmmo.net.game.packets.trade.TradeOfferItemPacket
+import de.fiereu.openmmo.net.game.packets.trade.TradeRequestPacket
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogService
@@ -77,6 +81,7 @@ import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.SocialService
 import de.fiereu.openmmo.server.game.services.command.ChatCommandService
+import de.fiereu.openmmo.server.game.services.trade.TradeService
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.SCRIPT_SCOPE
 import de.fiereu.openmmo.server.game.session.SessionRegistry
@@ -103,6 +108,7 @@ constructor(
     private val pvpBattleService: PvpBattleService,
     private val chatCommandService: ChatCommandService,
     private val shopService: ShopService,
+    private val tradeService: TradeService,
     private val scriptRunner: ScriptRunner,
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
@@ -176,6 +182,11 @@ constructor(
       pvpBattleService.onChallengeResponse(event)
     }
 
+    on<TradeRequestPacket> { event -> tradeService.onRequest(event) }
+    onSuspend<TradeActionPacket> { event -> tradeService.onAction(event) }
+    on<TradeSelectMonPacket> { event -> tradeService.onSelectMon(event) }
+    on<TradeOfferItemPacket> { event -> tradeService.onOfferItem(event) }
+
     // The client sends an empty heartbeat packet.
     on<NullPacket> {}
     on<KeepAlivePacket> { event -> event.session.send(event.packet) }
@@ -197,6 +208,7 @@ constructor(
       // The battle flush must land before the unload evicts the character from the cache, and
       // before the rollback, which would otherwise be overwritten by the party it persists.
       battleService.onDisconnect(session)
+      tradeService.onDisconnect(charId)
       // Undo the interrupted script here rather than leaving it to the coroutine's own cleanup,
       // which runs on another thread and would race the flush below.
       scriptRunner.rollBack(session, state, entityId = -1)

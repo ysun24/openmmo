@@ -2,12 +2,16 @@ package de.fiereu.openmmo.client
 
 import de.fiereu.openmmo.client.gfx.BattleScreen
 import de.fiereu.openmmo.client.gfx.GameWindow
+import de.fiereu.openmmo.client.gfx.TRADE_VIEW_H
+import de.fiereu.openmmo.client.gfx.TRADE_VIEW_W
+import de.fiereu.openmmo.client.gfx.TradeView
 import de.fiereu.openmmo.client.gfx.WorldRenderer
 import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.LoginClient
 import de.fiereu.openmmo.client.net.NewCharacter
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.io.PemKeyLoader
+import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
 import java.io.File
@@ -27,7 +31,8 @@ import kotlin.system.exitProcess
  * has run, which is how the renderer is checked without a display.
  *
  * Without `--script` it reads commands from stdin: `w a s d` step, `W A S D` face, `say TEXT`,
- * `who`, `quit`, plus the battle commands in [runBattleCommand].
+ * `who`, `quit`, plus the battle commands in [runBattleCommand] and the trade commands in
+ * [runTradeCommand] (`trade NAME`, `party`, ...).
  */
 fun main(args: Array<String>) {
   val opts = parseArgs(args)
@@ -49,12 +54,13 @@ fun main(args: Array<String>) {
     game.connect(ticket)
     waitUntil(20_000) { game.world.snapshot().inWorld }
     printStatus(game)
-    val renderer = WorldRenderer(File(opts["decomp"] ?: "decomp"))
-    val battleScreen = BattleScreen(File(opts["decomp"] ?: "decomp"))
+    val decomp = File(opts["decomp"] ?: "decomp")
+    val renderer = WorldRenderer(decomp)
+    val battleScreen = BattleScreen(decomp)
     watchBattles(game)
 
     if (opts["gui"] == "true") {
-      GameWindow(game, renderer, battleScreen = battleScreen).show()
+      GameWindow(game, renderer, battleScreen = battleScreen, tradeView = TradeView(decomp)).show()
       game.closeFuture()?.sync()
       return
     }
@@ -77,6 +83,17 @@ fun main(args: Array<String>) {
         val scaled = java.awt.image.BufferedImage(frame.width * 3, frame.height * 3, frame.type)
         scaled.createGraphics().apply {
           drawImage(frame, 0, 0, scaled.width, scaled.height, null)
+          // An open trade window sits on top of the world, as in the Swing client.
+          if (game.trade.state.phase != TradePhase.CLOSED) {
+            TradeView(decomp)
+                .paint(
+                    this,
+                    (scaled.width - TRADE_VIEW_W) / 2,
+                    (scaled.height - TRADE_VIEW_H) / 2,
+                    TRADE_VIEW_W,
+                    TRADE_VIEW_H,
+                    game.trade.state)
+          }
           dispose()
         }
         ImageIO.write(scaled, "png", File(path))
@@ -107,7 +124,7 @@ private fun run(game: GameClient, cmd: String) {
     cmd == "who" -> printStatus(game)
     cmd.isEmpty() -> {}
     runBattleCommand(game, cmd) -> {}
-    else -> println("unknown command: $cmd")
+    else -> if (!runTradeCommand(game, cmd)) println("unknown command: $cmd")
   }
 }
 
