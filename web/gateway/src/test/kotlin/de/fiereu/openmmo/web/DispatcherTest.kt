@@ -44,6 +44,9 @@ class DispatcherTest {
     assertEquals("missing or bad field: seq", send("""{"t":"step","dir":"up"}"""))
     assertEquals("missing or bad field: seq", send("""{"t":"step","dir":"up","seq":"1"}"""))
     assertEquals("move out of range", send("""{"t":"battle.fight","move":7}"""))
+    assertEquals("missing or bad field: party", send("""{"t":"duel","name":"Gary","party":9}"""))
+    assertEquals(
+        "missing or bad field: levelCap", send("""{"t":"duel","name":"Gary","levelCap":101}"""))
     assertEquals("qty out of range", send("""{"t":"shop.buy","item":5017,"qty":0}"""))
     assertEquals("empty text", send("""{"t":"say","text":"   "}"""))
     assertEquals("text too long", send("""{"t":"say","text":"${"x".repeat(300)}"}"""))
@@ -80,6 +83,9 @@ class DispatcherTest {
             """{"t":"battle.learn","slot":2}""" to ("battleLearn" to listOf(2)),
             """{"t":"battle.close"}""" to ("battleClose" to emptyList()),
             """{"t":"duel","name":"Gary"}""" to ("duel" to listOf("Gary")),
+            """{"t":"duel","name":"Gary","levelCap":50,"party":3,"timer":30}""" to
+                ("duelRules" to listOf("Gary", 50, 3, 30)),
+            """{"t":"duel","name":"Gary","timer":0}""" to ("duelRules" to listOf("Gary", 0, 6, 0)),
             """{"t":"duel.answer","accept":false}""" to ("duelAnswer" to listOf(false)),
             """{"t":"trade.request","name":"Gary"}""" to ("tradeRequest" to listOf("Gary")),
             """{"t":"trade.accept"}""" to ("tradeAction" to listOf("accept")),

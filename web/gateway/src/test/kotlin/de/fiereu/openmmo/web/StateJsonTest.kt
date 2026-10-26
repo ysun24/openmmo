@@ -200,15 +200,19 @@ class StateJsonTest {
         out["party"])
     assertEquals(
         parse(
-            """{"wild":true,"opponentName":"","phase":"ACTION","turn":3,
+            """{"wild":true,"opponentName":"","phase":"ACTION","turn":3,"activeSlot":0,
                "me":{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39,
-                     "moves":[{"name":"SCRATCH","pp":33,"maxPp":35},{"name":"EMBER","pp":25,"maxPp":25}]},
+                     "moves":[{"name":"SCRATCH","pp":33,"maxPp":35,"type":"NORMAL","power":40},
+                              {"name":"EMBER","pp":25,"maxPp":25,"type":"FIRE","power":40}]},
                "foe":{"dex":19,"name":"RATTATA","level":3,"hp":0,"maxHp":15},
                "party":[{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39}],
-               "log":["CHARMANDER used SCRATCH!"],"result":null,
-               "learn":{"move":"EMBER","current":["SCRATCH","EMBER"]}}"""),
+               "log":["CHARMANDER used SCRATCH!"],"result":null,"rules":null,"timer":null,"fx":[],
+               "learn":{"move":"EMBER","current":["SCRATCH","EMBER"],"mon":"CHARMANDER",
+                        "offer":{"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":35,"maxPp":35},
+                        "moves":[{"name":"SCRATCH","type":"NORMAL","power":40,"accuracy":100,"pp":33,"maxPp":35},
+                                 {"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":25,"maxPp":25}]}}"""),
         out["battle"])
-    assertEquals(parse("""{"from":"Gary"}"""), out["invite"])
+    assertEquals(parse("""{"from":"Gary","rules":null}"""), out["invite"])
   }
 
   @Test

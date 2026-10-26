@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.web
 
+import de.fiereu.openmmo.client.net.BattleFx
 import de.fiereu.openmmo.client.net.BattleMon
+import de.fiereu.openmmo.client.net.BattleNames
 import de.fiereu.openmmo.client.net.BattleState
 import de.fiereu.openmmo.client.net.MarketClient
 import de.fiereu.openmmo.client.net.MarketEntry
@@ -10,6 +12,7 @@ import de.fiereu.openmmo.client.world.OverworldState
 import de.fiereu.openmmo.client.world.WorldState
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
 import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import de.fiereu.openmmo.net.game.packets.trade.TradeStage
@@ -184,11 +187,27 @@ class StateJson(private val names: Names) {
       put("opponentName", b.opponentName)
       put("phase", b.phase.name)
       put("turn", b.turn)
+      put("activeSlot", b.activeSlot)
       put("me", b.me?.let { monJson(it, withMoves = true) } ?: JsonNull)
       put("foe", b.foe?.takeIf { it.revealed }?.let { monJson(it, withMoves = false) } ?: JsonNull)
       putJsonArray("party") { b.party.forEach { add(monJson(it, withMoves = false)) } }
       putJsonArray("log") { b.log.takeLast(BATTLE_LOG_LINES).forEach { add(it) } }
       put("result", b.result)
+      put("rules", b.rules?.let(::rulesJson) ?: JsonNull)
+      put(
+          "timer",
+          b.timer?.let { t ->
+            buildJsonObject {
+              put("id", t.id)
+              put("seconds", t.seconds)
+              put("mustAct", t.mustAct)
+              put("timeouts", t.timeouts)
+              put("rivalTimeouts", t.rivalTimeouts)
+              put("autoPicked", t.autoPicked)
+              put("maxTimeouts", DuelRules.MAX_TIMEOUTS)
+            }
+          } ?: JsonNull)
+      putJsonArray("fx") { b.fx.takeLast(BATTLE_FX).forEach { add(fxJson(it)) } }
       val learn = b.pendingLearn
       put(
           "learn",
@@ -198,6 +217,11 @@ class StateJson(private val names: Names) {
                 put("move", learn.second.firstOrNull()?.let(names::move))
                 val mon = b.party.firstOrNull { it.entityId == learn.first }
                 putJsonArray("current") { mon?.moves?.forEach { add(names.move(it.id)) } }
+                put("mon", mon?.let { names.species(it.species) })
+                learn.second.firstOrNull()?.let { id -> put("offer", moveInfo(id, null, null)) }
+                putJsonArray("moves") {
+                  mon?.moves?.forEach { add(moveInfo(it.id, it.pp, it.maxPp)) }
+                }
               })
     }
   }
@@ -215,6 +239,8 @@ class StateJson(private val names: Names) {
             put("name", names.move(it.id))
             put("pp", it.pp)
             put("maxPp", it.maxPp)
+            put("type", BattleNames.moveType(it.id))
+            put("power", BattleNames.power(it.id))
           }
         }
       }
@@ -222,7 +248,45 @@ class StateJson(private val names: Names) {
   }
 
   fun invite(b: BattleState): JsonElement =
-      b.pendingInviteFrom?.let { buildJsonObject { put("from", it) } } ?: JsonNull
+      b.pendingInviteFrom?.let {
+        buildJsonObject {
+          put("from", it)
+          put("rules", b.pendingInviteRules?.let(::rulesJson) ?: JsonNull)
+        }
+      } ?: JsonNull
+
+  private fun rulesJson(r: DuelRules) = buildJsonObject {
+    put("levelCap", r.levelCap)
+    put("party", r.maxParty)
+    put("timer", r.turnSeconds)
+  }
+
+  private fun moveInfo(id: Int, pp: Int?, maxPp: Int?) = buildJsonObject {
+    put("name", names.move(id))
+    put("type", BattleNames.moveType(id))
+    put("power", BattleNames.power(id))
+    put("accuracy", BattleNames.accuracy(id))
+    put("pp", pp ?: names.maxPp(id))
+    put("maxPp", maxPp ?: names.maxPp(id))
+  }
+
+  private fun fxJson(f: BattleFx): JsonElement = buildJsonObject {
+    put("n", f.seq)
+    put("k", f.kind)
+    f.side?.let { put("side", it) }
+    for ((k, v) in f.data) put(k, anyJson(v))
+  }
+
+  private fun anyJson(v: Any?): JsonElement =
+      when (v) {
+        null -> JsonNull
+        is Boolean -> JsonPrimitive(v)
+        is Number -> JsonPrimitive(v)
+        is String -> JsonPrimitive(v)
+        is Map<*, *> -> buildJsonObject { for ((k, x) in v) put(k.toString(), anyJson(x)) }
+        is List<*> -> buildJsonArray { v.forEach { add(anyJson(it)) } }
+        else -> JsonPrimitive(v.toString())
+      }
 
   /** A closed trade stays visible once with its reason; a closed trade with no reason is null. */
   fun trade(t: TradeStatePacket): JsonElement {
@@ -298,6 +362,7 @@ class StateJson(private val names: Names) {
   companion object {
     const val CHAT_LINES = 50
     const val BATTLE_LOG_LINES = 50
+    const val BATTLE_FX = 60
 
     fun dir(d: Direction): String =
         when (d) {

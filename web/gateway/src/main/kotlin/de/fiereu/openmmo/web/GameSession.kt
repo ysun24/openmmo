@@ -116,6 +116,12 @@ class GameSession(val client: GameClient) : GameActions {
     return null
   }
 
+  override fun duelRules(name: String, levelCap: Int, maxParty: Int, turnSeconds: Int): String? {
+    client.battle.challenge(
+        name, de.fiereu.openmmo.net.game.packets.battle.DuelRules(levelCap, maxParty, turnSeconds))
+    return null
+  }
+
   override fun duelAnswer(accept: Boolean) = client.battle.answerInvite(accept)
 
   override fun tradeRequest(name: String): String? {
