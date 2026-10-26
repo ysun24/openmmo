@@ -186,7 +186,14 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
               .login(cfg.loginHost, cfg.loginPort, user, pass)
         } catch (e: LoginException) {
           log.info { "login for '$user' refused: ${e.message}" }
-          return sendLoginFailure(e.message?.substringAfterLast(": ")?.trim() ?: "LOGIN_FAILED")
+          return sendLoginFailure(loginErrorCode(e.message))
+        } catch (e: java.util.concurrent.ExecutionException) {
+          val cause = e.cause
+          log.info { "login for '$user' failed: ${cause?.message}" }
+          return sendLoginFailure(
+              if (cause is LoginException) loginErrorCode(cause.message) else "LOGIN_FAILED")
+        } catch (e: java.util.concurrent.TimeoutException) {
+          return sendLoginFailure("LOGIN_TIMEOUT")
         } catch (e: Exception) {
           log.warn { "login server unreachable: ${e::class.simpleName}: ${e.message}" }
           return sendLoginFailure("LOGIN_SERVER_UNREACHABLE")
@@ -343,6 +350,13 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     const val FRAME_NANOS = FRAME_MS * 1_000_000
     const val LOGIN_ATTEMPTS = 5
     const val ENTER_TIMEOUT_MS = 20_000L
+
+    /** "login refused: INVALID_PASSWORD" -> INVALID_PASSWORD; prose -> NO_JOINABLE_GAME_SERVER. */
+    fun loginErrorCode(message: String?): String {
+      val tail = message?.substringAfterLast(": ")?.trim().orEmpty()
+      if (tail.isEmpty()) return "LOGIN_FAILED"
+      return tail.uppercase().replace(Regex("[^A-Z0-9]+"), "_").trim('_').take(48)
+    }
 
     fun stateMessage(seq: Int, sections: Map<String, JsonElement>) = buildJsonObject {
       put("t", "state")

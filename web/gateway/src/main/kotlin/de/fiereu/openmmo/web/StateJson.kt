@@ -265,7 +265,9 @@ class StateJson(private val names: Names) {
     val mineIds = m.mine.map { it.listingId }.toSet()
     val selfId = s.world.selfId
     return buildJsonObject {
-      put("money", m.money)
+      // The overworld's balance follows every money packet (trade, shop, market); the market's
+      // own copy only follows market replies, so prefer the former.
+      put("money", s.world.overworld?.money ?: m.money)
       putJsonArray("browse") {
         m.browse.forEach { add(entry(it, it.listingId in mineIds || it.sellerId == selfId)) }
       }
