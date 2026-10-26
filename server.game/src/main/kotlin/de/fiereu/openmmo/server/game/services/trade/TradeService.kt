@@ -313,32 +313,39 @@ constructor(
     return null
   }
 
-  private fun broadcast(trade: Trade, message: String = "") {
-    val snapshot =
-        synchronized(lock) { Triple(trade.open, trade.offers.toMap(), trade.stages.toMap()) }
-    val (open, offers, stages) = snapshot
-    for (charId in listOf(trade.initiator, trade.target)) {
-      val partner = trade.partnerOf(charId)
-      val phase =
-          when {
-            open -> TradePhase.OPEN
-            charId == trade.initiator -> TradePhase.REQUEST_SENT
-            else -> TradePhase.REQUEST_RECEIVED
-          }
-      sessions
-          .getByCharacterId(charId)
-          ?.send(
-              TradeStatePacket(
-                  phase = phase,
-                  partnerName = nameOf(partner),
-                  mine = view(charId, offers.getValue(charId)),
-                  theirs = view(partner, offers.getValue(partner)),
-                  myStage = stages.getValue(charId),
-                  theirStage = stages.getValue(partner),
-                  message = message,
-              ))
-    }
-  }
+  /**
+   * Snapshot and send under the same lock. Two changes broadcast from different threads would
+   * otherwise be able to reach a client in the opposite order, leaving it on the older state (seen
+   * as one side stuck on "partner not ready"). Netty preserves the order of writes queued from one
+   * thread at a time, so serialising the sends is enough.
+   */
+  private fun broadcast(trade: Trade, message: String = "") =
+      synchronized(lock) {
+        val open = trade.open
+        val offers = trade.offers.toMap()
+        val stages = trade.stages.toMap()
+        for (charId in listOf(trade.initiator, trade.target)) {
+          val partner = trade.partnerOf(charId)
+          val phase =
+              when {
+                open -> TradePhase.OPEN
+                charId == trade.initiator -> TradePhase.REQUEST_SENT
+                else -> TradePhase.REQUEST_RECEIVED
+              }
+          sessions
+              .getByCharacterId(charId)
+              ?.send(
+                  TradeStatePacket(
+                      phase = phase,
+                      partnerName = nameOf(partner),
+                      mine = view(charId, offers.getValue(charId)),
+                      theirs = view(partner, offers.getValue(partner)),
+                      myStage = stages.getValue(charId),
+                      theirStage = stages.getValue(partner),
+                      message = message,
+                  ))
+        }
+      }
 
   private fun view(owner: Long, offer: TradeOffer): TradeOfferView {
     val stored: StoredCharacter? = characterStore.getCharacter(owner)
