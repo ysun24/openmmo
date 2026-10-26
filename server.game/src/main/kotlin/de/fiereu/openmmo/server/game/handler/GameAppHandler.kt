@@ -55,6 +55,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleTeamPreviewConfirmPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleTierSelectPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleTransitionReadyPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleUseItemPacket
+import de.fiereu.openmmo.net.game.packets.battle.DuelRulesChallengePacket
 import de.fiereu.openmmo.net.game.packets.battle.moves.MoveLearnReplyPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionResponsePacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlConfirmPurchasePacket
@@ -191,6 +192,7 @@ constructor(
     on<BattleRewardSelectPacket> { event -> battleService.onBattlePacket(event) }
     onSuspend<MapLoadedAckPacket> { event -> battleService.onClientReady(event) }
     on<DuelChallengePacket> { event -> pvpBattleService.onDuelChallenge(event) }
+    on<DuelRulesChallengePacket> { event -> pvpBattleService.onRulesChallenge(event) }
     onSuspend<InGameChallengeResponsePacket> { event ->
       pvpBattleService.onChallengeResponse(event)
     }
