@@ -278,6 +278,41 @@ def fight_until_over(players, label, max_turns=60):
         p.wait(lambda q: q.state.get("battle") is None, 5, "battle closed")
 
 
+def warp(A, seq):
+    """Takes the house stairs once (2F <-> 1F); returns the last step seq."""
+    start_map = A.world["map"]
+    # The house's stairs (10,2) on both floors: stand beside them, then walk into them.
+    on_2f = start_map["name"].endswith("2F")
+    target, push = ((11, 2), "left") if on_2f else ((9, 2), "right")
+    blocked = None
+    pushing = False
+    for _ in range(60):
+        if A.world["map"] != start_map:
+            break
+        me = A.self_entity()
+        dx, dy = target[0] - me["x"], target[1] - me["y"]
+        pushing = pushing or (dx, dy) == (0, 0)
+        if pushing:
+            order = [push]
+        else:
+            order = ([("right" if dx > 0 else "left")] if dx else []) + \
+                    ([("down" if dy > 0 else "up")] if dy else [])
+            if blocked == order[0] and len(order) > 1:
+                order.reverse()
+        before = (me["x"], me["y"])
+        seq += 1
+        A.send(t="step", dir=order[0], run=False, seq=seq)
+        A.wait(lambda q: q.world.get("ackSeq", 0) >= seq, 5, "warp step ack")
+        time.sleep(0.35)
+        after = A.self_entity() or {}
+        blocked = order[0] if (after.get("x"), after.get("y")) == before else None
+    A.wait(lambda q: q.world["map"] != start_map and q.world["inWorld"], 10, "warp")
+    ok(f"{A.label} warped {start_map['name']} -> {A.world['map']['name']}")
+    time.sleep(0.5)
+    return seq
+
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ws", default="ws://127.0.0.1:8180/ws")
@@ -317,6 +352,8 @@ def main():
     B = Player(args.ws, nb)
     login(A, ua, pa, na)
     login(B, ub, pb, nb)
+    if A.world["map"] != B.world["map"]:
+        warp(A, 10_000)
     A.wait(lambda q: any(e["kind"] == "player" and e["name"] == nb for e in q.world["entities"]),
            5, "other player visible")
     ok(f"{na} sees {nb} as entity: "
@@ -326,7 +363,7 @@ def main():
 
     print("== walk")
     dirs = (["left", "left", "right", "right", "up", "down"] * 10)[: args.steps]
-    seq, lat = walk(A, 0, dirs)
+    seq, lat = walk(A, A.world.get("ackSeq") or 20_000, dirs)
     B.wait(lambda q: next((e for e in q.world["entities"] if e["name"] == na), None) is not None,
            5, "A on B's screen")
     ea = next(e for e in B.world["entities"] if e["name"] == na)
@@ -372,9 +409,14 @@ def main():
     fight_until_over([A, B], "duel")
 
     print("== trade")
+    m0 = A.state["ui"]["money"] or 0
     command(A, "/givemoney 5000")
+    A.wait(lambda q: q.state["ui"]["money"] == m0 + 5000, 5, "money after /givemoney")
+    q0 = next((i["qty"] for i in B.state["ui"]["bag"] if i["item"] == 5017), 0)
     command(B, "/giveitem 5017 3")
-    B.wait(lambda q: any(i["item"] == 5017 for i in q.state["ui"]["bag"]), 5, "potions in B's bag")
+    B.wait(lambda q: any(i["item"] == 5017 and i["qty"] == q0 + 3 for i in q.state["ui"]["bag"]),
+           5, "potions in B's bag")
+    a_pot0 = next((i["qty"] for i in A.state["ui"]["bag"] if i["item"] == 5017), 0)
     a_money0 = A.state["ui"]["money"]
     b_bag0 = {i["item"]: i["qty"] for i in B.state["ui"]["bag"]}
     A.send(t="trade.request", name=nb)
@@ -398,7 +440,7 @@ def main():
         p.wait(lambda q: (q.state.get("trade") or {}).get("phase") in ("COMPLETED", "CLOSED"),
                10, "trade done")
     A.wait(lambda q: q.state["ui"]["money"] == a_money0 - 700, 5, "A money after trade")
-    A.wait(lambda q: any(i["item"] == 5017 and i["qty"] >= 2 for i in q.state["ui"]["bag"]), 5,
+    A.wait(lambda q: any(i["item"] == 5017 and i["qty"] == a_pot0 + 2 for i in q.state["ui"]["bag"]), 5,
            "A got potions")
     ok(f"trade done: {A.state['trade']}; {na} money {a_money0} -> {A.state['ui']['money']}, "
        f"{na} bag {A.state['ui']['bag']}; {nb} bag before {b_bag0}")
@@ -422,6 +464,15 @@ def main():
            "listing gone from seller")
     ok(f"{nb} bought: log={B.state['market']['log'][-1]!r} money {b_money0} -> "
        f"{B.state['market']['money']}; {na} log={A.state['market']['log'][-1:]}")
+
+    print("== warp + npcs")
+    seq = warp(A, seq)
+    A.wait(lambda q: any(e["kind"] == "npc" for e in q.world["entities"]), 5, "npc on 1F")
+    npcs = [e for e in A.world["entities"] if e["kind"] == "npc"]
+    ok(f"{na} on {A.world['map']['name']}; npcs: "
+       f"{[(e['gfx'], e['x'], e['y'], e['facing']) for e in npcs]}")
+    seq = warp(A, seq)
+    ok(f"{na} back on {A.world['map']['name']}")
 
     print("== summary")
     print(f"   state messages: {na} {A.state_count}, {nb} {B.state_count}")

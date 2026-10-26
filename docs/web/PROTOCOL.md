@@ -43,6 +43,7 @@ web/
 | `battle.switch` | `slot` (party index 0-5) | |
 | `battle.run` / `battle.ball` | – | |
 | `battle.learn` | `slot` (0-3) or `null` to skip | |
+| `battle.close` | – | leaves the result screen of an ENDED battle (`a`, `b` and `step` do too) |
 | `duel` | `name` | BattleClient.challenge |
 | `duel.answer` | `accept` (bool) | |
 | `trade.request` | `name` | TradeClient |
@@ -62,6 +63,13 @@ Unknown or malformed messages get `{"t":"error","msg":...}`; they never close th
 ## 3. Gateway → browser
 
 - `{"t":"login","ok":true,"selfId":"<id>","name":"Ash"}` or `{"t":"login","ok":false,"error":"INVALID_PASSWORD"}`.
+  Error codes: the login server's state (`INVALID_PASSWORD`, `INVALID_USERNAME`, ...), or
+  `RATE_LIMITED`, `BAD_CREDENTIALS_FORMAT`, `BAD_CHARACTER`, `LOGIN_SERVER_UNREACHABLE`,
+  `LOGIN_TIMEOUT`, `GAME_SERVER_UNREACHABLE`, `ENTER_WORLD_TIMEOUT`, `NO_JOINABLE_GAME_SERVER`.
+  `name` is the character actually selected (an account's first character if none matches).
+- `{"t":"error","msg":"..."}` for refused actions too (e.g. `battle.fight` → `"not your turn"`).
+  If the game connection drops, the gateway sends `{"t":"error","msg":"game connection closed"}`
+  and closes the socket.
 - `{"t":"state","seq":N, ...sections}` — pushed whenever something changed, coalesced to at most
   one message per **33 ms**. Each section is included only if its JSON differs from the last one
   sent on this socket; a section that becomes empty is sent as `null`. The first message after
@@ -111,6 +119,17 @@ Unknown or malformed messages get `{"t":"error","msg":...}`; they never close th
   "log": ["BUY ok: Bought 2x Potion for 300."]
 }
 ```
+
+Gateway notes (implementation in `web/gateway`):
+- `ackSeq` is the last `step.seq` the gateway handed to its game client, acknowledged even when
+  the step was refused (dialog open, battle) — the position in the same message is then unchanged,
+  so the browser reconciles at once. A step the *server* rejects arrives later as a position reset.
+- `gfx` is `null` for players. Entities the server hid (scripted `visible=false`) are omitted.
+- `moving` is true for ~300 ms after an entity's tile changed.
+- `trade` with phase `CLOSED` is sent only when it carries a `message` (why it ended); it stays
+  until the next trade starts. `REQUEST_*`/`OPEN`/`COMPLETED` as in the table.
+- `battle` stays (phase `ENDED`, `result` set) until `battle.close`/`a`/`b`/`step`.
+- `market.money` and `ui.money` are the same balance.
 
 Entity ids are strings (they are 64-bit). Names come resolved from the gateway (codegen tables),
 so the browser needs no name tables.
