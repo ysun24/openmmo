@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
 import de.fiereu.openmmo.dialog.generated.kanto.CeladonCity_DepartmentStore_5F
+import de.fiereu.openmmo.dialog.generated.kanto.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -14,42 +16,27 @@ internal object CeladonCity_DepartmentStore_5F_EventScript_Sailor : Script {
       ctx.say(CeladonCity_DepartmentStore_5F.HereForStatEnhancers)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeladonCity_DepartmentStore_5F_XItems
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeladonCity_DepartmentStore_5F_EventScript_ClerkXItems : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_5F_EventScript_ClerkXItems")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(
+        Items.X_ATTACK,
+        Items.X_DEFEND,
+        Items.X_SPEED,
+        Items.X_SPECIAL,
+        Items.X_ACCURACY,
+        Items.GUARD_SPEC,
+        Items.DIRE_HIT)
+  }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeladonCity_DepartmentStore_5F_Vitamins
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeladonCity_DepartmentStore_5F_EventScript_ClerkVitamins : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_5F_EventScript_ClerkVitamins")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(Items.HP_UP, Items.PROTEIN, Items.IRON, Items.CALCIUM, Items.ZINC, Items.CARBOS)
+  }
 }
 
 internal object CeladonCity_DepartmentStore_5F_EventScript_FloorSign : Script {

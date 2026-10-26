@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
 import de.fiereu.openmmo.dialog.generated.kanto.CeladonCity_DepartmentStore_2F
+import de.fiereu.openmmo.dialog.generated.kanto.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -9,42 +11,29 @@ internal object CeladonCity_DepartmentStore_2F_EventScript_Lass : Script {
       ctx.say(CeladonCity_DepartmentStore_2F.BuyReviveForLongOutings)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeladonCity_DepartmentStore_2F_Items
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeladonCity_DepartmentStore_2F_EventScript_ClerkItems : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_2F_EventScript_ClerkItems")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(
+        Items.GREAT_BALL,
+        Items.SUPER_POTION,
+        Items.REVIVE,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.AWAKENING,
+        Items.BURN_HEAL,
+        Items.ICE_HEAL,
+        Items.SUPER_REPEL)
+  }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeladonCity_DepartmentStore_2F_TMs
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeladonCity_DepartmentStore_2F_EventScript_ClerkTMs : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_2F_EventScript_ClerkTMs")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(Items.TM05, Items.TM15, Items.TM28, Items.TM31, Items.TM43, Items.TM45)
+  }
 }
 
 /**

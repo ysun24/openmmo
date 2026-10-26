@@ -4,19 +4,11 @@ import de.fiereu.openmmo.dialog.generated.kanto.ThreeIsland_PokemonCenter_1F
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * call EventScript_PkmnCenterNurse
- * release
- * end
- * ```
- */
+/** The decomp's Pokemon Center nurse: heal the party. */
 internal object ThreeIsland_PokemonCenter_1F_EventScript_Nurse : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port ThreeIsland_PokemonCenter_1F_EventScript_Nurse")
+  override suspend fun run(ctx: ScriptContext) {
+    healAtKantoPokemonCenter(ctx)
+  }
 }
 
 internal object ThreeIsland_PokemonCenter_1F_EventScript_Rocker : Script {

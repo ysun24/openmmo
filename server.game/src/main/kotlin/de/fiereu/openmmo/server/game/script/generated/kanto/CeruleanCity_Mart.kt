@@ -1,25 +1,26 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
 import de.fiereu.openmmo.dialog.generated.kanto.CeruleanCity_Mart
+import de.fiereu.openmmo.dialog.generated.kanto.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeruleanCity_Mart_Items
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeruleanCity_Mart_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Mart_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(
+        Items.POKE_BALL,
+        Items.SUPER_POTION,
+        Items.POTION,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.AWAKENING,
+        Items.BURN_HEAL,
+        Items.ESCAPE_ROPE,
+        Items.REPEL)
+  }
 }
 
 internal object CeruleanCity_Mart_EventScript_Woman : Script {

@@ -1,24 +1,25 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.dialog.generated.hoenn.SlateportCity_Mart
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * pokemart SlateportCity_Mart_Pokemart
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object SlateportCity_Mart_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port SlateportCity_Mart_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.pokemart(
+        Items.POKE_BALL,
+        Items.GREAT_BALL,
+        Items.POTION,
+        Items.SUPER_POTION,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.ESCAPE_ROPE,
+        Items.REPEL)
+  }
 }
 
 internal object SlateportCity_Mart_EventScript_BlackBelt : Script {

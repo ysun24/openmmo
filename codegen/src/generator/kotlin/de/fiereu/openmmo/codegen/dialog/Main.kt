@@ -18,7 +18,9 @@ fun main(args: Array<String>) {
     val lines =
         DialogTable.read(tableFile)
             ?: error("no dialog table at $tableFile, refresh it with :codegen:refreshDialogTable")
-    println("[dialog] $region: ${lines.size} lines from $tableFile")
-    DialogRenderer(region, templatesDir, outputDir, classCacheDir).render(lines)
+    // Decomp lines the ROM refresh cannot place (no retail offset), with synthetic ids.
+    val extra = DialogTable.read(File(dataDir, "$region.extra.json")).orEmpty()
+    println("[dialog] $region: ${lines.size} lines from $tableFile, ${extra.size} extra")
+    DialogRenderer(region, templatesDir, outputDir, classCacheDir).render(lines + extra)
   }
 }

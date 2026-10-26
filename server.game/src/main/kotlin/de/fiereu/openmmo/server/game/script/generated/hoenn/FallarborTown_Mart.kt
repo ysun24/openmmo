@@ -1,24 +1,29 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.FallarborTown_Mart
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * pokemart FallarborTown_Mart_Pokemart
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object FallarborTown_Mart_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FallarborTown_Mart_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.pokemart(
+        Items.GREAT_BALL,
+        Items.SUPER_POTION,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.ESCAPE_ROPE,
+        Items.SUPER_REPEL,
+        Items.X_SPECIAL,
+        Items.X_SPEED,
+        Items.X_ATTACK,
+        Items.X_DEFEND,
+        Items.DIRE_HIT,
+        Items.GUARD_SPEC)
+  }
 }
 
 internal object FallarborTown_Mart_EventScript_Woman : Script {

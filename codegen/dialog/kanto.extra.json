@@ -1,0 +1,31 @@
+{
+  "region": "kanto",
+  "note": "Decomp-only lines (data/event_scripts.s) the ROM table has no offset for. Ids are synthetic: region nibble | 0x0F000000 | n, above any ROM offset, so they never collide with codegen/dialog/kanto.json.",
+  "lines": [
+    {
+      "label": "Text_WelcomeWantToHealPkmn",
+      "id": 251658241,
+      "text": "Welcome to our POKéMON CENTER!\\pWould you like me to heal your\\nPOKéMON back to perfect health?$"
+    },
+    {
+      "label": "Text_TakeYourPkmnForFewSeconds",
+      "id": 251658242,
+      "text": "Okay, I'll take your POKéMON for a\\nfew seconds.$"
+    },
+    {
+      "label": "Text_RestoredPkmnToFullHealth",
+      "id": 251658243,
+      "text": "Thank you for waiting.\\nWe've restored your POKéMON to\\lfull health.$"
+    },
+    {
+      "label": "Text_WeHopeToSeeYouAgain",
+      "id": 251658244,
+      "text": "We hope to see you again!$"
+    },
+    {
+      "label": "Text_PleaseComeAgain",
+      "id": 251658245,
+      "text": "Please come again!$"
+    }
+  ]
+}

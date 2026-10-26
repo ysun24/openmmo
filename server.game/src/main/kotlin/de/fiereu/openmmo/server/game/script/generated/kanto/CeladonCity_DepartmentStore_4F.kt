@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
 import de.fiereu.openmmo.dialog.generated.kanto.CeladonCity_DepartmentStore_4F
+import de.fiereu.openmmo.dialog.generated.kanto.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -14,23 +16,13 @@ internal object CeladonCity_DepartmentStore_4F_EventScript_Youngster : Script {
       ctx.say(CeladonCity_DepartmentStore_4F.CanRunAwayWithPokeDoll)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_questlog EventScript_ReleaseEnd
- * lock
- * faceplayer
- * message Text_MayIHelpYou
- * waitmessage
- * pokemart CeladonCity_DepartmentStore_4F_Items
- * msgbox Text_PleaseComeAgain
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object CeladonCity_DepartmentStore_4F_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_4F_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.Text_MayIHelpYou)
+    ctx.pokemart(
+        Items.POKE_DOLL, Items.FIRE_STONE, Items.THUNDERSTONE, Items.WATER_STONE, Items.LEAF_STONE)
+  }
 }
 
 internal object CeladonCity_DepartmentStore_4F_EventScript_FloorSign : Script {
