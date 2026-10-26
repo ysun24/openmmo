@@ -56,7 +56,8 @@ fun runBattleCommand(game: GameClient, cmd: String): Boolean {
     }
     "auto" -> autoFight(game, arg?.toIntOrNull() ?: 100)
     "learn" -> report(b.learn((arg?.toIntOrNull() ?: 1) - 1))
-    "skip" -> report(b.learn(null))
+    // `skip N` (with a duration) is the dialog skipper in ScriptCommands.
+    "skip" -> if (arg == null) report(b.learn(null)) else return false
     "duel" -> b.challenge(arg ?: return true.also { println("battle: duel needs a name") })
     "accept" -> {
       waitFor(30) { it.pendingInviteFrom != null }
