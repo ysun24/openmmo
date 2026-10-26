@@ -399,6 +399,11 @@ class OverworldClient(
     onChange()
   }
 
+  /** Stops the scripted-movement timer; for embedders that run many clients in one process. */
+  fun shutdown() {
+    timer.shutdownNow()
+  }
+
   private companion object {
     const val YES_NO = 0x05
     const val PICK = 0x23

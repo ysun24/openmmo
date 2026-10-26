@@ -26,3 +26,7 @@ include(":codegen")
 include(":client")
 include(":web.assets")
 project(":web.assets").projectDir = file("web/assets-export")
+
+include(":web.gateway")
+
+project(":web.gateway").projectDir = file("web/gateway")
