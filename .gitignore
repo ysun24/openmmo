@@ -51,3 +51,7 @@ web/static/assets/
 web/static/dev/
 
 __pycache__/
+# web dev tooling
+web/dev/node_modules/
+web/dev/placeholder-assets/
+web/static/assets
