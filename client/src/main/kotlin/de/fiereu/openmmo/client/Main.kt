@@ -49,6 +49,8 @@ fun main(args: Array<String>) {
     waitUntil(20_000) { game.world.snapshot().inWorld }
     printStatus(game)
     val renderer = WorldRenderer(File(opts["decomp"] ?: "decomp"))
+    game.overworld.dataRoot = File(opts["decomp"] ?: "decomp")
+    ScriptCommands.renderer = renderer
 
     if (opts["gui"] == "true") {
       GameWindow(game, renderer).show()
@@ -98,6 +100,7 @@ private fun run(game: GameClient, cmd: String) {
     cmd.startsWith("say ") -> game.say(cmd.removePrefix("say "))
     cmd == "who" -> printStatus(game)
     cmd.isEmpty() -> {}
+    ScriptCommands.run(game, cmd) -> {}
     else -> println("unknown command: $cmd")
   }
 }
@@ -110,7 +113,10 @@ private fun printStatus(game: GameClient) {
           "pos=${self?.let { "(${it.x},${it.y}) ${it.facing}" }} inWorld=${s.inWorld}")
   s.entities.values
       .filter { it.id != s.selfId }
-      .forEach { println("  other: ${it.name} at (${it.x},${it.y}) ${it.facing}") }
+      .forEach {
+        val who = if (it.isPlayer) it.name else "npc gfx=${it.graphicsId}"
+        println("  other: $who at ${it.map.bankId}:${it.map.mapId} (${it.x},${it.y}) ${it.facing}")
+      }
   s.chat.takeLast(5).forEach { println("  chat ${it.sender}: ${it.message}") }
 }
 

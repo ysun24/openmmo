@@ -63,6 +63,9 @@ class GameClient(
 ) {
   val world = WorldState()
 
+  /** Npcs, dialog, shop and scripted movement. */
+  val overworld = OverworldClient(world, { session?.send(it) }, onChange)
+
   @Volatile private var session: SessionContext? = null
   private var channel: Channel? = null
 
@@ -99,9 +102,28 @@ class GameClient(
     val self = snap.self ?: return false
     if (!snap.inWorld) return false
     val s = session ?: return false
+    val ui = snap.overworld
+    if (ui != null && (ui.dialog != null || ui.shop != null || ui.transitioning || ui.scriptLocked || ui.inScript)) {
+      return false
+    }
     s.send(MovementPacket(self.x, self.y, direction, running))
     // Predict the step so the UI moves at once; a reset from the server corrects it.
-    world.move(self.id, self.x + direction.dx, self.y + direction.dy, direction)
+    val tx = self.x + direction.dx
+    val ty = self.y + direction.dy
+    val key = snap.map
+    val crossing =
+        if (key != null && (tx !in 0 until snap.mapWidth || ty !in 0 until snap.mapHeight))
+            MapConnections.cross(world.overworld, key, direction, tx, ty)
+        else null
+    if (crossing != null) {
+      // Walking off the edge onto a connected map: the server moves us without a reload.
+      val (target, nx, ny) = crossing
+      log.info { "Crossing into map ${target.key.regionId}:${target.key.bankId}:${target.key.mapId} at ($nx, $ny)" }
+      world.switchMap(target.key, target.width, target.height)
+      world.relocate(self.id, target.key, nx, ny, direction)
+    } else {
+      world.move(self.id, tx, ty, direction)
+    }
     onChange()
     return true
   }
@@ -164,8 +186,10 @@ class GameClient(
 
       on<LoadMapPacket> { event ->
         val p = event.packet
-        // Connected maps are preloaded with reloadPlayer=false; only the reload is where we are.
-        if (!p.reloadPlayer) return@on
+        MapConnections.remember(world.overworld, p)
+        // Connected maps are preloaded after it (a warp preloads them with reloadPlayer=true as
+        // well); only the one that also clears the cache is where the player is.
+        if (!p.reloadPlayer || !p.deleteCache) return@on
         val data = p.mapData
         val (w, h) = if (data is MapData.GbaMapData) data.width to data.height else 0 to 0
         log.info { "Entering map ${p.regionId}:${p.bankId}:${p.mapId} (${w}x$h)" }
@@ -194,7 +218,17 @@ class GameClient(
 
       on<GbaEntityMovePacket> { event ->
         val p = event.packet
-        world.move(p.entityId, p.x, p.y, p.direction)
+        log.debug { "move ${p.entityId} -> ${p.bankId}:${p.mapId} (${p.x},${p.y}) ${p.direction}" }
+        val current = world.snapshot().entities[p.entityId]?.map
+        if (current != null && (current.bankId != p.bankId || current.mapId != p.mapId)) {
+          world.relocate(p.entityId, MapKey(current.regionId, p.bankId, p.mapId), p.x, p.y, p.direction)
+          if (p.entityId == world.snapshot().selfId) {
+            val key = MapKey(current.regionId, p.bankId, p.mapId)
+            world.overworld.knownMap(key)?.let { world.switchMap(key, it.width, it.height) }
+          }
+        } else if (!(p.entityId == world.snapshot().selfId && overworld.selfBusy())) {
+          world.move(p.entityId, p.x, p.y, p.direction)
+        }
         onChange()
       }
       on<EntityMovePacket> { event ->
@@ -237,6 +271,7 @@ class GameClient(
 
     /** Packets this client does not model yet are expected, not errors. */
     override fun onUnhandled(event: PacketEvent<*>) {
+      if (overworld.handle(event)) return
       log.debug { "ignored ${event.packet::class.simpleName}" }
     }
 
