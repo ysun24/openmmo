@@ -5,6 +5,8 @@ import de.fiereu.openmmo.client.gfx.PretData
 import de.fiereu.openmmo.client.net.BattleNames
 import de.fiereu.openmmo.client.world.MapKey
 import de.fiereu.openmmo.common.Pokemon
+import de.fiereu.openmmo.common.enums.Ability
+import de.fiereu.openmmo.common.enums.PokemonStat
 import de.fiereu.openmmo.items.ItemRegistry
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import java.io.File
@@ -27,7 +29,26 @@ interface Names {
 
   /** Party records carry no max hp; it is the gen 3 formula over the species' base hp. */
   fun maxHp(mon: Pokemon): Int
+
+  /** Pocket, description, price and field use of an item, when known. */
+  fun itemInfo(id: Int): ItemInfo? = null
+
+  /** Who speaks through an npc with graphics [gfx] in [region]: named characters only. */
+  fun speaker(region: Int, gfx: Int): String? = null
+
+  /** Stats, nature, ability and types for the party summary. */
+  fun summary(mon: Pokemon): MonSummary? = null
+
+  /** Whether the map has the PC: any map with a Pokemon Center nurse, as the server decides. */
+  fun hasPc(key: MapKey): Boolean = false
 }
+
+data class MonSummary(
+    val stats: Map<String, Int>,
+    val nature: String,
+    val ability: String,
+    val types: List<String>,
+)
 
 /**
  * The tables the desktop client names things with: the codegen species/move/item registries, the
@@ -43,6 +64,9 @@ class CodegenNames(private val decomp: File) : Names {
     else Json.parseToJsonElement(f.readText()).jsonArray.map { it.jsonPrimitive.content }
   }
   private val pret = ConcurrentHashMap<GbaGame, PretData>()
+  private val items by lazy { ItemCatalog(decomp) }
+  private val maps by lazy { de.fiereu.openmmo.maps.MapManager() }
+  private val gfxNames = ConcurrentHashMap<Int, Map<Int, String>>()
   private val mapNames = ConcurrentHashMap<MapKey, String>()
 
   override fun species(dex: Int): String = BattleNames.species(dex)
@@ -78,7 +102,112 @@ class CodegenNames(private val decomp: File) : Names {
     return (2 * base + mon.iVs.hp + mon.eVs.hp / 4) * level / 100 + level + 10
   }
 
+  override fun itemInfo(id: Int): ItemInfo? = items.info(id)
+
+  override fun hasPc(key: MapKey): Boolean =
+      maps.getMap(key.regionId, key.bankId, key.mapId)?.npcs?.any {
+        it.script.endsWith("_EventScript_Nurse")
+      } ?: false
+
+  override fun speaker(region: Int, gfx: Int): String? {
+    val names =
+        gfxNames.computeIfAbsent(region) {
+          val game = if (region == 0) "pokefirered" else "pokeemerald"
+          val f = File(decomp, "$game/include/constants/event_objects.h")
+          if (!f.isFile) return@computeIfAbsent emptyMap()
+          Regex("""#define OBJ_EVENT_GFX_(\w+)\s+(\d+)""").findAll(f.readText()).associate {
+            it.groupValues[2].toInt() to it.groupValues[1]
+          }
+        }
+    val token = names[gfx] ?: return null
+    SPEAKERS[token]?.let {
+      return it
+    }
+    // Rival sprites carry a suffix per pose (RIVAL_MAY_NORMAL, RIVAL_BRENDAN_MACH_BIKE...).
+    return SPEAKERS.entries.firstOrNull { token.startsWith(it.key + "_") }?.value
+  }
+
+  override fun summary(mon: Pokemon): MonSummary? {
+    val sp = speciesRegistry.get(mon.dexId) ?: return null
+    val level = mon.level.toInt()
+    val nature = mon.nature
+    fun stat(base: Int, iv: Int, ev: Int, which: PokemonStat): Int {
+      val raw = (2 * base + iv + ev / 4) * level / 100 + 5
+      return when {
+        nature.increasedStat == nature.decreasedStat -> raw
+        nature.increasedStat == which -> raw * 110 / 100
+        nature.decreasedStat == which -> raw * 90 / 100
+        else -> raw
+      }
+    }
+    val iv = mon.iVs
+    val ev = mon.eVs
+    // Gen 3: the personality's lowest bit picks the second ability, when the species has one.
+    val ability =
+        if ((mon.seed and 1) == 1 && sp.ability2 != Ability.NONE) sp.ability2 else sp.ability1
+    return MonSummary(
+        stats =
+            linkedMapOf(
+                "hp" to maxHp(mon),
+                "atk" to stat(sp.baseAttack, iv.atk, ev.atk, PokemonStat.ATTACK),
+                "def" to stat(sp.baseDefense, iv.def, ev.def, PokemonStat.DEFENSE),
+                "spa" to stat(sp.baseSpAttack, iv.spAtk, ev.spAtk, PokemonStat.SP_ATTACK),
+                "spd" to stat(sp.baseSpDefense, iv.spDef, ev.spDef, PokemonStat.SP_DEFENSE),
+                "spe" to stat(sp.baseSpeed, iv.spd, ev.spd, PokemonStat.SPEED),
+            ),
+        nature = nature.name,
+        ability = ability.name.replace('_', ' '),
+        types = sp.types.map { it.name }.distinct(),
+    )
+  }
+
   private companion object {
     const val ITEM_REGION_BLOCK = 5000
+
+    /** OBJ_EVENT_GFX_* tokens of characters with a name, across both games. */
+    val SPEAKERS =
+        mapOf(
+            "PROF_OAK" to "PROF. OAK",
+            "PROF_BIRCH" to "PROF. BIRCH",
+            "MOM" to "MOM",
+            "NURSE" to "NURSE",
+            "CLERK" to "CLERK",
+            "MART_EMPLOYEE" to "CLERK",
+            "BLUE" to "GREEN",
+            "BILL" to "BILL",
+            "RIVAL_MAY" to "MAY",
+            "RIVAL_BRENDAN" to "BRENDAN",
+            "BROCK" to "BROCK",
+            "MISTY" to "MISTY",
+            "LT_SURGE" to "LT. SURGE",
+            "ERIKA" to "ERIKA",
+            "KOGA" to "KOGA",
+            "SABRINA" to "SABRINA",
+            "BLAINE" to "BLAINE",
+            "GIOVANNI" to "GIOVANNI",
+            "LORELEI" to "LORELEI",
+            "BRUNO" to "BRUNO",
+            "AGATHA" to "AGATHA",
+            "LANCE" to "LANCE",
+            "NORMAN" to "NORMAN",
+            "ROXANNE" to "ROXANNE",
+            "BRAWLY" to "BRAWLY",
+            "WATTSON" to "WATTSON",
+            "FLANNERY" to "FLANNERY",
+            "WINONA" to "WINONA",
+            "TATE" to "TATE",
+            "LIZA" to "LIZA",
+            "JUAN" to "JUAN",
+            "WALLACE" to "WALLACE",
+            "STEVEN" to "STEVEN",
+            "WALLY" to "WALLY",
+            "SIDNEY" to "SIDNEY",
+            "PHOEBE" to "PHOEBE",
+            "GLACIA" to "GLACIA",
+            "DRAKE" to "DRAKE",
+            "MR_BRINEY" to "MR. BRINEY",
+            "ARCHIE" to "ARCHIE",
+            "MAXIE" to "MAXIE",
+        )
   }
 }

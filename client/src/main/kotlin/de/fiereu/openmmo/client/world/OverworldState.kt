@@ -60,7 +60,11 @@ class OverworldState {
       /** A server script owns the player: from its first box until the dialog is closed. */
       val inScript: Boolean,
       val knownMaps: Map<MapKey, KnownMap>,
+      /** The last server notice (an item used, a refusal), numbered so a repeat still shows. */
+      val notice: Notice? = null,
   )
+
+  data class Notice(val seq: Int, val text: String)
 
   private val lock = Any()
   private var dialog: DialogView? = null
@@ -71,6 +75,7 @@ class OverworldState {
   private var scriptLocked = false
   private var inScript = false
   private val knownMaps = mutableMapOf<MapKey, KnownMap>()
+  private var notice: Notice? = null
 
   fun view(): View =
       synchronized(lock) {
@@ -82,7 +87,8 @@ class OverworldState {
             transitioning,
             scriptLocked,
             inScript,
-            knownMaps.toMap())
+            knownMaps.toMap(),
+            notice)
       }
 
   fun rememberMap(map: KnownMap) = synchronized(lock) { knownMaps[map.key] = map }
@@ -107,6 +113,8 @@ class OverworldState {
 
   fun setStack(itemId: Int, quantity: Int) =
       synchronized(lock) { if (quantity > 0) bag[itemId] = quantity else bag.remove(itemId) }
+
+  fun setNotice(text: String) = synchronized(lock) { notice = Notice((notice?.seq ?: 0) + 1, text) }
 
   fun setTransitioning(value: Boolean) = synchronized(lock) { transitioning = value }
 

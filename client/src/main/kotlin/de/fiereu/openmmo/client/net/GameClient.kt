@@ -297,7 +297,10 @@ class GameClient(
         val sender = p.sender?.takeIf { it.isNotEmpty() } ?: "*"
         log.info { "[chat] $sender: ${p.message}" }
         world.addChat(ChatLine(sender, p.message))
-        if (p.sender.isNullOrEmpty()) battle.notice(p.message)
+        if (p.sender.isNullOrEmpty()) {
+          battle.notice(p.message)
+          world.overworld.setNotice(p.message)
+        }
         onChange()
       }
 

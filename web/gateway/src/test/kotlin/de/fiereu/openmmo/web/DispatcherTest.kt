@@ -72,6 +72,12 @@ class DispatcherTest {
             """{"t":"shop.buy","item":5017,"qty":2}""" to ("shopBuy" to listOf(5017, 2)),
             """{"t":"shop.sell","item":5017,"qty":1}""" to ("shopSell" to listOf(5017, 1)),
             """{"t":"shop.close"}""" to ("shopClose" to emptyList()),
+            """{"t":"item.use","item":5017,"mon":"2412313315698249729"}""" to
+                ("itemUse" to listOf<Any?>(5017, 2412313315698249729L)),
+            """{"t":"item.use","item":5079}""" to ("itemUse" to listOf(5079, null)),
+            """{"t":"party.move","from":0,"to":2}""" to ("partyMove" to listOf(0, 2)),
+            """{"t":"pc.deposit","slot":1}""" to ("pcDeposit" to listOf(1)),
+            """{"t":"pc.withdraw","slot":37}""" to ("pcWithdraw" to listOf(37)),
             """{"t":"battle.switch","slot":2}""" to ("battleSwitch" to listOf(2)),
             """{"t":"battle.run"}""" to ("battleRun" to emptyList()),
             """{"t":"battle.ball"}""" to ("battleBall" to emptyList()),
