@@ -233,6 +233,9 @@ class StateJson(private val names: Names) {
     put("hp", m.hp.coerceAtLeast(0))
     put("maxHp", m.maxHp)
     if (withMoves) {
+      BattleNames.expFraction(m.species, m.level, m.xp)?.let {
+        put("exp", Math.round(it * 1000) / 1000.0)
+      }
       putJsonArray("moves") {
         m.moves.forEach {
           addJsonObject {

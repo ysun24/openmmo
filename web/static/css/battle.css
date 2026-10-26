@@ -1,0 +1,93 @@
+/* Battle presentation (web/static/js/ui/battle.js). Loaded after main.css and overrides its battle
+   rules where they differ. Everything animated moves by transform/opacity only, so it stays on the
+   compositor and runs at display rate on phones. Sizes are GBA pixels via var(--u). */
+
+#battle { overflow: hidden; }
+#battle .plat { will-change: transform; }
+
+/* monster sprites: a positioned wrapper (animated) holding a clip box (faint slides out of it) */
+#battle .monwrap { position: absolute; width: calc(var(--u) * 64); height: calc(var(--u) * 64); will-change: transform, opacity; }
+#battle .monwrap.foe { left: calc(var(--u) * 148); top: calc(var(--u) * 4); }
+#battle .monwrap.me { left: calc(var(--u) * 32); top: calc(var(--u) * 48); }
+#battle .monclip { position: absolute; inset: 0; overflow: hidden; }
+#battle .monclip > * { width: calc(var(--u) * 64); height: calc(var(--u) * 64); display: block; }
+#battle .monclip .sprite { image-rendering: pixelated; object-fit: contain; }
+#battle .monclip .ph { border-radius: 50%; display: grid; place-items: center; background: #c8a0e0; font-size: calc(var(--u) * 10); }
+#battle .monwrap .flash, #battle .monwrap .statfx {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen; border-radius: 30%;
+}
+#battle .monwrap .statfx.up { background: repeating-linear-gradient(0deg, #f86868 0 calc(var(--u) * 3), transparent calc(var(--u) * 3) calc(var(--u) * 8)); }
+#battle .monwrap .statfx.down { background: repeating-linear-gradient(0deg, #6898f8 0 calc(var(--u) * 3), transparent calc(var(--u) * 3) calc(var(--u) * 8)); }
+
+/* effect layer: balls, particles, rings */
+#battle .fxlayer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#battle .particle { position: absolute; border-radius: 50%; will-change: transform, opacity; }
+#battle .ring {
+  position: absolute; width: calc(var(--u) * 32); height: calc(var(--u) * 32); border-radius: 50%;
+  border: calc(var(--u) * 2) solid #fff; will-change: transform, opacity;
+}
+#battle .ball {
+  position: absolute; width: calc(var(--u) * 12); height: calc(var(--u) * 12); border-radius: 50%;
+  border: calc(var(--u) * 1) solid #202020; will-change: transform;
+  background: linear-gradient(#f04030 0 44%, #202020 44% 56%, #f8f8f8 56% 100%);
+  transform-origin: 50% 90%;
+}
+#battle .ball::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: calc(var(--u) * 4); height: calc(var(--u) * 4);
+  margin: calc(var(--u) * -2) 0 0 calc(var(--u) * -2); border-radius: 50%; background: #f8f8f8; border: calc(var(--u) * 1) solid #202020; box-sizing: border-box;
+}
+#battle .ball.caught { filter: brightness(0.7); }
+
+/* info boxes */
+#battle .info { will-change: transform; transition: opacity .2s; }
+#battle .info.gone { opacity: 0; }
+#battle .info .hpbar i { width: 100%; transform-origin: 0 50%; transition: none; will-change: transform; }
+#battle .info.me { top: calc(var(--u) * 64); padding-top: calc(var(--u) * 2); padding-bottom: calc(var(--u) * 1.5); }
+#battle .info.me .hpnum { line-height: calc(var(--u) * 8); }
+#battle .expbar { display: flex; align-items: center; gap: calc(var(--u) * 2); font-size: calc(var(--u) * 5); margin-top: calc(var(--u) * 1); }
+#battle .exptrack { flex: 1; height: calc(var(--u) * 2.5); background: #506058; border-radius: calc(var(--u) * 1); overflow: hidden; }
+#battle .exptrack i { display: block; width: 100%; height: 100%; background: #48a8f8; transform: scaleX(0); transform-origin: 0 50%; will-change: transform; }
+
+/* text box during playback */
+#battle .text { position: relative; }
+#battle .text .line { padding-right: calc(var(--u) * 12); }
+#battle .text button.adv {
+  position: absolute; right: calc(var(--u) * 3); bottom: calc(var(--u) * 2); width: calc(var(--u) * 10); height: calc(var(--u) * 10);
+  padding: 0; background: transparent; color: #f86040; font-size: calc(var(--u) * 7); line-height: 1; animation: bob .6s infinite alternate;
+}
+#battle .text button.adv.nav-focus { outline: none; }
+
+/* turn / rules / clock badge */
+#battle .bbadge {
+  position: absolute; left: 50%; transform: translateX(-50%); top: calc(var(--u) * 1); display: flex; gap: calc(var(--u) * 3);
+  padding: calc(var(--u) * .5) calc(var(--u) * 4); background: #283850d8; color: #fff; border-radius: calc(var(--u) * 3);
+  font-size: calc(var(--u) * 5.5); line-height: calc(var(--u) * 8); white-space: nowrap; pointer-events: none;
+}
+#battle .bbadge .warn { color: #f8c030; }
+#battle .bbadge .clock.low { color: #ff6050; animation: bob .5s infinite alternate; }
+
+/* fight menu + learn menu */
+#battle .tchip {
+  display: inline-block; padding: 0 calc(var(--u) * 2); border-radius: calc(var(--u) * 2); color: #fff; font-size: calc(var(--u) * 5.5);
+  line-height: calc(var(--u) * 8); text-shadow: 0 calc(var(--u) * .5) 0 #0006; text-align: center; min-width: calc(var(--u) * 16);
+}
+#battle .sheet.learn button.mvrow, #battle .sheet.learn .newmove {
+  grid-template-columns: 1fr calc(var(--u) * 20) calc(var(--u) * 28) calc(var(--u) * 30); display: grid; align-items: center;
+  gap: calc(var(--u) * 2); min-height: calc(var(--u) * 13); width: 100%; font-size: calc(var(--u) * 7.5);
+}
+#battle .sheet.learn .newmove { padding: 0 calc(var(--u) * 2) 0 calc(var(--u) * 10); position: relative; background: #fff4c0; border-radius: calc(var(--u) * 2); }
+#battle .sheet.learn .newmove .tag { position: absolute; left: calc(var(--u) * 1); font-size: calc(var(--u) * 4.5); color: #e04030; }
+#battle .sheet.learn .mvstat { font-size: calc(var(--u) * 6); color: #506070; text-align: right; }
+#battle .sheet.learn button.skip { grid-template-columns: 1fr; color: #a03030; }
+#battle .sheet .confirm { display: flex; gap: calc(var(--u) * 6); justify-content: center; margin-top: calc(var(--u) * 6); }
+#battle .sheet .confirm button { display: block; width: calc(var(--u) * 50); grid-template-columns: none; text-align: center; padding: 0; }
+#battle .info.lvup { background: #fff8c8; }
+
+/* duel challenge dialog */
+.panel .rulegroup { display: grid; gap: 4px; margin-bottom: 8px; }
+.panel .rulegroup .rulelabel { font-size: 13px; color: var(--muted); }
+.panel .rulegroup button.go { background: var(--accent) !important; color: #222; border-color: var(--accent) !important; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  #battle .text button.adv, #battle .bbadge .clock.low { animation: none; }
+}
