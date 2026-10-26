@@ -1,0 +1,257 @@
+package de.fiereu.openmmo.client.net
+
+import de.fiereu.network.PacketEvent
+import de.fiereu.network.PipelineOptions
+import de.fiereu.network.SessionContext
+import de.fiereu.network.SessionIdentity
+import de.fiereu.network.SessionPhase
+import de.fiereu.network.Side
+import de.fiereu.network.TypedProtocolHandler
+import de.fiereu.network.installNetwork
+import de.fiereu.openmmo.client.world.ChatLine
+import de.fiereu.openmmo.client.world.Entity
+import de.fiereu.openmmo.client.world.MapKey
+import de.fiereu.openmmo.client.world.WorldState
+import de.fiereu.openmmo.common.enums.Arch
+import de.fiereu.openmmo.common.enums.Bitness
+import de.fiereu.openmmo.common.enums.ChatType
+import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.common.enums.Language
+import de.fiereu.openmmo.common.enums.Platform
+import de.fiereu.openmmo.net.game.codecs.SkinSet
+import de.fiereu.openmmo.net.game.packets.CharactersListPacket
+import de.fiereu.openmmo.net.game.packets.ChatMessagePacket
+import de.fiereu.openmmo.net.game.packets.CreateCharacterPacket
+import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
+import de.fiereu.openmmo.net.game.packets.EntityMovePacket
+import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
+import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
+import de.fiereu.openmmo.net.game.packets.JoinPacket
+import de.fiereu.openmmo.net.game.packets.JoinResponsePacket
+import de.fiereu.openmmo.net.game.packets.KeepAlivePacket
+import de.fiereu.openmmo.net.game.packets.LoadEntityPacket
+import de.fiereu.openmmo.net.game.packets.LoadMapPacket
+import de.fiereu.openmmo.net.game.packets.MapData
+import de.fiereu.openmmo.net.game.packets.MovementPacket
+import de.fiereu.openmmo.net.game.packets.NewAuthData
+import de.fiereu.openmmo.net.game.packets.RequestCharactersPacket
+import de.fiereu.openmmo.net.game.packets.RequestPlayerPacket
+import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.netty.bootstrap.Bootstrap
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOption
+import io.netty.channel.EventLoopGroup
+import io.netty.channel.socket.nio.NioSocketChannel
+import java.security.interfaces.ECPublicKey
+
+private val log = KotlinLogging.logger {}
+
+/** What a new character is created with when the account has none. */
+data class NewCharacter(val name: String, val gender: Byte = 0, val startingRegion: Byte = 0)
+
+/**
+ * The game server connection. Owns a [WorldState] the UI reads, and exposes the few actions a
+ * player can take. All packet handling runs on the netty event loop.
+ */
+class GameClient(
+    private val group: EventLoopGroup,
+    private val rootPublic: ECPublicKey,
+    private val newCharacter: NewCharacter,
+    private val onChange: () -> Unit = {},
+) {
+  val world = WorldState()
+
+  @Volatile private var session: SessionContext? = null
+  private var channel: Channel? = null
+
+  fun connect(ticket: GameTicket) {
+    val handler = Handler(ticket)
+    channel =
+        Bootstrap()
+            .group(group)
+            .channel(NioSocketChannel::class.java)
+            .option(ChannelOption.TCP_NODELAY, true)
+            .installNetwork(
+                identity = SessionIdentity.ClientTrust(rootPublic),
+                applicationProtocol = ClientGameProtocol,
+                applicationHandlerFactory = { handler },
+                options = PipelineOptions(),
+            )
+            .connect(ticket.host, ticket.port)
+            .sync()
+            .channel()
+  }
+
+  fun closeFuture() = channel?.closeFuture()
+
+  fun disconnect() {
+    channel?.close()
+  }
+
+  /**
+   * One step. The server takes the tile the step starts on and the direction, checks it against its
+   * own collision and answers a blocked step with a position reset.
+   */
+  fun step(direction: Direction, running: Boolean = false): Boolean {
+    val snap = world.snapshot()
+    val self = snap.self ?: return false
+    if (!snap.inWorld) return false
+    val s = session ?: return false
+    s.send(MovementPacket(self.x, self.y, direction, running))
+    // Predict the step so the UI moves at once; a reset from the server corrects it.
+    world.move(self.id, self.x + direction.dx, self.y + direction.dy, direction)
+    onChange()
+    return true
+  }
+
+  fun face(direction: Direction) {
+    val self = world.snapshot().self ?: return
+    session?.send(FaceDirectionPacket(direction))
+    world.move(self.id, self.x, self.y, direction)
+    onChange()
+  }
+
+  fun say(text: String) {
+    session?.send(ChatMessagePacket(ChatType.NORMAL, Language.EN, text, ""))
+  }
+
+  private inner class Handler(private val ticket: GameTicket) :
+      TypedProtocolHandler<ClientGameProtocol>(ClientGameProtocol, Side.CLIENT) {
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+      super.handlerAdded(ctx)
+      session.onPhase(SessionPhase.ESTABLISHED) {
+        this@GameClient.session = session
+        sendJoin()
+      }
+    }
+
+    private fun sendJoin() {
+      log.info { "Joining game server as user ${ticket.data.userId}" }
+      session.send(
+          JoinPacket(
+              authData = NewAuthData(ticket.data.userId, ticket.data.sessionToken),
+              mac = ByteArray(6),
+              clientRevision = 0,
+              installationRevision = 0,
+              currentChatLanguage = 0,
+              chatLanguages = 1,
+              matchmakingLanguages = 1,
+              romMask = 0,
+              roms = emptyList(),
+              clientInfo = emptyMap(),
+              platform = Platform.LINUX,
+              arch = Arch.X86,
+              bitness = Bitness._64,
+              unk1 = ByteArray(0),
+              unk2 = ByteArray(32),
+          ))
+    }
+
+    init {
+      on<JoinResponsePacket> { event ->
+        if (!event.packet.canJoin) {
+          log.error { "Game server refused the join" }
+          event.session.close { "join refused" }
+          return@on
+        }
+        event.session.send(RequestCharactersPacket())
+      }
+
+      on<CharactersListPacket> { event -> onCharacters(event) }
+
+      on<LoadMapPacket> { event ->
+        val p = event.packet
+        // Connected maps are preloaded with reloadPlayer=false; only the reload is where we are.
+        if (!p.reloadPlayer) return@on
+        val data = p.mapData
+        val (w, h) = if (data is MapData.GbaMapData) data.width to data.height else 0 to 0
+        log.info { "Entering map ${p.regionId}:${p.bankId}:${p.mapId} (${w}x$h)" }
+        world.enterMap(MapKey(p.regionId, p.bankId, p.mapId), w, h, clearEntities = p.deleteCache)
+        event.session.send(RequestPlayerPacket())
+        onChange()
+      }
+
+      on<LoadEntityPacket> { event ->
+        val p = event.packet
+        val selfId = world.snapshot().selfId
+        world.upsert(
+            Entity(
+                id = p.entityId,
+                name = p.name,
+                map = MapKey(p.regionId, p.bankId, p.mapId),
+                x = p.x,
+                y = p.y,
+                facing = p.facing,
+                isPlayer = true,
+            ))
+        if (p.entityId == selfId) log.info { "Spawned at (${p.x}, ${p.y})" }
+        else log.info { "Player '${p.name}' is here at (${p.x}, ${p.y})" }
+        onChange()
+      }
+
+      on<GbaEntityMovePacket> { event ->
+        val p = event.packet
+        world.move(p.entityId, p.x, p.y, p.direction)
+        onChange()
+      }
+      on<EntityMovePacket> { event ->
+        val p = event.packet
+        world.move(p.entityId, p.x, p.y, p.direction)
+        onChange()
+      }
+      on<EntityLeavePacket> { event ->
+        world.remove(event.packet.entityId)
+        onChange()
+      }
+
+      on<ChatMessagePacket> { event ->
+        val p = event.packet
+        val sender = p.sender?.takeIf { it.isNotEmpty() } ?: "*"
+        log.info { "[chat] $sender: ${p.message}" }
+        world.addChat(ChatLine(sender, p.message))
+        onChange()
+      }
+
+      on<KeepAlivePacket> { event -> event.session.send(event.packet) }
+    }
+
+    private fun onCharacters(event: PacketEvent<CharactersListPacket>) {
+      val chars = event.packet.characters
+      if (chars.isEmpty()) {
+        log.info { "No characters yet, creating '${newCharacter.name}'" }
+        event.session.send(
+            CreateCharacterPacket(
+                newCharacter.name, newCharacter.gender, newCharacter.startingRegion, SkinSet()))
+        return
+      }
+      val chosen =
+          chars.firstOrNull { it.characterInfo.name.equals(newCharacter.name, true) } ?: chars[0]
+      val info = chosen.characterInfo
+      log.info { "Selecting character '${info.name}' (id=${info.id})" }
+      world.selectCharacter(info.id, info.name)
+      event.session.send(SelectCharacterPacket(info.id, info.id))
+    }
+
+    /** Packets this client does not model yet are expected, not errors. */
+    override fun onUnhandled(event: PacketEvent<*>) {
+      log.debug { "ignored ${event.packet::class.simpleName}" }
+    }
+
+    /**
+     * A codec that cannot read what the server wrote should not cost the connection: frames are
+     * independent, so log it and keep going.
+     */
+    override fun onError(cause: Throwable) {
+      log.warn { "packet error: ${cause::class.simpleName}: ${cause.message}" }
+    }
+
+    override fun onInactive() {
+      log.info { "Disconnected from game server" }
+      world.setInWorld(false)
+      onChange()
+    }
+  }
+}

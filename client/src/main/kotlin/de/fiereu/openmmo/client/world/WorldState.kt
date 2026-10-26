@@ -1,0 +1,98 @@
+package de.fiereu.openmmo.client.world
+
+import de.fiereu.openmmo.common.enums.Direction
+
+/** Map coordinates the server addresses everything by. Region 0 is Kanto, 1 is Hoenn. */
+data class MapKey(val regionId: Int, val bankId: Int, val mapId: Int)
+
+data class Entity(
+    val id: Long,
+    val name: String,
+    val map: MapKey,
+    val x: Int,
+    val y: Int,
+    val facing: Direction,
+    val isPlayer: Boolean,
+)
+
+data class ChatLine(val sender: String, val message: String)
+
+/**
+ * Everything the client knows about the world. Written from the netty thread and read from the UI,
+ * so every access goes through the lock and readers get immutable snapshots.
+ */
+class WorldState {
+  data class Snapshot(
+      val characterName: String?,
+      val selfId: Long?,
+      val map: MapKey?,
+      val mapWidth: Int,
+      val mapHeight: Int,
+      val entities: Map<Long, Entity>,
+      val chat: List<ChatLine>,
+      val inWorld: Boolean,
+  ) {
+    val self: Entity?
+      get() = selfId?.let { entities[it] }
+  }
+
+  private val lock = Any()
+  private var characterName: String? = null
+  private var selfId: Long? = null
+  private var map: MapKey? = null
+  private var mapWidth = 0
+  private var mapHeight = 0
+  private val entities = linkedMapOf<Long, Entity>()
+  private val chat = ArrayDeque<ChatLine>()
+  private var inWorld = false
+
+  fun snapshot(): Snapshot =
+      synchronized(lock) {
+        Snapshot(
+            characterName,
+            selfId,
+            map,
+            mapWidth,
+            mapHeight,
+            entities.toMap(),
+            chat.toList(),
+            inWorld)
+      }
+
+  fun selectCharacter(id: Long, name: String) =
+      synchronized(lock) {
+        selfId = id
+        characterName = name
+      }
+
+  fun enterMap(key: MapKey, width: Int, height: Int, clearEntities: Boolean) =
+      synchronized(lock) {
+        map = key
+        mapWidth = width
+        mapHeight = height
+        inWorld = false
+        if (clearEntities) entities.clear()
+      }
+
+  fun upsert(entity: Entity) =
+      synchronized(lock) {
+        entities[entity.id] = entity
+        if (entity.id == selfId) inWorld = true
+      }
+
+  fun move(id: Long, x: Int, y: Int, facing: Direction) =
+      synchronized(lock) {
+        val old = entities[id] ?: return@synchronized
+        entities[id] = old.copy(x = x, y = y, facing = facing)
+      }
+
+  fun remove(id: Long) = synchronized(lock) { entities.remove(id) }
+
+  fun addChat(line: ChatLine) =
+      synchronized(lock) {
+        chat.addLast(line)
+        while (chat.size > 200) chat.removeFirst()
+      }
+
+  fun setInWorld(value: Boolean) = synchronized(lock) { inWorld = value }
+}
