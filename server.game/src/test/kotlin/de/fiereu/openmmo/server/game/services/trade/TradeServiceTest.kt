@@ -24,6 +24,7 @@ import de.fiereu.openmmo.server.game.battle.MoveLearner
 import de.fiereu.openmmo.server.game.battle.TurnEngine
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.services.BattleService
+import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.WorldStateService
 import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -64,6 +65,15 @@ private class TradeFixture(scope: CoroutineScope) {
           moveRegistry = MoveRegistry(),
           trainers = TrainerRegistry(),
           items = ItemRegistry(),
+          pvp =
+              PvpBattleService(
+                  store,
+                  SessionRegistry(),
+                  BattleRegistry(),
+                  TurnEngine(MoveRegistry(), TypeChart()),
+                  BattlePacketEmitter(interest),
+                  interest,
+                  SpeciesRegistry()),
       )
   val service = TradeService(store, registry, battles, WorldStateService(), ItemRegistry())
 

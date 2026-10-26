@@ -137,8 +137,53 @@ constructor(
     characters[id]?.let {
       return it
     }
-    val loaded = repository.loadById(id) ?: return null
+    // Under the character's lock, so a [withExternalWrite] committing to this character cannot
+    // land between the read and the cache insert and leave a stale copy behind.
+    val loaded = lockFor(id).withLock { characters[id] ?: repository.loadById(id) } ?: return null
     return cache(loaded)
+  }
+
+  /**
+   * For changes another component commits straight to the database, such as a market sale that
+   * moves money and goods between two characters in one transaction.
+   *
+   * Every listed character that is cached is locked (in id order, so two callers cannot deadlock)
+   * and flushed first, so the database is current when [block] reads it. After [block] returns the
+   * money, monsters and bag of those characters are re-read from the database into both the live
+   * copy and the last-persisted snapshot, so the next flush does not write the old values back.
+   * Characters that are not cached are only in the database and need nothing else.
+   */
+  suspend fun <T> withExternalWrite(characterIds: Collection<Long>, block: suspend () -> T): T {
+    val ids = characterIds.distinct().sorted()
+    val locks = ids.map { lockFor(it) }
+    locks.forEach { it.lock() }
+    try {
+      for (id in ids) {
+        if (characters.containsKey(id) && !flushLocked(id, allowEvict = false)) {
+          throw IllegalStateException("Character $id could not be flushed")
+        }
+      }
+      val result = block()
+      for (id in ids) reloadTradeables(id)
+      return result
+    } finally {
+      locks.asReversed().forEach { it.unlock() }
+    }
+  }
+
+  private suspend fun reloadTradeables(id: Long) {
+    if (!characters.containsKey(id)) return
+    val fresh = repository.loadById(id) ?: return
+    val refresh = { stored: StoredCharacter ->
+      stored.copy(
+          info = stored.info.copy(money = fresh.info.money),
+          pokemon = fresh.pokemon.toMutableList(),
+          pcStorage = fresh.pcStorage.toMutableList(),
+          items = fresh.items.toMutableMap(),
+      )
+    }
+    characters.computeIfPresent(id) { _, stored -> refresh(stored) }
+    persisted.computeIfPresent(id) { _, stored -> refresh(stored) }
   }
 
   suspend fun getCharactersByUser(userId: Int): List<StoredCharacter> {

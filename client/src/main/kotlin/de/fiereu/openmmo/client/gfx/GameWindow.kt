@@ -17,7 +17,8 @@ import javax.swing.Timer
 
 /**
  * The playable window. Arrow keys or WASD walk (hold Shift to run), Enter opens the chat box, Enter
- * again sends, Escape closes it. T opens the trade window, which also opens on a trade request.
+ * again sends, Escape closes it. T opens the trade window, which also opens on a trade request. M
+ * opens the global market.
  */
 class GameWindow(
     private val client: GameClient,
@@ -127,6 +128,11 @@ class GameWindow(
             return
           }
           if (e.keyCode == KeyEvent.VK_T) tradeWindow?.show()
+          if (e.keyCode == KeyEvent.VK_M) {
+            MarketWindow(client, renderer.decompRoot).show()
+            held.clear()
+            return
+          }
           dirOf(e.keyCode)?.let { held.add(it) }
         }
 

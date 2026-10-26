@@ -2,6 +2,7 @@ package de.fiereu.openmmo.client
 
 import de.fiereu.openmmo.client.gfx.BattleScreen
 import de.fiereu.openmmo.client.gfx.GameWindow
+import de.fiereu.openmmo.client.gfx.MarketPanel
 import de.fiereu.openmmo.client.gfx.TRADE_VIEW_H
 import de.fiereu.openmmo.client.gfx.TRADE_VIEW_W
 import de.fiereu.openmmo.client.gfx.TradeView
@@ -9,6 +10,7 @@ import de.fiereu.openmmo.client.gfx.WorldRenderer
 import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.LoginClient
 import de.fiereu.openmmo.client.net.NewCharacter
+import de.fiereu.openmmo.client.net.SpeciesNames
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.io.PemKeyLoader
 import de.fiereu.openmmo.net.game.packets.trade.TradePhase
@@ -24,15 +26,15 @@ import kotlin.system.exitProcess
  * ```
  * client --user NAME --pass PW [--name CHAR] [--host 127.0.0.1] [--port 2106]
  *        [--key keys/build/game.public.pem] [--script "say hi; s; s; d"] [--stay SECONDS]
- *        [--gui true] [--snapshot out.png] [--decomp decomp]
+ *        [--gui true] [--snapshot out.png] [--market-snapshot market.png] [--decomp decomp]
  * ```
  *
  * `--gui true` opens the game window. `--snapshot FILE` writes one rendered frame after the script
  * has run, which is how the renderer is checked without a display.
  *
  * Without `--script` it reads commands from stdin: `w a s d` step, `W A S D` face, `say TEXT`,
- * `who`, `quit`, plus the battle commands in [runBattleCommand] and the trade commands in
- * [runTradeCommand] (`trade NAME`, `party`, ...).
+ * `who`, `quit`, plus the battle commands in [runBattleCommand], the trade commands in
+ * [runTradeCommand] (`trade NAME`, `party`, ...) and the market and dev commands in MarketCli.kt.
  */
 fun main(args: Array<String>) {
   val opts = parseArgs(args)
@@ -58,6 +60,7 @@ fun main(args: Array<String>) {
     val renderer = WorldRenderer(decomp)
     val battleScreen = BattleScreen(decomp)
     watchBattles(game)
+    SpeciesNames.load(decomp)
 
     if (opts["gui"] == "true") {
       GameWindow(game, renderer, battleScreen = battleScreen, tradeView = TradeView(decomp)).show()
@@ -99,6 +102,12 @@ fun main(args: Array<String>) {
         ImageIO.write(scaled, "png", File(path))
         println("snapshot written to $path")
       }
+      // The market window, every tab stacked, drawn without a display (MarketWindow.kt).
+      opts["market-snapshot"]?.let { path ->
+        val panel = MarketPanel(game.market, File(opts["decomp"] ?: "decomp"))
+        ImageIO.write(MarketPanel.snapshot(panel), "png", File(path))
+        println("market snapshot written to $path")
+      }
     } else {
       generateSequence { readlnOrNull() }
           .forEach { line ->
@@ -124,7 +133,8 @@ private fun run(game: GameClient, cmd: String) {
     cmd == "who" -> printStatus(game)
     cmd.isEmpty() -> {}
     runBattleCommand(game, cmd) -> {}
-    else -> if (!runTradeCommand(game, cmd)) println("unknown command: $cmd")
+    runTradeCommand(game, cmd) -> {}
+    else -> if (!runMarketCommand(game, cmd)) println("unknown command: $cmd")
   }
 }
 

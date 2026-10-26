@@ -17,7 +17,7 @@ const val SCREEN_H = 160
  * Draws the world state over the decomp's own map data. Map images are built once per layout, since
  * a GBA map is static apart from tile animations, which this does not do yet.
  */
-class WorldRenderer(private val decompRoot: File) {
+class WorldRenderer(val decompRoot: File) {
   private val data = mutableMapOf<GbaGame, PretData>()
   private val mapImages = mutableMapOf<Triple<Int, Int, Int>, BufferedImage?>()
   private val sprites = mutableMapOf<GbaGame, BufferedImage?>()

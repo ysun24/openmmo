@@ -23,6 +23,7 @@ import de.fiereu.openmmo.net.game.packets.CharactersListPacket
 import de.fiereu.openmmo.net.game.packets.ChatMessagePacket
 import de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket
 import de.fiereu.openmmo.net.game.packets.CreateCharacterPacket
+import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
 import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
 import de.fiereu.openmmo.net.game.packets.EntityMovePacket
 import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
@@ -41,6 +42,9 @@ import de.fiereu.openmmo.net.game.packets.RequestCharactersPacket
 import de.fiereu.openmmo.net.game.packets.RequestPlayerPacket
 import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
+import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPagePacket
+import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
+import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap
@@ -77,6 +81,9 @@ class GameClient(
 
   /** Trading, plus the party, bag and money it shows. */
   val trade = TradeClient(::send, onChange)
+
+  /** Global market state and actions (MarketClient.kt). */
+  val market = MarketClient({ session?.send(it) }, { onChange() })
 
   @Volatile private var session: SessionContext? = null
   private var channel: Channel? = null
@@ -246,6 +253,10 @@ class GameClient(
       on<PokemonContainerPacket> { event -> trade.onContainer(event.packet) }
       on<BattleSidePartyPacket> { event -> trade.onSideParty(event.packet) }
       on<LocalPlayerStatePacket> { event -> trade.onPlayerState(event.packet) }
+      on<MarketInventoryPacket> { event -> market.onInventory(event.packet) }
+      on<MarketResultPacket> { event -> market.onResult(event.packet) }
+      on<GtlSearchPagePacket> { event -> market.onPage(event.packet) }
+      on<CurrencyBalancePacket> { event -> market.onBalance(event.packet) }
     }
 
     private fun onCharacters(event: PacketEvent<CharactersListPacket>) {
@@ -262,6 +273,7 @@ class GameClient(
       val info = chosen.characterInfo
       log.info { "Selecting character '${info.name}' (id=${info.id})" }
       world.selectCharacter(info.id, info.name)
+      market.selfId = info.id
       event.session.send(SelectCharacterPacket(info.id, info.id))
     }
 

@@ -218,6 +218,8 @@ constructor(
     val monstersByOwner: Map<Long, List<Pokemon>> =
         dsl.selectFrom(POKEMON)
             .where(POKEMON.OWNER_ID.`in`(ids))
+            // Market escrow: a listed monster belongs to nobody's party or pc until it comes back.
+            .and(POKEMON.CONTAINER.ne(PokemonContainer.GTS.name))
             .orderBy(POKEMON.OWNER_ID, POKEMON.CONTAINER, POKEMON.CONTAINER_SLOT)
             .fetch()
             .map { it.toPokemon() }
