@@ -49,7 +49,8 @@ class WorldRenderer(private val decompRoot: File) {
 
   private fun pret(game: GbaGame) = data.getOrPut(game) { PretData(decompRoot, game) }
 
-  private fun objectGfx(game: GbaGame) = objects.getOrPut(game) { ObjectEventGraphics(decompRoot, game) }
+  private fun objectGfx(game: GbaGame) =
+      objects.getOrPut(game) { ObjectEventGraphics(decompRoot, game) }
 
   fun mapName(regionId: Int, bank: Int, map: Int): String? =
       GbaGame.forRegion(regionId)?.let { pret(it).mapName(bank, map) }
@@ -180,7 +181,8 @@ class WorldRenderer(private val decompRoot: File) {
     val tx0 = Math.floorDiv(camX, 16)
     val ty0 = Math.floorDiv(camY, 16)
     for (ty in ty0..ty0 + SCREEN_H / 16 + 1) for (tx in tx0..tx0 + SCREEN_W / 16 + 1) {
-      if (rects.any { r -> tx >= r[0] && tx < r[0] + r[2] && ty >= r[1] && ty < r[1] + r[3] }) continue
+      if (rects.any { r -> tx >= r[0] && tx < r[0] + r[2] && ty >= r[1] && ty < r[1] + r[3] })
+          continue
       val bw = layout.borderWidth
       val bh = layout.borderHeight
       // The GBA picks border blocks by the parity of x+1 and y+1 for its 2x2 borders.
@@ -268,7 +270,12 @@ class WorldRenderer(private val decompRoot: File) {
         (from.second + ((to.second - from.second) * t).toInt())
   }
 
-  private fun tilePx(key: MapKey, x: Int, y: Int, origins: Map<MapKey, Pair<Int, Int>>): Pair<Int, Int>? {
+  private fun tilePx(
+      key: MapKey,
+      x: Int,
+      y: Int,
+      origins: Map<MapKey, Pair<Int, Int>>
+  ): Pair<Int, Int>? {
     val o = origins[key] ?: return null
     return (o.first + x) * 16 to (o.second + y) * 16
   }
@@ -319,7 +326,8 @@ class WorldRenderer(private val decompRoot: File) {
     val y = sy + 16 - h
     val srcX = frame * w
     if (srcX + w > sprite.sheet.width) return
-    if (e.facing == Direction.RIGHT) g.drawImage(sprite.sheet, x + w, y, x, y + h, srcX, 0, srcX + w, h, null)
+    if (e.facing == Direction.RIGHT)
+        g.drawImage(sprite.sheet, x + w, y, x, y + h, srcX, 0, srcX + w, h, null)
     else g.drawImage(sprite.sheet, x, y, x + w, y + h, srcX, 0, srcX + w, h, null)
   }
 

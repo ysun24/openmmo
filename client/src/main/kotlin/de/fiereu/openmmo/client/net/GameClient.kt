@@ -103,7 +103,12 @@ class GameClient(
     if (!snap.inWorld) return false
     val s = session ?: return false
     val ui = snap.overworld
-    if (ui != null && (ui.dialog != null || ui.shop != null || ui.transitioning || ui.scriptLocked || ui.inScript)) {
+    if (ui != null &&
+        (ui.dialog != null ||
+            ui.shop != null ||
+            ui.transitioning ||
+            ui.scriptLocked ||
+            ui.inScript)) {
       return false
     }
     s.send(MovementPacket(self.x, self.y, direction, running))
@@ -118,7 +123,9 @@ class GameClient(
     if (crossing != null) {
       // Walking off the edge onto a connected map: the server moves us without a reload.
       val (target, nx, ny) = crossing
-      log.info { "Crossing into map ${target.key.regionId}:${target.key.bankId}:${target.key.mapId} at ($nx, $ny)" }
+      log.info {
+        "Crossing into map ${target.key.regionId}:${target.key.bankId}:${target.key.mapId} at ($nx, $ny)"
+      }
       world.switchMap(target.key, target.width, target.height)
       world.relocate(self.id, target.key, nx, ny, direction)
     } else {
@@ -136,7 +143,8 @@ class GameClient(
   }
 
   fun say(text: String) {
-    // Slash commands go through the typed-line packet, the only one the server parses commands from.
+    // Slash commands go through the typed-line packet, the only one the server parses commands
+    // from.
     if (text.startsWith("/")) {
       session?.send(de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket(0, text, null))
       return
@@ -226,7 +234,8 @@ class GameClient(
         log.debug { "move ${p.entityId} -> ${p.bankId}:${p.mapId} (${p.x},${p.y}) ${p.direction}" }
         val current = world.snapshot().entities[p.entityId]?.map
         if (current != null && (current.bankId != p.bankId || current.mapId != p.mapId)) {
-          world.relocate(p.entityId, MapKey(current.regionId, p.bankId, p.mapId), p.x, p.y, p.direction)
+          world.relocate(
+              p.entityId, MapKey(current.regionId, p.bankId, p.mapId), p.x, p.y, p.direction)
           if (p.entityId == world.snapshot().selfId) {
             val key = MapKey(current.regionId, p.bankId, p.mapId)
             world.overworld.knownMap(key)?.let { world.switchMap(key, it.width, it.height) }

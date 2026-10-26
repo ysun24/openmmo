@@ -23,7 +23,8 @@ object MapConnections {
             data.width,
             data.height,
             data.connections.map {
-              KnownConnection(it.direction, it.unknown, MapKey(p.regionId, it.targetBank, it.targetMap))
+              KnownConnection(
+                  it.direction, it.unknown, MapKey(p.regionId, it.targetBank, it.targetMap))
             },
         ))
   }

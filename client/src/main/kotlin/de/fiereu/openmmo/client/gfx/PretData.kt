@@ -118,7 +118,10 @@ class PretData(private val root: File, val game: GbaGame) {
     Regex("""const struct Tileset (\w+)\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
         .findAll(text)
         .mapNotNull { m ->
-          Regex("""\.metatileAttributes\s*=\s*(\w+)""").find(m.groupValues[2])?.groupValues?.get(1)
+          Regex("""\.metatileAttributes\s*=\s*(\w+)""")
+              .find(m.groupValues[2])
+              ?.groupValues
+              ?.get(1)
               ?.let { m.groupValues[1] to it }
         }
         .toMap()
@@ -196,7 +199,11 @@ class PretData(private val root: File, val game: GbaGame) {
         val height = l.getValue("height").jsonPrimitive.int
         val blocks = readU16(File(base, l.getValue("blockdata_filepath").jsonPrimitive.content))
         val border =
-            l["border_filepath"]?.jsonPrimitive?.content?.let { File(base, it) }?.takeIf { it.exists() }
+            l["border_filepath"]
+                ?.jsonPrimitive
+                ?.content
+                ?.let { File(base, it) }
+                ?.takeIf { it.exists() }
                 ?.let(::readU16) ?: IntArray(0)
         val connections =
             (mapJson["connections"] as? JsonArray).orEmpty().mapNotNull { c ->
@@ -237,7 +244,9 @@ class PretData(private val root: File, val game: GbaGame) {
         val words = readU16(File(base, metaPath))
         val metatiles = words.toList().chunked(8).map { chunk -> chunk.map(TileRef::of) }
         val attrs =
-            attributeSymbols[symbol]?.let { incbins[it]?.firstOrNull() }?.let { File(base, it) }
+            attributeSymbols[symbol]
+                ?.let { incbins[it]?.firstOrNull() }
+                ?.let { File(base, it) }
                 ?.takeIf { it.exists() }
                 ?.let { if (game == GbaGame.FIRERED) readU32(it) else readU16(it) } ?: IntArray(0)
         Tileset(tiles, palettes, metatiles, attrs)

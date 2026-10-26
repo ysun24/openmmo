@@ -75,7 +75,14 @@ class OverworldState {
   fun view(): View =
       synchronized(lock) {
         View(
-            dialog, shop, money, bag.toMap(), transitioning, scriptLocked, inScript, knownMaps.toMap())
+            dialog,
+            shop,
+            money,
+            bag.toMap(),
+            transitioning,
+            scriptLocked,
+            inScript,
+            knownMaps.toMap())
       }
 
   fun rememberMap(map: KnownMap) = synchronized(lock) { knownMaps[map.key] = map }
@@ -84,8 +91,7 @@ class OverworldState {
 
   fun setDialog(value: DialogView?) = synchronized(lock) { dialog = value }
 
-  fun updateDialog(f: (DialogView) -> DialogView?) =
-      synchronized(lock) { dialog = dialog?.let(f) }
+  fun updateDialog(f: (DialogView) -> DialogView?) = synchronized(lock) { dialog = dialog?.let(f) }
 
   fun setShop(value: ShopView?) = synchronized(lock) { shop = value }
 

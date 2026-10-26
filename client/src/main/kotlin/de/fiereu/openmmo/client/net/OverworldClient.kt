@@ -80,13 +80,17 @@ class OverworldClient(
         Thread(r, "overworld-anim").apply { isDaemon = true }
       }
 
-  /** Where the server's movement the client is animating ends, so a late reset does not fight it. */
+  /**
+   * Where the server's movement the client is animating ends, so a late reset does not fight it.
+   */
   fun selfBusy(): Boolean {
     val self = world.snapshot().selfId ?: return false
     return (moving[self] ?: 0) > 0
   }
 
-  /** Wire item ids are `region * 1000 + index` into item_names.json, always in the region 5 table. */
+  /**
+   * Wire item ids are `region * 1000 + index` into item_names.json, always in the region 5 table.
+   */
   fun itemName(id: Int): String =
       (if (id >= ITEM_REGION_BLOCK) itemNames.getOrNull(id - ITEM_REGION_BLOCK) else null) ?: "#$id"
 
@@ -124,7 +128,8 @@ class OverworldClient(
       is BattleSidePartyPacket -> {
         val stacks = p.pokemon.filter { it.entityId and 0xFFFF == ITEM_TAG }
         if (stacks.isEmpty() || stacks.size != p.pokemon.size) return false
-        world.overworld.setBag(stacks.associate { it.frontSpriteId.toInt() to it.backSpriteId.toInt() })
+        world.overworld.setBag(
+            stacks.associate { it.frontSpriteId.toInt() to it.backSpriteId.toInt() })
       }
       is BattleSideAddPokemonPacket -> {
         val s = p.pokemon
@@ -199,7 +204,9 @@ class OverworldClient(
   }
 
   private fun walk(entityId: Long, d: Direction) =
-      world.update(entityId) { it.copy(x = it.x + d.dx, y = it.y + d.dy, facing = d, visible = true) }
+      world.update(entityId) {
+        it.copy(x = it.x + d.dx, y = it.y + d.dy, facing = d, visible = true)
+      }
 
   private fun stepDuration(action: Int): Long =
       when (action) {
@@ -219,7 +226,8 @@ class OverworldClient(
     val vars = mutableMapOf("PLAYER" to (snap.characterName ?: "PLAYER"), "RIVAL" to "RIVAL")
     // A species argument fills the ROM string variable it names (1-based, STR_VAR_1..3).
     p.messageArgs.filterIsInstance<TextPokemonSpeciesArg>().forEach {
-      vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] = speciesName(it.speciesId.toInt())
+      vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] =
+          speciesName(it.speciesId.toInt())
     }
     val actionType = p.actionType.toInt() and 0xFF
     var choices = emptyList<String>()
@@ -235,7 +243,8 @@ class OverworldClient(
         if (n > 0 && d.size >= 1 + 2 * n) {
           choices =
               List(n) {
-                speciesName((d[1 + 2 * it].toInt() and 0xFF) or ((d[2 + 2 * it].toInt() and 0xFF) shl 8))
+                speciesName(
+                    (d[1 + 2 * it].toInt() and 0xFF) or ((d[2 + 2 * it].toInt() and 0xFF) shl 8))
               }
           values = List(n) { it + 1 }
         }
@@ -251,7 +260,10 @@ class OverworldClient(
             choices = choices,
             choiceValues = values,
         )
-    log.info { "[dialog] ${view.pages.flatten().joinToString(" / ")}" + if (choices.isEmpty()) "" else " ${choices}" }
+    log.info {
+      "[dialog] ${view.pages.flatten().joinToString(" / ")}" +
+          if (choices.isEmpty()) "" else " ${choices}"
+    }
     world.overworld.setDialog(view)
     world.overworld.setInScript(true)
     // A box that faces an npc turns the player toward it is the server's job; nothing to do here.
@@ -330,8 +342,11 @@ class OverworldClient(
       target = npcs.firstOrNull { it.x == fx + self.facing.dx && it.y == fy + self.facing.dy }
     }
     if (target != null) {
-      log.info { "interact with npc ${target.id} gfx=${target.graphicsId} at (${target.x},${target.y})" }
-      // Like the decomp's faceplayer: the npc turns to whoever spoke to it. Only this client sees it.
+      log.info {
+        "interact with npc ${target.id} gfx=${target.graphicsId} at (${target.x},${target.y})"
+      }
+      // Like the decomp's faceplayer: the npc turns to whoever spoke to it. Only this client sees
+      // it.
       world.update(target.id) { it.copy(facing = self.facing.opposite()) }
       send(EntityInteractPacket(target.id, 0))
     } else {

@@ -104,7 +104,9 @@ class ObjectEventGraphics(private val root: File, private val game: GbaGame) {
   private val pics: Map<String, String> by lazy {
     Regex("""(gObjectEventPic_\w+)\[\]\s*=\s*INCBIN_U(?:8|16|32)\("([^"]+)"\)""")
         .findAll(File(dir, "object_event_graphics.h").readText())
-        .associate { it.groupValues[1] to it.groupValues[2].replace(Regex("""\.4bpp(\.lz)?$"""), ".png") }
+        .associate {
+          it.groupValues[1] to it.groupValues[2].replace(Regex("""\.4bpp(\.lz)?$"""), ".png")
+        }
   }
 
   fun nameOf(gfxId: Int): String? = gfxIds[gfxId]
@@ -112,12 +114,14 @@ class ObjectEventGraphics(private val root: File, private val game: GbaGame) {
   fun sprite(gfxId: Int): ObjectSprite? =
       cache.getOrPut(gfxId) {
         runCatching {
-              val info = infos[pointers[gfxIds[gfxId]] ?: return@getOrPut null] ?: return@getOrPut null
+              val info =
+                  infos[pointers[gfxIds[gfxId]] ?: return@getOrPut null] ?: return@getOrPut null
               val table = picTables[info.third].orEmpty()
               val pic = table.firstOrNull()?.first ?: return@getOrPut null
               val file = File(base, pics[pic] ?: return@getOrPut null)
               if (!file.exists()) return@getOrPut null
-              ObjectSprite(PretData.readSprite(file), info.first, info.second, table.map { it.second })
+              ObjectSprite(
+                  PretData.readSprite(file), info.first, info.second, table.map { it.second })
             }
             .getOrNull()
       }
@@ -126,8 +130,10 @@ class ObjectEventGraphics(private val root: File, private val game: GbaGame) {
   fun playerSprite(female: Boolean): ObjectSprite? {
     val name =
         when (game) {
-          GbaGame.FIRERED -> if (female) "OBJ_EVENT_GFX_GREEN_NORMAL" else "OBJ_EVENT_GFX_RED_NORMAL"
-          GbaGame.EMERALD -> if (female) "OBJ_EVENT_GFX_MAY_NORMAL" else "OBJ_EVENT_GFX_BRENDAN_NORMAL"
+          GbaGame.FIRERED ->
+              if (female) "OBJ_EVENT_GFX_GREEN_NORMAL" else "OBJ_EVENT_GFX_RED_NORMAL"
+          GbaGame.EMERALD ->
+              if (female) "OBJ_EVENT_GFX_MAY_NORMAL" else "OBJ_EVENT_GFX_BRENDAN_NORMAL"
         }
     val id = gfxIds.entries.firstOrNull { it.value == name }?.key ?: return null
     return sprite(id)

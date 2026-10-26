@@ -9,7 +9,6 @@ import javax.imageio.ImageIO
 
 /**
  * Script commands for the overworld, so dialogs, warps and the mart can be driven headlessly:
- *
  * ```
  * interact | z      the A button: talk to what is in front, or advance the open box
  * next              advance the open box only
@@ -24,13 +23,15 @@ import javax.imageio.ImageIO
  * go DIR N          take N steps (w/a/s/d), waiting for each to be accepted
  * snap FILE         write a 3x snapshot now
  * dialog | bag      print the open box, or money and bag
+ * ui               print the overworld UI flags (dialog, shop, transition, script lock)
  * ```
  */
 object ScriptCommands {
   @Volatile var renderer: WorldRenderer? = null
 
   private val dirs =
-      mapOf("w" to Direction.UP, "a" to Direction.LEFT, "s" to Direction.DOWN, "d" to Direction.RIGHT)
+      mapOf(
+          "w" to Direction.UP, "a" to Direction.LEFT, "s" to Direction.DOWN, "d" to Direction.RIGHT)
 
   fun run(game: GameClient, cmd: String): Boolean {
     val parts = cmd.split(Regex("\\s+"))
@@ -104,13 +105,16 @@ object ScriptCommands {
       val d = v.dialog
       if (d != null) {
         val box = d.pages.getOrNull(d.page)?.joinToString(" ")
-        println("skip: '$box'" + if (d.onLastPage && d.choices.isNotEmpty()) " -> ${d.choices[0]}" else "")
+        println(
+            "skip: '$box'" +
+                if (d.onLastPage && d.choices.isNotEmpty()) " -> ${d.choices[0]}" else "")
         game.overworld.advance()
         freeSince = System.currentTimeMillis()
         Thread.sleep(250)
         continue
       }
-      if (v.transitioning || v.scriptLocked || v.inScript || v.shop != null) freeSince = System.currentTimeMillis()
+      if (v.transitioning || v.scriptLocked || v.inScript || v.shop != null)
+          freeSince = System.currentTimeMillis()
       if (System.currentTimeMillis() - freeSince > 2_000) return
       Thread.sleep(50)
     }
@@ -120,7 +124,8 @@ object ScriptCommands {
     val end = System.currentTimeMillis() + timeoutMs
     while (System.currentTimeMillis() < end) {
       val v = game.world.snapshot().overworld
-      if (v == null || (v.dialog == null && !v.transitioning && !v.scriptLocked && !v.inScript)) return
+      if (v == null || (v.dialog == null && !v.transitioning && !v.scriptLocked && !v.inScript))
+          return
       Thread.sleep(50)
     }
   }

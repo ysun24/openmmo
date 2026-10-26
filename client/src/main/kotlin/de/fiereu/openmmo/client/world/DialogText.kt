@@ -26,14 +26,10 @@ class DialogText(private val dir: File) {
       tables.getOrPut(region) {
         val f = File(dir, "$region.json")
         if (!f.exists()) return@getOrPut emptyMap()
-        Json.parseToJsonElement(f.readText())
-            .jsonObject
-            .getValue("lines")
-            .jsonArray
-            .associate {
-              val o = it.jsonObject
-              o.getValue("id").jsonPrimitive.int to o.getValue("text").jsonPrimitive.content
-            }
+        Json.parseToJsonElement(f.readText()).jsonObject.getValue("lines").jsonArray.associate {
+          val o = it.jsonObject
+          o.getValue("id").jsonPrimitive.int to o.getValue("text").jsonPrimitive.content
+        }
       }
 
   companion object {
