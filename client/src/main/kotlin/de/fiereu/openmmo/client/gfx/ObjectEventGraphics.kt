@@ -102,7 +102,7 @@ class ObjectEventGraphics(private val root: File, private val game: GbaGame) {
 
   /** Pic symbol -> png path. */
   private val pics: Map<String, String> by lazy {
-    Regex("""(gObjectEventPic_\w+)\[\]\s*=\s*INCBIN_U(?:8|16|32)\("([^"]+)"\)""")
+    Regex("""(gObjectEventPic_\w+)\[\]\s*=\s*INC(?:BIN|GFX)_U(?:8|16|32)\("([^"]+)"""")
         .findAll(File(dir, "object_event_graphics.h").readText())
         .associate {
           it.groupValues[1] to it.groupValues[2].replace(Regex("""\.4bpp(\.lz)?$"""), ".png")

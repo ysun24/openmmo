@@ -185,9 +185,10 @@ class WorldRenderer(val decompRoot: File) {
           continue
       val bw = layout.borderWidth
       val bh = layout.borderHeight
-      // The GBA picks border blocks by the parity of x+1 and y+1 for its 2x2 borders.
-      val bx = Math.floorMod(tx + 1, bw)
-      val by = Math.floorMod(ty + 1, bh)
+      // fieldmap.c picks border blocks by map coordinate modulo the border size (its +1 is
+      // applied to coordinates already shifted by MAP_OFFSET 7, so it cancels out).
+      val bx = Math.floorMod(tx, bw)
+      val by = Math.floorMod(ty, bh)
       val id = layout.border.getOrNull(by * bw + bx)?.and(0x3FF) ?: continue
       val img =
           metatileImages.getOrPut(layout.name to id) {
@@ -201,10 +202,7 @@ class WorldRenderer(val decompRoot: File) {
     }
   }
 
-  /**
-   * One metatile. Bottom layer onto [bottom]; the top layer goes onto [top], above sprites, unless
-   * the metatile's layer type is COVERED, in which case both layers sit below sprites.
-   */
+  /** One metatile, layers split by [MetatilePainter]. */
   private fun drawMetatile(
       bottom: BufferedImage,
       top: BufferedImage,
@@ -213,47 +211,15 @@ class WorldRenderer(val decompRoot: File) {
       id: Int,
       px: Int,
       py: Int,
-  ) {
-    val primary = id < game.metatilesInPrimary
-    val set = if (primary) layout.primary else layout.secondary
-    val local = if (primary) id else id - game.metatilesInPrimary
-    val meta = set.metatiles.getOrNull(local) ?: return
-    val layerType = set.attributes.getOrNull(local)?.let(game::layerType) ?: LAYER_NORMAL
-    // Colour 0 is transparent on both layers, the backdrop shows through.
-    val backdrop = layout.primary.palettes[0]?.get(0) ?: 0xFF000000.toInt()
-    for (yy in 0 until 16) for (xx in 0 until 16) bottom.setRGB(px + xx, py + yy, backdrop)
-    meta.forEachIndexed { i, ref ->
-      val q = i % 4
-      val target = if (i < 4 || layerType == LAYER_COVERED) bottom else top
-      drawTile(target, game, layout, ref, px + (q % 2) * 8, py + (q / 2) * 8)
-    }
-  }
-
-  private fun drawTile(
-      img: BufferedImage,
-      game: GbaGame,
-      layout: LayoutData,
-      ref: TileRef,
-      px: Int,
-      py: Int,
-  ) {
-    val tile =
-        if (ref.tile < game.tilesInPrimary) layout.primary.tiles.getOrNull(ref.tile)
-        else layout.secondary.tiles.getOrNull(ref.tile - game.tilesInPrimary)
-    tile ?: return
-    val pal =
-        (if (ref.palette < game.palsInPrimary) layout.primary.palettes[ref.palette]
-        else layout.secondary.palettes[ref.palette]) ?: return
-    for (i in 0 until 64) {
-      val c = tile[i]
-      if (c == 0) continue
-      var tx = i % 8
-      var ty = i / 8
-      if (ref.hFlip) tx = 7 - tx
-      if (ref.vFlip) ty = 7 - ty
-      img.setRGB(px + tx, py + ty, pal[c])
-    }
-  }
+  ) =
+      MetatilePainter.drawMetatile(
+          MetatilePainter.Pixels.of(bottom),
+          MetatilePainter.Pixels.of(top),
+          game,
+          layout,
+          id,
+          px,
+          py)
 
   // --- sprites ----------------------------------------------------------------------------------
 
@@ -349,8 +315,6 @@ class WorldRenderer(val decompRoot: File) {
 
   companion object {
     private val FONT = Font(Font.MONOSPACED, Font.PLAIN, 8)
-    private const val LAYER_NORMAL = 0
-    private const val LAYER_COVERED = 1
 
     fun newFrame() = BufferedImage(SCREEN_W, SCREEN_H, BufferedImage.TYPE_INT_ARGB)
   }

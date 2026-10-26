@@ -48,3 +48,4 @@ bin/
 !.env.example
 docker-compose.override.yml
 web/static/assets/
+web/static/dev/
