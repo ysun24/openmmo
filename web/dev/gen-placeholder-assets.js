@@ -63,7 +63,8 @@ function readU16(p) {
 }
 
 fs.mkdirSync(path.join(OUT, 'maps'), { recursive: true });
-fs.mkdirSync(path.join(OUT, 'objects'), { recursive: true });
+fs.mkdirSync(path.join(OUT, 'maps/0'), { recursive: true });
+fs.mkdirSync(path.join(OUT, 'objects/0'), { recursive: true });
 fs.mkdirSync(path.join(OUT, 'pokemon'), { recursive: true });
 const manifest = { version: 1, placeholder: true, maps: {}, objects: {}, players: {}, pokemon: {}, ui: { font: null } };
 
@@ -74,7 +75,7 @@ for (const name of WANT) {
   const blocks = readU16(lay.blockdata_filepath);
   const border = readU16(lay.border_filepath);
   const key = keyOf[name];
-  const base = key.replace(/:/g, '_');
+  const base = '0/' + lay.name.replace(/_Layout$/, '').toLowerCase();
   const bottom = new Img(w * 16, h * 16);
   const top = new Img(w * 16, h * 16);
   const col = Buffer.alloc(w * h);
@@ -96,7 +97,7 @@ for (const name of WANT) {
   manifest.maps[key] = {
     name, width: w, height: h,
     bottom: `maps/${base}.bottom.png`, top: `maps/${base}.top.png`,
-    collision: `maps/${base}.col.bin`, border: `maps/${base}.border.png`,
+    collision: `maps/${base}.col.bin`, border: `maps/${base}.border.png`, borderWidth: lay.border_width, borderHeight: lay.border_height,
     connections: (mj.connections || [])
       .filter((c) => keyOf[constToName[c.map]])
       .map((c) => ({ dir: c.direction, offset: c.offset, map: keyOf[constToName[c.map]] })),
@@ -140,12 +141,12 @@ function sheet(body, hair) {
 const FRAMES = { down: 0, up: 1, left: 2, walkDown: [3, 4], walkUp: [5, 6], walkLeft: [7, 8] };
 for (let g = 0; g < 160; g++) {
   const h = hash(g + 7);
-  fs.writeFileSync(path.join(OUT, `objects/${g}.png`), sheet([h % 200 + 40, (h >> 8) % 200 + 40, (h >> 16) % 200 + 40], [(h >> 4) % 120, (h >> 12) % 80, (h >> 20) % 60]));
-  manifest.objects[String(g)] = { sheet: `objects/${g}.png`, frameW: 16, frameH: 32, frames: FRAMES, mirrorRight: true };
+  fs.writeFileSync(path.join(OUT, `objects/0/${g}.png`), sheet([h % 200 + 40, (h >> 8) % 200 + 40, (h >> 16) % 200 + 40], [(h >> 4) % 120, (h >> 12) % 80, (h >> 20) % 60]));
+  manifest.objects[`0:${g}`] = { name: `PLACEHOLDER_${g}`, sheet: `objects/0/${g}.png`, frameW: 16, frameH: 32, count: 9, frames: FRAMES, mirrorRight: true };
 }
-fs.writeFileSync(path.join(OUT, 'objects/player_male.png'), sheet([200, 40, 40], [210, 30, 30]));
-fs.writeFileSync(path.join(OUT, 'objects/player_female.png'), sheet([60, 120, 220], [240, 220, 120]));
-manifest.players = { male: 'objects/player_male.png', female: 'objects/player_female.png' };
+fs.writeFileSync(path.join(OUT, 'objects/0/0.png'), sheet([200, 40, 40], [210, 30, 30]));
+fs.writeFileSync(path.join(OUT, 'objects/0/7.png'), sheet([60, 120, 220], [240, 220, 120]));
+manifest.players = { 0: { male: 'objects/0/0.png', maleGfx: 0, female: 'objects/0/7.png', femaleGfx: 7 } };
 
 // --- pokemon: front/back 64x64 blobs, icon 32x32
 for (let d = 1; d <= 386; d++) {

@@ -121,29 +121,48 @@ so the browser needs no name tables.
 assets/manifest.json
   {"version":1,
    "maps": {"0:3:0": {"name":"PalletTown","width":24,"height":20,
-                      "bottom":"maps/0_3_0.bottom.png","top":"maps/0_3_0.top.png",
-                      "collision":"maps/0_3_0.col.bin",
-                      "border":"maps/0_3_0.border.png",          // 2x2 (or wxh) metatile tile image, 16px units
-                      "connections":[{"dir":"up","offset":0,"map":"0:3:1"}],
-                      "music":null}, ...},
-   "objects": {"23": {"sheet":"objects/23.png","frameW":16,"frameH":32,
-                      "frames":{"down":0,"up":1,"left":2,"walkDown":[3,4],"walkUp":[5,6],"walkLeft":[7,8]},
-                      "mirrorRight":true}, ...},
-   "players": {"male":"objects/player_male.png","female":"objects/player_female.png"},  // same frame layout
+                      "bottom":"maps/0/pallet_town.bottom.png","top":"maps/0/pallet_town.top.png",
+                      "collision":"maps/0/pallet_town.col.bin",
+                      "border":"maps/0/pallet_town.border.png",   // borderWidth x borderHeight metatiles, or null
+                      "borderWidth":2,"borderHeight":2,
+                      "connections":[{"dir":"up","offset":0,"map":"0:3:19"}],
+                      "music":"MUS_PALLET"}, ...},
+   "objects": {"0:23": {"name":"OBJ_EVENT_GFX_...","sheet":"objects/0/23.png","frameW":16,"frameH":32,"count":9,
+                        "frames":{"down":0,"up":1,"left":2,"walkDown":[3,4],"walkUp":[5,6],"walkLeft":[7,8]},
+                        "mirrorRight":true}, ...},
+   "players": {"0":{"male":"objects/0/0.png","maleGfx":0,"female":"objects/0/7.png","femaleGfx":7},
+               "1":{"male":"objects/1/0.png","maleGfx":0,"female":"objects/1/89.png","femaleGfx":89}},
    "pokemon": {"4":{"front":"pokemon/4.front.png","back":"pokemon/4.back.png","icon":"pokemon/4.icon.png"}, ...},
    "ui": {"font":null}}
 ```
 
+- Map keys are `region:bank:map` exactly as the server sends them: region 0 → pokefirered,
+  region 1 → pokeemerald; bank = index in `data/maps/map_groups.json` group_order **plus the
+  region's bank offset (0 Kanto, 50 Hoenn)**, map = index inside the group (desktop
+  `PretData.mapName`). So Littleroot Town is `1:50:9`. Every map of both games is exported.
+- File paths are per *layout* (`maps/<region>/<layout>.*`); maps sharing a layout (every Pokemon
+  Center...) point at the same files. Always use the paths from the manifest.
 - Map images are full-map PNGs at 1 px = 1 GBA pixel (16 px per metatile). `bottom` = backdrop +
-  bottom layer (+ top layer for normal metatiles); `top` = only the tile layer that must cover
-  sprites (metatile layer type "covered"/"split"), transparent elsewhere. Draw order:
-  bottom → entities sorted by y → top.
+  bottom tile layer (+ the top tile layer of COVERED metatiles); `top` = the top tile layer of
+  NORMAL and SPLIT metatiles, transparent elsewhere (the GBA puts that layer above sprites; same
+  rule as the desktop `WorldRenderer`/`MetatilePainter`). Draw order: bottom → entities sorted by
+  y → top.
+- `border`: both layers flattened. Outside a map (where no connection is), the block at map tile
+  `(x, y)` is border cell `(x mod borderWidth, y mod borderHeight)` (non-negative modulo).
 - `col.bin` = width*height bytes, row-major: bit0 = blocked (collision != 0),
   bits 4-7 = elevation. Used only for client-side prediction; the server stays authoritative.
-- Keys are `region:bank:map` exactly as the server sends them (region 0 → pokefirered,
-  region 1 → pokeemerald). Export every map of both games.
-- `gfx` ids are the ids the server puts in NPC spawn packets; the exporter resolves them with the
-  same table the desktop client uses (`client/.../gfx/ObjectEventGraphics.kt`).
+- `connections`: only the four edge directions; `offset` in tiles along the shared edge, as in
+  map.json (up/down: x offset of the other map, left/right: y offset).
+- Objects are keyed `region:gfx` because gfx ids differ between the two games. `gfx` is the
+  `OBJ_EVENT_GFX_*` value the server puts in NPC spawn packets (both read the region decomp's
+  `include/constants/event_objects.h`). The sheet is one row of `count` frames, each
+  frameW x frameH (16x16, 16x32, 32x32, 64x64...), in pic-table order; `frames` names the indices
+  (missing ones fall back to standing). Right = left mirrored. Player sheets (and only those with
+  ≥18 frames) also have `runDown/runUp/runLeft` (standing) and `runWalkDown/Up/Left` (two steps).
+  Palettes are the game's own palette for the sprite's palette tag; colour 0 is transparent.
+  Var gfx ids (`OBJ_EVENT_GFX_VAR_*`, 240+) are resolved by the server, not exported.
+- Pokemon: keyed by national dex (1-386, the id the server/battle code uses). front/back 64x64,
+  icon 32x32 (first icon frame), transparent background. FireRed art first, Emerald as fallback.
 
 ## 5. Smoothness requirements (browser)
 

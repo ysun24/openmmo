@@ -52,3 +52,4 @@ web/static/assets/
 # web dev tooling
 web/dev/node_modules/
 web/dev/placeholder-assets/
+web/static/assets

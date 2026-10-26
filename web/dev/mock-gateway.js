@@ -211,13 +211,13 @@ class Session {
     this.chat = [{ sender: '*', text: 'Welcome to OpenMMO! (mock gateway)' }, { sender: '*', text: 'Try /mock battle, /mock trade, /mock market, /mock shop' }];
     this.entities = [
       { id: SELF, kind: 'player', name: this.name, gfx: 0, x: 6, y: 8, facing: 'down', moving: false, map: PALLET },
-      { id: FRIEND, kind: 'player', name: 'Friend', gfx: 1, x: 6, y: 15, facing: 'right', moving: false, map: PALLET, path: 0 },
+      { id: FRIEND, kind: 'player', name: 'Friend', gfx: 7, x: 6, y: 15, facing: 'right', moving: false, map: PALLET, path: 0 },
       { id: '2001', kind: 'npc', name: 'WOMAN', gfx: 23, x: 3, y: 10, facing: 'down', moving: false, map: PALLET, home: [3, 10], range: [1, 4],
         talk: ['You can type and save', 'your own messages', 'on a computer!'] },
-      { id: '2002', kind: 'npc', name: 'FAT MAN', gfx: 31, x: 13, y: 17, facing: 'down', moving: false, map: PALLET, home: [13, 17], range: [6, 2],
+      { id: '2002', kind: 'npc', name: 'FAT MAN', gfx: 27, x: 13, y: 17, facing: 'down', moving: false, map: PALLET, home: [13, 17], range: [6, 2],
         talk: ['Technology is incredible!', 'You can now store and recall items', 'and POKeMON as data via PC!'] },
-      { id: '2003', kind: 'npc', name: 'OAK', gfx: 50, x: 10, y: 8, facing: 'down', moving: false, map: PALLET, oak: true },
-      { id: '2004', kind: 'npc', name: 'CLERK', gfx: 70, x: 20, y: 8, facing: 'down', moving: false, map: PALLET, clerk: true },
+      { id: '2003', kind: 'npc', name: 'OAK', gfx: 71, x: 10, y: 8, facing: 'down', moving: false, map: PALLET, oak: true },
+      { id: '2004', kind: 'npc', name: 'CLERK', gfx: 68, x: 20, y: 8, facing: 'down', moving: false, map: PALLET, clerk: true },
     ];
     this.self = this.entities[0];
     this.send({ t: 'login', ok: true, selfId: SELF, name: this.name });
