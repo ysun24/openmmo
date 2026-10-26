@@ -14,6 +14,8 @@ dependencies {
   implementation(project(":protocols.login"))
   implementation(project(":protocols.game"))
   implementation(project(":common"))
+  // Species and item names for the trade window.
+  implementation(project(":codegen"))
 
   implementation(libs.kotlinx.coroutines)
   implementation(libs.kotlin.logging)

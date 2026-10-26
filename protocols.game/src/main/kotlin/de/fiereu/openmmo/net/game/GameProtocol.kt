@@ -10,6 +10,7 @@ import de.fiereu.openmmo.net.game.packets.battle.moves.*
 import de.fiereu.openmmo.net.game.packets.dialog.*
 import de.fiereu.openmmo.net.game.packets.gtl.*
 import de.fiereu.openmmo.net.game.packets.guild.*
+import de.fiereu.openmmo.net.game.packets.trade.*
 
 object GameProtocol : Protocol() {
   override val compressed: Boolean = true
@@ -601,5 +602,10 @@ object GameProtocol : Protocol() {
     s2c<GtlListingsPagePacket>(0xFEu, GtlListingsPagePacketCodec)
 
     s2c<WorldSessionStatePacket>(0xFFu, WorldSessionStatePacketCodec)
+
+    // Player trading, our own packets (see packets/trade). Opcodes were free in both directions.
+    c2s<TradeRequestPacket>(0x5Cu, TradeRequestPacketCodec)
+    c2s<TradeOfferItemPacket>(0x5Du, TradeOfferItemPacketCodec)
+    s2c<TradeStatePacket>(0xECu, TradeStatePacketCodec)
   }
 }

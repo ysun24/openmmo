@@ -31,12 +31,16 @@ import de.fiereu.openmmo.net.game.packets.JoinResponsePacket
 import de.fiereu.openmmo.net.game.packets.KeepAlivePacket
 import de.fiereu.openmmo.net.game.packets.LoadEntityPacket
 import de.fiereu.openmmo.net.game.packets.LoadMapPacket
+import de.fiereu.openmmo.net.game.packets.LocalPlayerStatePacket
 import de.fiereu.openmmo.net.game.packets.MapData
 import de.fiereu.openmmo.net.game.packets.MovementPacket
 import de.fiereu.openmmo.net.game.packets.NewAuthData
+import de.fiereu.openmmo.net.game.packets.PokemonContainerPacket
 import de.fiereu.openmmo.net.game.packets.RequestCharactersPacket
 import de.fiereu.openmmo.net.game.packets.RequestPlayerPacket
 import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
+import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
@@ -62,6 +66,9 @@ class GameClient(
     private val onChange: () -> Unit = {},
 ) {
   val world = WorldState()
+
+  /** Trading, plus the party, bag and money it shows. */
+  val trade = TradeClient(::send, onChange)
 
   @Volatile private var session: SessionContext? = null
   private var channel: Channel? = null
@@ -111,6 +118,10 @@ class GameClient(
     session?.send(FaceDirectionPacket(direction))
     world.move(self.id, self.x, self.y, direction)
     onChange()
+  }
+
+  fun send(packet: Any) {
+    session?.send(packet)
   }
 
   fun say(text: String) {
@@ -216,6 +227,11 @@ class GameClient(
       }
 
       on<KeepAlivePacket> { event -> event.session.send(event.packet) }
+
+      on<TradeStatePacket> { event -> trade.onState(event.packet) }
+      on<PokemonContainerPacket> { event -> trade.onContainer(event.packet) }
+      on<BattleSidePartyPacket> { event -> trade.onSideParty(event.packet) }
+      on<LocalPlayerStatePacket> { event -> trade.onPlayerState(event.packet) }
     }
 
     private fun onCharacters(event: PacketEvent<CharactersListPacket>) {

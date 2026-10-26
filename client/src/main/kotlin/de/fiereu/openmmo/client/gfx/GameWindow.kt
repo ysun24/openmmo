@@ -17,13 +17,16 @@ import javax.swing.Timer
 
 /**
  * The playable window. Arrow keys or WASD walk (hold Shift to run), Enter opens the chat box, Enter
- * again sends, Escape closes it.
+ * again sends, Escape closes it. T opens the trade window, which also opens on a trade request.
  */
 class GameWindow(
     private val client: GameClient,
     private val renderer: WorldRenderer,
     private val scale: Int = 3,
+    /** Draws the trade window; without it there is no trade window. */
+    private val tradeView: TradeView? = null,
 ) {
+  private var tradeWindow: TradeWindow? = null
   private val frameBuf = WorldRenderer.newFrame()
   private val held = linkedSetOf<Direction>()
   private var running = false
@@ -58,9 +61,12 @@ class GameWindow(
             override fun windowClosed(e: WindowEvent) = client.disconnect()
           })
       canvas.addKeyListener(keys)
+      tradeWindow = tradeView?.let { TradeWindow(frame, client.trade, it) }
       chatBox.addActionListener {
         val text = chatBox.text.trim()
-        if (text.isNotEmpty()) client.say(text)
+        // Slash commands go through the typed-chat packet, which is the only one the server parses.
+        if (text.startsWith("/")) client.trade.command(text)
+        else if (text.isNotEmpty()) client.say(text)
         closeChat(frame)
       }
       chatBox.addKeyListener(
@@ -107,6 +113,7 @@ class GameWindow(
             held.clear()
             return
           }
+          if (e.keyCode == KeyEvent.VK_T) tradeWindow?.show()
           dirOf(e.keyCode)?.let { held.add(it) }
         }
 

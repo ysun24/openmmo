@@ -41,6 +41,14 @@ interface CharacterRepository {
 
   /** Deletes a character owned by the user. */
   suspend fun deleteById(userId: Int, id: Long): Boolean
+
+  /**
+   * Writes several characters as one unit, for a trade. Monsters may change owner between them. The
+   * default is not atomic and only exists for fakes; the database implementation is.
+   */
+  suspend fun saveTrade(changes: List<Pair<StoredCharacter?, StoredCharacter>>) {
+    for ((previous, current) in changes) saveChanges(previous, current)
+  }
 }
 
 @Singleton
@@ -69,6 +77,52 @@ constructor(
       withContext(dispatcher) {
         dsl.transaction { cfg -> writeChanges(cfg.dsl(), previous, current) }
       }
+
+  override suspend fun saveTrade(changes: List<Pair<StoredCharacter?, StoredCharacter>>) =
+      withContext(dispatcher) { dsl.transaction { cfg -> writeTrade(cfg.dsl(), changes) } }
+
+  /**
+   * A monster that changes owner is one row whose owner_id moves, not a delete on one side and an
+   * insert on the other: each side's own delta would otherwise delete by id the row the other side
+   * just wrote. So the moved rows are written first, and each side's previous state is adjusted to
+   * already show the move, which leaves the per-character deltas with only their own changes.
+   */
+  private fun writeTrade(tx: DSLContext, changes: List<Pair<StoredCharacter?, StoredCharacter>>) {
+    val before = changes.associate { (prev, cur) -> cur.info.id to prev.monstersById() }
+    val after = changes.associate { (_, cur) -> cur.info.id to cur.monstersById() }
+    val movedIn = mutableMapOf<Long, Map<Long, Pokemon>>()
+    val movedOut = mutableMapOf<Long, Set<Long>>()
+    for ((charId, now) in after) {
+      val arrived =
+          now.filter { (monId, _) ->
+            monId !in before.getValue(charId) &&
+                before.any { (other, mons) -> other != charId && monId in mons }
+          }
+      movedIn[charId] = arrived
+      for (monId in arrived.keys) {
+        val from = before.entries.first { (other, mons) -> other != charId && monId in mons }.key
+        movedOut[from] = movedOut[from].orEmpty() + monId
+      }
+    }
+    // A plain update by id. A merge would also match on the (owner, container, slot) key and hit
+    // the row still sitting in the slot the monster moves into; that one moves later in this
+    // transaction and the slot constraint is only checked at commit.
+    for (mon in movedIn.values.flatMap { it.values }) {
+      tx.executeUpdate(mon.toRecord().apply { touched(true) }, POKEMON.ID.eq(mon.id))
+    }
+    for ((previous, current) in changes) {
+      val id = current.info.id
+      val adjusted =
+          previous?.let { prev ->
+            val kept = (prev.pokemon + prev.pcStorage).filter { it.id !in movedOut[id].orEmpty() }
+            prev.copy(
+                pokemon = (kept + movedIn[id].orEmpty().values).toMutableList(),
+                pcStorage = mutableListOf(),
+            )
+          }
+      writeChanges(tx, adjusted, current)
+    }
+  }
 
   override suspend fun deleteById(userId: Int, id: Long): Boolean =
       withContext(dispatcher) {
