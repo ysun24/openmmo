@@ -155,7 +155,7 @@ class PretData(private val root: File, val game: GbaGame) {
           .findAll(text)
           .forEach { m ->
             out[m.groupValues[1]] =
-                Regex("""INCBIN_U(?:16|32)\("([^"]+)"\)""")
+                Regex("""INC(?:BIN|GFX)_U(?:16|32)\("([^"]+)"""")
                     .findAll(m.groupValues[2])
                     .map { it.groupValues[1] }
                     .toList()

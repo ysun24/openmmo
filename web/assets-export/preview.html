@@ -1,0 +1,125 @@
+<!doctype html>
+<!-- Dev-only preview of the exported assets. Serve web/static and open /dev/preview.html.
+     ?maps=PalletTown,Route1  ?mons=1-151  ?scale=2  ?objects=0 (a sheet of every object sprite of region 0) -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>assets preview</title>
+<style>
+  body { background: #222; color: #ddd; font: 12px monospace; margin: 8px; }
+  canvas { image-rendering: pixelated; display: block; margin: 2px 0 10px; background: #000; }
+  .item { display: inline-block; vertical-align: top; margin-right: 12px; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script type="module">
+const base = '../assets/';
+const q = new URLSearchParams(location.search);
+const scale = +(q.get('scale') || 2);
+const out = document.getElementById('out');
+const manifest = await (await fetch(base + 'manifest.json')).json();
+const cache = new Map();
+function img(path) {
+  if (!cache.has(path)) cache.set(path, new Promise((ok, err) => {
+    const i = new Image(); i.onload = () => ok(i); i.onerror = () => err(new Error(path)); i.src = base + path;
+  }));
+  return cache.get(path);
+}
+async function bytes(path) { return new Uint8Array(await (await fetch(base + path)).arrayBuffer()); }
+function canvas(label, w, h) {
+  const d = document.createElement('div'); d.className = 'item';
+  d.textContent = label;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.style.width = w * scale + 'px'; c.style.height = h * scale + 'px';
+  d.appendChild(c); out.appendChild(d);
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return g;
+}
+function findMap(name) {
+  const [want, region] = name.split('@');
+  for (const [k, m] of Object.entries(manifest.maps))
+    if (m.name === want && (region === undefined || k.startsWith(region + ':'))) return [k, m];
+  return null;
+}
+async function drawSprite(g, o, frame, tx, ty, flip) {
+  const sheet = await img(o.sheet);
+  const x = tx * 16 + 8 - o.frameW / 2, y = ty * 16 + 16 - o.frameH;
+  g.save();
+  if (flip) { g.translate(x + o.frameW, y); g.scale(-1, 1); g.drawImage(sheet, frame * o.frameW, 0, o.frameW, o.frameH, 0, 0, o.frameW, o.frameH); }
+  else g.drawImage(sheet, frame * o.frameW, 0, o.frameW, o.frameH, x, y, o.frameW, o.frameH);
+  g.restore();
+}
+async function drawMap(name) {
+  const found = findMap(name);
+  if (!found) { out.append(`missing map ${name} `); return; }
+  const [key, m] = found;
+  const region = key.split(':')[0];
+  const pad = 2;
+  const g = canvas(`${key} ${m.name} ${m.width}x${m.height} conns=${m.connections.map(c => c.dir + '>' + c.map).join(',')}`,
+    (m.width + pad * 2) * 16, (m.height + pad * 2) * 16);
+  g.translate(pad * 16, pad * 16);
+  if (m.border) {
+    const b = await img(m.border);
+    for (let y = -pad; y < m.height + pad; y++) for (let x = -pad; x < m.width + pad; x++) {
+      if (x >= 0 && y >= 0 && x < m.width && y < m.height) continue;
+      const bx = ((x % m.borderWidth) + m.borderWidth) % m.borderWidth, by = ((y % m.borderHeight) + m.borderHeight) % m.borderHeight;
+      g.drawImage(b, bx * 16, by * 16, 16, 16, x * 16, y * 16, 16, 16);
+    }
+  }
+  g.drawImage(await img(m.bottom), 0, 0);
+  // Sprites: the player in the middle, a few NPCs around, standing and walking frames.
+  const players = manifest.players[region];
+  const cx = m.width >> 1, cy = m.height >> 1;
+  const pl = Object.values(manifest.objects).find(o => o.sheet === players.male);
+  const sprites = [[pl, pl.frames.down, cx, cy, false]];
+  const npcs = Object.entries(manifest.objects).filter(([k]) => k.startsWith(region + ':')).slice(1, 6);
+  npcs.forEach(([, o], i) => sprites.push([o, [o.frames.down, o.frames.up, o.frames.left, o.frames.left, o.frames.walkDown[0]][i % 5], cx - 2 + i, cy + 2, i === 3]));
+  sprites.push([Object.values(manifest.objects).find(o => o.sheet === players.female), pl.frames.left, cx + 1, cy, true]);
+  sprites.sort((a, b) => a[3] - b[3]);
+  for (const s of sprites) if (s[0]) await drawSprite(g, ...s);
+  g.drawImage(await img(m.top), 0, 0);
+  // Blocked tiles as red dots, from col.bin.
+  if (q.get('col')) {
+    const col = await bytes(m.collision);
+    g.fillStyle = 'rgba(255,0,0,.7)';
+    for (let i = 0; i < col.length; i++) if (col[i] & 1) g.fillRect((i % m.width) * 16 + 6, ((i / m.width) | 0) * 16 + 6, 4, 4);
+  }
+}
+async function drawMons(range) {
+  const [a, b] = range.split('-').map(Number);
+  const n = b - a + 1, cols = 16;
+  const g = canvas(`pokemon ${range} front / back / icon`, cols * 64, Math.ceil(n / cols) * 104);
+  g.fillStyle = '#eee'; g.fillRect(0, 0, cols * 64, Math.ceil(n / cols) * 104);
+  for (let d = a; d <= b; d++) {
+    const p = manifest.pokemon[d]; if (!p) continue;
+    const x = ((d - a) % cols) * 64, y = Math.floor((d - a) / cols) * 104;
+    if (p.front) g.drawImage(await img(p.front), x, y);
+    if (p.back) g.drawImage(await img(p.back), x, y + 64, 32, 32);
+    if (p.icon) g.drawImage(await img(p.icon), x + 32, y + 64);
+    g.fillStyle = '#333'; g.font = '8px monospace'; g.fillText(d, x + 1, y + 8);
+  }
+}
+async function drawObjects(region) {
+  const objs = Object.entries(manifest.objects).filter(([k]) => k.startsWith(region + ':'));
+  const cols = 24;
+  const g = canvas(`objects region ${region}: ${objs.length}`, cols * 34, Math.ceil(objs.length / cols) * 42);
+  g.fillStyle = '#6a6'; g.fillRect(0, 0, cols * 34, Math.ceil(objs.length / cols) * 42);
+  let i = 0;
+  for (const [k, o] of objs) {
+    const sheet = await img(o.sheet);
+    const x = (i % cols) * 34, y = Math.floor(i / cols) * 42;
+    g.drawImage(sheet, o.frames.down * o.frameW, 0, o.frameW, o.frameH, x, y, Math.min(o.frameW, 32), Math.min(o.frameH, 32));
+    g.fillStyle = '#000'; g.font = '7px monospace'; g.fillText(k.split(':')[1], x, y + 40);
+    i++;
+  }
+}
+try {
+  for (const name of (q.get('maps') || '').split(',').filter(Boolean)) await drawMap(name);
+  if (q.get('mons')) await drawMons(q.get('mons'));
+  if (q.get('objects')) await drawObjects(q.get('objects'));
+  document.title = 'done';
+  console.log('preview done');
+} catch (e) { console.error(e); out.append(' ERROR ' + e); }
+</script>
+</body>
+</html>
