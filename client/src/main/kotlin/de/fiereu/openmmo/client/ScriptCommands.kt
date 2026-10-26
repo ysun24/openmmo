@@ -75,6 +75,12 @@ object ScriptCommands {
                 "dialog: page ${d.page + 1}/${d.pages.size} '${d.pages[d.page].joinToString(" ")}'" +
                     if (d.choices.isEmpty()) "" else " choices=${d.choices} cursor=${d.cursor}")
       }
+      "ui" -> {
+        val v = game.world.snapshot().overworld
+        println(
+            "ui: dialog=${v?.dialog != null} shop=${v?.shop != null} transitioning=${v?.transitioning} " +
+                "scriptLocked=${v?.scriptLocked} inScript=${v?.inScript}")
+      }
       "bag" -> {
         val v = game.world.snapshot().overworld
         println(
