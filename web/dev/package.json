@@ -1,0 +1,8 @@
+{
+  "name": "openmmo-web-dev",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dev-only mock gateway for the OpenMMO web client",
+  "scripts": { "mock": "node mock-gateway.js" },
+  "dependencies": { "ws": "8.18.3" }
+}
