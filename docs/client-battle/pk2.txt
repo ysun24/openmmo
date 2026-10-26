@@ -1,0 +1,30 @@
+[battle] A wild RATTATA (Lv3) appeared!
+[battle] Go! CHARMANDER!
+[battle] What will CHARMANDER do?
+battle: wild phase=ACTION result=null
+battle: wild phase=ACTION result=null
+[battle] Got away safely!
+[battle] You challenged Friend. Waiting for an answer...
+[battle] Your challenge was declined.
+[battle] Friend declined your challenge.
+[battle] You challenged Friend. Waiting for an answer...
+[battle] Your challenge was accepted!
+[battle] Friend sent out SQUIRTLE!
+[battle] Go! CHARMANDER!
+[battle] What will CHARMANDER do?
+[battle] You are battling Friend!
+[battle] Friend forfeited the battle.
+[battle] Kanto won the battle!
+[battle] You won!
+battle: vs Friend phase=ENDED result=VICTORY
+[battle] You challenged Friend. Waiting for an answer...
+[battle] Your challenge was accepted!
+[battle] Friend sent out SQUIRTLE!
+[battle] Go! CHARMANDER!
+[battle] What will CHARMANDER do?
+[battle] You are battling Friend!
+[battle] Friend left the battle.
+[battle] Kanto won the battle!
+[battle] You won!
+[battle] A player left the game.
+battle: vs Friend phase=ENDED result=VICTORY

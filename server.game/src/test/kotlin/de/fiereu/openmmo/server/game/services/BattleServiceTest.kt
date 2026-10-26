@@ -31,6 +31,7 @@ import de.fiereu.openmmo.server.game.battle.BattleRewards
 import de.fiereu.openmmo.server.game.battle.MoveLearner
 import de.fiereu.openmmo.server.game.battle.TurnEngine
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
+import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.EntityIdService
 import de.fiereu.openmmo.server.game.testsupport.FakeCharacterRepository
@@ -106,6 +107,15 @@ private class Fixture(scope: CoroutineScope) {
           moveRegistry = MoveRegistry(),
           trainers = TrainerRegistry(),
           items = ItemRegistry(),
+          pvp =
+              PvpBattleService(
+                  store,
+                  SessionRegistry(),
+                  registry,
+                  TurnEngine(MoveRegistry(), TypeChart()),
+                  BattlePacketEmitter(interestManager),
+                  interestManager,
+                  SpeciesRegistry()),
       )
 
   suspend fun playerWithParty(level: Byte = 50, hp: Short = 999): Pair<FakeSession, Long> {

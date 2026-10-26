@@ -1,0 +1,19 @@
+[battle] Kanto challenges you to a battle! (accept / decline)
+[battle] Kanto challenges you to a battle!
+[battle] Kanto challenges you to a battle! (accept / decline)
+[battle] Kanto challenges you to a battle!
+[battle] Kanto sent out CHARMANDER!
+[battle] Go! SQUIRTLE!
+[battle] What will SQUIRTLE do?
+[battle] You are battling Kanto!
+[battle] You forfeited the battle.
+[battle] Kanto won the battle!
+[battle] You lost...
+battle: vs Kanto phase=ENDED result=DEFEAT
+[battle] Kanto challenges you to a battle! (accept / decline)
+[battle] Kanto challenges you to a battle!
+[battle] Kanto sent out CHARMANDER!
+[battle] Go! SQUIRTLE!
+[battle] What will SQUIRTLE do?
+[battle] You are battling Kanto!
+battle: vs Kanto phase=ACTION result=null

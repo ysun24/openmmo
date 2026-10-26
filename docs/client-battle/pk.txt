@@ -1,0 +1,22 @@
+[battle] Your challenge was accepted!
+[battle] Friend sent out SQUIRTLE!
+[battle] Go! CHARMANDER!
+[battle] What will CHARMANDER do?
+[battle] You are battling Friend!
+battle: vs Friend phase=ACTION result=null
+[battle] CHARMANDER used SCRATCH!
+[battle] Foe SQUIRTLE used TACKLE!
+[battle] CHARMANDER fainted!
+[battle] Choose a monster to send out.
+[battle] Go! CATERPIE!
+[battle] What will CATERPIE do?
+[battle] Foe SQUIRTLE used TACKLE!
+[battle] CATERPIE used TACKLE!
+[battle] What will CATERPIE do?
+[battle] Foe SQUIRTLE used TACKLE!
+[battle] CATERPIE fainted!
+[battle] Friend won the battle!
+[battle] You lost...
+battle: vs Friend phase=ENDED result=DEFEAT
+battle: vs Friend phase=ENDED result=DEFEAT
+[battle] A player left the game.

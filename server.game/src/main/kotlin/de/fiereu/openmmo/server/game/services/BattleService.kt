@@ -75,6 +75,7 @@ constructor(
     private val moveRegistry: MoveRegistry,
     private val trainers: TrainerRegistry,
     private val items: ItemRegistry,
+    private val pvp: PvpBattleService,
 ) {
 
   private val pokeBallItemId: Short by lazy { items.idOf(Items.POKE_BALL).toShort() }
@@ -91,6 +92,10 @@ constructor(
     if (battle.pendingResult != null) return
     val action = event.packet
     log.info { "Battle action char=$charId: $action" }
+    if (battle.pvp != null) {
+      pvp.onAction(battle, action)
+      return
+    }
     // While the active mon is fainted the player owes a replacement and may only switch.
     if (battle.activeMon().fainted && action.action != BattleAction.SWITCH) return
     when (action.action) {
@@ -144,7 +149,13 @@ constructor(
   fun onDisconnect(session: SessionContext) {
     val charId = session.attributes[PLAYER_STATE]?.characterId ?: return
     pendingLearns.values.removeIf { it.charId == charId }
+    pvp.onLogout(charId)
     val battle = battles.byChar(charId) ?: return
+    // A duel never writes its damage back, the rival wins by forfeit instead.
+    if (battle.pvp != null) {
+      pvp.onDisconnect(battle)
+      return
+    }
     persistParty(battle)
     finishBattle(battle, BattleResult.DISCONNECTED)
   }

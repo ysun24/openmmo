@@ -5,10 +5,12 @@ import dagger.Module
 import dagger.multibindings.IntoSet
 import de.fiereu.openmmo.server.game.services.command.CatchCommand
 import de.fiereu.openmmo.server.game.services.command.ChatCommand
+import de.fiereu.openmmo.server.game.services.command.GiveMonCommand
 import de.fiereu.openmmo.server.game.services.command.HelpCommand
 import de.fiereu.openmmo.server.game.services.command.PosCommand
 import de.fiereu.openmmo.server.game.services.command.StoryCommand
 import de.fiereu.openmmo.server.game.services.command.TestBattleCommand
+import de.fiereu.openmmo.server.game.services.command.TestTrainerCommand
 
 /**
  * A name must not start with a client side command. The client resolves those itself and never
@@ -23,6 +25,10 @@ interface ChatCommandModule {
   @Binds @IntoSet fun testBattleCommand(command: TestBattleCommand): ChatCommand
 
   @Binds @IntoSet fun catchCommand(command: CatchCommand): ChatCommand
+
+  @Binds @IntoSet fun giveMonCommand(command: GiveMonCommand): ChatCommand
+
+  @Binds @IntoSet fun testTrainerCommand(command: TestTrainerCommand): ChatCommand
 
   @Binds @IntoSet fun storyCommand(command: StoryCommand): ChatCommand
 }

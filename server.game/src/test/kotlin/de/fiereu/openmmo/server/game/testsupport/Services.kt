@@ -22,12 +22,14 @@ import de.fiereu.openmmo.server.game.services.MapScriptService
 import de.fiereu.openmmo.server.game.services.MovementService
 import de.fiereu.openmmo.server.game.services.NpcService
 import de.fiereu.openmmo.server.game.services.PresenceService
+import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.ScriptMovementService
 import de.fiereu.openmmo.server.game.services.ScriptWarpService
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.StoryPlayerService
 import de.fiereu.openmmo.server.game.services.StoryService
 import de.fiereu.openmmo.server.game.services.WarpService
+import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.EntityIdService
 import de.fiereu.openmmo.server.game.world.interest.InterestManager
@@ -110,5 +112,14 @@ private fun battleService(store: CharacterStore, interest: InterestManager): Bat
       moveRegistry = moves,
       trainers = TrainerRegistry(),
       items = ItemRegistry(),
+      pvp =
+          PvpBattleService(
+              store,
+              SessionRegistry(),
+              BattleRegistry(),
+              TurnEngine(moves, TypeChart()),
+              BattlePacketEmitter(interest),
+              interest,
+              species),
   )
 }

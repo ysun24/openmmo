@@ -21,6 +21,7 @@ import de.fiereu.openmmo.common.enums.Platform
 import de.fiereu.openmmo.net.game.codecs.SkinSet
 import de.fiereu.openmmo.net.game.packets.CharactersListPacket
 import de.fiereu.openmmo.net.game.packets.ChatMessagePacket
+import de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket
 import de.fiereu.openmmo.net.game.packets.CreateCharacterPacket
 import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
 import de.fiereu.openmmo.net.game.packets.EntityMovePacket
@@ -62,6 +63,13 @@ class GameClient(
     private val onChange: () -> Unit = {},
 ) {
   val world = WorldState()
+  val battle =
+      BattleClient(
+          send = { packet -> session?.send(packet) },
+          onChange = { onChange() },
+          myName = { world.snapshot().characterName },
+          regionId = { world.snapshot().map?.regionId ?: 0 },
+      )
 
   @Volatile private var session: SessionContext? = null
   private var channel: Channel? = null
@@ -115,6 +123,11 @@ class GameClient(
 
   fun say(text: String) {
     session?.send(ChatMessagePacket(ChatType.NORMAL, Language.EN, text, ""))
+  }
+
+  /** A slash command, e.g. "/testbattle 19 3". The server only parses these from this packet. */
+  fun command(text: String) {
+    session?.send(ChatMessageSendPacket(0, text, null))
   }
 
   private inner class Handler(private val ticket: GameTicket) :
@@ -212,6 +225,7 @@ class GameClient(
         val sender = p.sender?.takeIf { it.isNotEmpty() } ?: "*"
         log.info { "[chat] $sender: ${p.message}" }
         world.addChat(ChatLine(sender, p.message))
+        if (p.sender.isNullOrEmpty()) battle.notice(p.message)
         onChange()
       }
 
@@ -237,6 +251,7 @@ class GameClient(
 
     /** Packets this client does not model yet are expected, not errors. */
     override fun onUnhandled(event: PacketEvent<*>) {
+      if (battle.handle(event)) return
       log.debug { "ignored ${event.packet::class.simpleName}" }
     }
 

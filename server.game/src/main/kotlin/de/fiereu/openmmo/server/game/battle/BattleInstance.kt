@@ -47,6 +47,9 @@ class BattleInstance(
   /** Completes when the battle leaves the registry. */
   val completion = CompletableDeferred<BattleResult>()
 
+  /** Set when the other side is a player rather than the AI, see [PvpDuel]. */
+  var pvp: PvpDuel? = null
+
   /** Result held until the client confirms that its battle-to-map transition has finished. */
   var pendingResult: BattleResult? = null
 

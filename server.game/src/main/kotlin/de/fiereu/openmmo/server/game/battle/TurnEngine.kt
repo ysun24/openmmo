@@ -66,13 +66,21 @@ constructor(
     private val typeChart: TypeChart,
 ) {
 
-  fun resolveTurn(battle: BattleInstance, playerMoveId: Short): List<BattleEvent> {
+  /**
+   * [opponentMoveId] is the move a human opponent picked in a player-vs-player battle. Null lets
+   * the AI pick one, as in wild and trainer battles.
+   */
+  fun resolveTurn(
+      battle: BattleInstance,
+      playerMoveId: Short,
+      opponentMoveId: Short? = null,
+  ): List<BattleEvent> {
     val events = mutableListOf<BattleEvent>()
     val player = battle.activeMon()
     val enemy = battle.opponentMon()
 
     val playerAction = TurnAction(player, enemy, moves.get(playerMoveId.toInt()))
-    val enemyAction = TurnAction(enemy, player, pickEnemyMove(battle, enemy))
+    val enemyAction = TurnAction(enemy, player, enemyMove(battle, enemy, opponentMoveId))
 
     for (action in order(battle, playerAction, enemyAction)) {
       if (action.attacker.fainted) continue
@@ -83,13 +91,19 @@ constructor(
   }
 
   /** A voluntary switch spends the player's turn, so the enemy attacks the incoming monster. */
-  fun resolveSwitchTurn(battle: BattleInstance): List<BattleEvent> {
+  fun resolveSwitchTurn(battle: BattleInstance, opponentMoveId: Short? = null): List<BattleEvent> {
     val events = mutableListOf<BattleEvent>()
     val enemy = battle.opponentMon()
     if (enemy.fainted) return events
-    execute(battle, TurnAction(enemy, battle.activeMon(), pickEnemyMove(battle, enemy)), events)
+    execute(
+        battle,
+        TurnAction(enemy, battle.activeMon(), enemyMove(battle, enemy, opponentMoveId)),
+        events)
     return events
   }
+
+  private fun enemyMove(battle: BattleInstance, enemy: BattleMonState, chosen: Short?): MoveDef? =
+      if (chosen != null) moves.get(chosen.toInt()) else pickEnemyMove(battle, enemy)
 
   /** The enemy AI picks a random usable move, falling back to Tackle with no pp left. */
   private fun pickEnemyMove(battle: BattleInstance, enemy: BattleMonState): MoveDef? {

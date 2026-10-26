@@ -1,0 +1,24 @@
+[battle] Kanto challenges you to a battle! (accept / decline)
+[battle] Kanto challenges you to a battle!
+[battle] Kanto sent out CHARMANDER!
+[battle] Go! SQUIRTLE!
+[battle] What will SQUIRTLE do?
+[battle] You are battling Kanto!
+[battle] Waiting for Kanto...
+[battle] Foe CHARMANDER used SCRATCH!
+[battle] SQUIRTLE used TACKLE!
+[battle] Foe CHARMANDER fainted!
+[battle] Waiting for Kanto to send out a monster...
+[battle] Kanto sent out CATERPIE!
+[battle] What will SQUIRTLE do?
+[battle] Waiting for Kanto...
+[battle] SQUIRTLE used TACKLE!
+[battle] Foe CATERPIE used TACKLE!
+[battle] What will SQUIRTLE do?
+[battle] Waiting for Kanto...
+[battle] SQUIRTLE used TACKLE!
+[battle] Foe CATERPIE fainted!
+[battle] Friend won the battle!
+[battle] You won!
+battle: vs Kanto phase=ENDED result=VICTORY
+battle: vs Kanto phase=ENDED result=VICTORY
