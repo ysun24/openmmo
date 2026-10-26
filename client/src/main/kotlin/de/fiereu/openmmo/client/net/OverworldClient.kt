@@ -86,14 +86,20 @@ class OverworldClient(
     return (moving[self] ?: 0) > 0
   }
 
-  fun itemName(id: Int): String = itemNames.getOrNull(id) ?: "#$id"
+  /** Wire item ids are `region * 1000 + index` into item_names.json, always in the region 5 table. */
+  fun itemName(id: Int): String =
+      (if (id >= ITEM_REGION_BLOCK) itemNames.getOrNull(id - ITEM_REGION_BLOCK) else null) ?: "#$id"
 
   fun itemIdOf(name: String): Int? {
     name.toIntOrNull()?.let {
       return it
     }
     val want = norm(name)
-    return itemNames.indexOfFirst { norm(it) == want }.takeIf { it >= 0 }
+    // Several indices share a name; the server names an item by its lowest.
+    return itemNames
+        .withIndex()
+        .firstOrNull { it.index > 0 && norm(it.value) == want }
+        ?.let { ITEM_REGION_BLOCK + it.index }
   }
 
   private fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "").replace("é", "e")
@@ -382,6 +388,7 @@ class OverworldClient(
     const val YES_NO = 0x05
     const val PICK = 0x23
     const val ITEM_TAG = 0x5000L
+    const val ITEM_REGION_BLOCK = 5000
     const val COUNTER = 0x80
 
     fun dirOf(i: Int): Direction =

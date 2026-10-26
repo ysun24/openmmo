@@ -136,6 +136,11 @@ class GameClient(
   }
 
   fun say(text: String) {
+    // Slash commands go through the typed-line packet, the only one the server parses commands from.
+    if (text.startsWith("/")) {
+      session?.send(de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket(0, text, null))
+      return
+    }
     session?.send(ChatMessagePacket(ChatType.NORMAL, Language.EN, text, ""))
   }
 
