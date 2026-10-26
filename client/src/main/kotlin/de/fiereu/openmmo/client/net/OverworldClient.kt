@@ -32,6 +32,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionResponsePacket
 import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
+import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -225,9 +226,16 @@ class OverworldClient(
             ?: if (p.textId == 0) "" else "[text 0x${p.textId.toString(16)}]"
     val vars = mutableMapOf("PLAYER" to (snap.characterName ?: "PLAYER"), "RIVAL" to "RIVAL")
     // A species argument fills the ROM string variable it names (1-based, STR_VAR_1..3).
-    p.messageArgs.filterIsInstance<TextPokemonSpeciesArg>().forEach {
-      vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] =
-          speciesName(it.speciesId.toInt())
+    p.messageArgs.forEach {
+      when (it) {
+        is TextPokemonSpeciesArg ->
+            vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] =
+                speciesName(it.speciesId.toInt())
+        is TextStringArg ->
+            if (it.stringVariable == TextStringArg.RIVAL) vars["RIVAL"] = it.text
+            else if (it.stringVariable in 1..3) vars["STR_VAR_${it.stringVariable}"] = it.text
+        else -> {}
+      }
     }
     val actionType = p.actionType.toInt() and 0xFF
     var choices = emptyList<String>()

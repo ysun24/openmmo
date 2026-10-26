@@ -7,7 +7,9 @@ import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.enums.Region
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.maps.MapManager
+import de.fiereu.openmmo.net.game.packets.dialog.DialogMessageArg
 import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
+import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogPresentation
@@ -57,11 +59,56 @@ internal constructor(
 
   internal fun send(packet: Any) = session.send(packet)
 
+  /**
+   * The decomp's string buffers (STR_VAR_1..3), filled by the buffer* verbs, sent with each box.
+   */
+  private val buffers = sortedMapOf<Int, DialogMessageArg>()
+
+  /** The decomp's bufferspeciesname: STR_VAR_[strVar] (1..3) becomes the species' name. */
+  fun bufferSpeciesName(strVar: Int, dexId: Int) {
+    buffers[checkStrVar(strVar)] =
+        TextPokemonSpeciesArg(
+            partySlot = 1, stringVariable = strVar.toByte(), speciesId = dexId.toShort())
+  }
+
+  /** The decomp's bufferitemname: STR_VAR_[strVar] (1..3) becomes the item's name. */
+  fun bufferItemName(strVar: Int, item: ItemDef) = bufferString(strVar, item.name)
+
+  /** The decomp's bufferstring with literal text. */
+  fun bufferString(strVar: Int, text: String) {
+    buffers[checkStrVar(strVar)] = TextStringArg(strVar.toByte(), text)
+  }
+
+  private fun checkStrVar(strVar: Int): Int {
+    require(strVar in 1..3) { "STR_VAR_$strVar does not exist" }
+    return strVar
+  }
+
+  /**
+   * The rival's name. FireRed lets the player pick one and an MMO has nobody to ask, so Kanto uses
+   * the game's first preset (GREEN); Emerald's rival is whoever of May and Brendan the player is
+   * not.
+   */
+  internal val rivalName: String
+    get() =
+        when (Region.byWireValue(state.regionId.toByte())) {
+          Region.HOENN -> if (isFemale) "BRENDAN" else "MAY"
+          else -> "GREEN"
+        }
+
+  /** Every box carries the buffers and the rival's name, so the client can fill the text. */
+  internal fun messageArgs(): List<DialogMessageArg> =
+      buffers.values + TextStringArg(TextStringArg.RIVAL, rivalName)
+
+  private fun presentation() = DialogPresentation(messageArgs = messageArgs())
+
   /** Show [line] as a sign and wait for the player to close it. */
-  suspend fun sign(line: DialogLine) = dialog.showAndWait(session, state, line.textId, SIGN, -1)
+  suspend fun sign(line: DialogLine) =
+      dialog.showAndWait(session, state, line.textId, SIGN, -1, presentation())
 
   /** Show [line] from the interacted entity and wait for the player to go on. */
-  suspend fun say(line: DialogLine) = dialog.showAndWait(session, state, line.textId, NPC, entityId)
+  suspend fun say(line: DialogLine) =
+      dialog.showAndWait(session, state, line.textId, NPC, entityId, presentation())
 
   /** Show [line] from a cutscene npc addressed by its decomp local id. */
   suspend fun sayNpc(localId: Int, line: DialogLine) =
@@ -71,32 +118,21 @@ internal constructor(
           line.textId,
           NPC,
           movement.npcEntityId(state, localId) ?: -1,
+          presentation(),
       )
 
   /** Shows dialog with a species-name variable. */
-  suspend fun sayNpcWithSpeciesName(localId: Int, line: DialogLine, speciesId: Int) =
-      dialog.showAndWait(
-          session,
-          state,
-          line.textId,
-          NPC,
-          movement.npcEntityId(state, localId) ?: -1,
-          DialogPresentation(
-              messageArgs =
-                  listOf(
-                      TextPokemonSpeciesArg(
-                          partySlot = 1,
-                          stringVariable = 1,
-                          speciesId = speciesId.toShort(),
-                      ))),
-      )
+  suspend fun sayNpcWithSpeciesName(localId: Int, line: DialogLine, speciesId: Int) {
+    bufferSpeciesName(1, speciesId)
+    sayNpc(localId, line)
+  }
 
   /** Opens the Emerald starter picker. */
   suspend fun chooseHoennStarter(): Int = dialog.chooseHoennStarter(session, state)
 
   /** Ask a ROM-backed yes/no question from the interacted entity. */
   suspend fun askYesNo(line: DialogLine): Boolean =
-      dialog.askYesNo(session, state, line.textId, entityId)
+      dialog.askYesNo(session, state, line.textId, entityId, messageArgs())
 
   /** Ask a ROM-backed yes/no question from a cutscene npc. */
   suspend fun askYesNoNpc(localId: Int, line: DialogLine): Boolean =
@@ -105,6 +141,7 @@ internal constructor(
           state,
           line.textId,
           movement.npcEntityId(state, localId) ?: -1,
+          messageArgs(),
       )
 
   /** True if the story [flag] is set. Keys come from the content layer, for example HoennFlags. */

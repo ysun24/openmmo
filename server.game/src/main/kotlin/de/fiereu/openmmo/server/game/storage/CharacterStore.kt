@@ -235,6 +235,13 @@ constructor(
     return applied
   }
 
+  /** Set the steps a repel has left, and which item it was. */
+  fun setRepel(characterId: Long, steps: Int, itemId: Int) {
+    mutate(characterId) {
+      it.copy(info = it.info.copy(repelLeft = steps.toShort(), repelItemId = itemId.toShort()))
+    }
+  }
+
   fun updateCharacter(info: CharacterInfo) {
     mutate(info.id) { it.copy(info = info) }
   }
@@ -278,6 +285,24 @@ constructor(
       stored.copy(
           pokemon = stored.pokemon.map { if (it.id == updated.id) updated else it }.toMutableList())
     }
+  }
+
+  /**
+   * Replace the party and PC with [party] and [pc], the same monsters in new places (a party
+   * reorder, a deposit, a withdrawal). False when nothing was written, which leaves both as they
+   * were. The slot unique key is deferred, so two monsters can trade slots in one write.
+   */
+  suspend fun rearrangeMonsters(
+      characterId: Long,
+      party: List<Pokemon>,
+      pc: List<Pokemon>,
+  ): Boolean {
+    val before = characters[characterId] ?: return false
+    return mutateDurably(
+        characterId,
+        apply = { it.copy(pokemon = party.toMutableList(), pcStorage = pc.toMutableList()) },
+        rollback = { it.copy(pokemon = before.pokemon, pcStorage = before.pcStorage) },
+    )
   }
 
   /** False when the change could not be written, in which case the balance is left as it was. */

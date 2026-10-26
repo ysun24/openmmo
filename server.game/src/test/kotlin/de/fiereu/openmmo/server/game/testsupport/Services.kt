@@ -96,7 +96,10 @@ fun scriptRunner(
   )
 }
 
-private fun battleService(store: CharacterStore, interest: InterestManager): BattleService {
+fun battleService(
+    store: CharacterStore,
+    interest: InterestManager = InterestManager(),
+): BattleService {
   val species = SpeciesRegistry()
   val moves = MoveRegistry()
   return BattleService(

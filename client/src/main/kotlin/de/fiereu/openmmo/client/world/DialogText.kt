@@ -24,7 +24,8 @@ class DialogText(private val dir: File) {
   @Synchronized
   private fun table(region: String): Map<Int, String> =
       tables.getOrPut(region) {
-        // The ROM-resolved table, plus decomp-only lines with synthetic ids (`<region>.extra.json`).
+        // The ROM-resolved table, plus decomp-only lines with synthetic ids
+        // (`<region>.extra.json`).
         listOf("$region.json", "$region.extra.json")
             .map { File(dir, it) }
             .filter { it.exists() }

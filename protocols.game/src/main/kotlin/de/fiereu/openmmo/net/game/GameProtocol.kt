@@ -486,6 +486,9 @@ object GameProtocol : Protocol() {
     s2c<GroupMemberRosterPacket>(0xAEu, GroupMemberRosterPacketCodec)
 
     s2c<SceneEntityActionDispatchPacket>(0xB0u, SceneEntityActionDispatchPacketCodec)
+    // Our own additions: field item use, and party/PC moves (list type 1 party, 0 PC).
+    c2s<FieldItemUsePacket>(0xB0u, FieldItemUsePacketCodec)
+    c2s<SwapInventorySlotsPacket>(0xB1u, SwapInventorySlotsPacketCodec)
 
     s2c<SocialProfileDialogOpenPacket>(0xB1u, SocialProfileDialogOpenPacketCodec)
 
