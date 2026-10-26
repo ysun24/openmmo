@@ -24,3 +24,7 @@ include(":server.login")
 include(":server.game")
 include(":codegen")
 include(":client")
+
+include(":web.gateway")
+
+project(":web.gateway").projectDir = file("web/gateway")

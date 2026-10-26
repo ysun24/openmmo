@@ -115,6 +115,12 @@ class GameClient(
     channel?.close()
   }
 
+  /** Disconnects and releases the overworld's timer thread. The client cannot be reused after. */
+  fun close() {
+    channel?.close()
+    overworld.shutdown()
+  }
+
   /**
    * One step. The server takes the tile the step starts on and the direction, checks it against its
    * own collision and answers a blocked step with a position reset.

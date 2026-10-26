@@ -1,0 +1,360 @@
+package de.fiereu.openmmo.web
+
+import de.fiereu.openmmo.client.net.BattleMon
+import de.fiereu.openmmo.client.net.BattleState
+import de.fiereu.openmmo.client.net.MarketClient
+import de.fiereu.openmmo.client.net.MarketEntry
+import de.fiereu.openmmo.client.world.Entity
+import de.fiereu.openmmo.client.world.MapKey
+import de.fiereu.openmmo.client.world.OverworldState
+import de.fiereu.openmmo.client.world.WorldState
+import de.fiereu.openmmo.common.Pokemon
+import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
+import de.fiereu.openmmo.net.game.packets.trade.TradePhase
+import de.fiereu.openmmo.net.game.packets.trade.TradeStage
+import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+
+/** One read of every client snapshot, taken together so a state message is consistent. */
+data class Sources(
+    val world: WorldState.Snapshot,
+    val battle: BattleState,
+    val trade: TradeStatePacket,
+    val party: List<Pokemon>,
+    /** The bag as the trade client saw it, used when the overworld has none yet. */
+    val tradeBag: Map<Int, Int>,
+    val tradeMoney: Int?,
+    val market: MarketClient.State,
+    val ackSeq: Int,
+    /** Entities that changed tile in the last step duration. */
+    val moving: Set<Long>,
+)
+
+/** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
+class StateJson(private val names: Names) {
+
+  /** Every section, keyed by its name. A section with nothing to show is [JsonNull]. */
+  fun build(s: Sources): Map<String, JsonElement> =
+      linkedMapOf(
+          "world" to world(s),
+          "chat" to chat(s.world),
+          "ui" to ui(s),
+          "party" to party(s.party),
+          "battle" to battle(s.battle),
+          "invite" to invite(s.battle),
+          "trade" to trade(s.trade),
+          "market" to market(s),
+      )
+
+  fun world(s: Sources): JsonElement {
+    val w = s.world
+    return buildJsonObject {
+      put("map", w.map?.let { mapJson(it, w.mapWidth, w.mapHeight) } ?: JsonNull)
+      put("self", w.selfId?.toString())
+      put("inWorld", w.inWorld)
+      putJsonArray("entities") {
+        w.entities.values
+            .filter { it.visible }
+            .sortedBy { it.id }
+            .forEach { add(entity(it, it.id in s.moving)) }
+      }
+      put("ackSeq", s.ackSeq)
+    }
+  }
+
+  private fun mapJson(key: MapKey, width: Int, height: Int) = buildJsonObject {
+    put("region", key.regionId)
+    put("bank", key.bankId)
+    put("map", key.mapId)
+    put("name", names.mapName(key))
+    put("width", width)
+    put("height", height)
+  }
+
+  fun entity(e: Entity, moving: Boolean) = buildJsonObject {
+    put("id", e.id.toString())
+    put("kind", if (e.isPlayer) "player" else "npc")
+    put("name", e.name)
+    put("gfx", if (e.isPlayer) JsonNull else JsonPrimitive(e.graphicsId))
+    put("x", e.x)
+    put("y", e.y)
+    put("facing", dir(e.facing))
+    put("moving", moving)
+    putJsonObject("map") {
+      put("region", e.map.regionId)
+      put("bank", e.map.bankId)
+      put("map", e.map.mapId)
+    }
+  }
+
+  fun chat(w: WorldState.Snapshot): JsonElement = buildJsonArray {
+    w.chat.takeLast(CHAT_LINES).forEach {
+      addJsonObject {
+        put("sender", it.sender)
+        put("text", it.message)
+      }
+    }
+  }
+
+  fun ui(s: Sources): JsonElement {
+    val v: OverworldState.View? = s.world.overworld
+    return buildJsonObject {
+      val d = v?.dialog
+      put(
+          "dialog",
+          if (d == null) JsonNull
+          else
+              buildJsonObject {
+                put("speaker", JsonNull)
+                putJsonArray("lines") { d.pages.getOrNull(d.page).orEmpty().forEach { add(it) } }
+                put("lastPage", d.onLastPage)
+                putJsonArray("choices") { if (d.onLastPage) d.choices.forEach { add(it) } }
+                put("cursor", d.cursor)
+              })
+      val shop = v?.shop
+      put(
+          "shop",
+          if (shop == null) JsonNull
+          else
+              buildJsonObject {
+                putJsonArray("offers") {
+                  shop.offers.forEach {
+                    addJsonObject {
+                      put("item", it.itemId)
+                      put("name", it.name)
+                      put("price", it.price)
+                    }
+                  }
+                }
+                put("cursor", shop.cursor)
+                put("status", shop.status)
+              })
+      put("money", v?.money ?: s.tradeMoney ?: s.market.money)
+      val bag = v?.bag?.takeIf { it.isNotEmpty() } ?: s.tradeBag
+      put("bag", bagJson(bag))
+      put("locked", v != null && (v.transitioning || v.scriptLocked || v.inScript))
+    }
+  }
+
+  fun bagJson(bag: Map<Int, Int>): JsonArray = buildJsonArray {
+    bag.toSortedMap().forEach { (id, qty) ->
+      if (qty > 0)
+          addJsonObject {
+            put("item", id)
+            put("name", names.item(id))
+            put("qty", qty)
+          }
+    }
+  }
+
+  fun party(party: List<Pokemon>): JsonElement = buildJsonArray {
+    party
+        .sortedBy { it.containerSlot }
+        .forEachIndexed { i, mon ->
+          addJsonObject {
+            put("slot", i)
+            put("dex", mon.dexId)
+            val species = names.species(mon.dexId)
+            put("name", species)
+            put(
+                "nick",
+                mon.nickname.takeIf { it.isNotEmpty() && !it.equals(species, ignoreCase = true) })
+            put("level", mon.level.toInt())
+            put("hp", mon.hp.toInt())
+            put("maxHp", names.maxHp(mon))
+          }
+        }
+  }
+
+  fun battle(b: BattleState): JsonElement {
+    if (!b.active) return JsonNull
+    return buildJsonObject {
+      put("wild", b.wild)
+      put("opponentName", b.opponentName)
+      put("phase", b.phase.name)
+      put("turn", b.turn)
+      put("me", b.me?.let { monJson(it, withMoves = true) } ?: JsonNull)
+      put("foe", b.foe?.takeIf { it.revealed }?.let { monJson(it, withMoves = false) } ?: JsonNull)
+      putJsonArray("party") { b.party.forEach { add(monJson(it, withMoves = false)) } }
+      putJsonArray("log") { b.log.takeLast(BATTLE_LOG_LINES).forEach { add(it) } }
+      put("result", b.result)
+      val learn = b.pendingLearn
+      put(
+          "learn",
+          if (learn == null) JsonNull
+          else
+              buildJsonObject {
+                put("move", learn.second.firstOrNull()?.let(names::move))
+                val mon = b.party.firstOrNull { it.entityId == learn.first }
+                putJsonArray("current") { mon?.moves?.forEach { add(names.move(it.id)) } }
+              })
+    }
+  }
+
+  private fun monJson(m: BattleMon, withMoves: Boolean) = buildJsonObject {
+    put("dex", m.species)
+    put("name", names.species(m.species))
+    put("level", m.level)
+    put("hp", m.hp.coerceAtLeast(0))
+    put("maxHp", m.maxHp)
+    if (withMoves) {
+      putJsonArray("moves") {
+        m.moves.forEach {
+          addJsonObject {
+            put("name", names.move(it.id))
+            put("pp", it.pp)
+            put("maxPp", it.maxPp)
+          }
+        }
+      }
+    }
+  }
+
+  fun invite(b: BattleState): JsonElement =
+      b.pendingInviteFrom?.let { buildJsonObject { put("from", it) } } ?: JsonNull
+
+  /** A closed trade stays visible once with its reason; a closed trade with no reason is null. */
+  fun trade(t: TradeStatePacket): JsonElement {
+    if (t.phase == TradePhase.CLOSED && t.message.isEmpty()) return JsonNull
+    return buildJsonObject {
+      put("phase", t.phase.name)
+      put("partner", t.partnerName)
+      put("message", t.message)
+      put("mine", offer(t.mine, t.myStage))
+      put("theirs", offer(t.theirs, t.theirStage))
+    }
+  }
+
+  private fun offer(o: TradeOfferView, stage: TradeStage) = buildJsonObject {
+    put("stage", stage.name)
+    putJsonArray("mons") {
+      o.mons.forEach {
+        addJsonObject {
+          put("slot", it.partySlot)
+          put("dex", it.dexId)
+          put("name", names.species(it.dexId))
+          put("level", it.level)
+        }
+      }
+    }
+    putJsonArray("items") {
+      o.items.forEach {
+        addJsonObject {
+          put("item", it.itemId)
+          put("name", names.item(it.itemId))
+          put("qty", it.quantity)
+        }
+      }
+    }
+    put("money", o.money)
+  }
+
+  fun market(s: Sources): JsonElement {
+    val m = s.market
+    val mineIds = m.mine.map { it.listingId }.toSet()
+    val selfId = s.world.selfId
+    return buildJsonObject {
+      put("money", m.money)
+      putJsonArray("browse") {
+        m.browse.forEach { add(entry(it, it.listingId in mineIds || it.sellerId == selfId)) }
+      }
+      put("browseTotal", m.browseTotal)
+      put("page", m.browsePage)
+      putJsonArray("mine") { m.mine.forEach { add(entry(it, true)) } }
+      putJsonObject("inventory") {
+        put("party", party(m.party))
+        put("bag", bagJson(m.items.associate { it.itemId.toInt() to it.quantity }))
+      }
+      putJsonArray("log") { m.log.forEach { add(it) } }
+    }
+  }
+
+  private fun entry(e: MarketEntry, mine: Boolean) = buildJsonObject {
+    put("id", e.listingId.toString())
+    put("kind", if (e.isPokemon) "mon" else "item")
+    put("dex", if (e.isPokemon) JsonPrimitive(e.refId) else JsonNull)
+    put("item", if (e.isPokemon) JsonNull else JsonPrimitive(e.refId))
+    put("name", if (e.isPokemon) e.nickname ?: names.species(e.refId) else names.item(e.refId))
+    put("level", e.level)
+    put("qty", e.quantity)
+    put("price", e.price)
+    put("expiresAt", e.expiresAtEpoch)
+    put("mine", mine)
+  }
+
+  companion object {
+    const val CHAT_LINES = 50
+    const val BATTLE_LOG_LINES = 50
+
+    fun dir(d: Direction): String =
+        when (d) {
+          Direction.UP -> "up"
+          Direction.DOWN -> "down"
+          Direction.LEFT -> "left"
+          Direction.RIGHT -> "right"
+          else -> d.name.lowercase()
+        }
+
+    fun parseDir(s: String?): Direction? =
+        when (s) {
+          "up" -> Direction.UP
+          "down" -> Direction.DOWN
+          "left" -> Direction.LEFT
+          "right" -> Direction.RIGHT
+          else -> null
+        }
+  }
+}
+
+/**
+ * Per-section change detection: remembers the last JSON sent for each section and returns only the
+ * ones that differ. The first call returns all of them.
+ */
+class SectionDiffer {
+  private val last = HashMap<String, JsonElement>()
+
+  fun diff(sections: Map<String, JsonElement>): Map<String, JsonElement> {
+    val out = linkedMapOf<String, JsonElement>()
+    for ((k, v) in sections) {
+      if (!last.containsKey(k) || last[k] != v) {
+        out[k] = v
+        last[k] = v
+      }
+    }
+    return out
+  }
+
+  fun reset() = last.clear()
+}
+
+/** Marks entities `moving` for one step duration after their tile changes. */
+class MovementTracker(private val windowMs: Long = 300) {
+  private val lastPos = HashMap<Long, Long>()
+  private val movedAt = HashMap<Long, Long>()
+
+  fun update(entities: Collection<Entity>, nowMs: Long): Set<Long> {
+    val seen = HashSet<Long>()
+    for (e in entities) {
+      seen += e.id
+      val pos = (e.x.toLong() shl 32) or (e.y.toLong() and 0xFFFFFFFFL)
+      val prev = lastPos.put(e.id, pos)
+      if (prev != null && prev != pos) movedAt[e.id] = nowMs
+    }
+    lastPos.keys.retainAll(seen)
+    movedAt.keys.retainAll(seen)
+    return movedAt.filterValues { nowMs - it < windowMs }.keys
+  }
+
+  fun anyMoving(nowMs: Long): Boolean = movedAt.values.any { nowMs - it < windowMs }
+}
