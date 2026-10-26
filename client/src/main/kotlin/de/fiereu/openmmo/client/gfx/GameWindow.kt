@@ -23,8 +23,11 @@ class GameWindow(
     private val client: GameClient,
     private val renderer: WorldRenderer,
     private val scale: Int = 3,
+    private val battleScreen: BattleScreen? = null,
 ) {
   private val frameBuf = WorldRenderer.newFrame()
+  private val battleInput = BattleInput(client.battle)
+  private val battleBuf = battleScreen?.newFrame()
   private val held = linkedSetOf<Direction>()
   private var running = false
   private var lastStep = 0L
@@ -37,6 +40,12 @@ class GameWindow(
         }
 
         override fun paintComponent(g: Graphics) {
+          val battle = client.battle.snapshot()
+          if (battleScreen != null && battleBuf != null && battle.active) {
+            g.drawImage(
+                battleScreen.render(battle, battleInput.ui, battleBuf), 0, 0, width, height, null)
+            return
+          }
           renderer.render(client.world.snapshot(), frameBuf)
           g.drawImage(frameBuf, 0, 0, width, height, null)
         }
@@ -100,6 +109,10 @@ class GameWindow(
       object : KeyAdapter() {
         override fun keyPressed(e: KeyEvent) {
           running = e.isShiftDown
+          if (battleInput.keyPressed(e)) {
+            held.clear()
+            return
+          }
           if (e.keyCode == KeyEvent.VK_ENTER) {
             chatBox.isVisible = true
             SwingUtilities.getWindowAncestor(canvas)?.revalidate()

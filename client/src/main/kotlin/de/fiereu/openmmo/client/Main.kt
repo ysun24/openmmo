@@ -1,5 +1,6 @@
 package de.fiereu.openmmo.client
 
+import de.fiereu.openmmo.client.gfx.BattleScreen
 import de.fiereu.openmmo.client.gfx.GameWindow
 import de.fiereu.openmmo.client.gfx.WorldRenderer
 import de.fiereu.openmmo.client.net.GameClient
@@ -26,7 +27,7 @@ import kotlin.system.exitProcess
  * has run, which is how the renderer is checked without a display.
  *
  * Without `--script` it reads commands from stdin: `w a s d` step, `W A S D` face, `say TEXT`,
- * `who`, `quit`.
+ * `who`, `quit`, plus the battle commands in [runBattleCommand].
  */
 fun main(args: Array<String>) {
   val opts = parseArgs(args)
@@ -49,9 +50,11 @@ fun main(args: Array<String>) {
     waitUntil(20_000) { game.world.snapshot().inWorld }
     printStatus(game)
     val renderer = WorldRenderer(File(opts["decomp"] ?: "decomp"))
+    val battleScreen = BattleScreen(File(opts["decomp"] ?: "decomp"))
+    watchBattles(game)
 
     if (opts["gui"] == "true") {
-      GameWindow(game, renderer).show()
+      GameWindow(game, renderer, battleScreen = battleScreen).show()
       game.closeFuture()?.sync()
       return
     }
@@ -65,6 +68,11 @@ fun main(args: Array<String>) {
       Thread.sleep((opts["stay"]?.toLong() ?: 2) * 1000)
       printStatus(game)
       opts["snapshot"]?.let { path ->
+        if (game.battle.snapshot().active) {
+          ImageIO.write(battleScreen.render(game.battle.snapshot()), "png", File(path))
+          println("snapshot written to $path")
+          return@let
+        }
         val frame = renderer.render(game.world.snapshot())
         val scaled = java.awt.image.BufferedImage(frame.width * 3, frame.height * 3, frame.type)
         scaled.createGraphics().apply {
@@ -98,6 +106,7 @@ private fun run(game: GameClient, cmd: String) {
     cmd.startsWith("say ") -> game.say(cmd.removePrefix("say "))
     cmd == "who" -> printStatus(game)
     cmd.isEmpty() -> {}
+    runBattleCommand(game, cmd) -> {}
     else -> println("unknown command: $cmd")
   }
 }

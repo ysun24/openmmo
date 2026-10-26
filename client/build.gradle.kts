@@ -14,6 +14,8 @@ dependencies {
   implementation(project(":protocols.login"))
   implementation(project(":protocols.game"))
   implementation(project(":common"))
+  // Move, species and item tables for battle names and pp.
+  implementation(project(":codegen"))
 
   implementation(libs.kotlinx.coroutines)
   implementation(libs.kotlin.logging)

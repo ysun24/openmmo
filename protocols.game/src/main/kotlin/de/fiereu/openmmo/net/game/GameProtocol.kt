@@ -260,6 +260,8 @@ object GameProtocol : Protocol() {
     s2c<MenuPagePayloadPacket>(0x59u, MenuPagePayloadPacketCodec)
 
     s2c<EntityNameChoicesPacket>(0x5Au, EntityNameChoicesPacketCodec)
+    // Not in the retail captures we have. OpenMMO's own client sends it to challenge a player.
+    c2s<DuelChallengePacket>(0x5Au, DuelChallengePacketCodec)
 
     s2c<OptionListWindowPacket>(0x5Bu, OptionListWindowPacketCodec)
 

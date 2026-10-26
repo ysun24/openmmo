@@ -82,7 +82,9 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
             //  These are the captured values, so every player appears as the captured character.
             playerAppearance = CAPTURED_APPEARANCE,
             background = 0,
-            opposing = if (battle.trainer == null) OpposingSide.WILD else OpposingSide.TRAINER,
+            opposing =
+                if (battle.trainer == null && battle.pvp == null) OpposingSide.WILD
+                else OpposingSide.TRAINER,
             // TODO Check whether Hoenn needs a region tag, both decomps number trainers from 1
             trainerId = (battle.trainer?.id ?: 0).toShort(),
             playerParty = battle.party.mapIndexed { slot, mon -> mon.toBlock(slot, true) },

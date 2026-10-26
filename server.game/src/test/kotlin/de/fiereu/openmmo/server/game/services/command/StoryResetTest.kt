@@ -20,9 +20,11 @@ import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.MapLoadService
 import de.fiereu.openmmo.server.game.services.PresenceService
+import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.StoryPlayerService
 import de.fiereu.openmmo.server.game.services.WarpService
 import de.fiereu.openmmo.server.game.services.WorldStateService
+import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.EntityIdService
 import de.fiereu.openmmo.server.game.storage.NewGameStarts
@@ -84,6 +86,15 @@ class StoryResetTest :
                     moveRegistry = moves,
                     trainers = TrainerRegistry(),
                     items = items,
+                    pvp =
+                        PvpBattleService(
+                            store,
+                            SessionRegistry(),
+                            BattleRegistry(),
+                            TurnEngine(moves, TypeChart()),
+                            BattlePacketEmitter(interest),
+                            interest,
+                            species),
                 ),
             items = items,
         )

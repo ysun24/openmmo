@@ -14,9 +14,11 @@ import de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket
 import de.fiereu.openmmo.net.game.packets.CreateCharacterPacket
 import de.fiereu.openmmo.net.game.packets.DeleteCharacterPacket
 import de.fiereu.openmmo.net.game.packets.DialogChoicePacket
+import de.fiereu.openmmo.net.game.packets.DuelChallengePacket
 import de.fiereu.openmmo.net.game.packets.EntityInteractPacket
 import de.fiereu.openmmo.net.game.packets.ExchangeItemRequestPacket
 import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
+import de.fiereu.openmmo.net.game.packets.InGameChallengeResponsePacket
 import de.fiereu.openmmo.net.game.packets.JoinPacket
 import de.fiereu.openmmo.net.game.packets.KeepAlivePacket
 import de.fiereu.openmmo.net.game.packets.MapLoadedAckPacket
@@ -71,6 +73,7 @@ import de.fiereu.openmmo.server.game.services.LoginService
 import de.fiereu.openmmo.server.game.services.MovementService
 import de.fiereu.openmmo.server.game.services.MultiplayerService
 import de.fiereu.openmmo.server.game.services.PresenceService
+import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.SocialService
 import de.fiereu.openmmo.server.game.services.command.ChatCommandService
@@ -97,6 +100,7 @@ constructor(
     private val socialService: SocialService,
     private val guildService: GuildService,
     private val battleService: BattleService,
+    private val pvpBattleService: PvpBattleService,
     private val chatCommandService: ChatCommandService,
     private val shopService: ShopService,
     private val scriptRunner: ScriptRunner,
@@ -167,6 +171,10 @@ constructor(
     on<BattleTeamPreviewConfirmPacket> { event -> battleService.onBattlePacket(event) }
     on<BattleRewardSelectPacket> { event -> battleService.onBattlePacket(event) }
     onSuspend<MapLoadedAckPacket> { event -> battleService.onClientReady(event) }
+    on<DuelChallengePacket> { event -> pvpBattleService.onDuelChallenge(event) }
+    onSuspend<InGameChallengeResponsePacket> { event ->
+      pvpBattleService.onChallengeResponse(event)
+    }
 
     // The client sends an empty heartbeat packet.
     on<NullPacket> {}
