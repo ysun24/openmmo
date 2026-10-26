@@ -17,7 +17,7 @@ import javax.swing.Timer
 
 /**
  * The playable window. Arrow keys or WASD walk (hold Shift to run), Enter opens the chat box, Enter
- * again sends, Escape closes it.
+ * again sends, Escape closes it. M opens the global market.
  */
 class GameWindow(
     private val client: GameClient,
@@ -104,6 +104,11 @@ class GameWindow(
             chatBox.isVisible = true
             SwingUtilities.getWindowAncestor(canvas)?.revalidate()
             chatBox.requestFocusInWindow()
+            held.clear()
+            return
+          }
+          if (e.keyCode == KeyEvent.VK_M) {
+            MarketWindow(client, renderer.decompRoot).show()
             held.clear()
             return
           }

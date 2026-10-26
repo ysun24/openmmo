@@ -19,12 +19,13 @@ sealed interface GtlSearchListing {
 }
 
 // Every row names its own kind, so an own listings page can mix monsters and items.
-// TODO(gtl): decode an own listings row. The old scraper reads three more bytes after the
-//  quantity and then an item id even for a monster row, but no captured page has one.
+// TODO(gtl): retail own listings rows are unverified. The old scraper reads three more bytes after
+//  the quantity and then an item id even for a monster row, but no captured page has one. OpenMMO
+//  writes its own listings rows in the same layout as a board row, so that is what is read here.
+@Suppress("UNUSED_PARAMETER")
 internal fun gtlSearchListingCodec(pageKind: GtlListKind): Codec<GtlSearchListing> =
     object : Codec<GtlSearchListing> {
       override fun read(buf: ReadBuffer): GtlSearchListing {
-        require(pageKind != GtlListKind.OWN_LISTINGS) { "own listing rows are not decoded yet" }
         val listingId = S64LE.read(buf)
         val rowKind = GtlListKindCodec.read(buf)
         val price = S32LE.read(buf)

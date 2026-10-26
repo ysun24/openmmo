@@ -12,6 +12,7 @@ import de.fiereu.openmmo.net.game.packets.CancelSocialInteractionPacket
 import de.fiereu.openmmo.net.game.packets.ChatMessagePacket
 import de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket
 import de.fiereu.openmmo.net.game.packets.CreateCharacterPacket
+import de.fiereu.openmmo.net.game.packets.CreateMarketListingPacket
 import de.fiereu.openmmo.net.game.packets.DeleteCharacterPacket
 import de.fiereu.openmmo.net.game.packets.DialogChoicePacket
 import de.fiereu.openmmo.net.game.packets.EntityInteractPacket
@@ -52,6 +53,9 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleTransitionReadyPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleUseItemPacket
 import de.fiereu.openmmo.net.game.packets.battle.moves.MoveLearnReplyPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionResponsePacket
+import de.fiereu.openmmo.net.game.packets.gtl.GtlConfirmPurchasePacket
+import de.fiereu.openmmo.net.game.packets.gtl.GtlListingCancelPacket
+import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPageRequestPacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildActivityLogPageRequestPacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildCreatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildDisbandPacket
@@ -62,12 +66,14 @@ import de.fiereu.openmmo.net.game.packets.guild.GuildMemberRankAssignPacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildMotdUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankLabelUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankPermissionUpdatePacket
+import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogService
 import de.fiereu.openmmo.server.game.services.GuildService
 import de.fiereu.openmmo.server.game.services.InteractionService
 import de.fiereu.openmmo.server.game.services.LoginService
+import de.fiereu.openmmo.server.game.services.MarketService
 import de.fiereu.openmmo.server.game.services.MovementService
 import de.fiereu.openmmo.server.game.services.MultiplayerService
 import de.fiereu.openmmo.server.game.services.PresenceService
@@ -99,6 +105,7 @@ constructor(
     private val battleService: BattleService,
     private val chatCommandService: ChatCommandService,
     private val shopService: ShopService,
+    private val marketService: MarketService,
     private val scriptRunner: ScriptRunner,
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
@@ -122,6 +129,12 @@ constructor(
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
     onSuspend<ExchangeItemRequestPacket> { event -> shopService.onBuy(event) }
     onSuspend<ShopSellRequestPacket> { event -> shopService.onSell(event) }
+
+    onSuspend<CreateMarketListingPacket> { event -> marketService.onCreate(event) }
+    onSuspend<GtlSearchPageRequestPacket> { event -> marketService.onSearch(event) }
+    onSuspend<GtlConfirmPurchasePacket> { event -> marketService.onBuy(event) }
+    onSuspend<GtlListingCancelPacket> { event -> marketService.onCancel(event) }
+    on<MarketInventoryRequestPacket> { event -> marketService.onInventory(event) }
 
     on<AddFriendPacket> { event -> socialService.onAddFriend(event) }
     on<RemoveFriendPacket> { event -> socialService.onRemoveFriend(event) }

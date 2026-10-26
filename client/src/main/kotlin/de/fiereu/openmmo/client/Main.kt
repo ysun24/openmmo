@@ -1,10 +1,12 @@
 package de.fiereu.openmmo.client
 
 import de.fiereu.openmmo.client.gfx.GameWindow
+import de.fiereu.openmmo.client.gfx.MarketPanel
 import de.fiereu.openmmo.client.gfx.WorldRenderer
 import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.LoginClient
 import de.fiereu.openmmo.client.net.NewCharacter
+import de.fiereu.openmmo.client.net.SpeciesNames
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.io.PemKeyLoader
 import io.netty.channel.MultiThreadIoEventLoopGroup
@@ -19,14 +21,14 @@ import kotlin.system.exitProcess
  * ```
  * client --user NAME --pass PW [--name CHAR] [--host 127.0.0.1] [--port 2106]
  *        [--key keys/build/game.public.pem] [--script "say hi; s; s; d"] [--stay SECONDS]
- *        [--gui true] [--snapshot out.png] [--decomp decomp]
+ *        [--gui true] [--snapshot out.png] [--market-snapshot market.png] [--decomp decomp]
  * ```
  *
  * `--gui true` opens the game window. `--snapshot FILE` writes one rendered frame after the script
  * has run, which is how the renderer is checked without a display.
  *
  * Without `--script` it reads commands from stdin: `w a s d` step, `W A S D` face, `say TEXT`,
- * `who`, `quit`.
+ * `who`, `quit`, plus the market and dev commands listed in MarketCli.kt.
  */
 fun main(args: Array<String>) {
   val opts = parseArgs(args)
@@ -49,6 +51,7 @@ fun main(args: Array<String>) {
     waitUntil(20_000) { game.world.snapshot().inWorld }
     printStatus(game)
     val renderer = WorldRenderer(File(opts["decomp"] ?: "decomp"))
+    SpeciesNames.load(File(opts["decomp"] ?: "decomp"))
 
     if (opts["gui"] == "true") {
       GameWindow(game, renderer).show()
@@ -74,6 +77,12 @@ fun main(args: Array<String>) {
         ImageIO.write(scaled, "png", File(path))
         println("snapshot written to $path")
       }
+      // The market window, every tab stacked, drawn without a display (MarketWindow.kt).
+      opts["market-snapshot"]?.let { path ->
+        val panel = MarketPanel(game.market, File(opts["decomp"] ?: "decomp"))
+        ImageIO.write(MarketPanel.snapshot(panel), "png", File(path))
+        println("market snapshot written to $path")
+      }
     } else {
       generateSequence { readlnOrNull() }
           .forEach { line ->
@@ -98,7 +107,7 @@ private fun run(game: GameClient, cmd: String) {
     cmd.startsWith("say ") -> game.say(cmd.removePrefix("say "))
     cmd == "who" -> printStatus(game)
     cmd.isEmpty() -> {}
-    else -> println("unknown command: $cmd")
+    else -> if (!runMarketCommand(game, cmd)) println("unknown command: $cmd")
   }
 }
 

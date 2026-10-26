@@ -10,6 +10,7 @@ import de.fiereu.openmmo.net.game.packets.battle.moves.*
 import de.fiereu.openmmo.net.game.packets.dialog.*
 import de.fiereu.openmmo.net.game.packets.gtl.*
 import de.fiereu.openmmo.net.game.packets.guild.*
+import de.fiereu.openmmo.net.game.packets.market.*
 
 object GameProtocol : Protocol() {
   override val compressed: Boolean = true
@@ -601,5 +602,10 @@ object GameProtocol : Protocol() {
     s2c<GtlListingsPagePacket>(0xFEu, GtlListingsPagePacketCodec)
 
     s2c<WorldSessionStatePacket>(0xFFu, WorldSessionStatePacketCodec)
+
+    // OpenMMO-only market packets (see packets/market). Opcodes picked from unused slots.
+    c2s<MarketInventoryRequestPacket>(0x6Eu, MarketInventoryRequestPacketCodec)
+    s2c<MarketResultPacket>(0xCCu, MarketResultPacketCodec)
+    s2c<MarketInventoryPacket>(0xCDu, MarketInventoryPacketCodec)
   }
 }
