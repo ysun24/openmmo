@@ -56,6 +56,9 @@ constructor(
     private val escapeRope: EscapeRopeService,
     // The one evolution engine: stones and Rare Candy start its scene.
     private val evolution: EvolutionService,
+    /** Fishing with the three rods (wild encounters from the map's fishing table). */
+    private val encounters: EncounterService? = null,
+    private val maps: de.fiereu.openmmo.maps.MapManager? = null,
 ) {
 
   suspend fun onUse(event: PacketEvent<FieldItemUsePacket>) {
@@ -74,6 +77,9 @@ constructor(
   ) {
     val state = session.attributes[PLAYER_STATE] ?: return
     val charId = state.characterId ?: return
+    rodOf(itemId)?.let { rod ->
+      return fish(session, state, charId, itemId, rod)
+    }
     val outcome = use(charId, itemId, pokemonId, state.inDialog, moveSlot, forgetSlot)
     if (outcome.escape) {
       if (!escapeRope.escape(session, state, charId)) {
@@ -94,7 +100,55 @@ constructor(
     }
   }
 
-  /** The outcome shown to the player, and whether the bag/party changed. */
+  /** The rod [itemId] is (0 Old, 1 Good, 2 Super Rod), or null. */
+  internal fun rodOf(itemId: Int): Int? =
+      when (items.get(itemId)) {
+        de.fiereu.openmmo.items.generated.Items.OLD_ROD -> 0
+        de.fiereu.openmmo.items.generated.Items.GOOD_ROD -> 1
+        de.fiereu.openmmo.items.generated.Items.SUPER_ROD -> 2
+        else -> null
+      }
+
+  /**
+   * ItemUseOutOfBattle_Rod: only while facing fishable water (IsPlayerFacingSurfableFishableWater),
+   * then "Oh! A bite!" and a battle from the rod's slots, or "Not even a nibble…".
+   */
+  private fun fish(
+      session: SessionContext,
+      state: de.fiereu.openmmo.server.game.session.PlayerState,
+      charId: Long,
+      itemId: Int,
+      rod: Int,
+  ) {
+    val stored = characters.getCharacter(charId) ?: return
+    if ((stored.items[itemId] ?: 0) <= 0) return
+    val map = maps?.getMap(state.regionId, state.bankId, state.mapId)
+    val (dx, dy) =
+        when (state.facingDirection) {
+          de.fiereu.openmmo.common.enums.Direction.UP -> 0 to -1
+          de.fiereu.openmmo.common.enums.Direction.DOWN -> 0 to 1
+          de.fiereu.openmmo.common.enums.Direction.LEFT -> -1 to 0
+          else -> 1 to 0
+        }
+    val ahead = map?.tileAt(state.x + dx, state.y + dy)?.behavior
+    val water =
+        ahead != null &&
+            ahead.isSurfable &&
+            ahead != de.fiereu.openmmo.common.enums.TileBehavior.WATERFALL
+    if (map == null || encounters == null || !water || state.inDialog || battles.inBattle(charId)) {
+      session.send(notice("There's a time and place for everything! But not now."))
+      return
+    }
+    val name = items.get(itemId)?.name?.uppercase() ?: "ROD"
+    session.send(notice("${stored.info.name} used the $name."))
+    if (encounters.fish(session, charId, map, rod)) {
+      session.send(notice("Oh! A bite!"))
+      session.send(notice("A POKéMON's on the hook!"))
+    } else {
+      session.send(notice("Not even a nibble…"))
+    }
+  }
+
   data class Outcome(
       val text: String,
       val changed: Boolean,

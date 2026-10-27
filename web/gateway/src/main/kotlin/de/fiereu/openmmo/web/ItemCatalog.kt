@@ -220,7 +220,8 @@ class ItemCatalog(private val decomp: File) {
                 "maxelixir")
             .associateWith { "mon" } +
             listOf("ether", "maxether", "leppaberry", "ppup", "ppmax").associateWith { "move" } +
-            listOf("escaperope", "repel", "superrepel", "maxrepel").associateWith { "field" })
+            listOf("escaperope", "repel", "superrepel", "maxrepel", "oldrod", "goodrod", "superrod")
+                .associateWith { "field" })
 
     /** Key items the GBA lets the player register to SELECT. */
     val REGISTRABLE =

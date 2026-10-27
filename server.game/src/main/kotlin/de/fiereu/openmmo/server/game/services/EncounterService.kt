@@ -160,6 +160,37 @@ constructor(
     steps.remove(charId)
   }
 
+  /**
+   * A cast of rod [rod] (0 Old, 1 Good, 2 Super Rod) on [map] (field_player_avatar.c
+   * Fishing_CheckForBite, wild_encounter.c FishingWildEncounter): no fishing table means no bite;
+   * otherwise half the casts bite, 85% with a Suction Cups / Sticky Hold lead. A bite meets one of
+   * the rod's slots of `fishing_mons` (Old 0-1, Good 2-4, Super 5-9) by their rates. Returns
+   * whether something bit, and starts the battle when it did.
+   */
+  fun fish(session: SessionContext, charId: Long, map: MapDef, rod: Int): Boolean {
+    if (battleService.inBattle(charId)) return false
+    val table = map.encounterTable(EncounterMethod.FISHING) ?: return false
+    val lead = leadMon(charId) ?: return false
+    val sticky = abilityOf(lead).let { it == Ability.SUCTION_CUPS || it == Ability.STICKY_HOLD }
+    val bite = (sticky && random.nextInt(100) > 14) || random.nextBoolean()
+    if (!bite) return false
+    val range = ROD_SLOTS.getOrNull(rod) ?: return false
+    val slots = range.mapNotNull { table.slots.getOrNull(it) }
+    val total = slots.sumOf { it.weight }
+    if (total <= 0) return false
+    var roll = random.nextInt(total)
+    val slot = slots.first { s -> (roll < s.weight).also { if (!it) roll -= s.weight } }
+    val level = random.nextInt(slot.minLevel, slot.maxLevel + 1)
+    log.info { "Fishing (rod $rod) for char=$charId: species ${slot.speciesId} level $level" }
+    battleService.startWildBattle(
+        session,
+        slot.speciesId,
+        level,
+        terrain = BattleTerrain.WATER,
+        underwater = map.mapType == MapType.UNDERWATER)
+    return true
+  }
+
   /** Counts a repel down by one step; true while one is active. Tells the player when it ends. */
   private fun tickRepel(session: SessionContext, charId: Long): Boolean {
     val info = characterStore.getCharacter(charId)?.info ?: return false
@@ -295,6 +326,9 @@ constructor(
   }
 
   companion object {
+    /** fishing_mons slot groups per rod (wild_encounters.json "groups"). */
+    val ROD_SLOTS = listOf(0..1, 2..4, 5..9)
+
     /** BattleSetup_GetEnvironmentId: the background for a battle started on [behavior] in [map]. */
     fun terrainFor(map: MapDef?, behavior: TileBehavior?): String {
       when (behavior) {
