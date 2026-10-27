@@ -4,6 +4,7 @@ import { panels, rerender, setFocus } from './panels.js';
 import { monImg, itemIc } from './common.js';
 import * as market from './market.js';
 import { openChallenge, describeRules } from './battle.js';
+import * as social from './social.js';
 
 let app, lastParty = null, lastInvite = null;
 
@@ -193,6 +194,8 @@ export function openMenu() {
     item('Bag', 'bag', openBag),
     pcHere ? item('PC', 'pc', openPc) : null,
     item('Market', 'market', () => market.open()),
+    item('Friends', 'friends', () => social.openFriends()),
+    item('Guild', 'guild', () => social.openGuild()),
     item('Trade with…', 'trade', () => askName('Trade with', (n) => app.send({ t: 'trade.request', name: n }))),
     item('Duel…', 'duel', () => askName('Duel', (n) => openChallenge(n))),
     item('Chat', 'chat', () => app.openChat()),
@@ -247,6 +250,11 @@ export function askName(title, fn, initial = '') {
 
 /** Actions for a tapped / faced player. */
 export function openPlayer(ent) {
+  // r3-social: the full player menu (profile, whisper, trade, duel, friend, guild invite).
+  return social.openPlayer(ent);
+}
+
+function openPlayerBasic(ent) {
   const p = panels.open('player', ent.name || 'Player');
   p.title.textContent = ent.name || 'Player';
   const act = (label, k, fn, cls = '') => h('button' + cls, { type: 'button', 'data-k': k, on: { click: () => { panels.close('player'); fn(); } } }, label);
