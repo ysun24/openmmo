@@ -517,6 +517,177 @@ def scene_sevii(s):
     check("OneIsland" in s.map_name(), f"arrived: {s.map_name()}")
 
 
+def seagallop_ticket(s, item, flag, shown, dest_word, harbor):
+    """Vermilion harbor with an event ticket (FRLG VermilionCity_EventScript_HasMysticTicket /
+    HasAuroraTicket): the sailor shows the ticket, the Seagallop multichoice offers the island,
+    EventScript_SetSail + DoSeagallopFerryScene sail there."""
+    s.cmd(f"/script item {item}", 2)
+    check(has_item(s, item.replace("_", " ")), f"{item} in the bag")
+    s.var("VAR_MAP_SCENE_VERMILION_CITY", 3)
+    s.var("VAR_MAP_SCENE_ONE_ISLAND_POKEMON_CENTER_1F", 5)  # the Rainbow Pass
+    s.flag(flag, True)
+    s.flag(shown, False)
+    sx, sy = npc(0, "VermilionCity", "LOCALID_VERMILION_FERRY_SAILOR")
+    s.stand_by("VermilionCity", sx, sy, "up")
+    menus = []
+
+    def pick(m):
+        menus.append(m)
+        items = [str(i).upper() for i in (m.get("args") or {}).get("items") or []]
+        return next((i for i, n in enumerate(items) if dest_word in n), 0)
+
+    texts = s.talk(choices=[True], menu=pick, timeout=40)
+    shown_items = [(m.get("args") or {}).get("items") for m in menus]
+    if os.environ.get("STORY_DEBUG"):
+        print("   sailor:", texts, flush=True)
+    check(any(dest_word in str(i).upper() for i in shown_items), f"Seagallop menu offers {dest_word}: {shown_items[:1]}")
+    # The harbors share LAYOUT_ISLAND_HARBOR (and so the map name the gateway shows): compare
+    # bank:map.
+    _, b, m = (int(v) for v in map_key(0, harbor).split(":"))
+    at = lambda q: (q.world.get("map") or {}).get("bank") == b and q.world["map"].get("map") == m
+    try:
+        s.p.wait(at, 25, f"arrive at {harbor}")
+    except AssertionError:
+        print("   at:", s.p.world.get("map"), s.pos(), flush=True)
+        raise
+    check(at(s.p), f"sailed to {harbor} ({b}:{m})")
+    # (After the ferry: a slash command while a script runs would cut the ferry scene short.)
+    check(s.flag(shown), f"the sailor looked at the ticket ({shown}): {texts[:1]}")
+
+
+def legendary_done(s, fought, flew):
+    return s.flag(fought) or s.flag(flew)
+
+
+@scene(0, "mystic")
+def scene_mystic(s):
+    """FRLG MYSTIC TICKET: Vermilion -> Seagallop 10 -> Navel Rock. The summit's coord trigger
+    (VAR_TEMP_1 0 from ON_TRANSITION) starts Ho-Oh (camera pan, seteventmon 70,
+    StartLegendaryBattle); the base's Lugia talks to start its battle."""
+    seagallop_ticket(s, "MYSTIC_TICKET", "FLAG_ENABLE_SHIP_NAVEL_ROCK", "FLAG_SHOWN_MYSTIC_TICKET",
+                     "NAVEL", "NavelRock_Harbor")
+    give_team(s)
+    for f in ("FLAG_FOUGHT_HO_OH", "FLAG_HO_OH_FLEW_AWAY", "FLAG_FOUGHT_LUGIA", "FLAG_LUGIA_FLEW_AWAY"):
+        s.flag(f, False)
+    s.tp("NavelRock_Summit", 9, 13, "up")
+    s.step("up")
+    s.p.wait(lambda q: (q.state.get("battle") or {}).get("phase"), 40, "the Ho-Oh battle")
+    b = s.p.state.get("battle") or {}
+    texts = s.settle(timeout=150)
+    check(legendary_done(s, "FLAG_FOUGHT_HO_OH", "FLAG_HO_OH_FLEW_AWAY"),
+          f"HO-OH battle over ({(b.get('foe') or {}).get('name')}): {texts[-1:]}")
+    give_team(s)
+    lx, ly = npc(0, "NavelRock_Base", "LOCALID_NAVEL_ROCK_LUGIA")
+    s.stand_by("NavelRock_Base", lx, ly, "down")
+    s.p.send(t="a")
+    s.p.wait(lambda q: (q.state.get("battle") or {}).get("phase"), 40, "the Lugia battle")
+    b = s.p.state.get("battle") or {}
+    texts = s.settle(timeout=150)
+    check(legendary_done(s, "FLAG_FOUGHT_LUGIA", "FLAG_LUGIA_FLEW_AWAY"),
+          f"LUGIA battle over ({(b.get('foe') or {}).get('name')}): {texts[-1:]}")
+
+
+# FRLG field_specials.c sDeoxysCoords: where the triangle sits after each touch.
+DEOXYS_COORDS = [(15, 12), (11, 14), (15, 8), (19, 14), (12, 11), (18, 11), (15, 14), (11, 14),
+                 (19, 14), (15, 15), (15, 10)]
+
+
+DEOXYS_STEP_CAPS = [4, 8, 8, 8, 4, 4, 4, 6, 3, 3]
+_MOVES = {(0, -1): "up", (0, 1): "down", (-1, 0): "left", (1, 0): "right"}
+
+
+def _bfs(col, start, blocked, w=30):
+    import collections
+    free = lambda x, y: 0 <= x < w and 0 <= y < len(col) // w and not col[y * w + x] & 1 and (x, y) not in blocked
+    prev = {start: None}
+    q = collections.deque([start])
+    while q:
+        c = q.popleft()
+        for (dx, dy) in _MOVES:
+            n = (c[0] + dx, c[1] + dy)
+            if n not in prev and free(*n):
+                prev[n] = c
+                q.append(n)
+    return prev
+
+
+def _path(prev, end):
+    out = []
+    while prev[end] is not None:
+        p = prev[end]
+        out.append(_MOVES[(end[0] - p[0], end[1] - p[1])])
+        end = p
+    return list(reversed(out))
+
+
+def _sides(t):
+    tx, ty = t
+    return {(tx, ty + 1): "up", (tx, ty - 1): "down", (tx - 1, ty): "right", (tx + 1, ty): "left"}
+
+
+def walk_to_face(s, map_file, target, cap=None, after=None):
+    """Walks (real steps, BFS over col.bin) next to `target` and faces it, within `cap` steps,
+    choosing the side closest to the `after` target. Returns the steps taken."""
+    col = open(os.path.join(ROOT, "web/static/assets/maps/0", map_file + ".col.bin"), "rb").read()
+    prev = _bfs(col, s.pos(), {target})
+    goals = [g for g in _sides(target) if g in prev and (cap is None or len(_path(prev, g)) <= cap)]
+    check(goals, f"a path to the triangle at {target} within {cap} steps")
+
+    def onward(g):
+        if after is None:
+            return len(_path(prev, g))
+        nxt = _bfs(col, g, {after})
+        return min((len(_path(nxt, a)) for a in _sides(after) if a in nxt), default=99)
+
+    end = min(goals, key=lambda g: (onward(g), len(_path(prev, g))))
+    path = _path(prev, end)
+    for d in path:
+        s.step(d)
+    s.face(_sides(target)[end])
+    return len(path)
+
+
+@scene(0, "aurora")
+def scene_aurora(s):
+    """FRLG AURORA TICKET: Vermilion -> Seagallop 12 -> Birth Island. The triangle puzzle
+    (DoDeoxysTriangleInteraction): touched within sDeoxysStepCaps steps it hops through
+    sDeoxysCoords, too many steps send it home; the eleventh touch awakens DEOXYS (rock
+    destroyed, seteventmon 30, StartLegendaryBattle)."""
+    seagallop_ticket(s, "AURORA_TICKET", "FLAG_ENABLE_SHIP_BIRTH_ISLAND", "FLAG_SHOWN_AURORA_TICKET",
+                     "BIRTH", "BirthIsland_Harbor")
+    give_team(s)
+    for f in ("FLAG_FOUGHT_DEOXYS", "FLAG_DEOXYS_FLEW_AWAY", "FLAG_SYS_DEOXYS_AWAKENED"):
+        s.flag(f, False)
+    s.tp("BirthIsland_Exterior", 15, 20, "up")
+    rock = DEOXYS_COORDS[0]
+    walk_to_face(s, "birth_island_exterior", rock)
+    s.talk(timeout=10)
+    check(s.var("VAR_DEOXYS_INTERACTION_NUM") == 1, "first touch: the triangle moved")
+    # Wander past the 4-step cap, then touch: it goes back to the start.
+    rock = DEOXYS_COORDS[1]
+    for d in ("down", "up", "down", "up", "down", "up"):
+        s.step(d)
+    walk_to_face(s, "birth_island_exterior", rock)
+    s.talk(timeout=10)
+    check(s.var("VAR_DEOXYS_INTERACTION_NUM") == 0, "too many steps: the triangle went home")
+    rock = DEOXYS_COORDS[0]
+    for i in range(10):
+        cap = DEOXYS_STEP_CAPS[i - 1] if i else None
+        n = walk_to_face(s, "birth_island_exterior", rock, cap, DEOXYS_COORDS[i + 1])
+        s.talk(timeout=10)
+        num = s.var("VAR_DEOXYS_INTERACTION_NUM")
+        check(num == i + 1, f"touch {i + 1} after {n} steps: triangle at {DEOXYS_COORDS[i + 1]}")
+        rock = DEOXYS_COORDS[i + 1]
+    walk_to_face(s, "birth_island_exterior", rock, DEOXYS_STEP_CAPS[9])
+    s.p.send(t="a")
+    s.p.wait(lambda q: (q.state.get("battle") or {}).get("phase"), 40, "the Deoxys battle")
+    b = s.p.state.get("battle") or {}
+    texts = s.settle(timeout=150)
+    check(s.flag("FLAG_SYS_DEOXYS_AWAKENED"), "DEOXYS awakened")
+    check(legendary_done(s, "FLAG_FOUGHT_DEOXYS", "FLAG_DEOXYS_FLEW_AWAY"),
+          f"DEOXYS battle over ({(b.get('foe') or {}).get('name')}): {texts[-1:]}")
+
+
 @scene(1, "woods")
 def scene_woods(s):
     """Petalburg Woods: the Aqua grunt cornering the Devon researcher (coord event), the battle."""

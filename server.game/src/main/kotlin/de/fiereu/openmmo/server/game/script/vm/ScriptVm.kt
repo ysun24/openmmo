@@ -1248,6 +1248,9 @@ class ScriptVm(
     ctx.vmShowObject(localId, pose)
   }
 
+  /** setobjectxy from a special (the Deoxys triangle). */
+  fun moveObject(localId: Int, x: Int, y: Int) = setObjectXY(localId, x, y)
+
   private fun setObjectXY(localId: Int, x: Int, y: Int) {
     if (isPlayer(localId)) {
       if (!immediate) ctx.repositionSelf(x, y, ctx.state.facingDirection)

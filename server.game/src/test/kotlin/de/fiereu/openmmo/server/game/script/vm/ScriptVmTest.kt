@@ -70,6 +70,15 @@ class ScriptVmTest :
         return img.texts.getValue(img.labels.getValue(label)).textId
       }
 
+      test("GetQuestLogState clears VAR_RESULT (goto_if_questlog after a menu answer of 2)") {
+        runTest {
+          val r = rig(Region.KANTO)
+          r.ctx.varSet("VAR_RESULT", 2)
+          WorldSpecials().run(r.ctx, "GetQuestLogState")
+          r.ctx.varGet("VAR_RESULT") shouldBe 0
+        }
+      }
+
       test("msgbox shows the label's own text") {
         runTest {
           val r = rig(Region.KANTO)

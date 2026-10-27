@@ -311,10 +311,11 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       if (v != 0 && ctx.vmParty().any { (it.seed and 0xFFFF) == v }) 1 else 0
     }
     on("ShouldDoBrailleRegicePuzzle") { ctx -> 0 }
-    on("DoDeoxysRockInteraction", "DoDeoxysTriangleInteraction") { ctx ->
+    on("DoDeoxysRockInteraction") { ctx ->
       ctx.setResult(0)
       0
     }
+    on("DoDeoxysTriangleInteraction") { ctx -> deoxysTriangle(ctx) }
     on("SetHiddenItemFlag") { ctx ->
       ctx.flagSet(ctx.specialVar(4))
       0
@@ -413,7 +414,14 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
         "QuestLog_CutRecording",
         "QuestLog_StartRecordingInputsAfterDeferredEvent",
         "SetUsedPkmnCenterQuestLogEvent")
-    on("GetQuestLogState") { ctx -> 0 }
+    // GetQuestLogState writes gSpecialVar_Result itself (goto_if_questlog is `special` +
+    // `compare VAR_RESULT, 2`): no quest log is ever playing back, so 0. Leaving VAR_RESULT
+    // alone made a previous multichoice answer of 2 read as "quest log playback" (the Vermilion
+    // sailor's BIRTH ISLAND choice ended at EventScript_ReleaseEnd).
+    on("GetQuestLogState") { ctx ->
+      ctx.setResult(0)
+      0
+    }
     // SetFlavorTextFlagFromSpecialVars is r5-minigames' (FameCheckerSpecials).
     on("StickerManGetBragFlags") { ctx ->
       ctx.setSpecialVar(4, 0)
@@ -424,6 +432,56 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
 
   /** A puzzle's visual state lives in metatiles the scripts set themselves; nothing to add. */
   private fun puzzleState(ctx: ScriptContext): Int = 0
+
+  /**
+   * Task_DoDeoxysTriangleInteraction (FRLG field_specials.c): every touch moves the triangle to the
+   * next of sDeoxysCoords within sDeoxysStepCaps steps (VAR_DEOXYS_INTERACTION_STEP_COUNTER,
+   * counted by IncrementBirthIslandRockStepCount), too many steps send it back to the start; the
+   * eleventh touch awakens DEOXYS. VAR_RESULT: 0 reset, 1 moved, 2 awakened, 3 already awake.
+   */
+  private suspend fun deoxysTriangle(ctx: ScriptContext): Int {
+    val img = ctx.vm?.img
+    val awakened =
+        img?.constOrNull("FLAG_SYS_DEOXYS_AWAKENED")
+            ?: img?.flagNames?.entries?.firstOrNull { "FLAG_SYS_DEOXYS_AWAKENED" in it.value }?.key
+    val isAwake =
+        if (awakened != null) ctx.flagGet(awakened)
+        else ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_DEOXYS_AWAKENED")
+    val result =
+        if (isAwake) 3
+        else {
+          val num = ctx.varGet("VAR_DEOXYS_INTERACTION_NUM")
+          val steps = ctx.varGet("VAR_DEOXYS_INTERACTION_STEP_COUNTER")
+          ctx.varSet("VAR_DEOXYS_INTERACTION_STEP_COUNTER", 0)
+          when {
+            num != 0 && DEOXYS_STEP_CAPS[num - 1] < steps -> {
+              moveDeoxysRock(ctx, 0)
+              ctx.varSet("VAR_DEOXYS_INTERACTION_NUM", 0)
+              0
+            }
+            num == 10 -> {
+              if (awakened != null) ctx.flagSet(awakened)
+              else ctx.setFlag("${ctx.regionName}/FLAG_SYS_DEOXYS_AWAKENED")
+              2
+            }
+            else -> {
+              moveDeoxysRock(ctx, num + 1)
+              ctx.varSet("VAR_DEOXYS_INTERACTION_NUM", num + 1)
+              1
+            }
+          }
+        }
+    ctx.setResult(result)
+    return result
+  }
+
+  /** MoveDeoxysObject: FLDEFF_MOVE_DEOXYS_ROCK to sDeoxysCoords[num] (60 frames home, else 5). */
+  private suspend fun moveDeoxysRock(ctx: ScriptContext, num: Int) {
+    val (x, y) = DEOXYS_COORDS[num]
+    fx(ctx, if (num == 0) "deoxys_rock_reset" else "deoxys_rock_move", if (num == 0) 1000 else 300)
+    ctx.vm?.moveObject(DEOXYS_ROCK_LOCAL_ID, x, y)
+        ?: ctx.repositionNpc(DEOXYS_ROCK_LOCAL_ID - 1, x, y)
+  }
 
   private suspend fun warpByName(ctx: ScriptContext, name: String, x: Int, y: Int) {
     val maps = ctx.maps ?: return
@@ -440,6 +498,22 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
 
   private companion object {
     const val SCR_MENU_CANCEL = 127
+    /** LOCALID_BIRTH_ISLAND_EXTERIOR_ROCK, the first object of BirthIsland_Exterior. */
+    const val DEOXYS_ROCK_LOCAL_ID = 1
+    val DEOXYS_COORDS =
+        listOf(
+            15 to 12,
+            11 to 14,
+            15 to 8,
+            19 to 14,
+            12 to 11,
+            18 to 11,
+            15 to 14,
+            11 to 14,
+            19 to 14,
+            15 to 15,
+            15 to 10)
+    val DEOXYS_STEP_CAPS = intArrayOf(4, 8, 8, 8, 4, 4, 4, 6, 3, 3)
     const val SAILOR_X = 23
     val SEAGALLOP_NAMES =
         listOf(

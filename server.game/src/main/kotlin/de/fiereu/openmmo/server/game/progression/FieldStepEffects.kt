@@ -31,6 +31,8 @@ constructor(
     private val items: ItemRegistry,
     private val species: SpeciesRegistry,
     private val whiteOut: Provider<WhiteOutService>,
+    /** IncrementBirthIslandRockStepCount needs to know the Birth Island map. */
+    private val maps: de.fiereu.openmmo.maps.MapManager? = null,
 ) {
   private class Counters {
     var friendship = 0
@@ -43,12 +45,26 @@ constructor(
   internal var random: Random = Random.Default
 
   fun onStep(session: SessionContext, charId: Long, map: MapDef) {
+    birthIslandStep(charId, map)
     val c = counters.getOrPut(charId) { Counters() }
     c.friendship = (c.friendship + 1) % Friendship.WALK_STEPS
     if (c.friendship == 0) walkFriendship(charId)
     if (map.mapType == MapType.SECRET_BASE) return
     c.poison = (c.poison + 1) % POISON_STEPS
     if (c.poison == 0) poison(session, charId)
+  }
+
+  /**
+   * IncrementBirthIslandRockStepCount (FRLG field_specials.c): steps on Birth Island since the last
+   * touch of the Deoxys triangle, wrapping to 0 past 99.
+   */
+  private fun birthIslandStep(charId: Long, map: MapDef) {
+    val birth = maps?.getMapByName(map.regionId.toInt(), "BirthIsland_Exterior") ?: return
+    if (birth.bankId != map.bankId || birth.mapId != map.mapId || birth.regionId != map.regionId)
+        return
+    val stored = characters.getCharacter(charId) ?: return
+    val count = (stored.storyVars[DEOXYS_STEPS] ?: 0) + 1
+    characters.setStoryVar(charId, DEOXYS_STEPS, if (count > 99) 0 else count)
   }
 
   fun forget(charId: Long) {
@@ -106,5 +122,6 @@ constructor(
 
   companion object {
     const val POISON_STEPS = 4
+    const val DEOXYS_STEPS = "kanto/VAR_DEOXYS_INTERACTION_STEP_COUNTER"
   }
 }
