@@ -141,7 +141,7 @@ class OverworldClient(
         world.overworld.setStack(s.frontSpriteId.toInt(), s.backSpriteId.toInt())
         val name = itemName(s.frontSpriteId.toInt())
         world.overworld.updateShop {
-          it.copy(status = "$name x${s.backSpriteId}  ¥${world.overworld.view().money ?: 0}")
+          it.copy(status = "$name x${s.backSpriteId}  ₽${world.overworld.view().money ?: 0}")
         }
       }
       is MapTransitionPacket -> world.overworld.setTransitioning(true)

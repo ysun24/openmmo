@@ -57,7 +57,41 @@ class ItemCatalog(private val decomp: File) {
     }
   }
 
-  private val gba: Map<String, Gba> by lazy { parseEmerald() }
+  // FireRed first (its items.json carries the text), Emerald for what FireRed lacks.
+  private val gba: Map<String, Gba> by lazy { parseEmerald() + parseFireRed() }
+
+  private fun parseFireRed(): Map<String, Gba> {
+    val f = File(decomp, "pokefirered/src/data/items.json")
+    if (!f.isFile) return emptyMap()
+    val out = HashMap<String, Gba>()
+    for (e in Json.parseToJsonElement(f.readText()).jsonObject.getValue("items").jsonArray) {
+      val o = e.jsonObject
+      val name = o["english"]?.jsonPrimitive?.content ?: continue
+      val pocket = pocketOf(o["pocket"]?.jsonPrimitive?.content) ?: continue
+      val desc = o["description_english"]?.jsonPrimitive?.content.orEmpty().let(::flatten)
+      out.putIfAbsent(norm(name), Gba(pocket, desc))
+    }
+    return out
+  }
+
+  private fun flatten(s: String) =
+      s.replace("\\n", " ")
+          .replace("\\l", " ")
+          .replace("\\p", " ")
+          .replace(Regex("\\s+"), " ")
+          .trim()
+
+  private fun pocketOf(c: String?) =
+      when (c) {
+        "POCKET_POKE_BALLS" -> "balls"
+        "POCKET_TM_HM",
+        "POCKET_TM_CASE" -> "tms"
+        "POCKET_BERRIES",
+        "POCKET_BERRY_POUCH" -> "berries"
+        "POCKET_KEY_ITEMS" -> "key"
+        "POCKET_ITEMS" -> "items"
+        else -> null
+      }
 
   fun info(id: Int): ItemInfo? {
     val index = id - ITEM_REGION_BLOCK
@@ -71,7 +105,7 @@ class ItemCatalog(private val decomp: File) {
               useClass == "ball" -> "balls"
               fieldUse == "machine" -> "tms"
               fieldUse == "berry" -> "berries"
-              price == 0 && fieldUse != "none" -> "key"
+              price == 0 -> "key"
               else -> "items"
             }
     val use =
@@ -128,6 +162,7 @@ class ItemCatalog(private val decomp: File) {
           // GBA abbreviations the gen 5 names spell out, or the other way round.
           when (it) {
             "parlyzheal" -> "paralyzeheal"
+            "parcel" -> "oaksparcel"
             else -> it
           }
         }

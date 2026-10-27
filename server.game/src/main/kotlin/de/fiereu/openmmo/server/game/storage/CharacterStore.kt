@@ -31,6 +31,9 @@ private val log = KotlinLogging.logger {}
 private val FLUSH_TICK = 5.seconds
 private val FLUSH_DEBOUNCE = 10.seconds
 
+// Above any real party or PC slot, where rearrangeMonsters parks monsters mid-move.
+private const val PARKING_SLOT = 30000
+
 data class StoredCharacter(
     val info: CharacterInfo,
     val pokemon: MutableList<Pokemon>,
@@ -298,11 +301,32 @@ constructor(
       pc: List<Pokemon>,
   ): Boolean {
     val before = characters[characterId] ?: return false
-    return mutateDurably(
+    val was = (before.pokemon + before.pcStorage).associateBy { it.id }
+    val moved =
+        (party + pc).filter { m ->
+          was[m.id]?.let { it.container != m.container || it.containerSlot != m.containerSlot }
+              ?: true
+        }
+    if (moved.isEmpty()) return true
+    // The write is a merge that also matches on (owner, container, slot), so a monster moving into
+    // a slot another one is leaving would update that other row. Parking every moved monster on a
+    // free slot first leaves each final slot matched by id alone.
+    val parkedIds = moved.mapIndexed { i, m -> m.id to (PARKING_SLOT + i).toShort() }.toMap()
+    fun park(m: Pokemon) = parkedIds[m.id]?.let { m.copy(containerSlot = it) } ?: m
+    val parked =
+        before.copy(
+            pokemon = party.map(::park).toMutableList(), pcStorage = pc.map(::park).toMutableList())
+    if (!mutateDurably(characterId, apply = { parked }, rollback = { before })) return false
+    if (mutateDurably(
         characterId,
         apply = { it.copy(pokemon = party.toMutableList(), pcStorage = pc.toMutableList()) },
-        rollback = { it.copy(pokemon = before.pokemon, pcStorage = before.pcStorage) },
-    )
+        rollback = { parked },
+    )) {
+      return true
+    }
+    // Put everyone back where they were; from parked slots that cannot collide either.
+    mutateDurably(characterId, apply = { before }, rollback = { parked })
+    return false
   }
 
   /** False when the change could not be written, in which case the balance is left as it was. */

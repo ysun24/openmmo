@@ -137,6 +137,7 @@ async function reconnect() {
   }
 }
 $('#btn-reconnect').addEventListener('click', () => reconnect());
+$('#btn-menu').addEventListener('click', () => onPress('menu'));
 
 net.on('login', (m) => {
   if (m.ok) {
@@ -207,11 +208,8 @@ function onPress(btn, repeat = false) {
   if (repeat && !isDir) return;
   const top = panels.top();
   if (top) {
-    if (top.name === 'shop') {
-      if (btn === 'up' || btn === 'down') return send({ t: 'cursor', delta: btn === 'up' ? -1 : 1 });
-      if (btn === 'a') return shop.confirmCursor();
-      if (btn === 'b') return send({ t: 'shop.close' });
-    }
+    // The shop's B steps back out of the quantity picker before it closes the shop.
+    if (top.name === 'shop' && btn === 'b') return shop.back();
     if (isDir) return navMove(top.body, btn);
     if (btn === 'a') return navActivate(top.body);
     if (btn === 'b') return panels.back();

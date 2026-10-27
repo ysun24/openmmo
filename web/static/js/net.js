@@ -1,7 +1,7 @@
 // WebSocket transport (PROTOCOL.md section 1): JSON text frames, 5 s ping/pong RTT, reconnect.
 import { Emitter } from './util.js';
 
-export const SECTIONS = ['world', 'chat', 'ui', 'party', 'battle', 'invite', 'trade', 'market'];
+export const SECTIONS = ['world', 'chat', 'ui', 'party', 'pc', 'battle', 'invite', 'trade', 'market'];
 
 export function defaultWsUrl() {
   const q = new URLSearchParams(location.search).get('ws');
