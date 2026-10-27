@@ -21,21 +21,6 @@ internal object SixIsland_Mart_EventScript_Clerk : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_AGATHA, 5
- * msgbox SixIsland_Mart_Text_AgathaOldestEverEliteFourMember
- * release
- * end
- * ```
- */
-internal object SixIsland_Mart_EventScript_OldWoman : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port SixIsland_Mart_EventScript_OldWoman")
-}
-
 internal object SixIsland_Mart_EventScript_Picnicker : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(SixIsland_Mart.ShouldBuyMailAndWriteLetter)
 }
@@ -43,6 +28,5 @@ internal object SixIsland_Mart_EventScript_Picnicker : Script {
 internal val SixIsland_MartScripts: Map<String, Script> =
     mapOf(
         "SixIsland_Mart_EventScript_Clerk" to SixIsland_Mart_EventScript_Clerk,
-        "SixIsland_Mart_EventScript_OldWoman" to SixIsland_Mart_EventScript_OldWoman,
         "SixIsland_Mart_EventScript_Picnicker" to SixIsland_Mart_EventScript_Picnicker,
     )

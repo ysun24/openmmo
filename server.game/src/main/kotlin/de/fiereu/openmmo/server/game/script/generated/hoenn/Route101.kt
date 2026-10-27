@@ -150,20 +150,6 @@ private const val HOENN = 1
 private const val LITTLEROOT_INDOOR_BANK = 51
 private const val BIRCH_LAB_MAP = 4
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_unset FLAG_HAS_MATCH_CALL, ProfBirch_EventScript_AskRatePokedex
- * goto_if_unset FLAG_ENABLE_PROF_BIRCH_MATCH_CALL, EventScript_RegisterProfBirch
- * ```
- */
-internal object ProfBirch_EventScript_RatePokedexOrRegister : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port ProfBirch_EventScript_RatePokedexOrRegister")
-}
-
 internal object Route101_EventScript_Boy : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(Route101.WildPokemonInTallGrass)
 }
@@ -182,8 +168,6 @@ internal val Route101Scripts: Map<String, Script> =
         "Route101_EventScript_PreventExitNorth" to Route101_EventScript_PreventExitNorth,
         "Route101_EventScript_Youngster" to Route101_EventScript_Youngster,
         "Route101_EventScript_BirchsBag" to Route101_EventScript_BirchsBag,
-        "ProfBirch_EventScript_RatePokedexOrRegister" to
-            ProfBirch_EventScript_RatePokedexOrRegister,
         "Route101_EventScript_Boy" to Route101_EventScript_Boy,
         "Route101_EventScript_RouteSign" to Route101_EventScript_RouteSign,
     )

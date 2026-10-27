@@ -152,35 +152,6 @@ internal object FuchsiaCity_Gym_EventScript_Koga : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_KOGA, FuchsiaCity_Gym_EventScript_GymGuyPostVictory
- * msgbox FuchsiaCity_Gym_Text_GymGuyAdvice
- * release
- * end
- * ```
- */
-internal object FuchsiaCity_Gym_EventScript_GymGuy : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FuchsiaCity_Gym_EventScript_GymGuy")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE05_GET, FuchsiaCity_Gym_EventScript_GymStatuePostVictory
- * msgbox FuchsiaCity_Gym_Text_GymStatue
- * releaseall
- * end
- * ```
- */
-internal object FuchsiaCity_Gym_EventScript_GymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FuchsiaCity_Gym_EventScript_GymStatue")
-}
-
 internal val FuchsiaCity_GymScripts: Map<String, Script> =
     mapOf(
         "FuchsiaCity_Gym_EventScript_Kayden" to FuchsiaCity_Gym_EventScript_Kayden,
@@ -190,6 +161,4 @@ internal val FuchsiaCity_GymScripts: Map<String, Script> =
         "FuchsiaCity_Gym_EventScript_Phil" to FuchsiaCity_Gym_EventScript_Phil,
         "FuchsiaCity_Gym_EventScript_Nate" to FuchsiaCity_Gym_EventScript_Nate,
         "FuchsiaCity_Gym_EventScript_Koga" to FuchsiaCity_Gym_EventScript_Koga,
-        "FuchsiaCity_Gym_EventScript_GymGuy" to FuchsiaCity_Gym_EventScript_GymGuy,
-        "FuchsiaCity_Gym_EventScript_GymStatue" to FuchsiaCity_Gym_EventScript_GymStatue,
     )

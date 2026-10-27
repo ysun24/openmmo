@@ -64,40 +64,8 @@ internal object PewterCity_Gym_EventScript_Liam : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_BROCK, PewterCity_Gym_EventScript_GymGuyPostVictory
- * msgbox PewterCity_Gym_Text_LetMeTakeYouToTheTop, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, YES, PewterCity_Gym_EventScript_GymGuyTakeMeToTop
- * goto_if_eq VAR_RESULT, NO, PewterCity_Gym_EventScript_GymGuyDontTakeMeToTop
- * end
- * ```
- */
-internal object PewterCity_Gym_EventScript_GymGuy : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PewterCity_Gym_EventScript_GymGuy")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE01_GET, PewterCity_Gym_EventScript_GymStatuePostVictory
- * msgbox PewterCity_Gym_Text_GymStatue
- * releaseall
- * end
- * ```
- */
-internal object PewterCity_Gym_EventScript_GymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PewterCity_Gym_EventScript_GymStatue")
-}
-
 internal val PewterCity_GymScripts: Map<String, Script> =
     mapOf(
         "PewterCity_Gym_EventScript_Brock" to PewterCity_Gym_EventScript_Brock,
         "PewterCity_Gym_EventScript_Liam" to PewterCity_Gym_EventScript_Liam,
-        "PewterCity_Gym_EventScript_GymGuy" to PewterCity_Gym_EventScript_GymGuy,
-        "PewterCity_Gym_EventScript_GymStatue" to PewterCity_Gym_EventScript_GymStatue,
     )

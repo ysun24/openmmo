@@ -10,24 +10,6 @@ internal object LilycoveCity_LilycoveMuseum_1F_EventScript_Greeter : Script {
       ctx.sign(LilycoveCity_LilycoveMuseum_1F.WelcomeToLilycoveMuseum)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * applymovement LOCALID_MUSEUM_1F_CURATOR, Common_Movement_FacePlayer
- * message LilycoveCity_LilycoveMuseum_1F_Text_ImCuratorHaveYouViewedOurPaintings
- * waitmessage
- * multichoice 20, 8, MULTI_VIEWED_PAINTINGS, TRUE
- * goto_if_eq VAR_RESULT, 0, LilycoveCity_LilycoveMuseum_1F_EventScript_SawPaintings
- * goto_if_eq VAR_RESULT, 1, LilycoveCity_LilycoveMuseum_1F_EventScript_NotYet
- * end
- * ```
- */
-internal object LilycoveCity_LilycoveMuseum_1F_EventScript_Curator : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_LilycoveMuseum_1F_EventScript_Curator")
-}
-
 internal object LilycoveCity_LilycoveMuseum_1F_EventScript_SchoolKidM : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(LilycoveCity_LilycoveMuseum_1F.MustntForgetLoveForFineArts)
@@ -51,24 +33,6 @@ internal object LilycoveCity_LilycoveMuseum_1F_EventScript_Woman1 : Script {
 internal object LilycoveCity_LilycoveMuseum_1F_EventScript_Woman2 : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(LilycoveCity_LilycoveMuseum_1F.HeardMuseumGotNewPaintings)
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * msgbox LilycoveCity_LilycoveMuseum_1F_Text_AimToSeeGreatPaintings, MSGBOX_DEFAULT
- * closemessage
- * applymovement LOCALID_MUSEUM_1F_ARTIST_2, Common_Movement_FaceOriginalDirection
- * waitmovement 0
- * release
- * end
- * ```
- */
-internal object LilycoveCity_LilycoveMuseum_1F_EventScript_Artist2 : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_LilycoveMuseum_1F_EventScript_Artist2")
 }
 
 internal object LilycoveCity_LilycoveMuseum_1F_EventScript_FatMan : Script {
@@ -130,8 +94,6 @@ internal val LilycoveCity_LilycoveMuseum_1FScripts: Map<String, Script> =
     mapOf(
         "LilycoveCity_LilycoveMuseum_1F_EventScript_Greeter" to
             LilycoveCity_LilycoveMuseum_1F_EventScript_Greeter,
-        "LilycoveCity_LilycoveMuseum_1F_EventScript_Curator" to
-            LilycoveCity_LilycoveMuseum_1F_EventScript_Curator,
         "LilycoveCity_LilycoveMuseum_1F_EventScript_SchoolKidM" to
             LilycoveCity_LilycoveMuseum_1F_EventScript_SchoolKidM,
         "LilycoveCity_LilycoveMuseum_1F_EventScript_Artist1" to
@@ -142,8 +104,6 @@ internal val LilycoveCity_LilycoveMuseum_1FScripts: Map<String, Script> =
             LilycoveCity_LilycoveMuseum_1F_EventScript_Woman1,
         "LilycoveCity_LilycoveMuseum_1F_EventScript_Woman2" to
             LilycoveCity_LilycoveMuseum_1F_EventScript_Woman2,
-        "LilycoveCity_LilycoveMuseum_1F_EventScript_Artist2" to
-            LilycoveCity_LilycoveMuseum_1F_EventScript_Artist2,
         "LilycoveCity_LilycoveMuseum_1F_EventScript_FatMan" to
             LilycoveCity_LilycoveMuseum_1F_EventScript_FatMan,
         "LilycoveCity_LilycoveMuseum_1F_EventScript_PsychicM" to

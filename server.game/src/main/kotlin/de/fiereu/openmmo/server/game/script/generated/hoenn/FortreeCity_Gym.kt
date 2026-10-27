@@ -130,21 +130,6 @@ internal object FortreeCity_Gym_EventScript_Edwardo : Script {
 /**
  * Not ported yet. Decomp body:
  * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_FORTREE_GYM, FortreeCity_Gym_EventScript_GymGuidePostVictory
- * msgbox FortreeCity_Gym_Text_GymGuideAdvice, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object FortreeCity_Gym_EventScript_GymGuide : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_GymGuide")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
  * trainerbattle_single TRAINER_HUMBERTO, FortreeCity_Gym_Text_HumbertoIntro, FortreeCity_Gym_Text_HumbertoDefeat
  * msgbox FortreeCity_Gym_Text_HumbertoPostBattle, MSGBOX_AUTOCLOSE
  * end
@@ -180,34 +165,6 @@ internal object FortreeCity_Gym_EventScript_Darius : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE06_GET, FortreeCity_Gym_EventScript_GymStatueCertified
- * goto FortreeCity_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object FortreeCity_Gym_EventScript_LeftGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FortreeCity_Gym_EventScript_LeftGymStatue")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE06_GET, FortreeCity_Gym_EventScript_GymStatueCertified
- * goto FortreeCity_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object FortreeCity_Gym_EventScript_RightGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FortreeCity_Gym_EventScript_RightGymStatue")
-}
-
 internal val FortreeCity_GymScripts: Map<String, Script> =
     mapOf(
         "FortreeCity_Gym_EventScript_Winona" to FortreeCity_Gym_EventScript_Winona,
@@ -215,9 +172,6 @@ internal val FortreeCity_GymScripts: Map<String, Script> =
         "FortreeCity_Gym_EventScript_Flint" to FortreeCity_Gym_EventScript_Flint,
         "FortreeCity_Gym_EventScript_Ashley" to FortreeCity_Gym_EventScript_Ashley,
         "FortreeCity_Gym_EventScript_Edwardo" to FortreeCity_Gym_EventScript_Edwardo,
-        "FortreeCity_Gym_EventScript_GymGuide" to FortreeCity_Gym_EventScript_GymGuide,
         "FortreeCity_Gym_EventScript_Humberto" to FortreeCity_Gym_EventScript_Humberto,
         "FortreeCity_Gym_EventScript_Darius" to FortreeCity_Gym_EventScript_Darius,
-        "FortreeCity_Gym_EventScript_LeftGymStatue" to FortreeCity_Gym_EventScript_LeftGymStatue,
-        "FortreeCity_Gym_EventScript_RightGymStatue" to FortreeCity_Gym_EventScript_RightGymStatue,
     )

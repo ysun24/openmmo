@@ -73,18 +73,6 @@ private suspend fun tutorialBattle(ctx: ScriptContext) {
   ctx.sayNpc(LOCALID_TUTORIAL_MAN, ViridianCity.WatchThatToLearnBasics)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto EventScript_DreamEaterTutor
- * end
- * ```
- */
-internal object ViridianCity_EventScript_DreamEaterTutor : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port ViridianCity_EventScript_DreamEaterTutor")
-}
-
 internal object ViridianCity_EventScript_OldMan : Script {
   override suspend fun run(ctx: ScriptContext) {
     if (ctx.getVar(KantoVars.VAR_MAP_SCENE_VIRIDIAN_CITY_GYM_DOOR) == 1) {
@@ -172,7 +160,6 @@ internal val ViridianCityScripts: Map<String, Script> =
             ViridianCity_EventScript_TutorialTriggerLeft,
         "ViridianCity_EventScript_TutorialTriggerRight" to
             ViridianCity_EventScript_TutorialTriggerRight,
-        "ViridianCity_EventScript_DreamEaterTutor" to ViridianCity_EventScript_DreamEaterTutor,
         "ViridianCity_EventScript_OldMan" to ViridianCity_EventScript_OldMan,
         "ViridianCity_EventScript_TutorialOldMan" to ViridianCity_EventScript_TutorialOldMan,
         "ViridianCity_EventScript_Woman" to ViridianCity_EventScript_Woman,

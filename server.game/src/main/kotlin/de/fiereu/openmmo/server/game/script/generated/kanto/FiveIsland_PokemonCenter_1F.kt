@@ -21,23 +21,6 @@ internal object FiveIsland_PokemonCenter_1F_EventScript_Chef : Script {
       ctx.say(FiveIsland_PokemonCenter_1F.OnMyWayToPrepareMeal)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_LORELEI, 3
- * textcolor NPC_TEXT_COLOR_NEUTRAL
- * msgbox PokemonJournal_Text_SpecialFeatureLorelei
- * release
- * end
- * ```
- */
-internal object FiveIsland_PokemonCenter_1F_EventScript_PokemonJournal : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FiveIsland_PokemonCenter_1F_EventScript_PokemonJournal")
-}
-
 internal val FiveIsland_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "FiveIsland_PokemonCenter_1F_EventScript_Nurse" to
@@ -46,6 +29,4 @@ internal val FiveIsland_PokemonCenter_1FScripts: Map<String, Script> =
             FiveIsland_PokemonCenter_1F_EventScript_CooltrainerF,
         "FiveIsland_PokemonCenter_1F_EventScript_Chef" to
             FiveIsland_PokemonCenter_1F_EventScript_Chef,
-        "FiveIsland_PokemonCenter_1F_EventScript_PokemonJournal" to
-            FiveIsland_PokemonCenter_1F_EventScript_PokemonJournal,
     )

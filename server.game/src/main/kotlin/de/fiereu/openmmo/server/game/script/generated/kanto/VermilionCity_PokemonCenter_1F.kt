@@ -26,33 +26,6 @@ internal object VermilionCity_PokemonCenter_1F_EventScript_Youngster : Script {
       ctx.say(VermilionCity_PokemonCenter_1F.AllMonWeakToSpecificTypes)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * script body not found
- * ```
- */
-internal object VermilionCity_PokemonCenter_1F_EventScript_VSSeekerWoman : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port VermilionCity_PokemonCenter_1F_EventScript_VSSeekerWoman")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * famechecker FAMECHECKER_LTSURGE, 5
- * textcolor NPC_TEXT_COLOR_NEUTRAL
- * msgbox PokemonJournal_Text_SpecialFeatureLtSurge
- * releaseall
- * end
- * ```
- */
-internal object VermilionCity_PokemonCenter_1F_EventScript_PokemonJournalLtSurge : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port VermilionCity_PokemonCenter_1F_EventScript_PokemonJournalLtSurge")
-}
-
 internal val VermilionCity_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "VermilionCity_PokemonCenter_1F_EventScript_Nurse" to
@@ -63,8 +36,4 @@ internal val VermilionCity_PokemonCenter_1FScripts: Map<String, Script> =
             VermilionCity_PokemonCenter_1F_EventScript_Hiker,
         "VermilionCity_PokemonCenter_1F_EventScript_Youngster" to
             VermilionCity_PokemonCenter_1F_EventScript_Youngster,
-        "VermilionCity_PokemonCenter_1F_EventScript_VSSeekerWoman" to
-            VermilionCity_PokemonCenter_1F_EventScript_VSSeekerWoman,
-        "VermilionCity_PokemonCenter_1F_EventScript_PokemonJournalLtSurge" to
-            VermilionCity_PokemonCenter_1F_EventScript_PokemonJournalLtSurge,
     )

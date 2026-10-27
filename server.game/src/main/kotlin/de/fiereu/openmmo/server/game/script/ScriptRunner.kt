@@ -48,7 +48,7 @@ constructor(
     private val entryScripts: MapEntryScripts,
     private val shopService: ShopService,
     private val scriptProgress: ScriptProgress,
-    private val services: de.fiereu.openmmo.server.game.script.vm.ScriptServices,
+    private val services: de.fiereu.openmmo.server.game.script.vm.ScriptServices? = null,
 ) {
   fun run(session: SessionContext, state: PlayerState, script: Script, entityId: Long) =
       runAll(session, state, listOf(script), entityId)

@@ -186,38 +186,6 @@ internal object LittlerootTown_EventScript_BirchsLabSign : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.sign(LittlerootTown.ProfBirchsLab)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * checkplayergender
- * call_if_eq VAR_RESULT, MALE, LittlerootTown_EventScript_PlayersHouseSignMale
- * call_if_eq VAR_RESULT, FEMALE, LittlerootTown_EventScript_BirchsHouseSignFemale
- * releaseall
- * end
- * ```
- */
-internal object LittlerootTown_EventScript_BrendansHouseSign : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_EventScript_BrendansHouseSign")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * checkplayergender
- * call_if_eq VAR_RESULT, MALE, LittlerootTown_EventScript_BirchsHouseSignMale
- * call_if_eq VAR_RESULT, FEMALE, LittlerootTown_EventScript_PlayersHouseSignFemale
- * releaseall
- * end
- * ```
- */
-internal object LittlerootTown_EventScript_MaysHouseSign : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_EventScript_MaysHouseSign")
-}
-
 internal val LittlerootTownScripts: Map<String, Script> =
     mapOf(
         "LittlerootTown_OnTransition" to LittlerootTown_OnTransition,
@@ -249,7 +217,4 @@ internal val LittlerootTownScripts: Map<String, Script> =
         "LittlerootTown_EventScript_Mom" to LittlerootTown_EventScript_Mom,
         "LittlerootTown_EventScript_TownSign" to LittlerootTown_EventScript_TownSign,
         "LittlerootTown_EventScript_BirchsLabSign" to LittlerootTown_EventScript_BirchsLabSign,
-        "LittlerootTown_EventScript_BrendansHouseSign" to
-            LittlerootTown_EventScript_BrendansHouseSign,
-        "LittlerootTown_EventScript_MaysHouseSign" to LittlerootTown_EventScript_MaysHouseSign,
     )

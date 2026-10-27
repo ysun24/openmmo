@@ -4,9 +4,10 @@ import java.io.File
 
 /**
  * Emits one Kotlin file per map holding the [de.fiereu.openmmo.server.game.script.Script] objects
- * for that map's npcs and signs. Single msgbox scripts are filled in, anything with branching or
- * extra commands is left as a TODO stub with the decomp body in a comment. Returns the fully
- * qualified per map map values so the caller can build the registry.
+ * for that map's npcs and signs. Single msgbox scripts are filled in; anything with branching or
+ * extra commands is not emitted at all (r5: those labels run on the decomp script interpreter, see
+ * server.game's ScriptRegistry). Returns the fully qualified per map map values so the caller can
+ * build the registry.
  */
 class ScriptGenerator(
     private val region: String,
@@ -33,7 +34,11 @@ class ScriptGenerator(
     var simple = 0
     var todo = 0
     for ((mapName, labels) in events.byMap) {
-      val stubs = labels.filter { assigned.add(it) }.map { toStub(it, scripts, dialogRefs) }
+      val stubs =
+          labels
+              .filter { assigned.add(it) }
+              .map { toStub(it, scripts, dialogRefs) }
+              .filter { it.kind != ScriptKind.TODO }
       if (stubs.isEmpty()) continue
       File(packageDir, "$mapName.kt").writeText(renderMapFile(mapName, stubs))
       mapValues.add("$basePackage.${mapName}Scripts")

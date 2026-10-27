@@ -21,24 +21,6 @@ internal object FallarborTown_PokemonCenter_1F_EventScript_ExpertM : Script {
       ctx.say(FallarborTown_PokemonCenter_1F.PlantHardyTrees)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * msgbox FallarborTown_PokemonCenter_1F_Text_LanetteGreeting, MSGBOX_DEFAULT
- * closemessage
- * switch VAR_FACING
- * case DIR_NORTH, FallarborTown_PokemonCenter_1F_EventScript_LanetteExitNorth
- * case DIR_WEST, FallarborTown_PokemonCenter_1F_EventScript_LanetteExitWest
- * end
- * ```
- */
-internal object FallarborTown_PokemonCenter_1F_EventScript_Lanette : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FallarborTown_PokemonCenter_1F_EventScript_Lanette")
-}
-
 internal val FallarborTown_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "FallarborTown_PokemonCenter_1F_EventScript_Nurse" to
@@ -47,6 +29,4 @@ internal val FallarborTown_PokemonCenter_1FScripts: Map<String, Script> =
             FallarborTown_PokemonCenter_1F_EventScript_Girl,
         "FallarborTown_PokemonCenter_1F_EventScript_ExpertM" to
             FallarborTown_PokemonCenter_1F_EventScript_ExpertM,
-        "FallarborTown_PokemonCenter_1F_EventScript_Lanette" to
-            FallarborTown_PokemonCenter_1F_EventScript_Lanette,
     )

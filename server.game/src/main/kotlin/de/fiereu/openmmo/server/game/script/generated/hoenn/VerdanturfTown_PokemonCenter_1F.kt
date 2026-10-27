@@ -21,30 +21,6 @@ internal object VerdanturfTown_PokemonCenter_1F_EventScript_ExpertM : Script {
       ctx.say(VerdanturfTown_PokemonCenter_1F.VisitForBattleTent)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_MOVE_TUTOR_TAUGHT_FURY_CUTTER, MoveTutor_EventScript_FuryCutterTaught
- * msgbox MoveTutor_Text_FuryCutterTeach, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, NO, MoveTutor_EventScript_FuryCutterDeclined
- * call MoveTutor_EventScript_CanOnlyBeLearnedOnce
- * goto_if_eq VAR_RESULT, NO, MoveTutor_EventScript_FuryCutterDeclined
- * msgbox MoveTutor_Text_FuryCutterWhichMon, MSGBOX_DEFAULT
- * setvar VAR_0x8005, TUTOR_MOVE_FURY_CUTTER
- * call MoveTutor_EventScript_OpenPartyMenu
- * goto_if_eq VAR_RESULT, 0, MoveTutor_EventScript_FuryCutterDeclined
- * setflag FLAG_MOVE_TUTOR_TAUGHT_FURY_CUTTER
- * goto MoveTutor_EventScript_FuryCutterTaught
- * end
- * ```
- */
-internal object VerdanturfTown_PokemonCenter_1F_EventScript_FuryCutterTutor : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port VerdanturfTown_PokemonCenter_1F_EventScript_FuryCutterTutor")
-}
-
 internal val VerdanturfTown_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "VerdanturfTown_PokemonCenter_1F_EventScript_Nurse" to
@@ -53,6 +29,4 @@ internal val VerdanturfTown_PokemonCenter_1FScripts: Map<String, Script> =
             VerdanturfTown_PokemonCenter_1F_EventScript_Gentleman,
         "VerdanturfTown_PokemonCenter_1F_EventScript_ExpertM" to
             VerdanturfTown_PokemonCenter_1F_EventScript_ExpertM,
-        "VerdanturfTown_PokemonCenter_1F_EventScript_FuryCutterTutor" to
-            VerdanturfTown_PokemonCenter_1F_EventScript_FuryCutterTutor,
     )

@@ -26,23 +26,6 @@ internal object SevenIsland_PokemonCenter_1F_EventScript_Beauty : Script {
       ctx.say(SevenIsland_PokemonCenter_1F.CheckOutTrainerTower)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_AGATHA, 3
- * textcolor NPC_TEXT_COLOR_NEUTRAL
- * msgbox PokemonJournal_Text_SpecialFeatureAgatha
- * release
- * end
- * ```
- */
-internal object SevenIsland_PokemonCenter_1F_EventScript_PokemonJournal : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port SevenIsland_PokemonCenter_1F_EventScript_PokemonJournal")
-}
-
 internal val SevenIsland_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "SevenIsland_PokemonCenter_1F_EventScript_Nurse" to
@@ -53,6 +36,4 @@ internal val SevenIsland_PokemonCenter_1FScripts: Map<String, Script> =
             SevenIsland_PokemonCenter_1F_EventScript_Sailor,
         "SevenIsland_PokemonCenter_1F_EventScript_Beauty" to
             SevenIsland_PokemonCenter_1F_EventScript_Beauty,
-        "SevenIsland_PokemonCenter_1F_EventScript_PokemonJournal" to
-            SevenIsland_PokemonCenter_1F_EventScript_PokemonJournal,
     )

@@ -146,21 +146,6 @@ internal object LittlerootTown_MaysHouse_2F_EventScript_WallClock : Script {
   override suspend fun run(ctx: ScriptContext) = setWallClock(ctx, female = true)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * checkplayergender
- * goto_if_eq VAR_RESULT, MALE, LittlerootTown_MaysHouse_2F_EventScript_CheckRivalsPC
- * goto_if_eq VAR_RESULT, FEMALE, LittlerootTown_MaysHouse_2F_EventScript_CheckPlayersPC
- * end
- * ```
- */
-internal object LittlerootTown_MaysHouse_2F_EventScript_PC : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_MaysHouse_2F_EventScript_PC")
-}
-
 internal val LittlerootTown_MaysHouse_2FScripts: Map<String, Script> =
     mapOf(
         "LittlerootTown_MaysHouse_2F_OnTransition" to LittlerootTown_MaysHouse_2F_OnTransition,
@@ -168,5 +153,4 @@ internal val LittlerootTown_MaysHouse_2FScripts: Map<String, Script> =
             LittlerootTown_MaysHouse_2F_EventScript_RivalsPokeBall,
         "LittlerootTown_MaysHouse_2F_EventScript_WallClock" to
             LittlerootTown_MaysHouse_2F_EventScript_WallClock,
-        "LittlerootTown_MaysHouse_2F_EventScript_PC" to LittlerootTown_MaysHouse_2F_EventScript_PC,
     )

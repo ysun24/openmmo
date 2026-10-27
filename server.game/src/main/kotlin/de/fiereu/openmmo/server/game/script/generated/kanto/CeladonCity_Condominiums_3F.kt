@@ -9,23 +9,6 @@ internal object CeladonCity_Condominiums_3F_EventScript_Programmer : Script {
       ctx.say(CeladonCity_Condominiums_3F.ImTheProgrammer)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * specialvar VAR_RESULT, HasAllKantoMons
- * goto_if_eq VAR_RESULT, TRUE, CeladonCity_Condominiums_3F_EventScript_CompletedPokedex
- * msgbox CeladonCity_Condominiums_3F_Text_ImGameDesignerShowMeFinishedPokedex
- * release
- * end
- * ```
- */
-internal object CeladonCity_Condominiums_3F_EventScript_Designer : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_Condominiums_3F_EventScript_Designer")
-}
-
 internal object CeladonCity_Condominiums_3F_EventScript_GraphicArtist : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(CeladonCity_Condominiums_3F.ImTheGraphicArtist)
@@ -59,8 +42,6 @@ internal val CeladonCity_Condominiums_3FScripts: Map<String, Script> =
     mapOf(
         "CeladonCity_Condominiums_3F_EventScript_Programmer" to
             CeladonCity_Condominiums_3F_EventScript_Programmer,
-        "CeladonCity_Condominiums_3F_EventScript_Designer" to
-            CeladonCity_Condominiums_3F_EventScript_Designer,
         "CeladonCity_Condominiums_3F_EventScript_GraphicArtist" to
             CeladonCity_Condominiums_3F_EventScript_GraphicArtist,
         "CeladonCity_Condominiums_3F_EventScript_Writer" to

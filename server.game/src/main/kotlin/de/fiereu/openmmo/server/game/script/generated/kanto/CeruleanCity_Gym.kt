@@ -84,40 +84,9 @@ internal object CeruleanCity_Gym_EventScript_Misty : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_MISTY, CeruleanCity_Gym_EventScript_GymGuyPostVictory
- * msgbox CeruleanCity_Gym_Text_GymGuyAdvice
- * release
- * end
- * ```
- */
-internal object CeruleanCity_Gym_EventScript_GymGuy : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Gym_EventScript_GymGuy")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE02_GET, CeruleanCity_Gym_EventScript_GymStatuePostVictory
- * msgbox CeruleanCity_Gym_Text_GymStatue
- * releaseall
- * end
- * ```
- */
-internal object CeruleanCity_Gym_EventScript_GymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Gym_EventScript_GymStatue")
-}
-
 internal val CeruleanCity_GymScripts: Map<String, Script> =
     mapOf(
         "CeruleanCity_Gym_EventScript_Luis" to CeruleanCity_Gym_EventScript_Luis,
         "CeruleanCity_Gym_EventScript_Diana" to CeruleanCity_Gym_EventScript_Diana,
         "CeruleanCity_Gym_EventScript_Misty" to CeruleanCity_Gym_EventScript_Misty,
-        "CeruleanCity_Gym_EventScript_GymGuy" to CeruleanCity_Gym_EventScript_GymGuy,
-        "CeruleanCity_Gym_EventScript_GymStatue" to CeruleanCity_Gym_EventScript_GymStatue,
     )

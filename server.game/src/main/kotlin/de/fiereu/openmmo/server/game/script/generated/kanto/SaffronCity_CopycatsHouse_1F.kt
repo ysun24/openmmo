@@ -14,30 +14,10 @@ internal object SaffronCity_CopycatsHouse_1F_EventScript_CopycatsMom : Script {
       ctx.say(SaffronCity_CopycatsHouse_1F.DaughterIsSelfCentered)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * waitse
- * playmoncry SPECIES_CHANSEY, CRY_MODE_NORMAL
- * msgbox SaffronCity_CopycatsHouse_1F_Text_Chansey
- * waitmoncry
- * release
- * end
- * ```
- */
-internal object SaffronCity_CopycatsHouse_1F_EventScript_Chansey : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port SaffronCity_CopycatsHouse_1F_EventScript_Chansey")
-}
-
 internal val SaffronCity_CopycatsHouse_1FScripts: Map<String, Script> =
     mapOf(
         "SaffronCity_CopycatsHouse_1F_EventScript_CopycatsDad" to
             SaffronCity_CopycatsHouse_1F_EventScript_CopycatsDad,
         "SaffronCity_CopycatsHouse_1F_EventScript_CopycatsMom" to
             SaffronCity_CopycatsHouse_1F_EventScript_CopycatsMom,
-        "SaffronCity_CopycatsHouse_1F_EventScript_Chansey" to
-            SaffronCity_CopycatsHouse_1F_EventScript_Chansey,
     )

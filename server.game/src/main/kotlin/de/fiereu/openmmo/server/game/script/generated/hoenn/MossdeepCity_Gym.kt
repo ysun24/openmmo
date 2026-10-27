@@ -177,21 +177,6 @@ internal object MossdeepCity_Gym_EventScript_Hannah : Script {
 /**
  * Not ported yet. Decomp body:
  * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_MOSSDEEP_GYM, MossdeepCity_Gym_EventScript_GymGuidePostVictory
- * msgbox MossdeepCity_Gym_Text_GymGuideAdvice, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object MossdeepCity_Gym_EventScript_GymGuide : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_GymGuide")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
  * trainerbattle_single TRAINER_NATE, MossdeepCity_Gym_Text_NateIntro, MossdeepCity_Gym_Text_NateDefeat
  * msgbox MossdeepCity_Gym_Text_NatePostBattle, MSGBOX_AUTOCLOSE
  * end
@@ -303,34 +288,6 @@ internal object MossdeepCity_Gym_EventScript_Nicholas : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE07_GET, MossdeepCity_Gym_EventScript_GymStatueCertified
- * goto MossdeepCity_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object MossdeepCity_Gym_EventScript_LeftGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port MossdeepCity_Gym_EventScript_LeftGymStatue")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE07_GET, MossdeepCity_Gym_EventScript_GymStatueCertified
- * goto MossdeepCity_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object MossdeepCity_Gym_EventScript_RightGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port MossdeepCity_Gym_EventScript_RightGymStatue")
-}
-
 internal val MossdeepCity_GymScripts: Map<String, Script> =
     mapOf(
         "MossdeepCity_Gym_EventScript_TateAndLiza" to MossdeepCity_Gym_EventScript_TateAndLiza,
@@ -340,14 +297,10 @@ internal val MossdeepCity_GymScripts: Map<String, Script> =
         "MossdeepCity_Gym_EventScript_Samantha" to MossdeepCity_Gym_EventScript_Samantha,
         "MossdeepCity_Gym_EventScript_Virgil" to MossdeepCity_Gym_EventScript_Virgil,
         "MossdeepCity_Gym_EventScript_Hannah" to MossdeepCity_Gym_EventScript_Hannah,
-        "MossdeepCity_Gym_EventScript_GymGuide" to MossdeepCity_Gym_EventScript_GymGuide,
         "MossdeepCity_Gym_EventScript_Nate" to MossdeepCity_Gym_EventScript_Nate,
         "MossdeepCity_Gym_EventScript_Sylvia" to MossdeepCity_Gym_EventScript_Sylvia,
         "MossdeepCity_Gym_EventScript_Clifford" to MossdeepCity_Gym_EventScript_Clifford,
         "MossdeepCity_Gym_EventScript_Macey" to MossdeepCity_Gym_EventScript_Macey,
         "MossdeepCity_Gym_EventScript_Kathleen" to MossdeepCity_Gym_EventScript_Kathleen,
         "MossdeepCity_Gym_EventScript_Nicholas" to MossdeepCity_Gym_EventScript_Nicholas,
-        "MossdeepCity_Gym_EventScript_LeftGymStatue" to MossdeepCity_Gym_EventScript_LeftGymStatue,
-        "MossdeepCity_Gym_EventScript_RightGymStatue" to
-            MossdeepCity_Gym_EventScript_RightGymStatue,
     )

@@ -8,38 +8,6 @@ internal object VerdanturfTown_EventScript_Man : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(VerdanturfTown.AirCleanHere)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_RUSTURF_TUNNEL_OPENED, VerdanturfTown_EventScript_TwinTunnelOpen
- * msgbox VerdanturfTown_Text_ManTryingToDigTunnel, MSGBOX_DEFAULT
- * applymovement LOCALID_VERDANTURF_TWIN, Common_Movement_FaceOriginalDirection
- * waitmovement 0
- * release
- * end
- * ```
- */
-internal object VerdanturfTown_EventScript_Twin : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VerdanturfTown_EventScript_Twin")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_RUSTURF_TUNNEL_OPENED, VerdanturfTown_EventScript_BoyTunnelOpen
- * msgbox VerdanturfTown_Text_GuyTryingToBustThroughCave, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object VerdanturfTown_EventScript_Boy : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VerdanturfTown_EventScript_Boy")
-}
-
 internal object VerdanturfTown_EventScript_Camper : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(VerdanturfTown.MakeBattleTentDebut)
 }
@@ -63,8 +31,6 @@ internal object VerdanturfTown_EventScript_RusturfTunnelSign : Script {
 internal val VerdanturfTownScripts: Map<String, Script> =
     mapOf(
         "VerdanturfTown_EventScript_Man" to VerdanturfTown_EventScript_Man,
-        "VerdanturfTown_EventScript_Twin" to VerdanturfTown_EventScript_Twin,
-        "VerdanturfTown_EventScript_Boy" to VerdanturfTown_EventScript_Boy,
         "VerdanturfTown_EventScript_Camper" to VerdanturfTown_EventScript_Camper,
         "VerdanturfTown_EventScript_TownSign" to VerdanturfTown_EventScript_TownSign,
         "VerdanturfTown_EventScript_WandasHouseSign" to VerdanturfTown_EventScript_WandasHouseSign,
