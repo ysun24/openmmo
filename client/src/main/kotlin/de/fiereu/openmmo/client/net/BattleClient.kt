@@ -1097,7 +1097,7 @@ class BattleClient(
           ballShown = true
           if (caught) caughtSeen = true
         }
-        say("You threw a ${ball.uppercase()}!")
+        say("You threw a ${ball.uppercase().replace("POKÉ", "POKé")}!")
         fx("ball", "foe", "shakes" to shakes, "caught" to caught, "ball" to ball)
         if (!caught) synchronized(lock) { ballShown = false }
       }

@@ -23,8 +23,10 @@ export function update(state, changed) {
   }
   const n = state.ui && state.ui.notice;
   // Server notices (an item used, a refused move) pop up over the game; joins and leaves
-  // (kind "presence") only go to the chat log.
-  if (n && (!lastNotice || n.seq !== lastNotice.seq) && n.kind !== 'presence') toast(n.text, 3500);
+  // (kind "presence") only go to the chat log. While the evolution scene plays, its own text box
+  // shows the lines (and the trade window its result), so no toast covers it.
+  const evoUp = !!document.querySelector('#evo') || !!(state.evolution && state.evolution.phase === 'start');
+  if (n && (!lastNotice || n.seq !== lastNotice.seq) && n.kind !== 'presence' && !evoUp) toast(n.text, 3500);
   lastNotice = n;
   if (changed.includes('invite')) {
     const inv = state.invite;
