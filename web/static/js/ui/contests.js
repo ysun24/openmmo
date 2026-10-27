@@ -25,7 +25,7 @@ export function init(a) {
   document.body.append(root);
   const bar = $('#topbar');
   if (bar && !$('#btn-pokeblocks')) {
-    const b = h('button#btn-pokeblocks.small', { type: 'button', title: 'POKéBLOCK CASE', on: { click: () => send({ t: 'pokeblocks.open' }) } }, '◆ Blocks');
+    const b = h('button#btn-pokeblocks.small', { type: 'button', title: 'POKéBLOCK CASE', 'aria-label': 'POKéBLOCK CASE', on: { click: () => send({ t: 'pokeblocks.open' }) } }, '◆', h('span.lbl', ' Blocks'));
     const menu = $('#btn-menu');
     if (menu && menu.parentNode) menu.parentNode.insertBefore(b, menu);
     else bar.append(b);
