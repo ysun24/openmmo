@@ -104,6 +104,8 @@ constructor(
     private val interestManager: InterestManager,
     private val speciesRegistry: SpeciesRegistry,
     private val timer: DuelTimer,
+    /** r3-social: a player who blocked you (or whom you blocked) cannot be challenged. */
+    private val blocks: de.fiereu.openmmo.server.game.services.social.BlockList? = null,
 ) {
   /** Tests and callers that do not care about the clock. */
   constructor(
@@ -128,14 +130,14 @@ constructor(
   private val invites = ConcurrentHashMap<Long, Invite>()
 
   /** The retail-shaped challenge: default rules. */
-  fun onDuelChallenge(event: PacketEvent<DuelChallengePacket>) =
+  suspend fun onDuelChallenge(event: PacketEvent<DuelChallengePacket>) =
       challenge(event.session, event.packet.targetPlayerName, DuelRules.DEFAULT)
 
   /** Our own challenge packet, which carries the rules the challenger picked. */
-  fun onRulesChallenge(event: PacketEvent<DuelRulesChallengePacket>) =
+  suspend fun onRulesChallenge(event: PacketEvent<DuelRulesChallengePacket>) =
       challenge(event.session, event.packet.targetName, event.packet.rules.sanitized())
 
-  private fun challenge(session: SessionContext, rawTarget: String, rules: DuelRules) {
+  private suspend fun challenge(session: SessionContext, rawTarget: String, rules: DuelRules) {
     val charId = session.attributes[PLAYER_STATE]?.characterId ?: return
     val me = characterStore.getCharacter(charId) ?: return
     val targetName = rawTarget.trim()
@@ -146,6 +148,17 @@ constructor(
     val target = targetId?.let(sessions::getByCharacterId)
     if (targetId == null || target == null) {
       session.send(notice("$targetName is not online."))
+      session.send(DuelInviteOutcomePacket(DuelOutcome.UNAVAILABLE))
+      return
+    }
+    val blocked =
+        when {
+          blocks?.isBlocked(targetId, charId) == true -> "$targetName is not accepting challenges."
+          blocks?.isBlocked(charId, targetId) == true -> "Unblock $targetName to challenge them."
+          else -> null
+        }
+    if (blocked != null) {
+      session.send(notice(blocked))
       session.send(DuelInviteOutcomePacket(DuelOutcome.UNAVAILABLE))
       return
     }

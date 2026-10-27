@@ -236,8 +236,8 @@ constructor(
     on<BattleTeamPreviewConfirmPacket> { event -> battleService.onBattlePacket(event) }
     on<BattleRewardSelectPacket> { event -> battleService.onBattlePacket(event) }
     onSuspend<MapLoadedAckPacket> { event -> battleService.onClientReady(event) }
-    on<DuelChallengePacket> { event -> pvpBattleService.onDuelChallenge(event) }
-    on<DuelRulesChallengePacket> { event -> pvpBattleService.onRulesChallenge(event) }
+    onSuspend<DuelChallengePacket> { event -> pvpBattleService.onDuelChallenge(event) }
+    onSuspend<DuelRulesChallengePacket> { event -> pvpBattleService.onRulesChallenge(event) }
     onSuspend<InGameChallengeResponsePacket> { event ->
       pvpBattleService.onChallengeResponse(event)
     }

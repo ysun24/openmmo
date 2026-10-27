@@ -41,6 +41,7 @@ import de.fiereu.openmmo.server.game.world.interest.InterestManager
 import de.fiereu.openmmo.trainer.TrainerRegistry
 import de.fiereu.openmmo.typechart.TypeChart
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -79,6 +80,8 @@ private class DuelFixture(scope: CoroutineScope) {
   val species = SpeciesRegistry()
   val wild = WildMonFactory(species, moves, LearnsetRegistry(), EntityIdService())
   val emitter = BattlePacketEmitter(interest)
+  val social = de.fiereu.openmmo.server.game.storage.InMemorySocialRepository()
+  val blocks = de.fiereu.openmmo.server.game.services.social.BlockList(social)
   val pvp =
       PvpBattleService(
           store,
@@ -88,7 +91,8 @@ private class DuelFixture(scope: CoroutineScope) {
           emitter,
           interest,
           species,
-          timer)
+          timer,
+          blocks)
   val battles =
       BattleService(
           characterStore = store,
@@ -207,6 +211,24 @@ class PvpBattleServiceTest :
           fx.registry.byChar(aId).shouldBeNull()
           fx.registry.byChar(bId)!!.pendingResult shouldBe BattleResult.VICTORY
           b.sent.filterIsInstance<BattleBulkStatePacket>().single().flag shouldBe 2.toByte()
+        }
+      }
+
+      test("a player who blocked you cannot be challenged, nor can one you blocked") {
+        runTest {
+          val fx = DuelFixture(backgroundScope)
+          val (a, aId) = fx.player("Ash", 4, 20)
+          val (b, bId) = fx.player("Gary", 7, 20)
+          fx.social.register(aId, "Ash")
+          fx.social.register(bId, "Gary")
+          fx.social.block(bId, aId, java.time.LocalDateTime.now())
+          fx.pvp.onDuelChallenge(PacketEvent(challenge("Gary"), a))
+          a.sent.filterIsInstance<DuelInviteOutcomePacket>().single().packed shouldBe
+              DuelOutcome.UNAVAILABLE
+          b.sent.filterIsInstance<DuelRulesPacket>().shouldBeEmpty()
+          fx.pvp.onDuelChallenge(PacketEvent(challenge("Ash"), b))
+          b.sent.filterIsInstance<DuelInviteOutcomePacket>().single().packed shouldBe
+              DuelOutcome.UNAVAILABLE
         }
       }
 
