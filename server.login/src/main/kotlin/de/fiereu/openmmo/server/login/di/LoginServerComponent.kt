@@ -4,6 +4,7 @@ import dagger.BindsInstance
 import dagger.Component
 import de.fiereu.openmmo.server.login.LoginServer
 import de.fiereu.openmmo.server.login.auth.AdminAccountBootstrap
+import de.fiereu.openmmo.server.login.auth.JooqUserStore
 import de.fiereu.openmmo.server.login.config.LoginServerConfig
 import de.fiereu.openmmo.server.login.db.DatabaseBootstrap
 import de.fiereu.openmmo.server.login.handler.LoginAppHandler
@@ -21,6 +22,8 @@ interface LoginServerComponent {
   fun databaseBootstrap(): DatabaseBootstrap
 
   fun adminAccountBootstrap(): AdminAccountBootstrap
+
+  fun jooqUserStore(): JooqUserStore
 
   @Component.Factory
   fun interface Factory {

@@ -21,6 +21,11 @@ import de.fiereu.openmmo.net.login.packets.MfaChallengePacket
 import de.fiereu.openmmo.net.login.packets.MfaChallengePacketCodec
 import de.fiereu.openmmo.net.login.packets.MfaResponsePacket
 import de.fiereu.openmmo.net.login.packets.MfaResponsePacketCodec
+import de.fiereu.openmmo.net.login.packets.OpenMmoLoginOpcodes
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacket
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacketCodec
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacket
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacketCodec
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacket
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacketCodec
 import de.fiereu.openmmo.net.login.packets.SentCredentialsPacket
@@ -45,5 +50,8 @@ object LoginProtocol : Protocol() {
     s2c<ToSPacket>(0x14u, ToSPacketCodec)
     s2c<GameServerListPacket>(0x22u, GameServerListPacketCodec)
     s2c<ExistingSessionPacket>(0x26u, ExistingSessionPacketCodec)
+    // OpenMMO-only, see OpenMmoLoginOpcodes.
+    c2s<RegisterRequestPacket>(OpenMmoLoginOpcodes.REGISTER, RegisterRequestPacketCodec)
+    s2c<RegisterResponsePacket>(OpenMmoLoginOpcodes.REGISTER, RegisterResponsePacketCodec)
   }
 }

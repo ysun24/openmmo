@@ -2,6 +2,7 @@ package de.fiereu.openmmo.server.login.auth
 
 import de.fiereu.openmmo.common.enums.LoginState
 import de.fiereu.openmmo.common.utils.toHex
+import de.fiereu.openmmo.net.login.packets.RegisterResult
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,6 +30,38 @@ interface UserService {
 
   /** Takes the plain password and hashes it the way the client would before sending. */
   suspend fun addUser(username: String, password: String): Int
+
+  /**
+   * Creates [username] with the client's password digest when [invite] is still valid, using up one
+   * of its uses in the same transaction. Inputs are checked with [RegistrationRules] first.
+   */
+  suspend fun register(username: String, clientDigest: String, invite: String): RegisterResult =
+      RegisterResult.SYSTEM_ERROR
+}
+
+/** What a registration has to look like, shared by the server and anything validating early. */
+object RegistrationRules {
+  private val USERNAME = Regex("^[A-Za-z0-9_]{3,16}$")
+  private val DIGEST = Regex("^[0-9a-f]{40}$")
+  private val INVITE = Regex("^[A-Z0-9-]{4,32}$")
+
+  fun validUsername(name: String) = USERNAME.matches(name)
+
+  /** The client sends the SHA-1 hex; the 8 character minimum is checked before hashing. */
+  fun validDigest(digest: String) = DIGEST.matches(digest)
+
+  fun normalizeInvite(code: String) = code.trim().uppercase()
+
+  fun validInvite(code: String) = INVITE.matches(code)
+
+  /** First failing rule, or null when the request may go to the database. */
+  fun check(username: String, clientDigest: String, invite: String): RegisterResult? =
+      when {
+        !validUsername(username) -> RegisterResult.BAD_USERNAME
+        !validDigest(clientDigest) -> RegisterResult.BAD_PASSWORD
+        !validInvite(normalizeInvite(invite)) -> RegisterResult.BAD_INVITE
+        else -> null
+      }
 }
 
 @Suppress("kotlin:S4790")
@@ -48,6 +81,9 @@ class InMemoryUserStore @Inject constructor() : UserService {
   private val users = ConcurrentHashMap<String, UserInfo>()
   private val nextId = AtomicInteger(1)
 
+  /** Invite code to remaining uses, for tests. */
+  val invites = ConcurrentHashMap<String, Int>()
+
   init {
     put("admin", "admin")
     put("test", "test")
@@ -66,13 +102,36 @@ class InMemoryUserStore @Inject constructor() : UserService {
   override suspend fun authenticate(username: String, password: String): UserService.AuthResult {
     val user =
         users[username.lowercase()] ?: return UserService.AuthResult(LoginState.INVALID_PASSWORD)
-    if (user.passwordHash != password) {
+    if (!PasswordHasher.constantTimeEquals(user.passwordHash, password)) {
       return UserService.AuthResult(LoginState.INVALID_PASSWORD)
     }
     return UserService.AuthResult(LoginState.AUTHED, user.id, user.tokenEpoch)
   }
 
   override suspend fun getUserId(username: String): Int? = users[username.lowercase()]?.id
+
+  override suspend fun register(
+      username: String,
+      clientDigest: String,
+      invite: String,
+  ): RegisterResult = synchronized(this) { registerLocked(username, clientDigest, invite) }
+
+  private fun registerLocked(
+      username: String,
+      clientDigest: String,
+      invite: String
+  ): RegisterResult {
+    RegistrationRules.check(username, clientDigest, invite)?.let {
+      return it
+    }
+    val code = RegistrationRules.normalizeInvite(invite)
+    val left = invites[code] ?: 0
+    if (left <= 0) return RegisterResult.BAD_INVITE
+    if (users.containsKey(username.lowercase())) return RegisterResult.USERNAME_TAKEN
+    invites[code] = left - 1
+    users[username.lowercase()] = UserInfo(nextId.getAndIncrement(), clientDigest, username)
+    return RegisterResult.OK
+  }
 
   override suspend fun findForToken(userId: Int): UserService.TokenUser? =
       users.values

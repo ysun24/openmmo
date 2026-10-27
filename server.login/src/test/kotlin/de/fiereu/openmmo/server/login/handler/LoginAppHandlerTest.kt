@@ -15,10 +15,14 @@ import de.fiereu.openmmo.net.login.packets.JoinGameServerPacket
 import de.fiereu.openmmo.net.login.packets.LoginRequestPacket
 import de.fiereu.openmmo.net.login.packets.LoginResponsePacket
 import de.fiereu.openmmo.net.login.packets.PasswordLogin
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacket
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacket
+import de.fiereu.openmmo.net.login.packets.RegisterResult
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacket
 import de.fiereu.openmmo.net.login.packets.SentCredentialsPacket
 import de.fiereu.openmmo.net.login.packets.TokenLogin
 import de.fiereu.openmmo.server.login.auth.InMemoryUserStore
+import de.fiereu.openmmo.server.login.auth.LoginThrottle
 import de.fiereu.openmmo.server.login.auth.sha1Hex
 import de.fiereu.openmmo.server.login.catalog.GameServerCatalog
 import de.fiereu.openmmo.server.login.config.GameServerEndpointConfig
@@ -110,6 +114,7 @@ class LoginAppHandlerTest :
       fun newHandler(
           users: InMemoryUserStore,
           clock: Clock = Clock.systemUTC(),
+          throttle: LoginThrottle = LoginThrottle(),
       ): LoginAppHandler =
           LoginAppHandler(
               users = users,
@@ -118,6 +123,7 @@ class LoginAppHandlerTest :
               rememberMeIssuer = RememberMeTokenIssuer(secret, clock),
               rememberMeVerifier = RememberMeTokenVerifier(secret, maxAge, clock),
               scope = CoroutineScope(Job()),
+              throttle = throttle,
           )
 
       test("dagger component constructs the handler with all three packet types registered") {
@@ -253,5 +259,112 @@ class LoginAppHandlerTest :
         (session.sent.single() as LoginResponsePacket).state shouldBe
             LoginState.INVALID_SAVED_CREDENTIALS
         session.attributes.contains(AUTHED_USER_ID) shouldBe false
+      }
+
+      test("registration with a valid invite creates an account that can log in") {
+        val users = InMemoryUserStore()
+        users.invites["FRIENDS-1"] = 1
+        val handler = newHandler(users)
+        val session = RecordingSession()
+        runBlocking {
+          handler.onRegister(
+              PacketEvent(
+                  RegisterRequestPacket("Misty_2", sha1Hex("waterfall9"), "friends-1"), session))
+        }
+        (session.sent.single() as RegisterResponsePacket).result shouldBe RegisterResult.OK
+        users.invites["FRIENDS-1"] shouldBe 0
+        val login = RecordingSession()
+        runBlocking {
+          newHandler(users)
+              .onLoginRequest(
+                  PacketEvent(
+                      loginRequest("misty_2", PasswordLogin(sha1Hex("waterfall9"), false)), login))
+        }
+        (login.sent.single() as LoginResponsePacket).state shouldBe LoginState.AUTHED
+      }
+
+      test("registration rejects a used-up invite, a taken name and bad input") {
+        val users = InMemoryUserStore()
+        users.invites["ONCE"] = 1
+        users.invites["TWICE"] = 2
+        fun register(user: String, digest: String, invite: String): RegisterResult {
+          val session = RecordingSession()
+          runBlocking {
+            newHandler(users)
+                .onRegister(PacketEvent(RegisterRequestPacket(user, digest, invite), session))
+          }
+          return (session.sent.single() as RegisterResponsePacket).result
+        }
+        val pw = sha1Hex("password1")
+        register("brock", pw, "ONCE") shouldBe RegisterResult.OK
+        register("brock2", pw, "ONCE") shouldBe RegisterResult.BAD_INVITE
+        register("BROCK", pw, "TWICE") shouldBe RegisterResult.USERNAME_TAKEN
+        register("no", pw, "TWICE") shouldBe RegisterResult.BAD_USERNAME
+        register("seventeen_chars_x", pw, "TWICE") shouldBe RegisterResult.BAD_USERNAME
+        register("bad-name", pw, "TWICE") shouldBe RegisterResult.BAD_USERNAME
+        register("erika", "plaintext", "TWICE") shouldBe RegisterResult.BAD_PASSWORD
+        register("erika", pw, "NOPE") shouldBe RegisterResult.BAD_INVITE
+        register("erika", pw, "TWICE") shouldBe RegisterResult.OK
+      }
+
+      test("one socket may only try a few registrations") {
+        val users = InMemoryUserStore()
+        val handler = newHandler(users)
+        val results =
+            (1..5).map {
+              val session = RecordingSession()
+              runBlocking {
+                handler.onRegister(
+                    PacketEvent(
+                        RegisterRequestPacket("user$it", sha1Hex("password1"), "NONE"), session))
+              }
+              (session.sent.single() as RegisterResponsePacket).result
+            }
+        results.take(3).toSet() shouldBe setOf(RegisterResult.BAD_INVITE)
+        results.drop(3).toSet() shouldBe setOf(RegisterResult.RATE_LIMITED)
+      }
+
+      test("too many wrong passwords lock the username across sockets") {
+        val users = InMemoryUserStore()
+        users.addUser("ash", "pikachu123")
+        val throttle = LoginThrottle()
+        repeat(10) {
+          val session = RecordingSession()
+          runBlocking {
+            newHandler(users, throttle = throttle)
+                .onLoginRequest(
+                    PacketEvent(
+                        loginRequest("ash", PasswordLogin(sha1Hex("x$it"), false)), session))
+          }
+          (session.sent.single() as LoginResponsePacket).state shouldBe LoginState.INVALID_PASSWORD
+        }
+        val session = RecordingSession()
+        runBlocking {
+          newHandler(users, throttle = throttle)
+              .onLoginRequest(
+                  PacketEvent(
+                      loginRequest("ASH", PasswordLogin(sha1Hex("pikachu123"), false)), session))
+        }
+        val response = session.sent.single() as LoginResponsePacket
+        response.state shouldBe LoginState.RATE_LIMITED
+        response.ratelimitEnd.shouldNotBeNull()
+      }
+
+      test("one socket may only try a few passwords") {
+        val users = InMemoryUserStore()
+        users.addUser("ash", "pikachu123")
+        val handler = newHandler(users)
+        val states =
+            (1..6).map {
+              val session = RecordingSession()
+              runBlocking {
+                handler.onLoginRequest(
+                    PacketEvent(
+                        loginRequest("ash", PasswordLogin(sha1Hex("pikachu123"), false)), session))
+              }
+              (session.sent.single() as LoginResponsePacket).state
+            }
+        states.take(5).toSet() shouldBe setOf(LoginState.AUTHED)
+        states.last() shouldBe LoginState.RATE_LIMITED
       }
     })
