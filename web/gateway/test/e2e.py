@@ -266,7 +266,9 @@ def fight_until_over(players, label, max_turns=60):
                     p.send(t="battle.switch", slot=slot)
             if b and b["phase"] == "ACTION" and not b.get("result"):
                 moves = b["me"]["moves"]
-                idx = next((i for i, m in enumerate(moves) if m["pp"] > 0), 0)
+                # a damaging move with pp first (a lead whose first move is REST never ends a duel)
+                idx = next((i for i, m in enumerate(moves) if m["pp"] > 0 and (m.get("power") or 0) > 0),
+                           next((i for i, m in enumerate(moves) if m["pp"] > 0), 0))
                 p.send(t="battle.fight", move=idx)
         time.sleep(0.4)
     for p in players:
