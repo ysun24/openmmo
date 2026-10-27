@@ -62,6 +62,13 @@ internal class MutableSessionContext(
 
   override fun send(packet: Any): ChannelFuture = channel.writeAndFlush(packet)
 
+  override fun sendOrdered(packet: Any) {
+    val loop = channel.eventLoop()
+    // From the loop itself, queue behind the tasks other threads already scheduled.
+    if (loop.inEventLoop()) loop.execute { channel.writeAndFlush(packet) }
+    else channel.writeAndFlush(packet)
+  }
+
   override fun close(reason: () -> String) {
     val message = reason()
     log.debug { "Closing session $remoteAddress: $message" }

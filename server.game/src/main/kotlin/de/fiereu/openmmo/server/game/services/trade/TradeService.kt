@@ -479,7 +479,9 @@ constructor(
               }
           sessions
               .getByCharacterId(charId)
-              ?.send(
+              // Both partners' edits broadcast from their own threads; ordered sends keep an older
+              // window state from arriving after a newer one.
+              ?.sendOrdered(
                   TradeStatePacket(
                       phase = phase,
                       partnerName = nameOf(partner),
