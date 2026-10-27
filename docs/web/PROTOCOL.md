@@ -590,3 +590,51 @@ Static assets (manifest):
   sheet, 16x16 cells; "!!" is pictures 3, 4, 5 (4, 4, 52 GBA frames).
 - Rematch battles use the trainer's `trainerbattle_rematch` intro / defeat texts and its rematch
   post-battle line.
+
+## 13. r5-minigames (round 5: Game Corner, link minigames, Union Room, Mystery Gift; all additive)
+
+### 13.1 Channel
+- Game protocol (OpenMMO-only): c2s 0xDC `MinigameActionPacket {topic: str8, body: str16}` and s2c
+  0xDD `MinigameStatePacket {topic, body}` (s2c 0xDC is retail). `body` is a JSON object; an empty
+  object closes the topic. The server validates every field.
+- Browser → gateway: `minigame` `{topic, action, ...}`; the gateway forwards the object without `t`,
+  `topic`, `seq`. Gateway → browser: new state section `minigames` = `{<topic>: <last body>}` (null
+  when nothing is open).
+
+### 13.2 Topics (server → browser body / browser actions)
+- `menu` `{seq, title, options[], detail[], cancel}`; action `{choice}` (-1 = B). The decomp's
+  multichoice boxes.
+- `coins` `{coins, hasCase}`; action `get`.
+- `slots` `{game: frlg|emerald, machine, coins, bet, reels[3], spinning, current, speed, payout,
+  lines[], msg, strips[3][21]}` + Emerald `bolts, reelTime, reelTimeDraw, lucky, replay`. Actions
+  `bet {n}`, `spin`, `stop`, `quit`. Row r of a reel at position p shows `strips[r][p+1..p+3]`; a
+  spinning reel moves one symbol per `24/speed` frames (positions fall).
+- `roulette` `{table, special, minBet, coins, ball, balls, hits[], multipliers[20], last {slot,
+  square, won, multiplier, payout}, slots[12], msg}`; actions `bet {selection 1..19}`, `newround`,
+  `quit`. Selections are roulette.c's grid ids (1-4 columns, 5/10/15 rows, others squares).
+- `lobby` `{groups[], mine {id, game, leader, players[], min, max, running, results}, games[],
+  berries[], focus}`; actions `open`, `close`, `host {game}`, `join {id}`, `leave`, `pick {value}`
+  (berry index / dex), `start`.
+- `berrycrush` `{players[], berries[], target, countdown?, depth 0..32, total, presses[], frame,
+  results?}`; action `press`. `dodrio` `{players[], columns, berries[col] {t, d}|null, picks[],
+  scores[], gray, results?}`; action `pick {dir: left|up|right}`. `pokejump` `{players[], phase
+  0..1, period, score, jumps, air[], excellents, results?}`; action `jump`.
+- `union` `{inRoom, players[] {name, where, region, busy}, chat[], invite {from, what}?, accepted
+  {name, what, seq}?}`; actions `enter`, `leave`, `chat {text}`, `invite {name, what}` (`trade`,
+  `battle`, `chat`, `game:<id>`), `answer {answer: yes|no}`. When `accepted` changes the asking
+  browser sends the existing `trade.request` / `duel` itself.
+- `fame` `{pick[16], flags[16]}` or `{error}`; actions `open`, `close`.
+- `gift` `{available[], cards[], delivered[], tickets[]}`; actions `open`, `receive {id}`, `close`.
+- `records` `{mixed {trainers[], shows[], bases[], trend, at}, easychat, trend}`; actions `open`,
+  `mix`, `close`. `easychat` (server asks) `{kind, count, current}`; actions `done {words[], text}`,
+  `cancel`, `save {kind, words[], text}`.
+
+### 13.3 Assets
+- `manifest.minigames`: `slots` (`frlgIcons` 32x224 sheet in enum order, `emeraldSymbols[7]`),
+  `roulette` (board Pokémon sprites), `fameChecker.people[16]` (`name, title, quote, texts[6],
+  origins[6], objects[6]`), `easyChat.groups[]` (`id, name, words[]`; word id = group << 9 | index).
+
+### 13.4 Commands
+- Dev: `/coins <n>`, `/mgwarp <place>`, `/famecheck all|<person> <flavor>`. Admin (permission
+  0x200): `/mysterygift add item <id> [qty] <title> | add mon <dex> <level> <title> | add ticket
+  <eon|mystic|aurora|oldseamap> <title> [region=kanto|hoenn] | list | on|off <id>`.
