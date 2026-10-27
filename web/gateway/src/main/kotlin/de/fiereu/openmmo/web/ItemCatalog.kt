@@ -220,7 +220,16 @@ class ItemCatalog(private val decomp: File) {
                 "maxelixir")
             .associateWith { "mon" } +
             listOf("ether", "maxether", "leppaberry", "ppup", "ppmax").associateWith { "move" } +
-            listOf("escaperope", "repel", "superrepel", "maxrepel", "oldrod", "goodrod", "superrod")
+            listOf(
+                    "escaperope",
+                    "repel",
+                    "superrepel",
+                    "maxrepel",
+                    "oldrod",
+                    "goodrod",
+                    "superrod",
+                    // FieldUseFunc_FameChecker: opens the Fame Checker from the bag.
+                    "famechecker")
                 .associateWith { "field" })
 
     /** Key items the GBA lets the player register to SELECT. */
@@ -241,7 +250,8 @@ class ItemCatalog(private val decomp: File) {
             "townmap",
             "coinCase".lowercase(),
             "devonscope",
-            "silphscope")
+            "silphscope",
+            "famechecker")
     val TM = Regex("[TH]M\\d+")
 
     fun norm(s: String) =

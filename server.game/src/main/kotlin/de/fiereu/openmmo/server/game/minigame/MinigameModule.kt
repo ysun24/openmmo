@@ -80,6 +80,13 @@ interface MinigameModule {
 
   @Binds @IntoSet fun fameCommand(c: MinigameCommands.Fame): ChatCommand
 
+  // r5 close-out: the FAME CHECKER from the bag / SELECT opens the Fame Checker.
+  @Binds
+  @IntoSet
+  fun fameFromBag(
+      h: de.fiereu.openmmo.server.game.minigame.fame.FameCheckerFromBag
+  ): de.fiereu.openmmo.server.game.services.BagItemScript
+
   @Binds @IntoSet fun coinsCommand(c: MinigameCommands.Coins): ChatCommand
 
   @Binds @IntoSet fun warpCommand(c: MinigameCommands.Warp): ChatCommand
