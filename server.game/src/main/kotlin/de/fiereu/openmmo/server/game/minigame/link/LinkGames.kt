@@ -282,7 +282,7 @@ class PokemonJump(val players: List<LinkPlayer>, val jumpTypes: List<Int>, priva
     private set
 
   private val jumpStart = IntArray(players.size) { -1000 }
-  private val jumpedAtStart = IntArray(players.size) { -1000 }
+  private val npcPlan = IntArray(players.size) { -1 }
   private var swingStartFrame = 0
   private var checked = false
 
@@ -300,12 +300,16 @@ class PokemonJump(val players: List<LinkPlayer>, val jumpTypes: List<Int>, priva
     frame++
     val t = frame - swingStartFrame
     phase = t.toDouble() / period
-    // NPCs jump a little before the vine reaches them, less reliably as it speeds up.
-    for (p in players.indices) {
-      if (!players[p].npc || inAir(p)) continue
-      val lead = airtime(p) / 2 + rnd.nextInt(-3, 4)
-      if (t == period / 2 - lead && rnd.nextInt(100) < 99 - speedStage * 2) jump(p)
+    // NPCs plan one jump a swing, a little before the vine reaches them; as the vine speeds up
+    // they sometimes mistime it (2% more per speed stage).
+    if (t == 1) {
+      for (p in players.indices) {
+        if (!players[p].npc) continue
+        val ok = rnd.nextInt(100) < 99 - speedStage * 2
+        npcPlan[p] = if (ok) period / 2 - airtime(p) / 2 + rnd.nextInt(-5, 6) else period / 2 + 2
+      }
     }
+    for (p in players.indices) if (players[p].npc && t == npcPlan[p]) jump(p)
     if (!checked && t >= period / 2) {
       checked = true
       val failed = players.indices.firstOrNull { !inAir(it) }

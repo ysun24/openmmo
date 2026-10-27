@@ -87,7 +87,7 @@ function gameWindow(name, title, s, body, onKey) {
   p.onKey = onKey;
   rerender(p.body, () => [
     s.countdown ? h('p.mg-big', { style: 'text-align:center;font-size:2em' }, String(s.countdown)) : null,
-    body,
+    s.results ? null : body,
     s.results ? [results(s.results), h('button', { type: 'button', 'data-k': 'mg-done', on: { click: () => (panels.close('mg' + name), ctx.send('lobby', 'open')) } }, 'OK')] : null,
   ]);
   if (s.results) setFocus(p.body, p.body.querySelector('[data-k="mg-done"]'));
