@@ -57,6 +57,8 @@ data class Sources(
     val social: SocialClient.State = SocialClient.State(),
     /** When (epoch ms) a pending trade request lapses, or 0. */
     val tradeExpiresAt: Long = 0,
+    /** r5-minigames: topic -> the server's last JSON body for it (MinigameClient). */
+    val minigames: Map<String, String> = emptyMap(),
 )
 
 /** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
@@ -79,6 +81,8 @@ class StateJson(private val names: Names) {
           "trade" to trade(s.trade, s.tradeExpiresAt),
           "market" to market(s),
           "social" to socialJson.social(s.social),
+          // r5-minigames: PROTOCOL.md section "r5-minigames".
+          "minigames" to MinigameJson.section(s.minigames),
       ) + progressJson.sections(s)
 
   fun world(s: Sources): JsonElement {

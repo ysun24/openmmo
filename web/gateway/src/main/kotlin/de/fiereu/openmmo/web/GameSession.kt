@@ -30,6 +30,7 @@ class GameSession(val client: GameClient) : GameActions {
           playSeconds = client.progress.playSeconds(),
           social = client.social.state,
           tradeExpiresAt = client.trade.expiresAtMs,
+          minigames = client.minigames.snapshot(),
       )
 
   private fun battleOver(): Boolean {
@@ -81,6 +82,9 @@ class GameSession(val client: GameClient) : GameActions {
         null
     else "close the dialog first"
   }
+
+  override fun minigame(topic: String, body: String): String? =
+      if (client.minigames.act(topic, body)) null else "minigame message too long"
 
   override fun secretBase(action: String, decor: Int, x: Int, y: Int): String? {
     if (inBattle()) return "not in a battle"

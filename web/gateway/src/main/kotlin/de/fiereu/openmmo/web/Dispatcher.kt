@@ -21,6 +21,9 @@ interface GameActions : SocialActions {
   /** r4: the Pokénav Match Call: [id] -1 asks for the list, a trainer id calls them. */
   fun matchCall(id: Int): String? = "match call is not supported"
 
+  /** r5-minigames: an action for minigame [topic]; [body] is the JSON object's text. */
+  fun minigame(topic: String, body: String): String? = "minigames are not supported"
+
   /** r4: a secret base PC action (place / putaway / packup / close). */
   fun secretBase(action: String, decor: Int, x: Int, y: Int): String? =
       "secret bases are not supported"
@@ -358,6 +361,8 @@ object Dispatcher {
         "progress.refresh" -> g.progressRefresh()
         // r3-field: a field move or field item (PROTOCOL.md "r3-field").
         "matchcall" -> g.matchCall((m.int("id") ?: -1).coerceIn(-1, 0x7FFF))
+        // r5-minigames: every Game Corner / link / Union Room / Mystery Gift action.
+        "minigame" -> MinigameJson.action(m, g)
         "secretbase" -> {
           val action = m.string("action")
           if (action !in SECRET_BASE_ACTIONS) "unknown secret base action: $action"

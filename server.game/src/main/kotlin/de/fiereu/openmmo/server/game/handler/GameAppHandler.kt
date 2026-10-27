@@ -135,6 +135,8 @@ constructor(
     private val characterStore: CharacterStore,
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
     private val secretBaseService: de.fiereu.openmmo.server.game.services.SecretBaseService,
+    // r5-minigames: Game Corner, link minigames, Union Room, Mystery Gift.
+    private val minigameChannel: de.fiereu.openmmo.server.game.minigame.MinigameChannel,
     private val marketClerks: MarketClerks,
     scope: CoroutineScope,
 ) : CoroutineProtocolHandler<GameProtocol>(GameProtocol, Side.SERVER, scope) {
@@ -169,6 +171,9 @@ constructor(
     // r4: the secret base PC.
     onSuspend<de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacket> { event ->
       secretBaseService.onAction(event)
+    }
+    onSuspend<de.fiereu.openmmo.net.game.packets.minigame.MinigameActionPacket> { event ->
+      minigameChannel.onAction(event)
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
@@ -277,6 +282,7 @@ constructor(
       battleService.onDisconnect(session)
       tradeService.onDisconnect(charId)
       progressActions.onLeave(charId)
+      minigameChannel.onDisconnect(charId)
       socialService.onDisconnect(charId, state.userId)
       // Undo the interrupted script here rather than leaving it to the coroutine's own cleanup,
       // which runs on another thread and would race the flush below.
