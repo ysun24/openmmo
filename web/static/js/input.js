@@ -23,6 +23,11 @@ export class Input extends Emitter {
     this.tapDir = null; // a press shorter than a frame still counts once
     this.repeatT = 0;
     this.repeatDir = null;
+    /** B held (the Acro Bike's tricks read the button itself, bike.c heldKeys & B_BUTTON). */
+    this.bHeld = false;
+    /** performance.now() of the last B press and of the last direction press (trick timing). */
+    this.bDownAt = -1e9;
+    this.dirDownAt = -1e9;
     this.bindKeys();
   }
 
@@ -37,6 +42,7 @@ export class Input extends Emitter {
     this.sources.set(src, dir);
     this.held.push(dir);
     this.tapDir = dir;
+    this.dirDownAt = performance.now();
     this.emit('press', dir);
     clearTimeout(this.repeatT);
     this.repeatDir = dir;
@@ -59,7 +65,13 @@ export class Input extends Emitter {
     this.sources.clear();
     this.held.length = 0;
     this.shift = false;
+    this.bHeld = false;
     this.repeatDir = null;
+  }
+  bDown() {
+    if (this.bHeld) return;
+    this.bHeld = true;
+    this.bDownAt = performance.now();
   }
 
   bindKeys() {
@@ -81,6 +93,7 @@ export class Input extends Emitter {
       if (!k) return;
       e.preventDefault();
       if (k === 'run') return void (this.shift = true); // remappable run key (settings)
+      if (k === 'b' && e.code === 'KeyX') this.bDown();
       if (DIRS.includes(k)) {
         if (!e.repeat) this.dirDown('k:' + e.code, k);
       } else if (!e.repeat) this.emit('press', k);
@@ -90,6 +103,7 @@ export class Input extends Emitter {
       const k = KEYS[e.code];
       if (k === 'run') this.shift = false;
       if (k && DIRS.includes(k)) this.dirUp('k:' + e.code);
+      if (k === 'b' && e.code === 'KeyX') this.bHeld = false;
     });
     window.addEventListener('blur', () => this.releaseAll());
     document.addEventListener('visibilitychange', () => document.hidden && this.releaseAll());
@@ -142,9 +156,13 @@ export class Input extends Emitter {
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         el.classList.add('on');
+        if (name === 'b') this.bDown();
         this.emit('press', name);
       });
-      const off = () => el.classList.remove('on');
+      const off = () => {
+        el.classList.remove('on');
+        if (name === 'b') this.bHeld = false;
+      };
       el.addEventListener('pointerup', off);
       el.addEventListener('pointercancel', off);
       el.addEventListener('pointerleave', off);

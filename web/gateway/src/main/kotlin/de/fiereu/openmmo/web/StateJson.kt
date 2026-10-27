@@ -130,6 +130,9 @@ class StateJson(private val names: Names) {
     if (e.exclaimSeq > 0) put("exclaim", e.exclaimSeq)
     // Integration: another player's gender picks the female player sprite.
     if (e.female) put("female", true)
+    // r4: the Acro Bike pose ("wheelie", "hop", "side_jump", "turn_jump").
+    if (e.acro != de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE)
+        put("acro", e.acro.name.lowercase())
   }
 
   /** The player's own field state (r3-field): world.field. */

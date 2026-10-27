@@ -460,7 +460,7 @@ so land walkers stop at the shore and surfers hop off onto elevation-3 land; ele
 new tile's (15 keeps it). Ledges (`JUMP_*` behaviour ahead, matching direction) hop two tiles; directional
 walls (`IMPASSABLE_*`); muddy slopes uphill only on the Mach Bike, bumpy slopes / rails only on the Acro
 Bike; `NO_RUNNING` tiles and maps without `allowRunning` walk. A STRENGTH boulder (active) is pushed by
-stepping into it (the player stays). Step times: walk 250 ms, run/surf/acro 125, Mach 70, Kanto bike 95,
+stepping into it (the player stays). Step times: walk 250 ms, run/surf 125, acro 100 (r4), Mach 70, Kanto bike 95,
 ledge hop 520.
 
 ## 10. r3-present (round 3: presentation, sound, session resume; all additive)
@@ -499,3 +499,31 @@ Static assets (manifest):
   "frameSlice": 8, "arrow": png, "arrowSize": "WxH", "arrowSteps": [[x, y]...]}}` — 9-slice
   `border-image` sources composed from the games' frame tiles; `arrowSteps` are the source
   offsets of the bobbing "more" arrow, one step per 8 frames.
+
+## 11. r4-gaps (round 4: remaining gaps; all additive)
+
+### Surf blob (assets)
+- `fieldEffects` gains `surfBlobMay` (Emerald's blob in May's palette) and `surfBlobKanto`
+  (FireRed's own 6-frame blob in `player.pal`: down 0/1, up 2/3, left 4/5, the two frames swapped
+  every 48 GBA frames). `surfBlob` stays Emerald's blob in Brendan's palette (FldEff_SurfBlob draws it
+  in palette slot 0, the player's).
+
+### Acro Bike (Emerald)
+- Browser → gateway: `field` `action: "acro"`, `arg` = trick (0 none, 1 wheelie, 2 bunny hop,
+  3 side jump, 4 turn jump), c2s 0xF4 `FieldAction.ACRO`. Sent whenever the predicted trick state
+  changes; a side jump is `acro 3` + `step` (the server keeps the facing and goes back to 0 itself),
+  a turn jump is `acro 4` + `face` + `acro 0`. The server checks every step against the state it
+  was told (`FieldRules.step`): bumpy slopes only take a bunny hop (a bike on one is always at least
+  in a wheelie), isolated rails only a side jump across them, long rails are ridden along and never
+  left sideways except by a side jump, side jumps take no ledges or bumpy slopes.
+- `world.entities[]` gain `acro` (`"wheelie"`, `"hop"`, `"side_jump"`, `"turn_jump"`; absent = none)
+  from s2c 0xE8 `FieldAvatarPacket` flag bits 3-5.
+- Behaviour names: `RAIL` became `VERTICAL_RAIL` (same ordinal); `HORIZONTAL_RAIL`,
+  `ISOLATED_VERTICAL_RAIL`, `ISOLATED_HORIZONTAL_RAIL` are appended.
+- Manifest objects gain `anims` for sheets with special animations: camelCase anim name → facing
+  (`down`/`up`/`left`; right mirrors left) → `[[frame, GBA frames], ...]`, e.g. the Acro Bike's
+  `bunnyHopBackWheel`, `standingWheelieBackWheel`, `movingWheelie`.
+- Timing: riding 6 GBA frames a tile (100 ms), a rolling wheelie 8 (133 ms), every Acro jump 16
+  frames (sJumpY_Low for bunny hops, sJumpY_Normal for side and turn jumps). B held 40 frames on a
+  standing wheelie starts the bunny hop; B and a new direction within 4 frames is a side jump (or a
+  turn jump when it is the opposite direction).

@@ -27,6 +27,9 @@ data class Entity(
     val exclaimSeq: Int = 0,
     /** A player drawn with the region's female sprite (FieldAvatarPacket). */
     val female: Boolean = false,
+    /** r4: the Acro Bike pose (FieldAvatarPacket.acro). */
+    val acro: de.fiereu.openmmo.net.game.packets.field.AcroTrick =
+        de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE,
 )
 
 /**

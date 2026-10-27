@@ -274,6 +274,7 @@ export class Renderer {
       idx = Array.isArray(w) ? w[e.parity % w.length] : w;
     } else idx = running && f['run' + Face] !== undefined ? f['run' + Face] : f[face];
     if (idx === undefined) idx = f.down ?? 0;
+    if (e.mode === 'acro_bike' && d.anims) idx = this.acroFrame(e, d.anims, face, now) ?? idx;
     if (e.breakFrame !== undefined) idx = Math.min(3, e.breakFrame); // ANIM_REMOVE_OBSTACLE
     const fw = d.frameW, fh = d.frameH;
     const img = d._img.img;
@@ -371,6 +372,39 @@ export class Renderer {
     const man = assets.manifest;
     const p = man && man.players && man.players[String(region)];
     return !!(p && (e.female || e.gfx === p.femaleGfx));
+  }
+
+  /**
+   * The Acro Bike frame for [e] (sAnimTable_AcroBike, exported as manifest `anims`): the pop and
+   * lower animations play once, a wheelie stands on frame 10/14/18 (the end of
+   * ANIM_BUNNY_HOP_BACK_WHEEL_*) and pedals through ANIM_MOVING_WHEELIE_* while rolling.
+   */
+  acroFrame(e, anims, face, now) {
+    const play = (a, t, loop) => {
+      const seq = a && a[face];
+      if (!seq || !seq.length) return undefined;
+      const total = seq.reduce((s, x) => s + x[1], 0);
+      let fr = Math.floor(t / (1000 / 60));
+      if (fr >= total) {
+        if (!loop) return null;
+        fr %= total;
+      }
+      for (const [i, n] of seq) {
+        if (fr < n) return i;
+        fr -= n;
+      }
+      return seq[seq.length - 1][0];
+    };
+    const a = e.acroAnim;
+    if (a && anims[a.name]) {
+      const i = play(anims[a.name], now - a.t0, false);
+      if (i !== null && i !== undefined) return i;
+    }
+    const pose = e.acro;
+    if (pose !== 'wheelie' && pose !== 'hop') return undefined;
+    if (pose === 'wheelie' && e.moving && !e.jumping) return play(anims.movingWheelie, now, true);
+    const hop = anims.bunnyHopBackWheel && anims.bunnyHopBackWheel[face];
+    return hop ? hop[hop.length - 1][0] : undefined;
   }
 
   /** The sprite sheet for an entity, swapped for its bike/surf/underwater variant (players). */

@@ -13,6 +13,7 @@ import de.fiereu.openmmo.maps.MapDef
 import de.fiereu.openmmo.maps.MapManager
 import de.fiereu.openmmo.maps.NpcDef
 import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
+import de.fiereu.openmmo.net.game.packets.field.AcroTrick
 import de.fiereu.openmmo.net.game.packets.field.FieldAction
 import de.fiereu.openmmo.net.game.packets.field.FieldActionPacket
 import de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket
@@ -143,9 +144,22 @@ constructor(
   fun broadcastAvatar(ctx: SessionContext, state: PlayerState) {
     val id = state.characterId ?: return
     val p =
-        FieldAvatarPacket(id, state.travel, state.running, female = presenceService.isFemale(id))
+        FieldAvatarPacket(
+            id,
+            state.travel,
+            state.running,
+            female = presenceService.isFemale(id),
+            acro = if (state.travel == TravelMode.ACRO_BIKE) state.acro else AcroTrick.NONE)
     ctx.send(p)
     presenceService.broadcastToObservers(ctx, p)
+  }
+
+  /** r4: the Acro Bike trick state changed (bike.c acroBikeState); observers draw the pose. */
+  fun setAcro(ctx: SessionContext, state: PlayerState, trick: AcroTrick) {
+    val t = if (state.travel == TravelMode.ACRO_BIKE) trick else AcroTrick.NONE
+    if (t == state.acro) return
+    state.acro = t
+    broadcastAvatar(ctx, state)
   }
 
   /**
@@ -160,6 +174,8 @@ constructor(
       state.removedObjects.clear()
       state.flash = false
       state.strength = false
+      // PlayerAvatarTransition_AcroBike: BikeClearState
+      state.acro = AcroTrick.NONE
     }
     val x = state.x.toInt()
     val y = state.y.toInt()
@@ -213,7 +229,11 @@ constructor(
       presenceService.broadcastToObservers(
           ctx,
           FieldAvatarPacket(
-              stored.info.id, state.travel, run, female = stored.info.rivalSex.toInt() == 1))
+              stored.info.id,
+              state.travel,
+              run,
+              female = stored.info.rivalSex.toInt() == 1,
+              acro = if (state.travel == TravelMode.ACRO_BIKE) state.acro else AcroTrick.NONE))
     }
   }
 
@@ -804,6 +824,11 @@ constructor(
         if (state.travel == TravelMode.MACH_BIKE || state.travel == TravelMode.ACRO_BIKE)
             setTravel(session, state, TravelMode.WALK)
       }
+      FieldAction.ACRO -> {
+        // Only on the Acro Bike; anything else resets the state.
+        val trick = AcroTrick.entries.getOrElse(event.packet.arg) { AcroTrick.NONE }
+        setAcro(session, state, trick)
+      }
       FieldAction.ITEMFINDER -> {
         if (itemfinderIds.none { (stored.items[it] ?: 0) > 0 })
             return tell(session, "You don't have an ITEMFINDER.")
@@ -820,6 +845,7 @@ constructor(
 
   private fun setTravel(session: SessionContext, state: PlayerState, mode: TravelMode) {
     state.travel = mode
+    state.acro = AcroTrick.NONE
     state.running = false
     broadcastAvatar(session, state)
     sendInfo(session, state)

@@ -34,6 +34,29 @@ enum class FieldAction {
   DISMOUNT,
   /** Use the Itemfinder (Dowsing Machine) here. */
   ITEMFINDER,
+  /**
+   * r4: an Acro Bike trick state ([FieldActionPacket.arg] = [AcroTrick] ordinal) for the steps and
+   * turns that follow, until the next ACRO action (bike.c acroBikeState).
+   */
+  ACRO,
+}
+
+/**
+ * The Acro Bike's B-button states (bike.c ACRO_STATE_*), as the client predicts them. The server
+ * checks every step against the rule of the state it was told (FieldRules.step), so a client cannot
+ * hop onto a rail it could not reach. Wire value = ordinal, append only.
+ */
+enum class AcroTrick {
+  /** Riding normally (ACRO_STATE_NORMAL). */
+  NONE,
+  /** Front wheel up, standing or rolling (ACRO_STATE_WHEELIE_STANDING / _MOVING). */
+  WHEELIE,
+  /** B held 40 frames: bunny hopping in place or one tile per hop (ACRO_STATE_BUNNY_HOP). */
+  HOP,
+  /** The next step is a sideways jump that keeps the facing (ACRO_STATE_SIDE_JUMP). */
+  SIDE_JUMP,
+  /** A jump turning round in place (ACRO_STATE_TURN_JUMP). */
+  TURN_JUMP,
 }
 
 /**
@@ -77,6 +100,8 @@ data class FieldAvatarPacket(
      * Integration: the character's sprite is the region's female player (CharacterInfo.rivalSex).
      */
     val female: Boolean = false,
+    /** r4: the Acro Bike pose others draw ([AcroTrick]; flag bits 3-5, 0 = riding normally). */
+    val acro: AcroTrick = AcroTrick.NONE,
 )
 
 object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
@@ -85,14 +110,18 @@ object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
     val mode = field(U8) { it.mode.ordinal }
     val flags =
         field(U8) {
-          (if (it.running) 1 else 0) or (if (it.exclaim) 2 else 0) or (if (it.female) 4 else 0)
+          (if (it.running) 1 else 0) or
+              (if (it.exclaim) 2 else 0) or
+              (if (it.female) 4 else 0) or
+              (it.acro.ordinal shl 3)
         }
     return FieldAvatarPacket(
         id,
         TravelMode.entries.getOrElse(mode) { TravelMode.WALK },
         flags and 1 != 0,
         flags and 2 != 0,
-        flags and 4 != 0)
+        flags and 4 != 0,
+        AcroTrick.entries.getOrElse((flags shr 3) and 7) { AcroTrick.NONE })
   }
 }
 

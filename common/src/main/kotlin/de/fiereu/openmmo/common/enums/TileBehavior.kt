@@ -53,9 +53,13 @@ enum class TileBehavior {
   SHALLOW_WATER,
   /** Only the Mach Bike climbs these, everything else slides down. */
   MUDDY_SLOPE,
-  /** Acro Bike bunny-hop terrain: bumpy slopes and rails. */
+  /**
+   * Acro Bike terrain: bumpy slopes (bunny hop only, the bike stays on its back wheel) and rails
+   * (MB_VERTICAL_RAIL; the horizontal and isolated kinds are appended at the end).
+   */
   BUMPY_SLOPE,
-  RAIL,
+  /** MB_VERTICAL_RAIL: ridden north/south only. */
+  VERTICAL_RAIL,
   IMPASSABLE_EAST,
   IMPASSABLE_WEST,
   IMPASSABLE_NORTH,
@@ -95,7 +99,29 @@ enum class TileBehavior {
   SPIN_NORTH,
   SPIN_SOUTH,
   /** MB_STOP_SPINNING ends a spin. */
-  STOP_SPINNING;
+  STOP_SPINNING,
+  /** MB_HORIZONTAL_RAIL: ridden east/west only. */
+  HORIZONTAL_RAIL,
+  /** MB_ISOLATED_VERTICAL_RAIL: a single north/south rail, reached only by an Acro side jump. */
+  ISOLATED_VERTICAL_RAIL,
+  /** MB_ISOLATED_HORIZONTAL_RAIL: a single east/west rail, reached only by an Acro side jump. */
+  ISOLATED_HORIZONTAL_RAIL;
+
+  /** Any of the four Acro Bike rails. */
+  val isRail: Boolean
+    get() =
+        this == VERTICAL_RAIL ||
+            this == HORIZONTAL_RAIL ||
+            this == ISOLATED_VERTICAL_RAIL ||
+            this == ISOLATED_HORIZONTAL_RAIL
+
+  /** The north/south rails (the bike cannot face east or west on them). */
+  val isVerticalRail: Boolean
+    get() = this == VERTICAL_RAIL || this == ISOLATED_VERTICAL_RAIL
+
+  /** The east/west rails. */
+  val isHorizontalRail: Boolean
+    get() = this == HORIZONTAL_RAIL || this == ISOLATED_HORIZONTAL_RAIL
 
   /** The direction the player must walk while standing here to be warped. */
   val warpsWhenWalking: Direction?

@@ -314,7 +314,7 @@ class GameClient(
         val p = event.packet
         world.update(p.entityId) {
           if (p.exclaim) it.copy(exclaimSeq = it.exclaimSeq + 1)
-          else it.copy(travel = p.mode, running = p.running, female = p.female)
+          else it.copy(travel = p.mode, running = p.running, female = p.female, acro = p.acro)
         }
         onChange()
       }

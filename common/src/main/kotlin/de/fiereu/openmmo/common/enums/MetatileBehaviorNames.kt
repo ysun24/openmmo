@@ -97,10 +97,10 @@ object MetatileBehaviorNames {
         "MB_SHALLOW_WATER" -> TileBehavior.SHALLOW_WATER
         "MB_MUDDY_SLOPE" -> TileBehavior.MUDDY_SLOPE
         "MB_BUMPY_SLOPE" -> TileBehavior.BUMPY_SLOPE
-        "MB_ISOLATED_VERTICAL_RAIL",
-        "MB_ISOLATED_HORIZONTAL_RAIL",
-        "MB_VERTICAL_RAIL",
-        "MB_HORIZONTAL_RAIL" -> TileBehavior.RAIL
+        "MB_ISOLATED_VERTICAL_RAIL" -> TileBehavior.ISOLATED_VERTICAL_RAIL
+        "MB_ISOLATED_HORIZONTAL_RAIL" -> TileBehavior.ISOLATED_HORIZONTAL_RAIL
+        "MB_VERTICAL_RAIL" -> TileBehavior.VERTICAL_RAIL
+        "MB_HORIZONTAL_RAIL" -> TileBehavior.HORIZONTAL_RAIL
         "MB_IMPASSABLE_EAST" -> TileBehavior.IMPASSABLE_EAST
         "MB_IMPASSABLE_WEST" -> TileBehavior.IMPASSABLE_WEST
         "MB_IMPASSABLE_NORTH" -> TileBehavior.IMPASSABLE_NORTH

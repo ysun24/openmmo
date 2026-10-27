@@ -777,7 +777,7 @@ function frame(now) {
   last = now;
   if (inGame) {
     const considered = !world.self.moving && world.turnWait <= 0;
-    world.update(dt, { dir: input.dir, run: input.run, enabled: canMove() }, now);
+    world.update(dt, { dir: input.dir, run: input.run, enabled: canMove(), b: input.bHeld, bDownAt: input.bDownAt, dirDownAt: input.dirDownAt }, now);
     if (considered) input.consumeTap();
     // SE_WALL_HIT while walking into something (GBA: once per collision bump, ~every 16 frames)
     if (input.dir && world.hasSelf && !world.self.moving && world.self.facing === input.dir && canMove()) {
