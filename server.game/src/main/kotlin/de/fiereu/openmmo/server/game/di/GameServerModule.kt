@@ -58,7 +58,15 @@ object GameServerModule {
 
   @Provides @Singleton fun interestPolicy(impl: PassThroughInterestPolicy): InterestPolicy = impl
 
-  @Provides @Singleton fun scriptRegistry(): ScriptRegistry = ScriptRegistry.generated()
+  // r5-minigames: the lane's hand-ported Game Corner / link labels win over the generated stubs.
+  @Provides
+  @Singleton
+  fun scriptRegistry(
+      minigames: de.fiereu.openmmo.server.game.minigame.MinigameScripts
+  ): ScriptRegistry =
+      ScriptRegistry(
+          de.fiereu.openmmo.server.game.script.generated.GeneratedScripts.byLabel +
+              minigames.byLabel)
 
   @Provides
   @Singleton

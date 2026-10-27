@@ -21,6 +21,7 @@ import javax.inject.Singleton
             ChatCommandModule::class,
             SocialModule::class,
             ScriptSpecialModule::class,
+            de.fiereu.openmmo.server.game.minigame.MinigameModule::class,
         ])
 interface GameServerComponent {
 
