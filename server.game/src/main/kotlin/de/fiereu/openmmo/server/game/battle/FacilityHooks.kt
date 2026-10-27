@@ -20,6 +20,10 @@ interface FacilityHooks {
   val allowSwitch: Boolean
     get() = true
 
+  /** Player-side positions the AI plays (the Battle Tower multi battle's NPC partner). */
+  val aiPositions: Set<Int>
+    get() = emptySet()
+
   /** Bag items in battle; only the Battle Pyramid's own bag allows any. */
   val allowItems: Boolean
     get() = false
@@ -62,6 +66,8 @@ data class FacilityBattleSetup(
     /** 1 single, 2 double. */
     val format: Int = 1,
     val hooks: FacilityHooks? = null,
+    /** Party slots from here on are an NPC partner's (position 1 of a multi battle), -1 none. */
+    val partnerFrom: Int = -1,
     /** "wild" for the Pike / Pyramid wild monsters. */
     val wild: Boolean = false,
     val musicKey: String = "trainer",

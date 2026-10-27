@@ -221,6 +221,9 @@ class FrontierData @Inject constructor() {
   val trainerTowerPrizes: List<String> =
       root.obj("trainerTower").arr("prizes").map { it.jsonPrimitive.content }
 
+  /** battle_factory.c sMoveStyles: the moves of FACTORY_STYLE_PREPARATION .. _WEATHER. */
+  val factoryStyles: List<Set<Int>> = root.arr("factoryStyles").map { r -> r.jsonArray.map { it.int() }.toSet() }
+
   /** gFrontierBannedSpecies, as national dex numbers. */
   val bannedSpecies: Set<Int> = root.arr("bannedSpecies").map { it.jsonPrimitive.int }.toSet()
 

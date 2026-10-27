@@ -220,6 +220,7 @@ constructor(
   private fun nextPosition(battle: BattleInstance): Int? =
       battle.own.actives.indices.firstOrNull { pos ->
         pos !in battle.pendingChoices &&
+            pos !in (battle.facility?.aiPositions ?: emptySet()) &&
             battle.party.getOrNull(battle.own.actives[pos])?.fainted == false
       }
 
@@ -632,7 +633,11 @@ constructor(
     if (party.none { !it.fainted } || enemies.isEmpty()) return null
     val format = if (partner != null) 2 else setup.format
     val healthy =
-        if (partner != null) {
+        if (partner == null && setup.partnerFrom > 0) {
+          listOf(
+              (0 until setup.partnerFrom).first { !party[it].fainted },
+              (setup.partnerFrom until party.size).first { !party[it].fainted })
+        } else if (partner != null) {
           // Multi battle: position 0 is the leader's first monster, position 1 the partner's.
           listOf(
               setup.team.indices.first { !party[it].fainted },
@@ -672,6 +677,10 @@ constructor(
         configure = { b ->
           b.facility = setup.hooks
           b.facilityBattle = true
+          if (partner == null && setup.partnerFrom > 0) {
+            // An NPC partner: its slots belong to the "character" -1, played by the AI.
+            b.multiOwners = party.indices.associateWith { if (it < setup.partnerFrom) charId else -1L }
+          }
           if (partner != null && partnerId != null) {
             b.multiOwners =
                 party.indices.associateWith { if (it < setup.team.size) charId else partnerId }
@@ -761,7 +770,17 @@ constructor(
           line?.let { lead += BattleEvent.Message(it) }
         }
       }
-      if (auto.isNotEmpty()) choices = auto
+      // The AI plays an NPC partner's positions.
+      for (pos in hooks.aiPositions) {
+        val ref = BattlerRef(0, pos)
+        val ctx = engine.context(battle)
+        if (ctx.live(ref) != null && auto.none { it.side == 0 && it.pos == pos })
+            auto += de.fiereu.openmmo.server.game.battle.BattleAi.choose(ctx, ref, forceSmart = true)
+      }
+      if (auto.isNotEmpty()) {
+        val keys = auto.map { it.side to it.pos }.toSet()
+        choices = choices.filter { (it.side to it.pos) !in keys } + auto
+      }
     }
     // Trainer items go before everything, like the player's; that monster spends its turn.
     val trainerPasses = trainerUsesItems(battle)
@@ -884,7 +903,8 @@ constructor(
               battle.own.actives[pos] = -1
               continue
             }
-            if (battle.facility?.allowSwitch == false) {
+            if (battle.facility?.allowSwitch == false ||
+                pos in (battle.facility?.aiPositions ?: emptySet())) {
               battle.owedSwitches.remove(pos)
               emitter.sendEvents(battle, engine.switchIn(battle, 0, pos, next))
             }

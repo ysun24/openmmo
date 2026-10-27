@@ -534,6 +534,14 @@ def main():
     tt = read(os.path.join(fr, "src/trainer_tower.c"))
     tower_prizes = ["".join(x[1]).removeprefix("ITEM_") for x in items(find_array(tt, "sPrizeList"))]
 
+    # --- factory battle styles (battle_factory.c sMoveStyles order)
+    bfac = read(os.path.join(em, "src/battle_factory.c"))
+    styles = []
+    for name in ("sMoves_TotalPreparation", "sMoves_SlowAndSteady", "sMoves_Endurance",
+                 "sMoves_HighRiskHighReturn", "sMoves_WeakeningTheFoe", "sMoves_ImpossibleToPredict",
+                 "sMoves_DependsOnTheBattlesFlow"):
+        styles.append([move("".join(x[1])) for x in items(find_array(bfac, name)) if "".join(x[1]) != "MOVE_NONE"])
+
     banned = []
     for x in items(find_array(fu, "gFrontierBannedSpecies")):
         s = "".join(x[1])
@@ -552,6 +560,7 @@ def main():
         "trainerHill": hill,
         "trainerTower": {"sets": tower_sets, "prizes": tower_prizes},
         "bannedSpecies": banned,
+        "factoryStyles": styles,
     }
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:
