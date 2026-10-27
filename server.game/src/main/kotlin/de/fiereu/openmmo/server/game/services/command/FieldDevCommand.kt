@@ -31,11 +31,16 @@ constructor(
     private val field: FieldService,
 ) : ChatCommand {
   override val name = "fielddev"
-  override val usage = "/fielddev [move ...]"
+  override val usage = "/fielddev [move ...] | /fielddev charge"
   override val description = "badges, running shoes, FLY towns, a bike and HM moves for testing"
   override val permission = CharacterPermissions.DEVELOPER
 
   override suspend fun run(ctx: CommandContext) {
+    if (ctx.args.firstOrNull() == "charge") {
+      // r4 (testing): a full VS Seeker charge and Match Call step counter.
+      ctx.state.vsSeekerSteps = de.fiereu.openmmo.server.game.field.Rematches.VS_SEEKER_CHARGE
+      return ctx.reply("VS Seeker charged.")
+    }
     val region = Region.byId(ctx.state.regionId) ?: Region.KANTO
     val charId = ctx.characterId
     for (b in 1..8) story.setFlag(charId, FieldMoves.badgeFlag(region, b))
@@ -66,7 +71,11 @@ constructor(
                 FieldMoves.DIVE,
                 FieldMoves.TELEPORT,
                 FieldMoves.DIG,
-                FieldMoves.SWEET_SCENT)
+                FieldMoves.SWEET_SCENT) +
+                // r4: Emerald's SECRET POWER (the secret bases), a TM field move
+                (if (region == Region.HOENN)
+                    listOf(de.fiereu.openmmo.server.game.services.SecretBaseService.SECRET_POWER)
+                else emptyList())
         else
             ctx.args.mapNotNull { a ->
               FieldMoves.moveOf.entries

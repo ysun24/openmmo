@@ -460,7 +460,7 @@ so land walkers stop at the shore and surfers hop off onto elevation-3 land; ele
 new tile's (15 keeps it). Ledges (`JUMP_*` behaviour ahead, matching direction) hop two tiles; directional
 walls (`IMPASSABLE_*`); muddy slopes uphill only on the Mach Bike, bumpy slopes / rails only on the Acro
 Bike; `NO_RUNNING` tiles and maps without `allowRunning` walk. A STRENGTH boulder (active) is pushed by
-stepping into it (the player stays). Step times: walk 250 ms, run/surf/acro 125, Mach 70, Kanto bike 95,
+stepping into it (the player stays). Step times: walk 250 ms, run/surf 125, acro 100 (r4), Mach 70, Kanto bike 95,
 ledge hop 520.
 
 ## 10. r3-present (round 3: presentation, sound, session resume; all additive)
@@ -527,3 +527,66 @@ Static assets (manifest):
 - `--trust-forwarded true`: take the client address from the last `X-Forwarded-For` hop and accept
   an `Origin` matching `X-Forwarded-Host`; only behind a proxy/tunnel that sets them.
 - `--allow-origin` entries may use one wildcard label, e.g. `https://*.a.pinggy.link`.
+
+## 11. r4-gaps (round 4: remaining gaps; all additive)
+
+### Surf blob (assets)
+- `fieldEffects` gains `surfBlobMay` (Emerald's blob in May's palette) and `surfBlobKanto`
+  (FireRed's own 6-frame blob in `player.pal`: down 0/1, up 2/3, left 4/5, the two frames swapped
+  every 48 GBA frames). `surfBlob` stays Emerald's blob in Brendan's palette (FldEff_SurfBlob draws it
+  in palette slot 0, the player's).
+
+### Acro Bike (Emerald)
+- Browser → gateway: `field` `action: "acro"`, `arg` = trick (0 none, 1 wheelie, 2 bunny hop,
+  3 side jump, 4 turn jump), c2s 0xF4 `FieldAction.ACRO`. Sent whenever the predicted trick state
+  changes; a side jump is `acro 3` + `step` (the server keeps the facing and goes back to 0 itself),
+  a turn jump is `acro 4` + `face` + `acro 0`. The server checks every step against the state it
+  was told (`FieldRules.step`): bumpy slopes only take a bunny hop (a bike on one is always at least
+  in a wheelie), isolated rails only a side jump across them, long rails are ridden along and never
+  left sideways except by a side jump, side jumps take no ledges or bumpy slopes.
+- `world.entities[]` gain `acro` (`"wheelie"`, `"hop"`, `"side_jump"`, `"turn_jump"`; absent = none)
+  from s2c 0xE8 `FieldAvatarPacket` flag bits 3-5.
+- Behaviour names: `RAIL` became `VERTICAL_RAIL` (same ordinal); `HORIZONTAL_RAIL`,
+  `ISOLATED_VERTICAL_RAIL`, `ISOLATED_HORIZONTAL_RAIL` are appended.
+- Manifest objects gain `anims` for sheets with special animations: camelCase anim name → facing
+  (`down`/`up`/`left`; right mirrors left) → `[[frame, GBA frames], ...]`, e.g. the Acro Bike's
+  `bunnyHopBackWheel`, `standingWheelieBackWheel`, `movingWheelie`.
+- Timing: riding 6 GBA frames a tile (100 ms), a rolling wheelie 8 (133 ms), every Acro jump 16
+  frames (sJumpY_Low for bunny hops, sJumpY_Normal for side and turn jumps). B held 40 frames on a
+  standing wheelie starts the bunny hop; B and a new direction within 4 frames is a side jump (or a
+  turn jump when it is the opposite direction).
+
+### Secret bases (Emerald)
+- Browser → gateway: `secretbase` `{action: "place"|"putaway"|"packup"|"close", decor, x, y}` (c2s 0xF5
+  `SecretBaseActionPacket`; only inside the player's own base). `x` is the decoration's left
+  column, `y` its bottom row. The server checks `CanPlaceDecoration` and the PC stock.
+- `world.secretBase` (s2c 0xED `SecretBaseStatePacket`, every map entry and change):
+  `{inside: "none"|"own"|"visiting", owner, id, mine, decorations: [{id, x, y}], open: [{x, y}],
+  ui: {seq, kind: "pc"}}`. `open` = spots on this map whose entrance is open for this player (its
+  own base, a friend's base). `ui` asks to open the base PC once per new `seq`.
+- A at a spot (bg_event `secret_base`) runs SecretBase_EventScript_CheckEntrance (SECRET POWER in
+  the party); entering an open spot warps into the base (its MAP_DYNAMIC exit leads back).
+- Manifest `secretBases`: `tiles` (secondary-tileset indices of the atlas cells), `tileAttrs`
+  (`[MB name without MB_, layer type]` per cell), `bases` (`"r:b:m"` → `{atlas, group, pcX, pcY,
+  width, behaviors}`; atlas row 0 bottom layer, row 1 top layer, 16 px cells), `entrances` (atlas of
+  open entrance metatiles) + `spots` (`"r:b:m"` → `[{x, y, id, cell}]`), `decorations`
+  (`id` → `{name, category, perm, w, h, tiles|gfx}`).
+- Dev: `/givedecor <id|all> [qty]`; `/fielddev` in Hoenn also teaches SECRET POWER.
+
+### Palette animations
+- `.anim.json` channels may be palette channels: `dest` = 0x10000 + BG palette slot, `size` 0 (the
+  Battle Dome's floor lights: BlendAnimPalette_BattleDome_FloorLights copies one of four palettes
+  into slot 8 every 4 frames). Their metatiles are pre-rendered per palette in the same atlas and
+  `combos`, so the browser animates them like tile channels with no change.
+
+### Match Call and rematches
+- Browser → gateway: `matchcall` `{id}`: `id` -1 asks for the list, a trainer id calls them
+  (c2s 0xF4 `FieldAction.MATCH_CALL`, `arg` = id). The call is a dialog: the same-route or
+  different-route battle request when the trainer wants a rematch, else its personal chat
+  (match_call.c SelectMatchCallMessage).
+- `world.matchCall`: `{seq, trainers: [{id, name, route, ready}]}` (s2c 0xE0 `MatchCallListPacket`).
+- `world.entities[]` gain `exclaimKind: "double"` when the last emote was the VS Seeker's "!!"
+  (`FieldAvatarPacket` flag bit 6). Manifest `fieldEffects.emoticonsKanto`: FireRed's emoticons
+  sheet, 16x16 cells; "!!" is pictures 3, 4, 5 (4, 4, 52 GBA frames).
+- Rematch battles use the trainer's `trainerbattle_rematch` intro / defeat texts and its rematch
+  post-battle line.

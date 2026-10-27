@@ -23,7 +23,13 @@ class ObjectExport(decompRoot: File, private val game: GbaGame, private val out:
   private val dir = "src/data/object_events"
   val failures: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
 
-  data class Info(val width: Int, val height: Int, val images: String, val paletteTag: String?)
+  data class Info(
+      val width: Int,
+      val height: Int,
+      val images: String,
+      val paletteTag: String?,
+      val anims: String? = null,
+  )
 
   data class Frame(val pic: String, val wTiles: Int, val hTiles: Int, val index: Int)
 
@@ -33,7 +39,12 @@ class ObjectExport(decompRoot: File, private val game: GbaGame, private val out:
       val sheet: String,
       val w: Int,
       val h: Int,
-      val n: Int
+      val n: Int,
+      /**
+       * r4: the sheet's special animations (anything but ANIM_STD_*) from its anim table, as
+       * camelCase name -> facing -> [[frame, GBA frames], ...]; e.g. the Acro Bike's wheelies.
+       */
+      val anims: JsonObject? = null,
   )
 
   /** `OBJ_EVENT_GFX_*` value -> name; the first name wins for aliases. */
@@ -60,7 +71,7 @@ class ObjectExport(decompRoot: File, private val game: GbaGame, private val out:
           val w = field("width")?.toIntOrNull() ?: return@mapNotNull null
           val h = field("height")?.toIntOrNull() ?: return@mapNotNull null
           val images = field("images") ?: return@mapNotNull null
-          m.groupValues[1] to Info(w, h, images, field("paletteTag"))
+          m.groupValues[1] to Info(w, h, images, field("paletteTag"), field("anims"))
         }
         .toMap()
   }
@@ -164,7 +175,67 @@ class ObjectExport(decompRoot: File, private val game: GbaGame, private val out:
     }
     g.dispose()
     val rel = out.writePng("objects/$region/$id.png", sheet)
-    return Sprite(id, name, rel, w, h, table.size)
+    return Sprite(id, name, rel, w, h, table.size, info.anims?.let(::specialAnims))
+  }
+
+  private val animText: String by lazy { d.text("$dir/object_event_anims.h") }
+
+  /**
+   * The non-standard anims of the anim table [table] (sAnimTable_AcroBike: the bunny hop, standing
+   * and moving wheelies). East entries are skipped: the browser mirrors the west ones like the
+   * decomp's hFlip.
+   */
+  private fun specialAnims(table: String): JsonObject? {
+    val body =
+        Regex("""\b$table\[\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
+            .find(animText)
+            ?.groupValues
+            ?.get(1) ?: return null
+    val facing = mapOf("SOUTH" to "down", "NORTH" to "up", "WEST" to "left")
+    val byName = LinkedHashMap<String, MutableMap<String, List<Pair<Int, Int>>>>()
+    for (m in Regex("""\[ANIM_(\w+)_(SOUTH|NORTH|WEST|EAST)\]\s*=\s*(\w+)""").findAll(body)) {
+      val (base, dir, anim) = m.destructured
+      if (base.startsWith("STD_")) continue
+      val f = facing[dir] ?: continue
+      val cmds =
+          Regex("""\b$anim\[\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
+              .find(animText)
+              ?.groupValues
+              ?.get(1) ?: continue
+      val frames =
+          Regex("""ANIMCMD_FRAME\((\d+),\s*(\d+)""").findAll(cmds).map {
+            it.groupValues[1].toInt() to it.groupValues[2].toInt()
+          }
+      val key =
+          base
+              .lowercase()
+              .split('_')
+              .mapIndexed { i, w -> if (i == 0) w else w.replaceFirstChar { it.uppercase() } }
+              .joinToString("")
+      byName.getOrPut(key) { LinkedHashMap() }[f] = frames.toList()
+    }
+    if (byName.isEmpty()) return null
+    return buildJsonObject {
+      for ((k, v) in byName) {
+        put(
+            k,
+            buildJsonObject {
+              for ((f, frames) in v) {
+                put(
+                    f,
+                    buildJsonArray {
+                      frames.forEach { (i, d) ->
+                        add(
+                            buildJsonArray {
+                              add(kotlinx.serialization.json.JsonPrimitive(i))
+                              add(kotlinx.serialization.json.JsonPrimitive(d))
+                            })
+                      }
+                    })
+              }
+            })
+      }
+    }
   }
 
   companion object {
@@ -200,6 +271,7 @@ class ObjectExport(decompRoot: File, private val game: GbaGame, private val out:
             }
           })
       put("mirrorRight", true)
+      s.anims?.let { put("anims", it) }
     }
   }
 }

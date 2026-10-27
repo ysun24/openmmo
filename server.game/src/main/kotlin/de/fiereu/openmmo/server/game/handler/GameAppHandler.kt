@@ -134,6 +134,7 @@ constructor(
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
+    private val secretBaseService: de.fiereu.openmmo.server.game.services.SecretBaseService,
     private val marketClerks: MarketClerks,
     scope: CoroutineScope,
 ) : CoroutineProtocolHandler<GameProtocol>(GameProtocol, Side.SERVER, scope) {
@@ -164,6 +165,10 @@ constructor(
     }
     onSuspend<de.fiereu.openmmo.net.game.packets.field.FieldActionPacket> { event ->
       if (!tradeService.refuseFieldAction(event.session)) fieldService.onAction(event)
+    }
+    // r4: the secret base PC.
+    onSuspend<de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacket> { event ->
+      secretBaseService.onAction(event)
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }

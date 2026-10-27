@@ -3,6 +3,7 @@
 // name tags, fade on warps.
 import { assets, stepAnim, GBA_HZ } from './assets.js';
 import { fonts } from './font.js';
+import { overlay as sbOverlay, openSpots as sbOpenSpots } from './secretbase.js';
 
 export const VW = 240;
 export const VH = 160;
@@ -11,8 +12,10 @@ const MODE_GFX = {
   0: { m: { mach_bike: 1, acro_bike: 1, surf: 2 }, f: { mach_bike: 8, acro_bike: 8, surf: 9 } },
   1: { m: { mach_bike: 1, acro_bike: 63, surf: 2, underwater: 111 }, f: { mach_bike: 90, acro_bike: 91, surf: 92, underwater: 112 } },
 };
-// surf_blob.png frames: down, up, left (right mirrored).
+// Emerald surf_blob.png frames: down, up, left (right mirrored).
 const SURF_FRAME = { down: 0, up: 1, left: 2, right: 2 };
+// FireRed's blob: two frames per facing, swapped every 48 GBA frames (sSurfBlobAnim_Face*).
+const SURF_FRAME_KANTO = { down: 0, up: 2, left: 4, right: 4 };
 // GBA camera: the player's 16x16 tile sits at (112, 64) on screen
 const CAM_X = 112;
 const CAM_Y = 64;
@@ -131,6 +134,9 @@ export class Renderer {
       this.layer(res.bottom, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, false);
     } else if (world.map) this.placeholderMap(world.map.width, world.map.height, camX, camY);
+    // r4: secret base decorations / open entrances replace their metatiles
+    const sbCells = this.secretBaseCells(world);
+    if (sbCells) this.drawCells(sbCells, 0, camX, camY);
 
     // ground effects (footprints, splashes, grass rustles), then entities, y-sorted
     this.effects(world, camX, camY, now);
@@ -145,9 +151,20 @@ export class Renderer {
       this.anim(c.res.anim, c.ox * 16, c.oy * 16, camX, camY, true);
     }
     if (res && res.top) {
-      this.layer(res.top, 0, 0, camX, camY);
+      if (sbCells) {
+        // the map's top layer is replaced too: clip the replaced cells out of it
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, VW, VH);
+        for (const c of sbCells) ctx.rect(c.x * 16 - camX, c.y * 16 - camY, 16, 16);
+        ctx.clip('evenodd');
+        this.layer(res.top, 0, 0, camX, camY);
+        ctx.restore();
+        this.drawCells(sbCells, 16, camX, camY);
+      } else this.layer(res.top, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, true);
     }
+    if (world.decorCursor) this.decorCursor(world, camX, camY, now);
     // dark caves until FLASH
     this.darkness(world, camX, camY);
 
@@ -249,7 +266,7 @@ export class Renderer {
     // under the sprite: the surf blob, the ledge-hop shadow
     const surfing = e.mode === 'surf';
     const bobY = surfing ? ((now / 266) | 0) & 1 : 0; // the blob bobs 1px every 16 frames
-    if (surfing && !reflect) this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, bx - 8, by - 8 + bobY, e.facing === 'right');
+    if (surfing && !reflect) this.surfBlob(e, region, now, bx - 8, by - 8 + bobY);
     if (e.jump > 0 && !reflect) this.fxSprite('shadow', 0, bx, by + 10);
     const lift = Math.round(e.jump || 0) - (surfing ? bobY : 0);
     if (!d || !d._img || !d._img.ready) {
@@ -272,6 +289,7 @@ export class Renderer {
       idx = Array.isArray(w) ? w[e.parity % w.length] : w;
     } else idx = running && f['run' + Face] !== undefined ? f['run' + Face] : f[face];
     if (idx === undefined) idx = f.down ?? 0;
+    if (e.mode === 'acro_bike' && d.anims) idx = this.acroFrame(e, d.anims, face, now) ?? idx;
     if (e.breakFrame !== undefined) idx = Math.min(3, e.breakFrame); // ANIM_REMOVE_OBSTACLE
     const fw = d.frameW, fh = d.frameH;
     const img = d._img.img;
@@ -294,7 +312,15 @@ export class Renderer {
       if (b === 'TALL_GRASS' || b === 'ASH_GRASS' || b === 'LONG_GRASS') this.grassCover(tx, ty, camX, camY, b === 'LONG_GRASS');
     }
     // a trainer's "!" when it spots the player (FLDEFF_EXCLAMATION_MARK_ICON, ~1 s)
-    if (e.exclaimAt && now - e.exclaimAt < 1000) this.fxSprite('exclamation', 0, bx, by - 30 + (now - e.exclaimAt < 120 ? 4 : 0));
+    if (e.exclaimAt && now - e.exclaimAt < 1000) {
+      const t = now - e.exclaimAt;
+      if (e.exclaimKind === 'double') {
+        // sAnimCmd_DoubleExclMark: images 6, 7 (4 GBA frames each), then 8 (52), which
+        // sSpriteImages_Emoticons maps to pictures 3, 4, 5 of the 16x16 sheet
+        const f = t < 67 ? 3 : t < 133 ? 4 : 5;
+        if (!this.fxSprite('emoticonsKanto', f, bx, by - 30)) this.fxSprite('exclamation', 0, bx, by - 30);
+      } else this.fxSprite('exclamation', 0, bx, by - 30 + (t < 120 ? 4 : 0));
+    }
   }
 
   /**
@@ -349,6 +375,105 @@ export class Renderer {
     ctx.translate(0, footY * 2);
     ctx.scale(mirror ? -1 : 1, -1);
     ctx.drawImage(c, mirror ? -dx - fw : dx, dy, fw, fh);
+    ctx.restore();
+  }
+
+  /**
+   * The surf blob in the player's palette (FldEff_SurfBlob: oam.paletteNum = 0, PALSLOT_PLAYER):
+   * FireRed's own 6-frame blob in player.pal, Emerald's in Brendan's or May's palette.
+   */
+  surfBlob(e, region, now, x, y) {
+    const mirror = e.facing === 'right';
+    if (region === 0) {
+      const f = (SURF_FRAME_KANTO[e.facing] ?? 0) + (((now / 800) | 0) & 1);
+      if (this.fxSprite('surfBlobKanto', f, x, y, mirror)) return;
+    } else if (this.isFemale(e, region) && this.fxSprite('surfBlobMay', SURF_FRAME[e.facing] ?? 0, x, y, mirror)) return;
+    this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, x, y, mirror);
+  }
+
+  isFemale(e, region) {
+    const man = assets.manifest;
+    const p = man && man.players && man.players[String(region)];
+    return !!(p && (e.female || e.gfx === p.femaleGfx));
+  }
+
+  /**
+   * The Acro Bike frame for [e] (sAnimTable_AcroBike, exported as manifest `anims`): the pop and
+   * lower animations play once, a wheelie stands on frame 10/14/18 (the end of
+   * ANIM_BUNNY_HOP_BACK_WHEEL_*) and pedals through ANIM_MOVING_WHEELIE_* while rolling.
+   */
+  acroFrame(e, anims, face, now) {
+    const play = (a, t, loop) => {
+      const seq = a && a[face];
+      if (!seq || !seq.length) return undefined;
+      const total = seq.reduce((s, x) => s + x[1], 0);
+      let fr = Math.floor(t / (1000 / 60));
+      if (fr >= total) {
+        if (!loop) return null;
+        fr %= total;
+      }
+      for (const [i, n] of seq) {
+        if (fr < n) return i;
+        fr -= n;
+      }
+      return seq[seq.length - 1][0];
+    };
+    const a = e.acroAnim;
+    if (a && anims[a.name]) {
+      const i = play(anims[a.name], now - a.t0, false);
+      if (i !== null && i !== undefined) return i;
+    }
+    const pose = e.acro;
+    if (pose !== 'wheelie' && pose !== 'hop') return undefined;
+    if (pose === 'wheelie' && e.moving && !e.jumping) return play(anims.movingWheelie, now, true);
+    const hop = anims.bunnyHopBackWheel && anims.bunnyHopBackWheel[face];
+    return hop ? hop[hop.length - 1][0] : undefined;
+  }
+
+  /**
+   * The cells a secret base replaces on the current map: [{x, y, img, cell}] (atlas row 0 = bottom
+   * layer, row 1 = top layer), or null.
+   */
+  secretBaseCells(world) {
+    const m = assets.manifest && assets.manifest.secretBases;
+    if (!m || !world.secretBase) return null;
+    const out = [];
+    const o = sbOverlay(world);
+    if (o) {
+      const b = m.bases[world.mapKey];
+      if (!b._img) b._img = assets.image(b.atlas);
+      if (!b._img.ready) return null;
+      for (const [i, c] of o.cells) if (c.cell >= 0) out.push({ x: i % o.w, y: (i / o.w) | 0, img: b._img.img, cell: c.cell });
+    }
+    const spots = sbOpenSpots(world);
+    if (spots.length && m.entrances) {
+      if (!m._entImg) m._entImg = assets.image(m.entrances);
+      if (m._entImg.ready) for (const s of spots) out.push({ x: s.x, y: s.y, img: m._entImg.img, cell: s.cell });
+    }
+    return out.length ? out : null;
+  }
+
+  drawCells(cells, row, camX, camY) {
+    for (const c of cells) {
+      const dx = c.x * 16 - camX, dy = c.y * 16 - camY;
+      if (dx < -16 || dy < -16 || dx > VW || dy > VH) continue;
+      this.ctx.drawImage(c.img, c.cell * 16, row, 16, 16, dx, dy, 16, 16);
+    }
+  }
+
+  /** The decoration being placed (decoration.c's cursor): its outline, green where it may go. */
+  decorCursor(world, camX, camY, now) {
+    const c = world.decorCursor;
+    const ctx = this.ctx;
+    const x = c.x * 16 - camX, y = (c.y - c.h + 1) * 16 - camY;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(now / 120);
+    ctx.fillStyle = c.ok ? '#30d060' : '#e03030';
+    ctx.fillRect(x, y, c.w * 16, c.h * 16);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = c.ok ? '#f8f8f8' : '#ffb0b0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, c.w * 16 - 1, c.h * 16 - 1);
     ctx.restore();
   }
 

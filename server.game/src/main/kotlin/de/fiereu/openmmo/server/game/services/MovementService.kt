@@ -11,6 +11,7 @@ import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
 import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
 import de.fiereu.openmmo.net.game.packets.MapData
 import de.fiereu.openmmo.net.game.packets.MovementPacket
+import de.fiereu.openmmo.net.game.packets.field.AcroTrick
 import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.server.game.field.FieldRules
 import de.fiereu.openmmo.server.game.field.StepOutcome
@@ -80,12 +81,14 @@ constructor(
     log.debug { "Movement: char=$charId from (${msg.x}, ${msg.y}) dir=${msg.direction}" }
 
     val stored = characterStore.getCharacter(charId) ?: return
-    val currentMap =
+    val rawMap =
         mapManager.getMap(
             stored.info.positionRegionId,
             stored.info.positionBankId,
             stored.info.positionMapId,
         ) ?: return
+    // r4: inside a secret base the owner's decorations are part of the map.
+    val currentMap = fieldService.secretBases?.get()?.stepMap(state, rawMap) ?: rawMap
     var fromX = stored.info.positionX.toInt()
     var fromY = stored.info.positionY.toInt()
     if (state.acceptNextMoveSource &&
@@ -120,8 +123,11 @@ constructor(
       }
     }
 
-    // Only once the step is accepted, so a locked player keeps the facing its script left.
-    state.facingDirection = msg.direction
+    // Only once the step is accepted, so a locked player keeps the facing its script left. An
+    // Acro Bike side jump keeps it (facingDirectionLocked).
+    val sideJump = state.travel == TravelMode.ACRO_BIKE && state.acro == AcroTrick.SIDE_JUMP
+    val facing = if (sideJump) state.facingDirection else msg.direction
+    state.facingDirection = facing
 
     // Stairs and arrow warps fire from the tile the player stands on.
     val standingBehavior = currentMap.tileAt(fromX, fromY)?.behavior
@@ -204,6 +210,7 @@ constructor(
             state.elevation,
             state.travel,
             strength = state.strength,
+            acro = state.acro,
         ) { x, y ->
           fieldService.obstacleAt(state, currentMap, x, y)
         }
@@ -235,7 +242,7 @@ constructor(
           }
         }
 
-    characterStore.updatePosition(charId, toX.toShort(), toY.toShort(), facing = msg.direction)
+    characterStore.updatePosition(charId, toX.toShort(), toY.toShort(), facing = facing)
     state.x = toX.toShort()
     state.y = toY.toShort()
     // r3-items: day care steps, egg hatching, the Escape Rope's outdoor point.
@@ -256,9 +263,13 @@ constructor(
             currentMap,
             toX,
             toY,
-            msg.direction,
+            facing,
             if (outcome is StepOutcome.Jump) MOVE_MODE_JUMP else MOVE_MODE_WALK),
     )
+
+    // AcroBikeHandleInputSidewaysJump: one jump (observers saw it in the side-jump pose), then
+    // the bike rides normally again.
+    if (sideJump) fieldService.setAcro(ctx, state, AcroTrick.NONE)
 
     // Gen 3 forced movement (ice, currents, spinners, slopes) carries the player on; no
     // encounter rolls on those tiles.

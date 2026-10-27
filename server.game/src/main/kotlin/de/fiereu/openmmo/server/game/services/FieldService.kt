@@ -13,6 +13,7 @@ import de.fiereu.openmmo.maps.MapDef
 import de.fiereu.openmmo.maps.MapManager
 import de.fiereu.openmmo.maps.NpcDef
 import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
+import de.fiereu.openmmo.net.game.packets.field.AcroTrick
 import de.fiereu.openmmo.net.game.packets.field.FieldAction
 import de.fiereu.openmmo.net.game.packets.field.FieldActionPacket
 import de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket
@@ -68,6 +69,8 @@ constructor(
     private val encounterService: EncounterService,
     private val species: de.fiereu.openmmo.pokemon.SpeciesRegistry,
 ) {
+  /** r4: Emerald secret bases (member-injected so the test helpers need not build it). */
+  @Inject @JvmField var secretBases: javax.inject.Provider<SecretBaseService>? = null
 
   // ------------------------------------------------------------------ state and info
 
@@ -143,9 +146,22 @@ constructor(
   fun broadcastAvatar(ctx: SessionContext, state: PlayerState) {
     val id = state.characterId ?: return
     val p =
-        FieldAvatarPacket(id, state.travel, state.running, female = presenceService.isFemale(id))
+        FieldAvatarPacket(
+            id,
+            state.travel,
+            state.running,
+            female = presenceService.isFemale(id),
+            acro = if (state.travel == TravelMode.ACRO_BIKE) state.acro else AcroTrick.NONE)
     ctx.send(p)
     presenceService.broadcastToObservers(ctx, p)
+  }
+
+  /** r4: the Acro Bike trick state changed (bike.c acroBikeState); observers draw the pose. */
+  fun setAcro(ctx: SessionContext, state: PlayerState, trick: AcroTrick) {
+    val t = if (state.travel == TravelMode.ACRO_BIKE) trick else AcroTrick.NONE
+    if (t == state.acro) return
+    state.acro = t
+    broadcastAvatar(ctx, state)
   }
 
   /**
@@ -160,6 +176,10 @@ constructor(
       state.removedObjects.clear()
       state.flash = false
       state.strength = false
+      // PlayerAvatarTransition_AcroBike: BikeClearState
+      state.acro = AcroTrick.NONE
+      // ClearTempFieldEventData: the flutes' effect ends with the map.
+      state.flute = 0
     }
     val x = state.x.toInt()
     val y = state.y.toInt()
@@ -194,6 +214,7 @@ constructor(
     }
     sendInfo(ctx, state)
     if (before != state.travel || warped) broadcastAvatar(ctx, state)
+    secretBases?.get()?.onMapEnter(ctx, state, map)
   }
 
   /** The step that was just accepted: keep the outdoor escape point and the running flag. */
@@ -213,7 +234,11 @@ constructor(
       presenceService.broadcastToObservers(
           ctx,
           FieldAvatarPacket(
-              stored.info.id, state.travel, run, female = stored.info.rivalSex.toInt() == 1))
+              stored.info.id,
+              state.travel,
+              run,
+              female = stored.info.rivalSex.toInt() == 1,
+              acro = if (state.travel == TravelMode.ACRO_BIKE) state.acro else AcroTrick.NONE))
     }
   }
 
@@ -356,6 +381,7 @@ constructor(
       fy: Int
   ): Boolean {
     val stored = stored(state) ?: return false
+    if (secretBases?.get()?.onTileInteract(session, state, map, fx, fy) == true) return true
     val region = region(state)
     val text = FieldText.of(region)
     // Hidden items are found by facing them (bg_event hidden_item).
@@ -804,6 +830,12 @@ constructor(
         if (state.travel == TravelMode.MACH_BIKE || state.travel == TravelMode.ACRO_BIKE)
             setTravel(session, state, TravelMode.WALK)
       }
+      FieldAction.ACRO -> {
+        // Only on the Acro Bike; anything else resets the state.
+        val trick = AcroTrick.entries.getOrElse(event.packet.arg) { AcroTrick.NONE }
+        setAcro(session, state, trick)
+      }
+      FieldAction.MATCH_CALL -> matchCall(session, state, stored, map, event.packet.arg)
       FieldAction.ITEMFINDER -> {
         if (itemfinderIds.none { (stored.items[it] ?: 0) > 0 })
             return tell(session, "You don't have an ITEMFINDER.")
@@ -820,6 +852,7 @@ constructor(
 
   private fun setTravel(session: SessionContext, state: PlayerState, mode: TravelMode) {
     state.travel = mode
+    state.acro = AcroTrick.NONE
     state.running = false
     broadcastAvatar(session, state)
     sendInfo(session, state)
@@ -1036,8 +1069,9 @@ constructor(
       if (kotlin.random.Random.nextInt(100) >= Rematches.VS_SEEKER_YES_PERCENT) continue
       state.rematchReady[npc.entityIdx] = Rematches.frlgRematchTrainer(e, fought, flag)
       wants = true
-      // sMovementScript_TrainerRematch: the trainer's emote.
-      session.send(FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true))
+      // sMovementScript_TrainerRematch: MOVEMENT_ACTION_EMOTE_DOUBLE_EXCL_MARK.
+      session.send(
+          FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true, doubleExclaim = true))
     }
     log.info {
       "VS Seeker for char=${stored.info.id} on ${map.name}: ${state.rematchReady} (unfought=$unfought)"
@@ -1048,6 +1082,53 @@ constructor(
     }
     return listOf(
         "The other TRAINERS don't appear to be ready for battle.", "Let's wait till later.")
+  }
+
+  // ------------------------------------------------------------------ match call (r4)
+
+  /**
+   * The Pokénav's Match Call (match_call.c): the registered trainers are the beaten Hoenn trainers
+   * of sMatchCallTrainers; calling one picks its message like SelectMatchCallMessage: a trainer who
+   * wants a rematch asks for it (the same-route text when the player is on its route, else the
+   * different-route one), anyone else chats.
+   */
+  private fun matchCall(
+      session: SessionContext,
+      state: PlayerState,
+      stored: StoredCharacter,
+      map: MapDef,
+      arg: Int,
+  ) {
+    if (region(state) != Region.HOENN) return tell(session, "There is no POKéNAV here.")
+    val beaten = { id: Int -> "hoenn/TRAINER_DEFEATED_$id" in stored.storyFlags }
+    val registered =
+        de.fiereu.openmmo.progression.MatchCallData.trainers.filter { beaten(it.trainerId) }
+    if (arg < 0) {
+      session.send(
+          de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket(
+              registered.map {
+                de.fiereu.openmmo.net.game.packets.field.MatchCallEntry(
+                    it.trainerId,
+                    it.name,
+                    it.route,
+                    Rematches.readyFlag(Region.HOENN, it.trainerId) in stored.storyFlags)
+              }))
+      return
+    }
+    val t = registered.firstOrNull { it.trainerId == arg } ?: return tell(session, "No answer…")
+    val ready = Rematches.readyFlag(Region.HOENN, t.trainerId) in stored.storyFlags
+    val text =
+        when {
+          ready && t.mapsec == map.mapsec -> t.sameRouteText
+          ready -> t.differentRouteText
+          else -> t.generalText
+        }
+    if (text == 0) return tell(session, "No answer…")
+    run(session, state, -1) { ctx ->
+      ctx.bufferString(1, t.name)
+      ctx.bufferString(2, t.route)
+      ctx.sign(RawLine(text))
+    }
   }
 
   /** Talking to a trainer: battle if undefeated, else the post-battle line. */
@@ -1075,7 +1156,13 @@ constructor(
     // A trainer that wants a rematch (VS Seeker / Match Call) battles its next party.
     val rematch = rematchTrainer(state, map, npc)
     val trainerId = rematch ?: spot.trainerId
-    if (spot.introText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.introText))
+    // trainerbattle_rematch: the rematch's own intro and defeat lines.
+    val intro =
+        if (rematch != null && spot.rematchIntroText != 0) spot.rematchIntroText else spot.introText
+    val defeat =
+        if (rematch != null && spot.rematchDefeatText != 0) spot.rematchDefeatText
+        else spot.defeatText
+    if (intro != 0) ctx.sayNpc(npc.entityIdx, RawLine(intro))
     val result = ctx.trainerBattle(trainerId)
     if (result == BattleResult.VICTORY) {
       ctx.setFlag(defeatedFlag(map, npc))
@@ -1083,7 +1170,10 @@ constructor(
         ctx.setFlag(defeatedFlag(map, rematch))
         clearRematch(state, map, npc)
       }
-      if (spot.defeatText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.defeatText))
+      if (defeat != 0) ctx.sayNpc(npc.entityIdx, RawLine(defeat))
+      // X_EventScript_YRematch: the rematch post-battle line right after the battle.
+      if (rematch != null && spot.rematchPostText != 0)
+          ctx.sayNpc(npc.entityIdx, RawLine(spot.rematchPostText))
     }
     log.info {
       "Trainer ${spot.constant} battle (party $trainerId) for char=${state.characterId}: $result"

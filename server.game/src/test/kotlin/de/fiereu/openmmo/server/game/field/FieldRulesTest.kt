@@ -9,6 +9,7 @@ import de.fiereu.openmmo.maps.MapDef
 import de.fiereu.openmmo.maps.MapManager
 import de.fiereu.openmmo.maps.NpcDef
 import de.fiereu.openmmo.maps.TrainerSpot
+import de.fiereu.openmmo.net.game.packets.field.AcroTrick
 import de.fiereu.openmmo.net.game.packets.field.FieldAction
 import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -47,7 +48,11 @@ private fun map(
           '0' to T(z = 0),
           'B' to T(z = 15),
           'm' to T(b = TileBehavior.MUDDY_SLOPE),
-          'r' to T(b = TileBehavior.RAIL),
+          'r' to T(b = TileBehavior.HORIZONTAL_RAIL),
+          '|' to T(b = TileBehavior.VERTICAL_RAIL),
+          'i' to T(b = TileBehavior.ISOLATED_VERTICAL_RAIL),
+          '-' to T(b = TileBehavior.ISOLATED_HORIZONTAL_RAIL),
+          'b' to T(b = TileBehavior.BUMPY_SLOPE),
           'e' to T(b = TileBehavior.IMPASSABLE_EAST),
           '"' to T(b = TileBehavior.TALL_GRASS),
       )
@@ -162,6 +167,62 @@ class FieldRulesTest :
             StepOutcome.Blocked
         FieldRules.step(r, 0, 0, Direction.RIGHT, 3, TravelMode.ACRO_BIKE) shouldBe
             StepOutcome.Walk(1, 0, 3)
+      }
+
+      test("acro bike: bumpy slopes only take a bunny hop, and the bike stays up on them") {
+        val m = map(".", "b", "b", ".")
+        val acro = TravelMode.ACRO_BIKE
+        FieldRules.step(m, 0, 3, Direction.UP, 3, acro) shouldBe StepOutcome.Blocked
+        FieldRules.step(m, 0, 3, Direction.UP, 3, acro, acro = AcroTrick.WHEELIE) shouldBe
+            StepOutcome.Blocked
+        FieldRules.step(m, 0, 3, Direction.UP, 3, acro, acro = AcroTrick.HOP) shouldBe
+            StepOutcome.Walk(0, 2, 3)
+        FieldRules.step(m, 0, 2, Direction.UP, 3, acro, acro = AcroTrick.HOP) shouldBe
+            StepOutcome.Walk(0, 1, 3)
+        // rolling off the slope on the back wheel; a NONE told on a slope still means the wheelie
+        FieldRules.step(m, 0, 1, Direction.UP, 3, acro) shouldBe StepOutcome.Walk(0, 0, 3)
+        FieldRules.step(m, 0, 2, Direction.UP, 3, acro) shouldBe StepOutcome.Blocked
+        FieldRules.step(
+            m, 0, 3, Direction.UP, 3, TravelMode.MACH_BIKE, acro = AcroTrick.HOP) shouldBe
+            StepOutcome.Blocked
+        FieldRules.step(m, 0, 2, Direction.UP, 3, TravelMode.WALK) shouldBe StepOutcome.Blocked
+      }
+
+      test("acro bike: long rails are ridden along, isolated ones need a side jump across") {
+        val acro = TravelMode.ACRO_BIKE
+        // riding up onto a vertical rail and along it, but not turning off it sideways
+        val v = map(".|.", ".|.", "...")
+        FieldRules.step(v, 1, 2, Direction.UP, 3, acro) shouldBe StepOutcome.Walk(1, 1, 3)
+        FieldRules.step(v, 1, 1, Direction.UP, 3, acro) shouldBe StepOutcome.Walk(1, 0, 3)
+        FieldRules.step(v, 1, 1, Direction.RIGHT, 3, acro) shouldBe StepOutcome.Blocked
+        FieldRules.step(v, 1, 1, Direction.RIGHT, 3, acro, acro = AcroTrick.HOP) shouldBe
+            StepOutcome.Blocked
+        // a side jump leaves a rail sideways and lands on the parallel one
+        FieldRules.step(v, 1, 1, Direction.RIGHT, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Walk(2, 1, 3)
+        val two = map("|i.")
+        FieldRules.step(two, 0, 0, Direction.RIGHT, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Walk(1, 0, 3)
+        FieldRules.step(two, 2, 0, Direction.LEFT, 3, acro) shouldBe StepOutcome.Blocked
+        FieldRules.step(two, 2, 0, Direction.LEFT, 3, acro, acro = AcroTrick.HOP) shouldBe
+            StepOutcome.Blocked
+        // a side jump never lands along a rail (WillPlayerCollideWithCollision)
+        val col = map("i", ".")
+        FieldRules.step(col, 0, 1, Direction.UP, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Blocked
+        val h = map("-", ".")
+        FieldRules.step(h, 0, 1, Direction.UP, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Walk(0, 0, 3)
+        // side jumps cannot take ledges or bumpy slopes; a wheelie ledge hop is a normal jump
+        val l = map(".", "v", ".", "b")
+        FieldRules.step(l, 0, 0, Direction.DOWN, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Blocked
+        FieldRules.step(l, 0, 0, Direction.DOWN, 3, acro, acro = AcroTrick.WHEELIE) shouldBe
+            StepOutcome.Jump(0, 2, 3)
+        FieldRules.step(l, 0, 2, Direction.DOWN, 3, acro, acro = AcroTrick.SIDE_JUMP) shouldBe
+            StepOutcome.Blocked
+        FieldRules.step(map("|", "."), 0, 1, Direction.UP, 3, TravelMode.WALK) shouldBe
+            StepOutcome.Blocked
       }
 
       test("directionally impassable tiles block entry and exit through their wall side") {

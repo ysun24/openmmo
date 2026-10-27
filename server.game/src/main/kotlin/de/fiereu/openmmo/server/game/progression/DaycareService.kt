@@ -244,14 +244,38 @@ constructor(
    * The stored value after one more cycle; -1 marks an egg that hatches now. The var holds the
    * cycles left plus one, so an egg at zero cycles is not mistaken for a var that was never set.
    */
-  private fun cycleEggs(stored: StoredCharacter): Map<Long, Int> =
-      stored.pokemon
-          .filter { it.isEgg }
-          .associate { egg ->
-            val key = "${ProgressKeys.EGG_STEPS_PREFIX}${egg.id}"
-            val cycles = (stored.storyVars[key] ?: (eggCycles(egg.dexId) + 1)) - 1
-            egg.id to if (cycles <= 0) -1 else cycles
-          }
+  private fun cycleEggs(stored: StoredCharacter): Map<Long, Int> {
+    val sub = cyclesToSubtract(stored.pokemon)
+    return stored.pokemon
+        .filter { it.isEgg }
+        .associate { egg ->
+          val key = "${ProgressKeys.EGG_STEPS_PREFIX}${egg.id}"
+          val s = stored.storyVars[key] ?: (eggCycles(egg.dexId) + 1)
+          // stored = cycles left + 1; an egg with fewer cycles left than [sub] loses one, an
+          // egg at zero hatches.
+          val left = s - 1
+          val cycles = s - (if (left >= sub) sub else 1)
+          egg.id to if (cycles <= 0) -1 else cycles
+        }
+  }
+
+  /**
+   * GetEggCyclesToSubtract: 2 when a hatched party monster has FLAME BODY or MAGMA ARMOR (the
+   * ability from the personality's lowest bit, like the battle), else 1.
+   */
+  fun cyclesToSubtract(party: List<Pokemon>): Int =
+      if (party.any { mon ->
+        if (mon.isEgg) return@any false
+        val def = species.get(mon.dexId) ?: return@any false
+        val ability =
+            if (def.ability2 != de.fiereu.openmmo.common.enums.Ability.NONE && mon.seed and 1 == 1)
+                def.ability2
+            else def.ability1
+        ability == de.fiereu.openmmo.common.enums.Ability.FLAME_BODY ||
+            ability == de.fiereu.openmmo.common.enums.Ability.MAGMA_ARMOR
+      })
+          2
+      else 1
 
   private fun eggCycles(dexId: Int) = species.get(dexId)?.eggCycles ?: DEFAULT_EGG_CYCLES
 

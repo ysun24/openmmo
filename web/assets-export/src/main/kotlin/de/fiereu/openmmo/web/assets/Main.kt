@@ -157,6 +157,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
                 sprites.forEach { put("$r:${it.gfx}", ObjectExport.manifestEntry(it)) }
               }
             })
+        // r4: Emerald secret bases (decoration / entrance atlases, spots, decorations).
+        put("secretBases", SecretBaseExport(out).export(1, GbaGame.EMERALD, entries[1]))
         put(
             "players",
             buildJsonObject {

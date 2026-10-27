@@ -218,6 +218,12 @@ class EvolutionAndEncounterTest :
             testMon(1, 5, listOf(33)),
             false,
             0) shouldBe ENCOUNTER_ROLL_MAX
+        // r4: a bike takes 20% off (x80/100), the WHITE FLUTE adds half, the BLACK halves it.
+        val mon = testMon(1, 5, listOf(33))
+        enc.encounterChance(table, mon, false, 0, bike = true) shouldBe 268
+        enc.encounterChance(table, mon, false, 0, flute = FLUTE_WHITE) shouldBe 504
+        enc.encounterChance(table, mon, false, 0, flute = FLUTE_BLACK) shouldBe 168
+        enc.encounterChance(table, mon, false, 0, bike = true, flute = FLUTE_WHITE) shouldBe 402
       }
     })
 

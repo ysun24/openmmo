@@ -45,6 +45,8 @@ constructor(
     for (npc in map.npcs) {
       // Decoration slots are not normal NPCs.
       if (npc.hideFlag.substringAfter('/').startsWith(DECORATION_FLAG_PREFIX)) continue
+      // r4: the record-mixing base trainer stays hidden (FLAG_HIDE_SECRET_BASE_TRAINER).
+      if (npc.hideFlag.endsWith("FLAG_HIDE_SECRET_BASE_TRAINER")) continue
 
       // Only set hide flags suppress NPCs.
       if (shouldHideNpc(bankId, mapId, npc, storyFlags)) continue

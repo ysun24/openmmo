@@ -313,9 +313,21 @@ class GameClient(
       on<de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket> { event ->
         val p = event.packet
         world.update(p.entityId) {
-          if (p.exclaim) it.copy(exclaimSeq = it.exclaimSeq + 1)
-          else it.copy(travel = p.mode, running = p.running, female = p.female)
+          if (p.exclaim) it.copy(exclaimSeq = it.exclaimSeq + 1, exclaimDouble = p.doubleExclaim)
+          else it.copy(travel = p.mode, running = p.running, female = p.female, acro = p.acro)
         }
+        onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket> { event ->
+        world.setMatchCall(event.packet)
+        onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket> { event ->
+        // r4: keep the last UI request, like FieldInfoPacket.
+        val p = event.packet
+        val old = world.snapshot().secretBase
+        world.setSecretBase(
+            if (p.uiKind == 0 && old != null) p.copy(uiSeq = old.uiSeq, uiKind = old.uiKind) else p)
         onChange()
       }
       on<de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket> { event ->

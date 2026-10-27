@@ -3,11 +3,13 @@
 // The step rules mirror the server's FieldRules (Gen 3 field_player_avatar.c): elevation, ledges,
 // surfing, boulders, bike terrain, directional walls (PROTOCOL.md "r3-field").
 import { assets, connOrigin } from './assets.js';
+import { Acro, ACRO_STEP, JUMP_Y, HOP_MS, acroAllows, isRail } from './acro.js';
+import { overlay as sbOverlay, blocks as sbBlocks } from './secretbase.js';
 
 export const STEP_WALK = 250;
 export const STEP_RUN = 125;
-/** Step time per travel mode (GBA px/frame: walk 1, run/surf/acro 2, mach 4 at full speed). */
-export const STEP_BY_MODE = { walk: STEP_WALK, run: STEP_RUN, mach_bike: 70, acro_bike: 125, surf: 125, underwater: 250 };
+/** Step time per travel mode (GBA frames a tile: walk 16, run/surf 8, acro 6, mach 4 at full speed). */
+export const STEP_BY_MODE = { walk: STEP_WALK, run: STEP_RUN, mach_bike: 70, acro_bike: ACRO_STEP, surf: 125, underwater: 250 };
 /** Kanto's Bicycle is slower than the Mach Bike. */
 const KANTO_BIKE = 95;
 /** Mach Bike step times for PLAYER_SPEED_NORMAL, FAST and FASTEST (16, 8 and 4 frames a tile). */
@@ -45,12 +47,19 @@ function place(o) {
     const p = Math.min(1, o.t / o.dur);
     o.px = (o.fx + (o.x - o.fx) * p) * 16;
     o.py = (o.fy + (o.y - o.fy) * p) * 16;
-    // ledge hop arc (the sprite rises, its shadow stays on the ground)
-    o.jump = o.jumping ? Math.sin(Math.PI * p) * 14 : 0;
+    // ledge hop arc (the sprite rises, its shadow stays on the ground); Acro hops use the GBA's
+    // sJumpY tables (16 steps over the jump)
+    o.jump = !o.jumping ? 0 : o.jumpType ? JUMP_Y[o.jumpType][Math.min(15, (p * 16) | 0)] : Math.sin(Math.PI * p) * 14;
   } else {
     o.px = o.x * 16;
     o.py = o.y * 16;
     o.jump = 0;
+  }
+  // an in-place jump (Acro standing bunny hop, turn jump)
+  if (o.hopT0) {
+    const p = (performance.now() - o.hopT0) / HOP_MS;
+    if (p >= 1 || p < 0) o.hopT0 = 0;
+    else o.jump = Math.max(o.jump, JUMP_Y[o.hopType || 'low'][(p * 16) | 0]);
   }
 }
 
@@ -90,6 +99,8 @@ export class World {
     this.forcedUntil = 0;
     /** Hoenn Mach Bike acceleration (bike.c bikeFrameCounter / bikeSpeed). */
     this.mach = { counter: 0, speed: 0 };
+    /** Emerald's Acro Bike tricks (acro.js). */
+    this.acro = new Acro(this);
     /** Removed cut trees / smashed rocks still playing their break animation. */
     this.dying = [];
     this.conns = []; // [{key, ox, oy, info, res}]
@@ -110,6 +121,8 @@ export class World {
     if (!w) return;
     this.selfId = w.self;
     this.field = w.field || null;
+    // r4: the secret base state (open entrances outside, decorations inside).
+    this.secretBase = w.secretBase || null;
     const newKey = keyOf(w.map);
     if (newKey !== this.mapKey) this.changeMap(newKey, w.map, now);
     this.map = w.map;
@@ -149,6 +162,7 @@ export class World {
   changeMap(newKey, desc, now) {
     this.dying = [];
     const c = this.conns.find((c) => c.key === newKey);
+    if (!(c && this.mapKey && this.hasSelf)) this.acro.clear(); // a warp: BikeClearState
     if (c && this.mapKey && this.hasSelf) {
       // seamless: shift our frame of reference into the connected map
       const sh = (o) => {
@@ -211,10 +225,14 @@ export class World {
     o.mode = e.mode || 'walk';
     o.female = !!e.female;
     o.run = !!e.run;
+    // r4: another rider's Acro Bike pose; a turn jump hops in place once
+    const acro = o.mode === 'acro_bike' ? e.acro || null : null;
+    if (acro === 'turn_jump' && o.acro !== 'turn_jump') (o.hopT0 = now), (o.hopType = 'normal');
+    o.acro = acro;
     const jumped = (e.jump || 0) > o.jumpSeq;
     const boulder = o.kind === 'npc' && o.gfx === BOULDER_GFX[this.map ? this.map.region : 0];
     o.jumpSeq = e.jump || 0;
-    if ((e.exclaim || 0) > o.exclaimSeq) o.exclaimAt = now;
+    if ((e.exclaim || 0) > o.exclaimSeq) (o.exclaimAt = now), (o.exclaimKind = e.exclaimKind || null);
     o.exclaimSeq = e.exclaim || 0;
     if (e.x !== o.x || e.y !== o.y) {
       const d = Math.abs(e.x - o.x) + Math.abs(e.y - o.y);
@@ -227,6 +245,13 @@ export class World {
         const base = STEP_BY_MODE[o.mode] || STEP_WALK;
         o.dur = jumped ? JUMP_MS : Math.max(o.run ? 110 : Math.min(base, 110), Math.min(o.run ? STEP_RUN : base, since > 0 ? since : base));
         o.jumping = jumped;
+        o.jumpType = null;
+        if (!jumped && d === 1 && (o.acro === 'hop' || o.acro === 'side_jump')) {
+          // a moving bunny hop (JUMP_TYPE_LOW) or a side jump (JUMP_TYPE_NORMAL), 16 frames
+          o.dur = HOP_MS;
+          o.jumping = true;
+          o.jumpType = o.acro === 'hop' ? 'low' : 'normal';
+        }
         o.t = 0;
         o.moving = true;
         o.parity ^= 1;
@@ -257,6 +282,7 @@ export class World {
     if (mode === 'surf' && me.mode === 'walk') this.surfHop = true;
     if (mode !== me.mode) {
       me.mode = mode;
+      this.acro.clear();
       if (mode === 'surf' || mode === 'underwater') me.z = Z_WATER;
     }
     if (!this.hasSelf) {
@@ -303,6 +329,7 @@ export class World {
     else me.z = null; // learnt from the tile once its collision has loaded
     this.pending = [];
     this.mach.counter = this.mach.speed = 0;
+    this.acro.turn = null;
     this.stats.snaps++;
     // Each step of server forced movement keeps the input held off a little longer.
     if (this.forcedUntil) this.forcedUntil = performance.now() + FORCED_HOLD;
@@ -332,7 +359,19 @@ export class World {
     const c = res.col[i];
     const beh = behOf(res);
     const names = assets.manifest && assets.manifest.behaviors;
-    return { col: c & 1, z: c >> 4, beh: beh && names ? names[beh[i]] || 'NORMAL' : 'NORMAL' };
+    // r4: a secret base's decorations change the collision (ShowDecorationOnMap_)
+    const dec = res === r && this.secretBase ? sbBlocks(this, lx, ly) : undefined;
+    const col = dec === undefined ? c & 1 : dec ? 1 : 0;
+    return { col, z: c >> 4, beh: beh && names ? names[beh[i]] || 'NORMAL' : 'NORMAL' };
+  }
+
+  /** Doll / cushion decorations of the base the player is in, as drawable objects. */
+  decorSprites() {
+    const o = this.secretBase ? sbOverlay(this) : null;
+    if (!o || !o.sprites.length) return [];
+    if (o._ents) return o._ents;
+    o._ents = o.sprites.map((s, i) => Object.assign(newMover(), { id: 'decor' + i, kind: 'npc', gfx: s.gfx, x: s.x, y: s.y, fx: s.x, fy: s.y, px: s.x * 16, py: s.y * 16 }));
+    return o._ents;
   }
 
   /** The behaviour name of a world tile ('NORMAL' when unknown). */
@@ -369,7 +408,7 @@ export class World {
    * The Gen 3 step rules for the predicted self (server FieldRules.step): returns
    * {kind: 'walk'|'jump'|'stopSurf'|'push'|'block', x, y, z}.
    */
-  predictStep(dir) {
+  predictStep(dir, trick = 'none') {
     const me = this.self;
     const [dx, dy] = DIRS[dir];
     const nx = me.x + dx, ny = me.y + dy;
@@ -381,6 +420,8 @@ export class World {
       me.z = me.mode === 'surf' ? Z_WATER : from.z === Z_BRIDGE ? Z_LAND : from.z;
     }
     const water = me.mode === 'surf' || me.mode === 'underwater';
+    // Emerald's Acro Bike tricks (acro.js / FieldRules.step)
+    if (me.mode === 'acro_bike' && !acroAllows(trick, dir, from ? from.beh : 'NORMAL', to.beh, LEDGE[to.beh] === dir)) return { kind: 'block' };
     if (!water && LEDGE[to.beh] === dir) {
       const lx = me.x + dx * 2, ly = me.y + dy * 2;
       const land = this.tileAt(lx, ly);
@@ -400,7 +441,7 @@ export class World {
     }
     // ForcedMovement_MuddySlope: only a Mach Bike at full speed climbs it.
     if (to.beh === 'MUDDY_SLOPE' && dir === 'up' && (me.mode !== 'mach_bike' || (this.machAccel() && this.mach.counter < 2))) return { kind: 'block' };
-    if ((to.beh === 'BUMPY_SLOPE' || to.beh === 'RAIL') && me.mode !== 'acro_bike') return { kind: 'block' };
+    if ((to.beh === 'BUMPY_SLOPE' || isRail(to.beh)) && me.mode !== 'acro_bike') return { kind: 'block' };
     return { kind: 'walk', x: nx, y: ny, z: elevationAfter(me.z, from ? from.z : me.z, to.z) };
   }
 
@@ -459,29 +500,35 @@ export class World {
     if (this.fade > 0 && !this.fadeWaiting && now > this.fadeHoldUntil) this.fade = Math.max(0, this.fade - dt / 250);
     if (this.hasSelf) {
       let justMoved = false;
+      const acro = this.acro.active();
+      const step = acro ? (c, cont) => this.acro.tick(input, c, cont, now) : (c, cont) => this.tryStep(input, c, cont, now);
       if (me.moving) {
         me.t += dt;
         if (me.t >= me.dur) {
           const carry = Math.min(me.t - me.dur, 40);
           me.moving = false;
           me.jumping = false;
+          me.jumpType = null;
           me.fx = me.x;
           me.fy = me.y;
           justMoved = true;
-          this.tryStep(input, carry, true, now);
+          step(carry, true);
         }
-      } else if (this.turnWait > 0) {
+      } else if (this.turnWait > 0 && !acro) {
         this.turnWait -= dt;
         if (!input.dir || !input.enabled) this.turnWait = 0;
         else if (this.turnWait <= 0) this.tryStep(input, 0, true, now);
-      } else this.tryStep(input, 0, justMoved, now);
+      } else step(0, justMoved);
+      if (!acro && me.acro) this.acro.clear();
       place(me);
     }
     for (const e of this.ents.values()) {
       if (e.moving) {
         e.t += dt;
-        if (e.t >= e.dur) (e.moving = false), (e.jumping = false), (e.fx = e.x), (e.fy = e.y);
+        if (e.t >= e.dur) (e.moving = false), (e.jumping = false), (e.jumpType = null), (e.fx = e.x), (e.fy = e.y);
       }
+      // a rider bunny hopping in place keeps hopping (AcroBikeTransition_WheelieHoppingStanding)
+      if (e.acro === 'hop' && !e.moving && !e.hopT0) (e.hopT0 = now), (e.hopType = 'low');
       place(e);
     }
     if (this.dying.length) {
@@ -495,6 +542,7 @@ export class World {
     dl.length = 0;
     for (const e of this.ents.values()) dl.push(e);
     for (const o of this.dying) dl.push(o);
+    for (const o of this.decorSprites()) dl.push(o);
     if (this.hasSelf) dl.push(me);
     dl.sort(byY);
   }
@@ -546,6 +594,18 @@ export class World {
       return;
     }
     this.leaveTile(me, now);
+    this.commitStep(out, dir, out.kind === 'jump' ? JUMP_MS : out.kind === 'stopSurf' ? SURF_HOP_MS : this.stepMs(input.run), !!input.run, carry, now);
+    if (mach && !coast) {
+      // MachBikeTransition_TrySpeedUp: NORMAL, FAST, then FASTEST.
+      mach.speed = mach.counter + (mach.counter >> 1);
+      if (mach.counter < 2) mach.counter++;
+    }
+  }
+
+  /** Moves the predicted self per [out] (a predictStep result) over [ms] and tells the server. */
+  commitStep(out, dir, ms, run, carry, now) {
+    const me = this.self;
+    if (me.mode === 'acro_bike') this.leaveTile(me, now);
     me.facing = dir;
     me.fx = me.x;
     me.fy = me.y;
@@ -553,12 +613,8 @@ export class World {
     me.y = out.y;
     me.z = out.z;
     me.jumping = out.kind === 'jump' || out.kind === 'stopSurf';
-    me.dur = out.kind === 'jump' ? JUMP_MS : out.kind === 'stopSurf' ? SURF_HOP_MS : this.stepMs(input.run);
-    if (mach && !coast) {
-      // MachBikeTransition_TrySpeedUp: NORMAL, FAST, then FASTEST.
-      mach.speed = mach.counter + (mach.counter >> 1);
-      if (mach.counter < 2) mach.counter++;
-    }
+    me.jumpType = null;
+    me.dur = out.kind === 'jump' ? JUMP_MS : ms;
     me.run = me.dur === STEP_RUN && me.mode === 'walk';
     me.t = carry;
     me.moving = true;
@@ -567,7 +623,7 @@ export class World {
     if (out.kind === 'jump') this.stats.jumps++;
     const seq = ++this.seq;
     this.pending.push({ seq, x: out.x, y: out.y });
-    this.send(out.kind === 'jump' ? { t: 'step', dir, run: !!input.run, seq, jump: true } : { t: 'step', dir, run: !!input.run, seq });
+    this.send(out.kind === 'jump' ? { t: 'step', dir, run, seq, jump: true } : { t: 'step', dir, run, seq });
     this.lastLocalAct = performance.now();
     this.stats.steps++;
     if (this.forcesMovement(this.behAt(out.x, out.y))) this.forcedUntil = now + FORCED_HOLD + 200;

@@ -36,4 +36,8 @@ data class TrainerSpot(
     val introText: Int,
     val defeatText: Int,
     val postText: Int,
+    /** r4: the trainerbattle_rematch intro / defeat and the rematch post-battle line (0 = none). */
+    val rematchIntroText: Int = 0,
+    val rematchDefeatText: Int = 0,
+    val rematchPostText: Int = 0,
 )

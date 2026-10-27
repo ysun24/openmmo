@@ -34,8 +34,16 @@ data class PlayerState(
     val loadedMaps: MutableSet<Int> = ConcurrentHashMap.newKeySet(),
     /** How the avatar travels (walk, bike, surf, underwater). Kept across seamless connections. */
     @field:Volatile var travel: TravelMode = TravelMode.WALK,
+    /** r4: the Acro Bike trick state the client last reported (FieldAction.ACRO). */
+    @field:Volatile
+    var acro: de.fiereu.openmmo.net.game.packets.field.AcroTrick =
+        de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE,
+    /** r4: the step's encounter flute (FLAG_SYS_ENC_UP_ITEM / _DOWN_ITEM), cleared on warps. */
+    @field:Volatile var flute: Int = 0,
     /** The last step's running flag, for observers' animation. */
     @field:Volatile var running: Boolean = false,
+    /** r4: whose secret base the player is in (character id), null outside a base. */
+    @field:Volatile var secretBaseOwner: Long? = null,
     /** FLASH lit this map (FLAG_SYS_USE_FLASH, cleared on map change). */
     @field:Volatile var flash: Boolean = false,
     /** STRENGTH is active (FLAG_SYS_USE_STRENGTH, cleared on map change). */

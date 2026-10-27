@@ -97,8 +97,65 @@ class StateJson(private val names: Names) {
       }
       put("ackSeq", s.ackSeq)
       w.field?.let { put("field", field(it, w.map)) }
+      w.secretBase?.let { put("secretBase", secretBase(it)) }
+      // r4: the Pokénav Match Call list, when asked for (`seq` grows per answer).
+      w.matchCall?.let { mc ->
+        putJsonObject("matchCall") {
+          put("seq", w.matchCallSeq)
+          putJsonArray("trainers") {
+            mc.entries.forEach { e ->
+              add(
+                  buildJsonObject {
+                    put("id", e.trainerId)
+                    put("name", e.name)
+                    put("route", e.route)
+                    put("ready", e.ready)
+                  })
+            }
+          }
+        }
+      }
     }
   }
+
+  /** r4: world.secretBase (PROTOCOL.md section 11). */
+  fun secretBase(p: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket) =
+      buildJsonObject {
+        put(
+            "inside",
+            when (p.inside) {
+              1 -> "own"
+              2 -> "visiting"
+              else -> "none"
+            })
+        if (p.owner.isNotEmpty()) put("owner", p.owner)
+        if (p.baseId != 0) put("id", p.baseId)
+        if (p.myBaseId != 0) put("mine", p.myBaseId)
+        putJsonArray("decorations") {
+          p.decorations.forEach { d ->
+            add(
+                buildJsonObject {
+                  put("id", d.decorId)
+                  put("x", d.x)
+                  put("y", d.y)
+                })
+          }
+        }
+        putJsonArray("open") {
+          p.openSpots.forEach { (x, y) ->
+            add(
+                buildJsonObject {
+                  put("x", x)
+                  put("y", y)
+                })
+          }
+        }
+        if (p.uiKind != 0)
+            putJsonObject("ui") {
+              put("seq", p.uiSeq)
+              put("kind", if (p.uiKind == 1) "pc" else "none")
+            }
+      }
 
   private fun mapJson(key: MapKey, width: Int, height: Int) = buildJsonObject {
     put("region", key.regionId)
@@ -128,8 +185,13 @@ class StateJson(private val names: Names) {
     if (e.running) put("run", true)
     if (e.jumpSeq > 0) put("jump", e.jumpSeq)
     if (e.exclaimSeq > 0) put("exclaim", e.exclaimSeq)
+    // r4: the last emote was "!!" (the VS Seeker's rematch answer)
+    if (e.exclaimDouble) put("exclaimKind", "double")
     // Integration: another player's gender picks the female player sprite.
     if (e.female) put("female", true)
+    // r4: the Acro Bike pose ("wheelie", "hop", "side_jump", "turn_jump").
+    if (e.acro != de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE)
+        put("acro", e.acro.name.lowercase())
   }
 
   /** The player's own field state (r3-field): world.field. */

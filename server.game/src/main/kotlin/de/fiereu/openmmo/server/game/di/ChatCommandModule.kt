@@ -5,6 +5,7 @@ import dagger.Module
 import dagger.multibindings.IntoSet
 import de.fiereu.openmmo.server.game.services.command.CatchCommand
 import de.fiereu.openmmo.server.game.services.command.ChatCommand
+import de.fiereu.openmmo.server.game.services.command.GiveDecorCommand
 import de.fiereu.openmmo.server.game.services.command.GiveItemCommand
 import de.fiereu.openmmo.server.game.services.command.GiveMonCommand
 import de.fiereu.openmmo.server.game.services.command.GiveMoneyCommand
@@ -38,6 +39,8 @@ interface ChatCommandModule {
   @Binds @IntoSet fun giveItemCommand(command: GiveItemCommand): ChatCommand
 
   @Binds @IntoSet fun giveMoneyCommand(command: GiveMoneyCommand): ChatCommand
+
+  @Binds @IntoSet fun giveDecorCommand(command: GiveDecorCommand): ChatCommand
 
   // r3-battle
   @Binds

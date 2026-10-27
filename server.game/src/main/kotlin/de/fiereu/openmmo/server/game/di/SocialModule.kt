@@ -33,6 +33,13 @@ object SocialModule {
 
   @Provides @Singleton fun socialRepository(impl: JooqSocialRepository): SocialRepository = impl
 
+  /** r4: the secret bases (V9_1). */
+  @Provides
+  @Singleton
+  fun secretBaseRepository(
+      impl: de.fiereu.openmmo.server.game.storage.JooqSecretBaseRepository
+  ): de.fiereu.openmmo.server.game.storage.SecretBaseRepository = impl
+
   @Provides @Singleton fun extraNpcs(clerks: MarketClerks): ExtraNpcSource = clerks
 
   @Provides @IntoSet fun teleportCommand(command: TeleportCommand): ChatCommand = command

@@ -3,6 +3,7 @@ package de.fiereu.openmmo.server.game.field
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.enums.TileBehavior
 import de.fiereu.openmmo.maps.MapDef
+import de.fiereu.openmmo.net.game.packets.field.AcroTrick
 import de.fiereu.openmmo.net.game.packets.field.TravelMode
 
 /** What one player step does, decided by [FieldRules.step]. */
@@ -66,7 +67,8 @@ object FieldRules {
   /**
    * One step from ([fromX], [fromY]) in [dir] for a player at elevation [z] travelling as [mode].
    * [obstacle] says what blocks a tile, [strength] whether boulders can be pushed. Edges of the map
-   * are not handled here (the caller crosses connections first).
+   * are not handled here (the caller crosses connections first). [acro] is the Acro Bike state the
+   * step is made in (bike.c AcroBikeTransition_*): it decides which bike terrain can be entered.
    */
   fun step(
       map: MapDef,
@@ -76,6 +78,7 @@ object FieldRules {
       z: Int,
       mode: TravelMode,
       strength: Boolean = false,
+      acro: AcroTrick = AcroTrick.NONE,
       obstacle: (Int, Int) -> FieldObstacle? = { _, _ -> null },
   ): StepOutcome {
     if (dir.dx == 0 && dir.dy == 0) return StepOutcome.Blocked
@@ -84,6 +87,23 @@ object FieldRules {
     val from = map.tileAt(fromX, fromY)
     val to = map.tileAt(toX, toY) ?: return StepOutcome.Blocked
     val fromBehavior = from?.behavior ?: TileBehavior.NORMAL
+    val trick = if (mode == TravelMode.ACRO_BIKE) acroTrick(acro, fromBehavior) else AcroTrick.NONE
+
+    if (mode == TravelMode.ACRO_BIKE) {
+      // CanBikeFaceDirOnMetatile: a rail only lets the bike ride along it. A side jump leaves it
+      // sideways on purpose.
+      if (trick != AcroTrick.SIDE_JUMP && !canBikeFace(dir, fromBehavior))
+          return StepOutcome.Blocked
+      // AcroBikeTransition_SideJump: any collision below the isolated rails (walls, ledges, bumpy
+      // slopes) turns the bike instead, and a rail is only landed on across it.
+      if (trick == AcroTrick.SIDE_JUMP &&
+          (to.behavior.ledgeDirection == dir ||
+              to.behavior == TileBehavior.BUMPY_SLOPE ||
+              (to.behavior.isVerticalRail && dir.dx == 0) ||
+              (to.behavior.isHorizontalRail && dir.dy == 0))) {
+        return StepOutcome.Blocked
+      }
+    }
 
     // Ledges: the tile ahead is a ledge facing our way. Not while surfing (no ledges in water).
     if (mode != TravelMode.SURF &&
@@ -131,13 +151,40 @@ object FieldRules {
     when (to.behavior) {
       TileBehavior.MUDDY_SLOPE ->
           if (dir == Direction.UP && mode != TravelMode.MACH_BIKE) return StepOutcome.Blocked
-      TileBehavior.BUMPY_SLOPE,
-      TileBehavior.RAIL -> if (mode != TravelMode.ACRO_BIKE) return StepOutcome.Blocked
       else -> {}
+    }
+    if (to.behavior == TileBehavior.BUMPY_SLOPE || to.behavior.isRail) {
+      if (mode != TravelMode.ACRO_BIKE) return StepOutcome.Blocked
+      val ok =
+          when (to.behavior) {
+            // COLLISION_WHEELIE_HOP: only a bunny hop goes on (a rolling wheelie idles in place).
+            TileBehavior.BUMPY_SLOPE -> trick == AcroTrick.HOP
+            // The isolated rails (COLLISION_ISOLATED_*_RAIL < COLLISION_VERTICAL_RAIL) stop
+            // every movement but the side jump; the long rails stop none.
+            TileBehavior.ISOLATED_VERTICAL_RAIL,
+            TileBehavior.ISOLATED_HORIZONTAL_RAIL -> trick == AcroTrick.SIDE_JUMP
+            else -> true
+          }
+      if (!ok) return StepOutcome.Blocked
     }
 
     return StepOutcome.Walk(toX, toY, elevationAfter(z, from?.elevation ?: z, to.elevation))
   }
+
+  /**
+   * The state a step is checked in: a step-only state (TURN_JUMP) rides normally, and a bike on a
+   * bumpy slope is always on its back wheel (Bike_HandleBumpySlopeJump keeps the wheelie there).
+   */
+  fun acroTrick(told: AcroTrick, standingOn: TileBehavior): AcroTrick =
+      when {
+        told == AcroTrick.TURN_JUMP -> AcroTrick.NONE
+        standingOn == TileBehavior.BUMPY_SLOPE && told == AcroTrick.NONE -> AcroTrick.WHEELIE
+        else -> told
+      }
+
+  /** CanBikeFaceDirOnMetatile: on a rail the bike faces only along it. */
+  fun canBikeFace(dir: Direction, standingOn: TileBehavior): Boolean =
+      if (dir.dx != 0) !standingOn.isVerticalRail else !standingOn.isHorizontalRail
 
   /**
    * IsPlayerFacingSurfableFishableWater: on land at the default elevation, facing a water tile the

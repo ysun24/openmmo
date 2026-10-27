@@ -54,14 +54,58 @@ class MapDef(
     val allowEscaping: Boolean = false,
     /** bg_events of type hidden_item. */
     val hiddenItems: List<HiddenItemDef> = emptyList(),
+    /** r4: tiles replaced by index (a secret base's decorations), on top of [blockData]. */
+    private val tileOverrides: Map<Int, Tile2D> = emptyMap(),
 ) {
+  /** This map with some tiles replaced (the same map otherwise; nothing else is copied). */
+  fun withTileOverrides(overrides: Map<Int, Tile2D>): MapDef =
+      MapDef(
+          regionId,
+          bankId,
+          mapId,
+          width,
+          height,
+          paletteIdx1,
+          paletteIdx2,
+          borderWidth,
+          borderHeight,
+          unknownShort,
+          unknownByte,
+          borderTiles,
+          lighting,
+          weather,
+          mapType,
+          encounterType,
+          wildEncounters,
+          connections,
+          warps,
+          npcs,
+          bgEvents,
+          onTransitionScript,
+          onFrameScripts,
+          coordScripts,
+          blockData,
+          behaviorData,
+          name,
+          mapsec,
+          mapTypeName,
+          requiresFlash,
+          allowCycling,
+          allowRunning,
+          allowEscaping,
+          hiddenItems,
+          tileOverrides + overrides)
+
   /** FLY, the bike and the like work outdoors only (Overworld IsMapTypeOutdoors). */
   val isOutdoors: Boolean
     get() =
         mapTypeName in
             setOf("MAP_TYPE_ROUTE", "MAP_TYPE_TOWN", "MAP_TYPE_CITY", "MAP_TYPE_OCEAN_ROUTE")
 
-  val tiles: List<Tile2D> by lazy { decodeBlockData(blockData, behaviorData) }
+  val tiles: List<Tile2D> by lazy {
+    val t = decodeBlockData(blockData, behaviorData)
+    if (tileOverrides.isEmpty()) t else t.mapIndexed { i, tile -> tileOverrides[i] ?: tile }
+  }
 
   fun tileAt(x: Int, y: Int): Tile2D? =
       if (x in 0 until width && y in 0 until height) tiles.getOrNull(y * width + x) else null

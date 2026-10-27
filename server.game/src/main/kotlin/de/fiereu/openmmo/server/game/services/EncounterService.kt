@@ -27,6 +27,9 @@ private val log = KotlinLogging.logger {}
 // The GBA rolls an encounter out of 2880 (MAX_ENCOUNTER_RATE) with the table rate scaled by 16.
 internal const val ENCOUNTER_ROLL_MAX = 2880
 private const val ENCOUNTER_RATE_SCALE = 16
+/** PlayerState.flute values. */
+internal const val FLUTE_WHITE = 1
+internal const val FLUTE_BLACK = 2
 
 /** Per-player step state the GBA keeps in sWildEncounterData. */
 private class StepState {
@@ -128,7 +131,12 @@ constructor(
     val kanto = map.regionId.toInt() == Region.KANTO.wireValue.toInt()
     if (!force) {
       if (kanto && !cooldownAllows(state, table, lead)) return false
-      if (!rollsEncounter(table, lead, kanto, state)) {
+      if (!rollsEncounter(
+          table,
+          lead,
+          kanto,
+          state,
+          session.attributes[de.fiereu.openmmo.server.game.session.PLAYER_STATE])) {
         if (kanto)
             state.encounterRateBuff =
                 if (repelled) 0 else state.encounterRateBuff + table.encounterRate
@@ -222,10 +230,19 @@ constructor(
       table: WildEncounterTable,
       lead: Pokemon,
       kanto: Boolean,
-      buff: Int
+      buff: Int,
+      /** r4: on a bicycle (PLAYER_AVATAR_FLAG_MACH_BIKE | ACRO_BIKE): 80%. */
+      bike: Boolean = false,
+      /** r4: ApplyFluteEncounterRateMod: 1 WHITE FLUTE (+50%), 2 BLACK FLUTE (-50%). */
+      flute: Int = 0,
   ): Int {
     var rate = table.encounterRate * ENCOUNTER_RATE_SCALE
+    if (bike) rate = rate * 80 / 100
     if (kanto) rate += buff * 16 / 200
+    when (flute) {
+      FLUTE_WHITE -> rate += rate / 2
+      FLUTE_BLACK -> rate /= 2
+    }
     if (holdsCleanseTag(lead)) rate = rate * 2 / 3
     when (abilityOf(lead)) {
       Ability.STENCH -> rate /= 2
@@ -242,9 +259,18 @@ constructor(
       lead: Pokemon,
       kanto: Boolean,
       state: StepState,
+      ps: de.fiereu.openmmo.server.game.session.PlayerState? = null,
   ): Boolean =
       random.nextInt(ENCOUNTER_ROLL_MAX) <
-          encounterChance(table, lead, kanto, state.encounterRateBuff)
+          encounterChance(
+              table,
+              lead,
+              kanto,
+              state.encounterRateBuff,
+              bike =
+                  ps?.travel == de.fiereu.openmmo.net.game.packets.field.TravelMode.MACH_BIKE ||
+                      ps?.travel == de.fiereu.openmmo.net.game.packets.field.TravelMode.ACRO_BIKE,
+              flute = ps?.flute ?: 0)
 
   /** FireRed's HandleWildEncounterCooldown: a short no-encounter window after each battle. */
   private fun cooldownAllows(state: StepState, table: WildEncounterTable, lead: Pokemon): Boolean {

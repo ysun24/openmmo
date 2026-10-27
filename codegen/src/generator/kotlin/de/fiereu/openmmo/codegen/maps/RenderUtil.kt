@@ -51,7 +51,9 @@ object RenderUtil {
             ", trainer = TrainerSpot(trainerId = ${t.trainerId}," +
                 " constant = ${escapeString(t.constant)}, sight = ${t.sight}," +
                 " introText = ${t.introText}, defeatText = ${t.defeatText}," +
-                " postText = ${t.postText})"
+                " postText = ${t.postText}, rematchIntroText = ${t.rematchIntroText}," +
+                " rematchDefeatText = ${t.rematchDefeatText}," +
+                " rematchPostText = ${t.rematchPostText})"
           } ?: "") +
           ")"
     }

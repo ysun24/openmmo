@@ -275,10 +275,19 @@ class PretGbaParser(
   }
 
   private fun parseTrainer(mapDirName: String, script: String, sight: Int): ParsedTrainerSpot? {
-    val body = labelBody(scriptsText(mapDirName), script)
+    // FireRed keeps the route trainers' scripts together in data/scripts/trainers.inc.
+    val text =
+        scriptsText(mapDirName).takeIf { labelBody(it, script).isNotEmpty() } ?: trainerScripts
+    val body = labelBody(text, script)
     val m = TRAINER_BATTLE.find(body) ?: return null
     val id = trainerIds[m.groupValues[1]] ?: return null
     val post = MSGBOX.find(body.substring(m.range.last))?.groupValues?.get(1)
+    // r4: the rematch branch (`goto_if_eq VAR_RESULT, TRUE, X_Rematch` after
+    // ShouldTryRematchBattle) and its trainerbattle_rematch texts.
+    val rematchLabel = REMATCH_GOTO.find(body.substring(m.range.last))?.groupValues?.get(1) ?: ""
+    val rBody = labelBody(text, rematchLabel)
+    val r = TRAINER_REMATCH.find(rBody)
+    val rPost = r?.let { MSGBOX.find(rBody.substring(it.range.last))?.groupValues?.get(1) }
     return ParsedTrainerSpot(
         trainerId = id,
         constant = m.groupValues[1],
@@ -286,7 +295,14 @@ class PretGbaParser(
         introText = dialogIds[m.groupValues[2]] ?: 0,
         defeatText = m.groupValues[3].takeIf { it.isNotEmpty() }?.let { dialogIds[it] } ?: 0,
         postText = post?.let { dialogIds[it] } ?: 0,
+        rematchIntroText = r?.let { dialogIds[it.groupValues[2]] } ?: 0,
+        rematchDefeatText = r?.groupValues?.get(3)?.let { dialogIds[it] } ?: 0,
+        rematchPostText = rPost?.let { dialogIds[it] } ?: 0,
     )
+  }
+
+  private val trainerScripts: String by lazy {
+    File(rootDir, "data/scripts/trainers.inc").takeIf { it.exists() }?.readText() ?: ""
   }
 
   // The map's ON_TRANSITION script runs whenever the player enters the map. It sits in the map's
@@ -589,5 +605,9 @@ class PretGbaParser(
         Regex(
             "trainerbattle_(?:single|double|no_intro)\\s+(TRAINER_\\w+)\\s*,\\s*(\\w+)(?:\\s*,\\s*(\\w+))?")
     val MSGBOX = Regex("msgbox\\s+(\\w+)")
+    val REMATCH_GOTO =
+        Regex("ShouldTryRematchBattle\\s+goto_if_eq\\s+VAR_RESULT\\s*,\\s*TRUE\\s*,\\s*(\\w+)")
+    val TRAINER_REMATCH =
+        Regex("trainerbattle_rematch(?:_double)?\\s+(TRAINER_\\w+)\\s*,\\s*(\\w+)\\s*,\\s*(\\w+)")
   }
 }

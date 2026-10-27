@@ -25,8 +25,13 @@ data class Entity(
     val jumpSeq: Int = 0,
     /** Grows by one per trainer "!" over this entity. */
     val exclaimSeq: Int = 0,
+    /** r4: the last emote was the VS Seeker's "!!". */
+    val exclaimDouble: Boolean = false,
     /** A player drawn with the region's female sprite (FieldAvatarPacket). */
     val female: Boolean = false,
+    /** r4: the Acro Bike pose (FieldAvatarPacket.acro). */
+    val acro: de.fiereu.openmmo.net.game.packets.field.AcroTrick =
+        de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE,
 )
 
 /**
@@ -60,6 +65,11 @@ class WorldState {
       val field: FieldInfoPacket? = null,
       /** The selected character's gender (CharacterInfo.rivalSex: 0 male, 1 female). */
       val characterGender: Int = 0,
+      /** r4: the server's last SecretBaseStatePacket. */
+      val secretBase: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket? = null,
+      /** r4: the last Match Call list and how many lists came so far. */
+      val matchCall: de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket? = null,
+      val matchCallSeq: Int = 0,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -92,8 +102,25 @@ class WorldState {
             inWorld,
             overworld.view(),
             field,
-            characterGender)
+            characterGender,
+            secretBase,
+            matchCall,
+            matchCallSeq)
       }
+
+  private var matchCall: de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket? = null
+  private var matchCallSeq = 0
+
+  fun setMatchCall(p: de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket) =
+      synchronized(lock) {
+        matchCall = p
+        matchCallSeq++
+      }
+
+  private var secretBase: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket? = null
+
+  fun setSecretBase(p: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket) =
+      synchronized(lock) { secretBase = p }
 
   private var field: FieldInfoPacket? = null
 
