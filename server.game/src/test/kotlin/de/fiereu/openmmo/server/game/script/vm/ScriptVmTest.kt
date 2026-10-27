@@ -122,6 +122,28 @@ class ScriptVmTest :
         }
       }
 
+      test("r5 merge: one accessor for the temp vars, by id and by decomp name") {
+        runTest {
+          val r = rig(Region.HOENN)
+          // Without the VM (a hand-ported script) the temp vars live in the context.
+          r.ctx.varSet("VAR_0x8004", 9)
+          r.ctx.specialVar(4) shouldBe 9
+          r.ctx.varSet("VAR_ITEM_ID", 133)
+          r.ctx.varGet(0x800E) shouldBe 133
+          r.ctx.result = 1
+          r.ctx.varGet("VAR_RESULT") shouldBe 1
+          // Inside the VM they are its gSpecialVar_* slots, whichever name a lane uses.
+          val vm = ScriptVm(r.ctx, ScriptImage.of("hoenn")!!)
+          r.ctx.vm = vm
+          r.ctx.varSet("VAR_ITEM_ID", 140)
+          vm.varGet(0x800E) shouldBe 140
+          r.ctx.setSpecialVar(5, 3)
+          r.ctx.varGet("VAR_0x8005") shouldBe 3
+          r.ctx.varSet("VAR_CONTEST_RANK", 2)
+          vm.varGet(r.ctx.varId("VAR_CONTEST_RANK")!!) shouldBe 2
+        }
+      }
+
       test("trainer flags are the field service's defeated keys") {
         runTest {
           val r = rig(Region.HOENN)

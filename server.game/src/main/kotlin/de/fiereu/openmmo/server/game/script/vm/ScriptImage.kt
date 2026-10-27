@@ -66,6 +66,13 @@ private constructor(
 
   fun constOrNull(name: String): Int? = constants[name]?.toInt()
 
+  private val varIds: Map<String, Int> by lazy {
+    buildMap { for ((id, ns) in varNames) for (n in ns) putIfAbsent(n, id) }
+  }
+
+  /** A var's id by any of its decomp names (VAR_RESULT, VAR_ITEM_ID, VAR_CONTEST_RANK...). */
+  fun varIdOrNull(name: String): Int? = varIds[name] ?: constOrNull(name)
+
   private val byValue = HashMap<String, Map<Int, String>>()
 
   /** The first constant named `<prefix>...` whose value is [value], e.g. ("SE_", 21). */

@@ -336,7 +336,7 @@ internal constructor(
   fun varId(name: String): Int? =
       HEX_VAR.matchEntire(name)?.groupValues?.get(1)?.toInt(16)
           ?: (vm?.img ?: de.fiereu.openmmo.server.game.script.vm.ScriptImage.of(regionName))
-              ?.constOrNull(name)
+              ?.varIdOrNull(name)
 
   /** VarGet by decomp name; a story var the image does not know is read by its region key. */
   fun varGet(name: String): Int {
