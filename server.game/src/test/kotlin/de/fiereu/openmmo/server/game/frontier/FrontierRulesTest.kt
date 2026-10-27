@@ -77,6 +77,14 @@ private fun state(m: Pokemon, slot: Int?) =
 
 class FrontierRulesTest :
     FunSpec({
+      test("r5 merge: brain intros come from the decomp's battle room texts") {
+        for (f in Facility.entries) for (gold in listOf(false, true)) {
+          val t = BrainTexts.intro(f, gold, "ASH")
+          (t != null && t.isNotBlank() && '\\' !in t && '{' !in t) shouldBe true
+        }
+        BrainTexts.plain("Hi, {PLAYER}!\\nReady?\\pGo$", "ASH") shouldBe "Hi, ASH! Ready? Go"
+      }
+
       test("the decomp tables are all there") {
         data.frontier.mons.size shouldBe 882
         data.frontier.trainers.size shouldBe 300

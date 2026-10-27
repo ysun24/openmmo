@@ -212,7 +212,9 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
         b.pic,
         b.trainerClass,
         team,
-        intro = "$title ${b.name}: Show me your power!",
+        intro =
+            "$title ${b.name}: " +
+                (BrainTexts.intro(f, status.goldTeam, run.playerName) ?: "Show me your power!"),
         brain = true)
   }
 

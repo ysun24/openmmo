@@ -612,7 +612,7 @@ def scene_eon(s):
     s.flag("FLAG_SYS_GAME_CLEAR", True)
     s.flag("FLAG_ENABLE_SHIP_SOUTHERN_ISLAND", True)
     for f in ("FLAG_DEFEATED_LATIAS_OR_LATIOS", "FLAG_CAUGHT_LATIAS_OR_LATIOS",
-              "FLAG_ENCOUNTERED_LATIAS_OR_LATIOS"):
+              "FLAG_ENCOUNTERED_LATIAS_OR_LATIOS", "FLAG_SHOWN_EON_TICKET"):
         s.flag(f, False)
     s.cmd("/script item EON_TICKET", 2)
     check(has_item(s, "EON TICKET"), f"EON TICKET in the bag: {sorted(s.bag())[:8]}")
@@ -625,8 +625,9 @@ def scene_eon(s):
         items = [str(i).upper() for i in (m.get("args") or {}).get("items") or []]
         return next((i for i, n in enumerate(items) if "SOUTHERN" in n), 0)
 
+    s.flag("FLAG_SHOWN_EON_TICKET", False)
+    # The first time the ticket is shown the sailor takes the player straight there (no menu).
     s.talk(choices=[True], menu=pick, timeout=60)
-    check(menus, f"destination menu: {[(m.get('args') or {}).get('items') for m in menus][:1]}")
     s.p.wait(lambda q: (q.world.get("map") or {}).get("name") == "SouthernIsland_Exterior", 25,
              "arrive on Southern Island")
     check(s.map_name() == "SouthernIsland_Exterior", f"sailed: {s.map_name()}")
