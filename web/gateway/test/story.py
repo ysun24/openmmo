@@ -55,6 +55,16 @@ def npc_by_script(region, name, script):
     raise KeyError(script)
 
 
+def _after(old, now):
+    """The entries of `now` that come after the window `old` (both lists of chat dicts)."""
+    if not old:
+        return list(now)
+    for k in range(min(len(old), len(now)), 0, -1):
+        if now[:k] == old[-k:]:
+            return now[k:]
+    return list(now)
+
+
 class Story:
     def __init__(self, p, region):
         self.p = p
@@ -63,11 +73,14 @@ class Story:
     # ---- commands and state
     def cmd(self, text, wait=1.0, expect=None):
         """A slash command; the reply line (containing `expect`, when given)."""
-        before = len(self.p.chat_texts())
+        # The gateway keeps a capped chat window: find the new lines by the old window's tail,
+        # not by its length (r5 merge: long runs read a stale reply otherwise).
+        old = list(self.p.state.get("chat") or [])
         self.p.send(t="say", text=text)
         end = time.time() + (wait if expect is None else max(wait, 6))
         while time.time() < end:
-            new = [c for c in self.p.chat_texts()[before:] if expect is None or expect in c]
+            new = [f'{c["sender"]}: {c["text"]}' for c in _after(old, self.p.state.get("chat") or [])]
+            new = [c for c in new if expect is None or expect in c]
             if new:
                 return new[-1]
             time.sleep(0.05)
