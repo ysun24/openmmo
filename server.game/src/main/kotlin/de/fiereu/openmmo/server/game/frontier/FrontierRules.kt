@@ -205,7 +205,9 @@ object FrontierRules {
     }
   }
 
-  /** GiveFacilitySymbol after a won brain battle: Silver first, then Gold; null when none is new. */
+  /**
+   * GiveFacilitySymbol after a won brain battle: Silver first, then Gold; null when none is new.
+   */
   fun symbolFor(status: BrainStatus, have: Int): Int? =
       when {
         status == BrainStatus.SILVER && have == 0 -> 1
