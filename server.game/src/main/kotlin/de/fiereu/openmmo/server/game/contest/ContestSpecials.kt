@@ -254,7 +254,9 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
           ctx.varSet(
               "VAR_OBJ_GFX_ID_$n",
               gfx(name).takeIf { it != 0 }
-                  ?: gfx(if (n % 2 == 0) "OBJ_EVENT_GFX_BRENDAN_NORMAL" else "OBJ_EVENT_GFX_MAY_NORMAL"))
+                  ?: gfx(
+                      if (n % 2 == 0) "OBJ_EVENT_GFX_BRENDAN_NORMAL"
+                      else "OBJ_EVENT_GFX_MAY_NORMAL"))
         }
         ctx.varSet(
             "VAR_OBJ_GFX_ID_3",
