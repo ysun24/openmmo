@@ -110,6 +110,7 @@ constructor(
         repo.setClaim(id, charId, 0)
         // The deliveryman appears in every Pokémon Center 2F while a card is waiting.
         story.clearFlag(charId, HoennFlags.FLAG_HIDE_POKEMON_CENTER_2F_MYSTERY_GIFT_MAN)
+        story.clearFlag(charId, KantoFlags.FLAG_HIDE_MG_DELIVERYMEN)
         rewards.tell(session, "The WONDER CARD \"${g.title}\" was saved. Visit the deliveryman at any POKéMON CENTER.")
       }
       "close" -> return MinigameChannel.close(session, "gift")
@@ -150,7 +151,10 @@ constructor(
           }
       if (ok) repo.setClaim(g.id, charId, 1)
     }
-    if (!hasPendingCard(charId)) story.setFlag(charId, HoennFlags.FLAG_HIDE_POKEMON_CENTER_2F_MYSTERY_GIFT_MAN)
+    if (!hasPendingCard(charId)) {
+      story.setFlag(charId, HoennFlags.FLAG_HIDE_POKEMON_CENTER_2F_MYSTERY_GIFT_MAN)
+      story.setFlag(charId, KantoFlags.FLAG_HIDE_MG_DELIVERYMEN)
+    }
     return given
   }
 
@@ -169,6 +173,7 @@ constructor(
     private val gifts: MysteryGiftService,
     private val menus: MinigameMenus,
     private val rewards: MinigameRewards,
+    private val maps: de.fiereu.openmmo.maps.MapManager,
 ) {
   val scripts: Map<String, Script> by lazy {
     mapOf(
@@ -205,18 +210,19 @@ constructor(
     val d = dests.getOrNull(i) ?: return ctx.say(HarborText.SailAnotherTime).let {}
     ctx.say(HarborText.PleaseBoard)
     ctx.dialog.close(ctx.session, ctx.state)
-    val w = d.second
-    ctx.warp(1, w[0], w[1], w[2], w[3], Direction.UP)
+    val (name, x, y) = d.second
+    val m = maps.getMapByName(1, name) ?: return
+    ctx.warp(1, m.bankId.toInt(), m.mapId.toInt(), x, y, Direction.UP)
   }
 
   companion object {
     /** The decomp's warp targets of LilycoveCity_Harbor (bank, map, x, y). */
     val DESTINATIONS =
         mapOf(
-            Ticket.EON to ("SOUTHERN ISLAND" to listOf(26, 9, 13, 22)),
-            Ticket.MYSTIC to ("NAVEL ROCK" to listOf(26, 67, 8, 4)),
-            Ticket.AURORA to ("BIRTH ISLAND" to listOf(26, 59, 8, 4)),
-            Ticket.OLD_SEA_MAP to ("FARAWAY ISLAND" to listOf(26, 56, 13, 38)),
+            Ticket.EON to ("SOUTHERN ISLAND" to Triple("SouthernIsland_Exterior", 13, 22)),
+            Ticket.MYSTIC to ("NAVEL ROCK" to Triple("NavelRock_Harbor", 8, 4)),
+            Ticket.AURORA to ("BIRTH ISLAND" to Triple("BirthIsland_Harbor", 8, 4)),
+            Ticket.OLD_SEA_MAP to ("FARAWAY ISLAND" to Triple("FarawayIsland_Entrance", 13, 38)),
         )
   }
 }

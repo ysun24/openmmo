@@ -35,27 +35,27 @@ object MinigameCommands {
   }
 
   /** Places the dev warp knows: region, bank, map, x, y (decomp map_groups order). */
-  val PLACES =
+  val PLACES: Map<String, List<Any>> =
       mapOf(
-          "celadon" to listOf(0, 10, 14, 9, 12),
-          "prizeroom" to listOf(0, 10, 15, 3, 8),
-          "pc2f-kanto" to listOf(0, 10, 13, 5, 4),
-          "pc1f-kanto" to listOf(0, 10, 12, 7, 6),
-          "twoisland" to listOf(0, 33, 0, 5, 7),
-          "vermilion" to listOf(0, 3, 5, 22, 35),
-          "mauville" to listOf(1, 10, 3, 11, 9),
-          "pc2f-hoenn" to listOf(1, 10, 6, 5, 4),
-          "pc1f-hoenn" to listOf(1, 10, 5, 7, 6),
-          "lilycove" to listOf(1, 13, 10, 11, 13),
-          "southernisland" to listOf(1, 26, 9, 13, 22),
-          // in front of a machine / table / clerk, facing it (5th: 0 up 1 down 2 left 3 right)
-          "celadonslot" to listOf(0, 10, 14, 10, 7, 3),
-          "celadonclerk" to listOf(0, 10, 14, 6, 3, 0),
-          "prizeclerk" to listOf(0, 10, 15, 4, 3, 0),
-          "mauvilleslot" to listOf(1, 10, 3, 1, 6, 3),
-          "roulette" to listOf(1, 10, 3, 14, 7, 0),
-          "mauvilleclerk" to listOf(1, 10, 3, 11, 3, 0),
-          "mauvilleprizes" to listOf(1, 10, 3, 13, 3, 0),
+          "celadon" to listOf(0, "CeladonCity_GameCorner", 9, 12, 0),
+          "prizeroom" to listOf(0, "CeladonCity_GameCorner_PrizeRoom", 3, 8, 0),
+          "pc2f-kanto" to listOf(0, "CeladonCity_PokemonCenter_2F", 5, 4, 0),
+          "pc1f-kanto" to listOf(0, "CeladonCity_PokemonCenter_1F", 7, 6, 0),
+          "mauville" to listOf(1, "MauvilleCity_GameCorner", 11, 9, 0),
+          "pc2f-hoenn" to listOf(1, "MauvilleCity_PokemonCenter_2F", 5, 4, 0),
+          "pc1f-hoenn" to listOf(1, "MauvilleCity_PokemonCenter_1F", 7, 6, 0),
+          "lilycove" to listOf(1, "LilycoveCity_Harbor", 8, 11, 0),
+          "southernisland" to listOf(1, "SouthernIsland_Exterior", 13, 22, 0),
+          // in front of a machine / table / clerk, facing it (0 up 1 down 2 left 3 right)
+          "celadonslot" to listOf(0, "CeladonCity_GameCorner", 10, 7, 3),
+          "prizeclerk" to listOf(0, "CeladonCity_GameCorner_PrizeRoom", 4, 4, 0),
+          "mauvilleslot" to listOf(1, "MauvilleCity_GameCorner", 1, 6, 3),
+          "roulette" to listOf(1, "MauvilleCity_GameCorner", 14, 7, 0),
+          "union-kanto" to listOf(0, "CeladonCity_PokemonCenter_2F", 6, 3, 0),
+          "union-hoenn" to listOf(1, "MauvilleCity_PokemonCenter_2F", 6, 3, 0),
+          "giftman-kanto" to listOf(0, "CeladonCity_PokemonCenter_2F", 1, 3, 0),
+          "giftman-hoenn" to listOf(1, "MauvilleCity_PokemonCenter_2F", 1, 3, 0),
+          "mauvilleprizes" to listOf(1, "MauvilleCity_GameCorner", 13, 4, 0),
       )
 
   /** Dev: `/mgwarp <place>` jumps to a Game Corner / Pokémon Center 2F / harbor. */
@@ -64,6 +64,7 @@ object MinigameCommands {
   @Inject
   constructor(
       private val warps: de.fiereu.openmmo.server.game.services.ScriptWarpService,
+      private val maps: de.fiereu.openmmo.maps.MapManager,
       private val scope: kotlinx.coroutines.CoroutineScope,
   ) : ChatCommand {
     override val name = "mgwarp"
@@ -73,13 +74,15 @@ object MinigameCommands {
 
     override suspend fun run(ctx: CommandContext) {
       val p = PLACES[ctx.args.getOrNull(0)?.lowercase()] ?: return ctx.reply("Usage: $usage")
+      val region = p[0] as Int
+      val map = maps.getMapByName(region, p[1] as String) ?: return ctx.reply("No map ${p[1]}.")
       scope.launch {
         warps.warp(
             ctx.session,
             ctx.state,
             de.fiereu.openmmo.common.DynamicWarp(
-                p[0].toByte(), p[1].toByte(), p[2].toByte(), p[3].toShort(), p[4].toShort(),
-                when (p.getOrNull(5)) {
+                map.regionId, map.bankId, map.mapId, (p[2] as Int).toShort(), (p[3] as Int).toShort(),
+                when (p[4] as Int) {
                   1 -> de.fiereu.openmmo.common.enums.Direction.DOWN
                   2 -> de.fiereu.openmmo.common.enums.Direction.LEFT
                   3 -> de.fiereu.openmmo.common.enums.Direction.RIGHT
