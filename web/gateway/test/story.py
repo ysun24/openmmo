@@ -633,10 +633,49 @@ def scene_eon(s):
     check(s.map_name() == "SouthernIsland_Exterior", f"sailed: {s.map_name()}")
     give_team(s)
     s.tp("SouthernIsland_Interior", 13, 12, "up")
-    texts = s.talk(timeout=150)
+    # The camera pans up, the Lati@s cries and flies in: seconds without a message.
+    s.p.send(t="a")
+    s.p.wait(lambda q: (q.state.get("battle") or {}).get("phase"), 30, "the Lati@s battle")
+    texts = s.settle(timeout=150)
     check(s.flag("FLAG_ENCOUNTERED_LATIAS_OR_LATIOS"), f"the Lati@s appeared: {texts[:2]}")
     check(s.flag("FLAG_DEFEATED_LATIAS_OR_LATIOS") or s.flag("FLAG_CAUGHT_LATIAS_OR_LATIOS"),
           f"Lati@s battle over: {texts[-1:]}")
+
+
+def coins(s):
+    return ((s.p.state.get("minigames") or {}).get("coins") or {}).get("coins")
+
+
+@scene(0, "gamecorner")
+def scene_gamecorner(s):
+    """Celadon Game Corner (r5 merge: the interpreter runs the decomp scripts): the coin clerk sells
+    50 COINS (checkcoins / addcoins into r5-minigames' coin store), then a slot machine's
+    `playslotmachine` opens r5-minigames' FireRed slots; a 3-coin spin and quit."""
+    s.flag("FLAG_GOT_COIN_CASE", True)
+    s.cmd("/script item COIN_CASE", 2)
+    s.cmd("/givemoney 5000", 1)
+    menus = []
+    s.run("CeladonCity_GameCorner_EventScript_CoinsClerk", choices=[True],
+          menu=lambda m: (menus.append(m), 0)[1], timeout=40)
+    s.p.wait(lambda q: (coins(s) or 0) >= 50, 10, "50 coins bought")
+    have = coins(s)
+    check(have >= 50, f"the clerk sold coins (coin store): {have}")
+    s.p.send(t="say", text="/script run CeladonCity_GameCorner_EventScript_SlotMachine0")
+    time.sleep(0.6)
+    s.settle(quiet=1.0, timeout=20, choices=[True])
+    s.p.wait(lambda q: (q.state.get("minigames") or {}).get("slots"), 15, "slots window")
+    check(True, "playslotmachine opened r5-minigames' slot machine")
+    s.p.send(t="minigame", topic="slots", action="bet", n=3)
+    time.sleep(0.8)
+    for _ in range(3):
+        s.p.send(t="minigame", topic="slots", action="stop")
+        time.sleep(0.8)
+    time.sleep(1.0)
+    after = coins(s)
+    slots = (s.p.state.get("minigames") or {}).get("slots") or {}
+    check(after is not None and "reels" in slots, f"spun 3 coins: {have} -> {after}, reels {slots.get('reels')}")
+    s.p.send(t="minigame", topic="slots", action="quit")
+    s.settle(quiet=1.5, timeout=20)
 
 
 def dev():

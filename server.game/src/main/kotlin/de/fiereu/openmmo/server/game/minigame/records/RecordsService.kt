@@ -224,7 +224,7 @@ class RecordsSpecials @Inject constructor(private val records: RecordsService) :
           // an interview's words otherwise. The phrase is kept for the special that follows.
           "ShowEasyChatScreen" to
               { ctx ->
-                val type = ctx.specialVar(0x8004)
+                val type = ctx.specialVar(0x4)
                 val kind =
                     when (type) {
                       0 -> "profile"
@@ -271,7 +271,7 @@ class RecordsSpecials @Inject constructor(private val records: RecordsService) :
                           ?: emptyList()
                   records.recordShow(
                       ctx.playerEntityId,
-                      ctx.specialVar(0x8005),
+                      ctx.specialVar(0x5),
                       Phrase(ids, p["text"]?.jsonPrimitive?.content ?: ""))
                 }
                 0
