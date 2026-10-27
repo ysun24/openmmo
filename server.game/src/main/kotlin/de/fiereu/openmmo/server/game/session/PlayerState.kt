@@ -47,6 +47,14 @@ data class PlayerState(
     val removedObjects: MutableSet<Int> = ConcurrentHashMap.newKeySet(),
     /** Counts server requests to open a client UI (FieldInfoPacket.uiSeq). */
     @field:Volatile var uiSeq: Int = 0,
+    /**
+     * FRLG VS Seeker answers on the current map: trainer npc local id -> the rematch party's
+     * trainer id (the save's trainerRematches, cleared on every map change by
+     * MapResetTrainerRematches).
+     */
+    val rematchReady: MutableMap<Int, Int> = ConcurrentHashMap(),
+    /** FRLG trainerRematchStepCounter: steps since the VS Seeker found rematches (full at 100). */
+    @field:Volatile var vsSeekerSteps: Int = 100,
 )
 
 /** Packs a map address into one key for [PlayerState.loadedMaps]. */

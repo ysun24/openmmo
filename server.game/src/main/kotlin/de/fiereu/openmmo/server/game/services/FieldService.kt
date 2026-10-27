@@ -28,7 +28,9 @@ import de.fiereu.openmmo.server.game.field.FlyDestinations
 import de.fiereu.openmmo.server.game.field.ForcedMovement
 import de.fiereu.openmmo.server.game.field.ForcedStep
 import de.fiereu.openmmo.server.game.field.RawLine
+import de.fiereu.openmmo.server.game.field.Rematches
 import de.fiereu.openmmo.server.game.field.storyName
+import de.fiereu.openmmo.server.game.progression.BadgeService
 import de.fiereu.openmmo.server.game.script.MovementStep
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
@@ -37,6 +39,7 @@ import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.PlayerState
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.StoredCharacter
+import de.fiereu.openmmo.trainer.RematchTable
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -175,6 +178,9 @@ constructor(
     if (warped) state.elevation = FieldRules.arrivalElevation(map, x, y, state.travel)
 
     val region = region(state)
+    // MapResetTrainerRematches: VS Seeker answers only last while on the map.
+    state.rematchReady.clear()
+    if (region == Region.HOENN) rollMatchCallRematches(stored, map)
     // Towns mark themselves visited for FLY (setflag FLAG_WORLD_MAP_* / FLAG_VISITED_* in their
     // on-transition scripts); the last one visited is where TELEPORT returns to.
     FlyDestinations.byMapName(region, map.name)?.let { town ->
@@ -193,6 +199,14 @@ constructor(
   /** The step that was just accepted: keep the outdoor escape point and the running flag. */
   fun onStepDone(ctx: SessionContext, state: PlayerState, map: MapDef, running: Boolean) {
     val stored = stored(state) ?: return
+    // UpdateVsSeekerStepCounter / IncrementRematchStepCounter.
+    if (state.vsSeekerSteps < Rematches.VS_SEEKER_CHARGE) state.vsSeekerSteps++
+    if (region(state) == Region.HOENN && badgeCount(stored, Region.HOENN) >= 5) {
+      val steps = storyService.getVar(stored.info.id, MATCH_CALL_STEPS_VAR)
+      if (steps < Rematches.MATCH_CALL_STEPS) {
+        storyService.setVar(stored.info.id, MATCH_CALL_STEPS_VAR, steps + 1)
+      }
+    }
     val run = running && state.travel == TravelMode.WALK && hasRunningShoes(state, stored)
     if (run != state.running) {
       state.running = run
@@ -905,9 +919,135 @@ constructor(
 
   // ------------------------------------------------------------------ trainers
 
-  private fun defeatedFlag(map: MapDef, npc: NpcDef): String {
+  private fun defeatedFlag(map: MapDef, npc: NpcDef): String =
+      defeatedFlag(map, npc.trainer?.trainerId ?: 0)
+
+  private fun defeatedFlag(map: MapDef, trainerId: Int): String {
     val r = Region.byId(map.regionId.toInt()) ?: Region.KANTO
-    return "${r.storyName}/TRAINER_DEFEATED_${npc.trainer?.trainerId}"
+    return "${r.storyName}/TRAINER_DEFEATED_$trainerId"
+  }
+
+  // ------------------------------------------------------------------ rematches
+
+  private fun badgeCount(stored: StoredCharacter, region: Region): Int =
+      (1..8).count { BadgeService.has(stored, region, it) }
+
+  /** The rematch party [npc] wants to battle with now, or null when it does not want one. */
+  internal fun rematchTrainer(state: PlayerState, map: MapDef, npc: NpcDef): Int? {
+    val spot = npc.trainer ?: return null
+    val region = Region.byId(map.regionId.toInt()) ?: return null
+    state.rematchReady[npc.entityIdx]?.let {
+      return it
+    }
+    if (region != Region.HOENN) return null
+    val stored = stored(state) ?: return null
+    if (Rematches.readyFlag(region, spot.trainerId) !in stored.storyFlags) return null
+    val entry = RematchTable.byFirst(region, spot.trainerId) ?: return null
+    return Rematches.emeraldRematchTrainer(entry) { defeatedFlag(map, it) in stored.storyFlags }
+  }
+
+  private fun clearRematch(state: PlayerState, map: MapDef, npc: NpcDef) {
+    state.rematchReady.remove(npc.entityIdx)
+    val region = Region.byId(map.regionId.toInt()) ?: return
+    val charId = state.characterId ?: return
+    npc.trainer?.let { storyService.clearFlag(charId, Rematches.readyFlag(region, it.trainerId)) }
+  }
+
+  /**
+   * TryUpdateRandomTrainerRematches on entering a Hoenn map: with five badges and the step counter
+   * full, each beaten (Match Call registered) trainer of the map wants a rematch 31% of the time.
+   */
+  private fun rollMatchCallRematches(stored: StoredCharacter, map: MapDef) {
+    val id = stored.info.id
+    if (badgeCount(stored, Region.HOENN) < 5) return
+    if (storyService.getVar(id, MATCH_CALL_STEPS_VAR) < Rematches.MATCH_CALL_STEPS) return
+    var any = false
+    for (e in RematchTable.entries(Region.HOENN)) {
+      if (!Rematches.sameMap(e.map, map.name)) continue
+      if (e.wally && "hoenn/FLAG_DEFEATED_WALLY_VICTORY_ROAD" !in stored.storyFlags) continue
+      val flag = Rematches.readyFlag(Region.HOENN, e.first)
+      if (flag in stored.storyFlags) {
+        any = true
+      } else if (defeatedFlag(map, e.first) in stored.storyFlags &&
+          kotlin.random.Random.nextInt(100) < Rematches.MATCH_CALL_PERCENT) {
+        storyService.setFlag(id, flag)
+        any = true
+      }
+    }
+    if (any) storyService.setVar(id, MATCH_CALL_STEPS_VAR, 0)
+  }
+
+  /**
+   * ItemUseOutOfBattle_VsSeeker (FRLG): with the battery charged, each trainer on screen that was
+   * beaten and has a rematch party answers (70%) and wants a rematch; unbeaten ones just notice.
+   * Returns the lines to show, empty when trainers answered.
+   */
+  fun useVsSeeker(session: SessionContext, state: PlayerState): List<String> {
+    val stored = stored(state) ?: return emptyList()
+    val map = currentMap(state) ?: return emptyList()
+    val region = region(state)
+    if (region != Region.KANTO || state.inDialog) {
+      return listOf("There's a time and place for everything! But not now.")
+    }
+    if (state.vsSeekerSteps < Rematches.VS_SEEKER_CHARGE) {
+      return listOf(
+          "The battery isn't charged enough.",
+          "No. of steps required to fully charge the battery: " +
+              "${Rematches.VS_SEEKER_CHARGE - state.vsSeekerSteps}")
+    }
+    val fought = { id: Int -> defeatedFlag(map, id) in stored.storyFlags }
+    val flag = { f: String -> "${region.storyName}/$f" in stored.storyFlags }
+    val px = state.x.toInt()
+    val py = state.y.toInt()
+    val inRange =
+        map.npcs.filter { npc ->
+          val spot = npc.trainer
+          spot != null &&
+              spot.trainerId > 0 &&
+              (npc.hideFlag.isEmpty() || npc.hideFlag !in stored.storyFlags) &&
+              Rematches.inVsSeekerRange(px, py, npc.x, npc.y)
+        }
+    // GetRematchableTrainerLocalId: someone unbeaten or with a rematch party must be in range.
+    val candidates =
+        inRange.filter { npc ->
+          val e = RematchTable.byFirst(region, npc.trainer!!.trainerId)
+          !fought(npc.trainer!!.trainerId) || (e != null && Rematches.frlgNextTier(e, fought) != 0)
+        }
+    if (candidates.isEmpty()) {
+      return listOf(
+          "There are no TRAINERS within range who can battle…", "The VS SEEKER was turned off.")
+    }
+    var wants = false
+    var unfought = false
+    for (npc in inRange) {
+      val spot = npc.trainer!!
+      val entityId =
+          npcService.entityIdFor(
+              map.regionId.toInt(),
+              map.bankId.toInt() and 0xFF,
+              map.mapId.toInt() and 0xFF,
+              npc.entityIdx)
+      if (!fought(spot.trainerId)) {
+        unfought = true
+        continue
+      }
+      val e = RematchTable.byFirst(region, spot.trainerId) ?: continue
+      if (Rematches.frlgNextTier(e, fought) == 0) continue
+      if (kotlin.random.Random.nextInt(100) >= Rematches.VS_SEEKER_YES_PERCENT) continue
+      state.rematchReady[npc.entityIdx] = Rematches.frlgRematchTrainer(e, fought, flag)
+      wants = true
+      // sMovementScript_TrainerRematch: the trainer's emote.
+      session.send(FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true))
+    }
+    log.info {
+      "VS Seeker for char=${stored.info.id} on ${map.name}: ${state.rematchReady} (unfought=$unfought)"
+    }
+    if (wants) {
+      state.vsSeekerSteps = 0
+      return emptyList()
+    }
+    return listOf(
+        "The other TRAINERS don't appear to be ready for battle.", "Let's wait till later.")
   }
 
   /** Talking to a trainer: battle if undefeated, else the post-battle line. */
@@ -918,7 +1058,7 @@ constructor(
       npc: NpcDef
   ) {
     val spot = npc.trainer ?: return
-    if (ctx.isFlagSet(defeatedFlag(map, npc))) {
+    if (ctx.isFlagSet(defeatedFlag(map, npc)) && rematchTrainer(state, map, npc) == null) {
       if (spot.postText != 0) ctx.say(RawLine(spot.postText))
       return
     }
@@ -932,13 +1072,22 @@ constructor(
       npc: NpcDef
   ) {
     val spot = npc.trainer ?: return
+    // A trainer that wants a rematch (VS Seeker / Match Call) battles its next party.
+    val rematch = rematchTrainer(state, map, npc)
+    val trainerId = rematch ?: spot.trainerId
     if (spot.introText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.introText))
-    val result = ctx.trainerBattle(spot.trainerId)
+    val result = ctx.trainerBattle(trainerId)
     if (result == BattleResult.VICTORY) {
       ctx.setFlag(defeatedFlag(map, npc))
+      if (rematch != null) {
+        ctx.setFlag(defeatedFlag(map, rematch))
+        clearRematch(state, map, npc)
+      }
       if (spot.defeatText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.defeatText))
     }
-    log.info { "Trainer ${spot.constant} battle for char=${state.characterId}: $result" }
+    log.info {
+      "Trainer ${spot.constant} battle (party $trainerId) for char=${state.characterId}: $result"
+    }
   }
 
   /** The directions a trainer looks in: its fixed facing, or all of a look-around trainer's. */
@@ -1030,7 +1179,9 @@ constructor(
       val spot = npc.trainer ?: continue
       if (spot.sight <= 0 || spot.trainerId <= 0) continue
       if (npc.hideFlag.isNotEmpty() && npc.hideFlag in stored.storyFlags) continue
-      if (defeatedFlag(map, npc) in stored.storyFlags) continue
+      if (defeatedFlag(map, npc) in stored.storyFlags && rematchTrainer(state, map, npc) == null) {
+        continue
+      }
       for (dir in watchedDirections(npc)) {
         val dist = (px - npc.x) * dir.dx + (py - npc.y) * dir.dy
         val inLine = if (dir.dx != 0) py == npc.y else px == npc.x
@@ -1067,6 +1218,8 @@ constructor(
     const val UI_FLY_MAP = 3
     const val LAST_TOWN_VAR = "field/lastTown"
     const val ESCAPE_VAR = "field/escape"
+    /** Emerald trainerRematchStepCounter (0-255). */
+    const val MATCH_CALL_STEPS_VAR = "field/matchCallSteps"
     const val EXCLAIM_MS = 700L
     // OBJ_EVENT_GFX_* per game (include/constants/event_objects.h).
     const val GFX_K_CUT_TREE = 95

@@ -59,6 +59,8 @@ constructor(
     /** Fishing with the three rods (wild encounters from the map's fishing table). */
     private val encounters: EncounterService? = null,
     private val maps: de.fiereu.openmmo.maps.MapManager? = null,
+    /** The VS Seeker asks the field (trainers on screen); a Provider as the field uses items. */
+    private val field: javax.inject.Provider<FieldService>? = null,
 ) {
 
   suspend fun onUse(event: PacketEvent<FieldItemUsePacket>) {
@@ -79,6 +81,11 @@ constructor(
     val charId = state.characterId ?: return
     rodOf(itemId)?.let { rod ->
       return fish(session, state, charId, itemId, rod)
+    }
+    if (items.get(itemId) == de.fiereu.openmmo.items.generated.Items.VS_SEEKER && field != null) {
+      if ((characters.getCharacter(charId)?.items?.get(itemId) ?: 0) <= 0) return
+      for (line in field.get().useVsSeeker(session, state)) session.send(notice(line))
+      return
     }
     val outcome = use(charId, itemId, pokemonId, state.inDialog, moveSlot, forgetSlot)
     if (outcome.escape) {
