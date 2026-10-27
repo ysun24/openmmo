@@ -108,6 +108,7 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
       val monJobs =
           dexes.map { dex -> dex to pool.submit(Callable { exportMon(out, pokemon, dex) }) }
 
+      val contestAssets = ContestAssetsExport(decomp, out)
       val fonts = FontExport(decomp, out)
       val windows = UiExport(decomp, out)
       val musicJobs =
@@ -232,6 +233,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
         // r3-battle: trainer / player-back sprites, battle backgrounds, animation sprites, and the
         // extra battle music keys (elite / champion / rival / team / pvp).
         put("battle", battleAssets.export())
+        // r5-contests: berry tree sprites.
+        put("contest", contestAssets.export())
         put(
             "battleMusicExtra",
             buildJsonObject {
@@ -246,6 +249,7 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
               maps.animFailures +
               objects.flatMap { it.second.failures } +
               fonts.failures +
+              contestAssets.failures +
               windows.failures +
               pokemon.flatMap { it.failures } +
               battleAssets.failures

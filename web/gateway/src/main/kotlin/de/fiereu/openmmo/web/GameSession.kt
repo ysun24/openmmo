@@ -30,6 +30,7 @@ class GameSession(val client: GameClient) : GameActions {
           playSeconds = client.progress.playSeconds(),
           social = client.social.state,
           tradeExpiresAt = client.trade.expiresAtMs,
+          contests = client.contests.state,
       )
 
   private fun battleOver(): Boolean {
@@ -72,6 +73,11 @@ class GameSession(val client: GameClient) : GameActions {
           it.name.lowercase().replace("_", "") == action
         } ?: return "unknown field action"
     return if (client.fieldAction(a, arg, arg2)) null else "close the dialog first"
+  }
+
+  override fun contestAction(t: String, json: String): String? {
+    client.contests.action(json)
+    return null
   }
 
   override fun matchCall(id: Int): String? {

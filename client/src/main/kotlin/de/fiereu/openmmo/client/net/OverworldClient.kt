@@ -276,7 +276,12 @@ class OverworldClient(
     val raw =
         (region?.let { text.raw(it, p.textId) } ?: text.rawAnyRegion(p.textId))
             ?: if (p.textId == 0) "" else "[text 0x${p.textId.toString(16)}]"
-    val vars = mutableMapOf("PLAYER" to (snap.characterName ?: "PLAYER"), "RIVAL" to "RIVAL")
+    // r5-contests: {POKEBLOCK} is a Gen 3 text macro for "POKéBLOCK".
+    val vars =
+        mutableMapOf(
+            "PLAYER" to (snap.characterName ?: "PLAYER"),
+            "RIVAL" to "RIVAL",
+            "POKEBLOCK" to "POKéBLOCK")
     // A species argument fills the ROM string variable it names (1-based, STR_VAR_1..3).
     p.messageArgs.forEach {
       when (it) {

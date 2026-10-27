@@ -663,5 +663,11 @@ object GameProtocol : Protocol() {
         0xCEu, de.fiereu.openmmo.net.game.packets.script.ScriptUiPacketCodec)
     c2s<de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacket>(
         0xCEu, de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacketCodec)
+    // r5-contests: contests, blender, pokeblocks, berry trees (packets/contest). The reserved
+    // 0xD4-0xD7 were retail in both directions except c2s 0xD5; s2c 0xC6 was free.
+    c2s<de.fiereu.openmmo.net.game.packets.contest.ContestActionPacket>(
+        0xD5u, de.fiereu.openmmo.net.game.packets.contest.ContestActionPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.contest.ContestStatePacket>(
+        0xC6u, de.fiereu.openmmo.net.game.packets.contest.ContestStatePacketCodec)
   }
 }
