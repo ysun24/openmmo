@@ -46,6 +46,8 @@ def fight(p, max_turns=200):
     """Fights the running battle (any phase) until it has a result, then closes it."""
     p.wait(lambda q: q.battle() and q.battle().get("phase"), 30, "battle start")
     last = None
+    since = time.time()
+    retry = 0
     for _ in range(max_turns * 3):
         b = p.battle()
         if not b:
@@ -55,7 +57,13 @@ def fight(p, max_turns=200):
         if b.get("learn"):
             p.send(t="battle.learn", slot=None)
         key = (b.get("phase"), b.get("turn"), tuple(b.get("chosen") or []), b.get("choosingPos"))
+        # The same screen for a while (a refused move, e.g. no PP / disabled): answer it again,
+        # trying the next usable move.
+        if key == last and time.time() - since > 4:
+            last = None
+            retry += 1
         if key != last:
+            since = time.time()
             if b["phase"] == "FORCED_SWITCH":
                 active = set(b.get("actives") or [])
                 slot = next((i for i, m in enumerate(b["party"]) if m["hp"] > 0 and i not in active), None)
@@ -67,7 +75,8 @@ def fight(p, max_turns=200):
                     me = b["mine"][b["choosingPos"]] or me
                 moves = me.get("moves") or []
                 usable = [i for i, m in enumerate(moves) if m["pp"] > 0]
-                idx = max(usable, key=lambda i: (moves[i].get("power") or 0)) if usable else 0
+                order = sorted(usable, key=lambda i: -(moves[i].get("power") or 0)) or [0]
+                idx = order[retry % len(order)]
                 p.send(t="battle.fight", move=idx)
             last = key
         time.sleep(0.25)
