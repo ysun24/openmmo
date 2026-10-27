@@ -243,6 +243,7 @@ function playAppeals(d) {
       case 'appeal': case 'text': case 'skip': case 'round':
         if (e.text) { msg.replaceChildren(...gbaText(e.text)); wait = 1100; }
         if (e.k === 'appeal' && box) box.classList.add('active');
+        if (e.k === 'appeal' && e.move) appealAnim(e.moveType);
         break;
       case 'hearts':
         round[e.who] += e.b;
@@ -272,6 +273,36 @@ function playAppeals(d) {
     anim.timer = setTimeout(step, wait);
   };
   anim = { timer: setTimeout(step, 300) };
+}
+
+/**
+ * The appeal's move on the stage: the battle animation sprite of the move's type (the exported
+ * graphics/battle_anims sheets, manifest.battle.anims), bursting from the monster towards the
+ * judge, frames stepping like the battle screen's.
+ */
+function appealAnim(type) {
+  const m = app.assets.manifest && app.assets.manifest.battle && app.assets.manifest.battle.anims;
+  const s = m && (m[type] || m.NORMAL);
+  const stage = root.querySelector('.r5c-stage');
+  if (!s || !stage) return;
+  const el = h('div.r5c-anim');
+  el.style.backgroundImage = `url("${app.assets.url(s.file)}")`;
+  el.style.backgroundSize = `100% ${Math.max(1, s.frames) * 100}%`;
+  el.style.setProperty('--sz', String(s.frame));
+  stage.append(el);
+  const n = Math.max(1, s.frames);
+  let frame = 0;
+  const iv = setInterval(() => {
+    frame = (frame + 1) % n;
+    el.style.backgroundPositionY = n > 1 ? `${(frame / (n - 1)) * 100}%` : '0%';
+  }, 70);
+  const done = () => { clearInterval(iv); el.remove(); };
+  if (!el.animate) return setTimeout(done, 900);
+  el.animate([
+    { transform: 'translate(0, 0) scale(0.6)', opacity: 0 },
+    { transform: 'translate(-30%, -10%) scale(1.3)', opacity: 1, offset: 0.4 },
+    { transform: 'translate(-80%, -30%) scale(1)', opacity: 0 },
+  ], { duration: 900, easing: 'ease-out' }).finished.then(done, done);
 }
 
 function heartsSigned(n) {

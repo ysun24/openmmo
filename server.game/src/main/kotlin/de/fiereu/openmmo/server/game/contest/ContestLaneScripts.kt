@@ -2,7 +2,6 @@ package de.fiereu.openmmo.server.game.contest
 
 import de.fiereu.openmmo.dialog.generated.hoenn.BerryBlender
 import de.fiereu.openmmo.dialog.generated.hoenn.BerryTree as BerryTreeText
-import de.fiereu.openmmo.dialog.generated.hoenn.ContestHall
 import de.fiereu.openmmo.dialog.generated.hoenn.LilycoveCity_ContestLobby as Lobby
 import de.fiereu.openmmo.dialog.generated.hoenn.LilycoveCity_LilycoveMuseum_2F as Museum2F
 import de.fiereu.openmmo.server.game.script.Script
@@ -36,7 +35,7 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
    * then the hall: the contest, its results, the prize and the contest artist.
    */
   private val receptionist = Script { ctx ->
-    val charId = lane.charId(ctx) ?: return@Script
+    lane.charId(ctx) ?: return@Script
     special(ctx, "ClearLinkContestFlags")
     if (!v.flag(ctx, FLAG_RECEIVED_POKEBLOCK_CASE)) {
       ctx.say(Lobby.ReceptionDontHavePokeblockCase)
@@ -70,67 +69,29 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     }
     ctx.say(Lobby.YourMonIsEntryNum4)
     ctx.say(Lobby.ContestBeginShortly)
-    val view =
-        lane.contests.runContest(
-            ctx.session, ctx.state, entry, postgame = v.flag(ctx, "FLAG_SYS_GAME_CLEAR"))
-            ?: return@Script
-    hallResults(ctx, charId, view)
-  }
-
-  /** ContestHall_EventScript_ContestResults + GiveWinnerPrize + the lobby's ContestArtist. */
-  private suspend fun hallResults(ctx: ScriptContext, charId: Long, view: ContestResultView) {
-    val winner = view.engine.mons[view.engine.winner]
-    ctx.say(ContestHall.WeWillNowDeclareWinner)
-    ctx.bufferString(1, winner.nickname)
-    ctx.bufferString(2, (view.winnerView + 1).toString())
-    ctx.bufferString(3, winner.trainerName)
-    ctx.say(ContestHall.CongratsTrainerXandMon)
-    if (!view.won) {
-      ctx.say(ContestHall.CongratsPleaseCompeteAgain)
-      return
-    }
-    lane.contests.saveHallWinner(charId, view)
-    val wonBefore = special(ctx, "HasMonWonThisContestBefore") != 0
-    if (wonBefore && view.rank != Contest.RANK_MASTER) {
-      ctx.say(ContestHall.CongratsPleaseCompeteAgain)
-    } else {
-      ctx.say(ContestHall.AcceptYourPrize)
-      if (!wonBefore) {
-        special(ctx, "GiveMonContestRibbon")
-        v.setFlag(ctx, "FLAG_SYS_RIBBON_GET")
-        ctx.say(ContestHall.ConferRibbonAsPrize)
-        ctx.say(ContestHall.ReceivedRibbon)
-        ctx.bufferString(1, view.engine.mons[view.me].nickname)
-        ctx.say(ContestHall.PutRibbonOnMon)
-      } else {
-        lane.item("LUXURY_BALL")?.let { ctx.giveItem(it) }
-      }
-      ctx.say(ContestHall.CongratsPleaseCompeteAgain)
-    }
-    special(ctx, "ShouldReadyContestArtist")
-    if (v.get(ctx, v.V8004) != 0) contestArtist(ctx, view)
-  }
-
-  /** LilycoveCity_ContestLobby_EventScript_ContestArtist. */
-  private suspend fun contestArtist(ctx: ScriptContext, view: ContestResultView) {
-    ctx.say(Lobby.YourPokemonSpurredMeToPaint)
-    v.set(ctx, v.V8004, ContestService.CONTEST_WINNER_ARTIST)
-    special(ctx, "ShowContestPainting")
-    var take = ctx.askYesNo(Lobby.ShouldITakePaintingToMuseum)
-    if (!take) take = ctx.askYesNo(Lobby.TakeHomeButIdLikeToTakeToMuseum)
-    if (!take) {
-      ctx.say(Lobby.FineThatsTheWayItIs)
-      return
-    }
-    ctx.say(Lobby.IllTakePaintingToMuseum)
-    special(ctx, "SaveMuseumContestPainting")
-    v.setFlag(ctx, PAINTING_FLAGS[view.category])
-    if (special(ctx, "GiveMonArtistRibbon") != 0) {
-      ctx.say(Lobby.TakeMementoOfPainting)
-      ctx.say(Lobby.ReceivedARibbon)
-      ctx.bufferString(1, view.engine.mons[view.me].nickname)
-      ctx.say(Lobby.PutTheRibbonOnMon)
-    }
+    // Matchmaking (the online entrants of this category and rank, NPCs for the other seats),
+    // then the decomp's hall: LilycoveCity_ContestLobby_EventScript_SetContestType +
+    // WarpToContestHall; the hall's ON_WARP / ON_FRAME (VAR_CONTEST_HALL_STATE 1) run
+    // ContestHall_EventScript_Contest in the interpreter: the MC and judge walk on, the
+    // contestants walk to the center one by one, the audience votes, startcontest (the appeals),
+    // the judging, showcontestresults, the winner's prize and the exit warp back to the lobby
+    // (whose ON_FRAME brings the contest artist).
+    lane.contests.enterHall(
+        ctx.session, ctx.state, entry, postgame = v.flag(ctx, "FLAG_SYS_GAME_CLEAR"))
+        ?: return@Script
+    v.set(ctx, v.CONTEST_TYPE, entry.rank + 1) // CONTEST_TYPE_NPC_NORMAL + rank
+    ctx.varSet("VAR_CONTEST_HALL_STATE", 1)
+    v.setFlag(ctx, "FLAG_ENTERED_CONTEST")
+    // The per-category halls share ContestHall's objects and scripts (shared_events_map); the
+    // shared map itself is the hall here.
+    val hall = ctx.maps?.getMapByName(ctx.state.regionId, "ContestHall") ?: return@Script
+    ctx.warp(
+        ctx.state.regionId,
+        hall.bankId.toInt() and 0xFF,
+        hall.mapId.toInt() and 0xFF,
+        HALL_X,
+        HALL_Y,
+        de.fiereu.openmmo.common.enums.Direction.UP)
   }
 
   /**
@@ -389,6 +350,10 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
   }
 
   companion object {
+    /** setwarp MAP_CONTEST_HALL_*, 7, 5. */
+    const val HALL_X = 7
+    const val HALL_Y = 5
+
     const val FLAG_RECEIVED_POKEBLOCK_CASE = "FLAG_RECEIVED_POKEBLOCK_CASE"
     const val FLAG_DAILY_CONTEST_LOBBY_RECEIVED_BERRY = "FLAG_DAILY_CONTEST_LOBBY_RECEIVED_BERRY"
     val PAINTING_FLAGS =

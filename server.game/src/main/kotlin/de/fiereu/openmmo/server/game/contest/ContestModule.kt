@@ -35,6 +35,7 @@ class ContestActionService
 constructor(
     private val lane: ContestLane,
     private val items: ItemRegistry,
+    private val maps: de.fiereu.openmmo.maps.MapManager,
 ) {
   init {
     lane.contests.heldIs = { held, def -> items.get(held) == def }
@@ -106,9 +107,25 @@ constructor(
   fun onDisconnect(session: SessionContext, charId: Long) {
     lane.docs.cancelAll(session)
     lane.contests.onLeave(charId)
+    leaveHall(charId)
     lane.blender.onLeave(charId)
     lane.pokeblocks.onLeave(charId)
     lane.trees.onLeave(charId)
+  }
+
+  /**
+   * Leaving mid-contest: the hall has no exits (the hall script's SetExitWarp is the way out), so
+   * the player comes back at the lobby counter (14, 4) and the hall state is cleared.
+   */
+  private fun leaveHall(charId: Long) {
+    val stored = lane.characters.getCharacter(charId) ?: return
+    val region = stored.info.positionRegionId.toInt()
+    val hall = maps.getMapByName(region, "ContestHall") ?: return
+    val lobby = maps.getMapByName(region, "LilycoveCity_ContestLobby") ?: return
+    if (stored.info.positionBankId != hall.bankId || stored.info.positionMapId != hall.mapId) return
+    lane.characters.setStoryVar(charId, "hoenn/VAR_CONTEST_HALL_STATE", 0)
+    lane.characters.updatePosition(
+        charId, 14, 4, lobby.bankId, lobby.mapId, de.fiereu.openmmo.common.enums.Direction.DOWN)
   }
 
   companion object {

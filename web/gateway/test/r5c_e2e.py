@@ -81,19 +81,39 @@ def pos(p):
     return e.get("x"), e.get("y")
 
 
+def map_name(p):
+    return (p.world.get("map") or {}).get("name")
+
+
 def contest_flow(p, results, mon_slot=0):
-    """Talks to the receptionist in front, enters Normal Cool and plays the contest."""
+    """Talks to the receptionist in front, enters Normal Cool, sits through the decomp hall
+    cutscene (run by the interpreter) and plays the appeals on the contest screen."""
     p.send(t="a")
     answer_dialogs(p, lambda q: "contestEntry" in docs(q), 40, log=True)
     ok(f"{p.label}: the entry screen lists {len(docs(p)['contestEntry']['party'])} monsters")
     p.send(t="contestEntry.choose", rank=0, category=0, slot=mon_slot)
-    answer_dialogs(p, lambda q: (docs(q).get("contest") or {}).get("phase") in ("waiting", "intro", "select"), 30, log=True)
-    ok(f"{p.label}: entered, contest phase {docs(p)['contest']['phase']}")
+    answer_dialogs(p, lambda q: (docs(q).get("contest") or {}).get("phase") in ("waiting", "intro", "select")
+                   or map_name(q) == "ContestHall", 30, log=True)
+    ok(f"{p.label}: entered ({(docs(p).get('contest') or {}).get('phase') or map_name(p)})")
     seen_rounds = set()
-    while True:
+    hall_lines = []
+    end = time.time() + 600
+    while time.time() < end:
         c = docs(p).get("contest")
         if c is None:
-            break
+            if "r" in seen_rounds:
+                break
+            # the hall cutscene between the screens: the MC, the entries, the judging
+            d = dialog(p)
+            if d:
+                line = " / ".join(d.get("lines") or [])
+                if not hall_lines or hall_lines[-1] != line:
+                    hall_lines.append(line)
+                    print(f"      {p.label} hall: {line}")
+                p.send(t="a")
+                time.sleep(0.35)
+            time.sleep(0.15)
+            continue
         ph = c.get("phase")
         if ph == "select" and c.get("appeal") not in seen_rounds:
             seen_rounds.add(c["appeal"])
@@ -116,8 +136,11 @@ def contest_flow(p, results, mon_slot=0):
             p.send(t="contest.ready")
         time.sleep(0.2)
     ok(f"{p.label}: the contest screen closed")
-    # the hall: the winner, prize, artist
-    answer_dialogs(p, lambda q: dialog(q) is None and not docs(q), 60, log=True)
+    results[p.label + ":hall"] = list(hall_lines)
+    # the hall: the winner, the prize, the exit warp; the lobby: the contest artist
+    answer_dialogs(p, lambda q: dialog(q) is None and not docs(q) and map_name(q) != "ContestHall"
+                   and not (q.state.get("ui") or {}).get("locked"), 120, log=True)
+    results[p.label + ":back"] = map_name(p)
 
 
 def run_contest(a, b):
@@ -140,11 +163,19 @@ def run_contest(a, b):
     tb.join(400)
     assert a.label in results and b.label in results, results
     you_a, win_a, names = results[a.label]
-    humans = [n for n, _ in names if n in (a.label, b.label)]
+    # the trainers are the characters' names (an existing character keeps its own name)
+    who = {a.label, b.label, getattr(a, "char_name", None), getattr(b, "char_name", None)}
+    humans = [n for n, _ in names if n in who]
     assert len(humans) == 2, f"both players in one contest: {names}"
     ok(f"two players and {4 - len(humans)} NPCs in one contest: {names}")
     assert you_a == win_a, f"Ash won: {names}"
     ok("Ash won the Normal Rank Cool contest")
+    for p in (a, b):
+        hall = results.get(p.label + ":hall") or []
+        assert any("participants" in l.lower() or "entry" in l.lower() for l in hall), hall[:6]
+        ok(f"{p.label}: the decomp hall cutscene ran ({len(hall)} lines, e.g. {hall[:2]})")
+        assert results.get(p.label + ":back") != "ContestHall", results.get(p.label + ":back")
+        ok(f"{p.label}: back in {results.get(p.label + ':back')} after the hall")
 
 
 def bag_qty(p, name):

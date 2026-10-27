@@ -92,6 +92,9 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       setOf(
           // contest reception / hall (contest_util.c)
           "TryEnterContestMon",
+          // the hall script's startcontest / showcontestresults (scrcmd.c -> contest.c)
+          "StartContest",
+          "ShowContestResults",
           "HasMonWonThisContestBefore",
           "GiveMonContestRibbon",
           "GetContestMonConditionRanking",
@@ -178,6 +181,18 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
     val charId = l.charId(ctx) ?: return 0
     val v = SpecialVars
     return when (name) {
+      // CB2_StartContest: the appeal rounds on the live contest screen, with the other online
+      // entrants of this contest; the hall script waits here (waitstate).
+      "StartContest" -> {
+        l.contests.startAppeals(charId)
+        0
+      }
+      // CB2_ShowContestResults; a win also hangs in the hall (Contest_SaveWinner).
+      "ShowContestResults" -> {
+        val view = l.contests.showResults(charId)
+        if (view != null && view.won) l.contests.saveHallWinner(charId, view)
+        0
+      }
       "TryEnterContestMon" -> {
         // gContestMonPartyIndex is VAR_0x8004 after choosecontestmon
         val slot = v.get(ctx, v.V8004)
@@ -293,9 +308,12 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       "ShouldContestLadyShowGoOnAir" -> 0
       "ShowContestEntryMonPic" -> 0
       "GetContestMultiplayerId" -> 4 // MAX_LINK_PLAYERS: not a 4-player G-mode link
+      // GenerateContestRand writes gSpecialVar_Result itself (the hall calls it with `special`).
       "GenerateContestRand" -> {
         val max = v.get(ctx, v.RESULT).coerceAtLeast(1)
-        (LiveRng.next() % max)
+        val r = LiveRng.next() % max
+        v.set(ctx, v.RESULT, r)
+        r
       }
       // Online players of the same category and rank meet in the contest's join window, so a
       // linkup always succeeds (LINKUP_SUCCESS).

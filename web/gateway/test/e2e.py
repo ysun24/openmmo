@@ -204,6 +204,7 @@ def login(p, user, pw, name):
     p.send(t="login", user=user, **{"pass": pw}, name=name)
     m = p.wait(lambda q: q.message("login", since), 30, "login reply")
     assert m["ok"], f"login failed: {m}"
+    p.char_name = m.get("name")
     p.wait(
         lambda q: all(k in q.state for k in
                       ("world", "chat", "ui", "party", "battle", "invite", "trade", "market")),

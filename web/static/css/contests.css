@@ -38,6 +38,8 @@
 .r5c-judge .face { font-size: 28px; }
 .r5c-judge .bubble { position: absolute; left: 36px; top: -4px; background: #fff; color: #222; border-radius: 10px; padding: 2px 6px; font-size: 20px; }
 .r5c-mon-big { position: absolute; bottom: 18px; left: 50%; width: 112px; height: 112px; image-rendering: pixelated; transform: translateX(-50%); }
+/* an appeal's move: the battle animation sprite of its type */
+.r5c-anim { position: absolute; bottom: 50px; left: 52%; width: calc(var(--sz, 32) * 2.5px); height: calc(var(--sz, 32) * 2.5px); image-rendering: pixelated; background-repeat: no-repeat; pointer-events: none; z-index: 2; }
 .r5c-mon-big.in { animation: r5c-in 0.45s ease-out; }
 .r5c-mon-big.out { transform: translateX(-260%); transition: transform 0.3s ease-in; }
 @keyframes r5c-in { from { transform: translateX(140%); } to { transform: translateX(-50%); } }

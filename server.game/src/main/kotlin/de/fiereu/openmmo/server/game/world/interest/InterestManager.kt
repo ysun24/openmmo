@@ -43,11 +43,15 @@ class InterestManager @Inject constructor() {
     }
   }
 
-  /** A snapshot of the group's members. Safe to iterate while the group mutates. */
-  fun members(key: InterestKey): Set<SessionContext> = buckets[key]?.toSet() ?: emptySet()
+  /**
+   * A snapshot of the group's members. Safe to iterate while the group mutates. (Not `toSet()`: it
+   * reads `size` first and then the iterator, so a member leaving in between throws
+   * NoSuchElementException; `toHashSet()` only iterates.)
+   */
+  fun members(key: InterestKey): Set<SessionContext> = buckets[key]?.toHashSet() ?: emptySet()
 
   /** The groups the session currently belongs to. */
-  fun keysOf(ctx: SessionContext): Set<InterestKey> = membership[ctx]?.toSet() ?: emptySet()
+  fun keysOf(ctx: SessionContext): Set<InterestKey> = membership[ctx]?.toHashSet() ?: emptySet()
 
   /** Send a packet to every member of the group, optionally excluding one session (the sender). */
   fun broadcast(key: InterestKey, packet: Any, exclude: SessionContext? = null) {

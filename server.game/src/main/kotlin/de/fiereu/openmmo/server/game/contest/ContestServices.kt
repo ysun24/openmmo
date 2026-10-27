@@ -445,6 +445,9 @@ class ContestNames
 constructor(private val moves: MoveRegistry, private val species: SpeciesRegistry) {
   fun move(id: Int): String = moves.get(id)?.name?.uppercase() ?: "MOVE $id"
 
+  /** The move's battle type (TYPE_*), which picks its battle animation sprite on the stage. */
+  fun moveType(id: Int): String = moves.get(id)?.type?.name ?: "NORMAL"
+
   fun species(dex: Int): String = species.get(dex)?.name?.uppercase() ?: "#$dex"
 
   init {

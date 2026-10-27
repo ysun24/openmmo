@@ -64,6 +64,14 @@ private class Human(
     val mon: Pokemon,
     val contestMon: ContestMon,
     val done: CompletableDeferred<ContestResultView?> = CompletableDeferred(),
+    /** The contestants are set (SetContestants): the hall cutscene can show them. */
+    val matched: CompletableDeferred<ContestResultView?> = CompletableDeferred(),
+    /** The player's hall script reached `startcontest`. */
+    val stage: CompletableDeferred<Unit> = CompletableDeferred(),
+    /** The appeals are over; the hall script goes on to "That's it for judging". */
+    val appealsDone: CompletableDeferred<Unit> = CompletableDeferred(),
+    /** The hall script reached `showcontestresults`. */
+    val resultsWanted: CompletableDeferred<Unit> = CompletableDeferred(),
 ) {
   @Volatile var choice: Int? = null
   @Volatile var ready = false
@@ -175,12 +183,61 @@ constructor(
    * startcontest: enters the chosen monster and suspends until the contest (and its results screen)
    * is over. Returns the player's view of the result, or null if it could not run.
    */
+  /**
+   * The reception's entry in the hall flow: joins the category / rank lobby and returns once the
+   * contestants are set (the view's engine has not run yet). The decomp hall script then runs in
+   * the interpreter; its `startcontest` / `showcontestresults` call [startAppeals] / [showResults].
+   */
+  suspend fun enterHall(
+      session: SessionContext,
+      state: PlayerState,
+      entry: ContestEntry,
+      postgame: Boolean,
+  ): ContestResultView? {
+    val human = join(session, state, entry, postgame, hall = true) ?: return null
+    return human.matched.await()
+  }
+
+  /** `startcontest`: this player is on stage; returns when the appeals are over. */
+  suspend fun startAppeals(charId: Long) {
+    val h = playing[charId] ?: return
+    h.stage.complete(Unit)
+    h.appealsDone.await()
+  }
+
+  /** `showcontestresults`: the results screen; returns when it is closed. */
+  suspend fun showResults(charId: Long): ContestResultView? {
+    val h = playing[charId] ?: return results[charId]
+    h.resultsWanted.complete(Unit)
+    return try {
+      h.done.await()
+    } finally {
+      playing.remove(charId, h)
+    }
+  }
+
   suspend fun runContest(
       session: SessionContext,
       state: PlayerState,
       entry: ContestEntry,
       postgame: Boolean,
   ): ContestResultView? {
+    val charId = state.characterId ?: return null
+    val human = join(session, state, entry, postgame, hall = false) ?: return null
+    return try {
+      human.done.await()
+    } finally {
+      playing.remove(charId)
+    }
+  }
+
+  private suspend fun join(
+      session: SessionContext,
+      state: PlayerState,
+      entry: ContestEntry,
+      postgame: Boolean,
+      hall: Boolean,
+  ): Human? {
     val charId = state.characterId ?: return null
     val mon = party(charId).getOrNull(entry.slot) ?: return null
     val c = stats.get(mon.id)
@@ -191,6 +248,11 @@ constructor(
             charId,
             mon,
             contestMonOf(mon, c, characters.getCharacter(charId)?.info?.name ?: "PLAYER"))
+    if (!hall) {
+      // Without the hall script nobody calls startcontest / showcontestresults.
+      human.stage.complete(Unit)
+      human.resultsWanted.complete(Unit)
+    }
     val key = entry.category to entry.rank
     val lobby =
         lobbyLock.withLock {
@@ -203,11 +265,7 @@ constructor(
         }
     lobbyStatus(lobby)
     playing[charId] = human
-    return try {
-      human.done.await()
-    } finally {
-      playing.remove(charId)
-    }
+    return human
   }
 
   private fun lobbyStatus(l: Lobby) {
@@ -236,6 +294,8 @@ constructor(
       log.error(e) { "contest failed" }
       humans.forEach {
         docs.close(it.session, "contest")
+        it.matched.complete(null)
+        it.appealsDone.complete(Unit)
         it.done.complete(null)
       }
     }
@@ -321,6 +381,17 @@ constructor(
       humanIndex = humans.withIndex().associate { (i, h) -> h to i }
     }
     val e = ContestEngine(l.category, l.rank, mons, rng, data, names::move)
+    // SetContestants: every player's hall cutscene (walk-in, the entries, the audience vote) shows
+    // these contestants, then waits on stage at `startcontest` for the others.
+    for (h in humans) {
+      val view = ContestResultView(e, humanIndex.getValue(h), h.mon.id, l.category, l.rank)
+      results[h.charId] = view
+      if (!h.matched.isCompleted) {
+        docs.close(h.session, "contest")
+        h.matched.complete(view)
+      }
+    }
+    withTimeoutOrNull(STAGE_TIMEOUT_MS) { for (h in humans) if (!h.gone) h.stage.await() }
     // Primary judging: the condition round, shown with each contestant's hearts.
     broadcast(humans, humanIndex) { h, me -> introDoc(e, me) }
     delay(INTRO_MS)
@@ -350,6 +421,12 @@ constructor(
       val until = System.currentTimeMillis() + animMs
       while (System.currentTimeMillis() < until && humans.any { !it.gone && !it.ready }) delay(100)
     }
+    // The appeals are over: each hall script says "That's it for judging" and asks for results.
+    for (h in humans) {
+      docs.close(h.session, "contest")
+      h.appealsDone.complete(Unit)
+    }
+    withTimeoutOrNull(STAGE_TIMEOUT_MS) { for (h in humans) if (!h.gone) h.resultsWanted.await() }
     // Results (showcontestresults)
     for (h in humans) h.ready = false
     broadcast(humans, humanIndex) { _, me -> resultsDoc(e, me) }
@@ -472,6 +549,7 @@ constructor(
                 put("move", x.move)
                 put("moveName", names.move(x.move))
                 put("moveCategory", data.move(x.move).category)
+                put("moveType", names.moveType(x.move))
               }
             })
       }
@@ -658,6 +736,10 @@ constructor(
     const val INTRO_MS = 4_000L
     const val EVENT_MS = 900L
     const val RESULTS_MS = 60_000L
+    /**
+     * How long the stage waits for every player's hall cutscene (startcontest, showcontestresults).
+     */
+    const val STAGE_TIMEOUT_MS = 180_000L
     const val REPETITION_NOT_BORING = 3
     const val HALL_BASE = 10
     const val CONTEST_WINNER_ARTIST = 7
