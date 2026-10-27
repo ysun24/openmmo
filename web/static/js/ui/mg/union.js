@@ -8,6 +8,7 @@ export const TOPICS = ['union'];
 let ctx = null;
 let s = null;
 let target = null;
+let actedSeq = -1;
 
 export function init(c) {
   ctx = c;
@@ -23,7 +24,8 @@ export function onTopic(_k, now) {
   s = now;
   if (!now) return panels.close('mgunion');
   const acc = now.accepted;
-  if (acc) {
+  if (acc && acc.seq !== actedSeq) {
+    actedSeq = acc.seq;
     // The other player said yes: start the real trade / battle with them.
     if (acc.what === 'trade') ctx.app.send({ t: 'trade.request', name: acc.name });
     else if (acc.what === 'battle') ctx.app.send({ t: 'duel', name: acc.name });

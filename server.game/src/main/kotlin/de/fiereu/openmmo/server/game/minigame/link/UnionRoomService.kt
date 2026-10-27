@@ -40,7 +40,8 @@ constructor(
   /** target -> (from, what) */
   private val invites = ConcurrentHashMap<Long, Pair<Long, String>>()
   /** inviter -> what the target accepted (the inviter's browser then acts on it) */
-  private val accepted = ConcurrentHashMap<Long, Pair<String, String>>()
+  private val accepted = ConcurrentHashMap<Long, Triple<String, String, Int>>()
+  private val seq = java.util.concurrent.atomic.AtomicInteger()
 
   private fun name(c: Long) = characters.getCharacter(c)?.info?.name ?: "?"
 
@@ -69,7 +70,8 @@ constructor(
               },
           "chat" to chat.takeLast(30),
           "invite" to invites[me]?.let { (from, what) -> jsonOf("from" to name(from), "what" to what) },
-          "accepted" to accepted.remove(me)?.let { (who, what) -> jsonOf("name" to who, "what" to what) },
+          // kept (with a seq the browser acts on once), so a coalesced state push cannot lose it
+          "accepted" to accepted[me]?.let { (who, what, n) -> jsonOf("name" to who, "what" to what, "seq" to n) },
       )
 
   fun push(c: Long) = sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, "union", json(c)) }
@@ -112,7 +114,7 @@ constructor(
         val (from, what) = invites.remove(me) ?: return
         val yes = body.str("answer") == "yes"
         if (yes) {
-          accepted[from] = name(me) to what
+          accepted[from] = Triple(name(me), what, seq.incrementAndGet())
           when {
             what.startsWith("game:") -> links.inviteTogether(from, me, what.removePrefix("game:"))
             what == "chat" -> chat += jsonOf("name" to "UNION ROOM", "text" to "${name(from)} and ${name(me)} started chatting.")
