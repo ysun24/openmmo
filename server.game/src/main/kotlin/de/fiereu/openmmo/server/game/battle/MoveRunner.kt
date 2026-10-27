@@ -257,6 +257,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
           }
         }
       }
+      // IsMonDisobedient: a traded monster above the badge level may not listen.
+      if (disobeys(userRef, user, move, chosenTarget)) return
       // Choice Band locks the holder into its first move.
       if (ctx.heldEffect(user)?.name == "CHOICE_BAND") {
         if (v.choiceMove != 0 &&
@@ -345,6 +347,84 @@ internal class MoveRunner(private val ctx: BattleCtx) {
   }
 
   /** Gen 3 confusion damage: a 40 power typeless physical hit on itself, no crit, no random. */
+  /**
+   * battle_util.c IsMonDisobedient for the player's own side (never in a player-vs-player duel, as
+   * in a link battle). Only monsters with another trainer as OT ([BattleInstance.trainerName]) and
+   * a level above [BattleInstance.obedienceLevel] roll. True when the turn is lost or replaced.
+   */
+  internal fun disobeys(
+      userRef: BattlerRef,
+      user: BattleMonState,
+      move: MoveDef,
+      chosenTarget: BattlerRef?,
+  ): Boolean {
+    if (battle.pvp != null || userRef.side != 0) return false
+    val ownName = battle.trainerName
+    if (ownName.isEmpty() || user.source.ot.isEmpty() || user.source.ot.equals(ownName, true)) {
+      return false
+    }
+    val level = user.level
+    val obedience = battle.obedienceLevel
+    if (obedience >= 100 || level <= obedience) return false
+    if ((level + obedience) * rng.pick(256) shr 8 < obedience) return false
+    val who = ctx.name(user)
+    if (user.asleep && (move.id == SNORE || move.id == SLEEP_TALK)) {
+      ctx.say("$who ignored orders while asleep!", user.entityId)
+      return true
+    }
+    if ((level + obedience) * rng.pick(256) shr 8 < obedience) {
+      // Another move it can use, picked at random; with none, it loafs around.
+      val current = slotOf(user, move)
+      val usable =
+          user.moves.indices.filter { i ->
+            val m = user.moves[i]
+            i != current &&
+                m.id.toInt() != 0 &&
+                m.pp > 0 &&
+                m.id.toInt() != user.volatile.disabledMove &&
+                !(user.volatile.tauntTurns > 0 && (ctx.move(m.id.toInt())?.power ?: 0) == 0)
+          }
+      if (usable.isEmpty()) {
+        ctx.say(loafText(who), user.entityId)
+        return true
+      }
+      ctx.say("$who ignored orders!", user.entityId)
+      val random = user.moves[usable[rng.pick(usable.size)]].id.toInt()
+      useMove(userRef, user, random, chosenTarget, called = true)
+      return true
+    }
+    val gap = level - obedience
+    val roll = rng.pick(256)
+    val awake = ctx.allRefs().none { (ctx.live(it)?.volatile?.uproarTurns ?: 0) > 0 }
+    if (roll < gap &&
+        !user.hasStatus &&
+        user.ability != Ability.VITAL_SPIRIT &&
+        user.ability != Ability.INSOMNIA &&
+        awake) {
+      ctx.say("$who began to nap!", user.entityId)
+      user.status = rng.range(2, 5)
+      ctx.emit(BattleEvent.StatusChanged(user.entityId, user.status, "slp"))
+      return true
+    }
+    if (roll - gap < gap) {
+      ctx.say("$who won't obey!", user.entityId)
+      ctx.say("It hurt itself in its confusion!", user.entityId)
+      ctx.hurt(user, confusionDamage(user), "confusion")
+      return true
+    }
+    ctx.say(loafText(who), user.entityId)
+    return true
+  }
+
+  /** gInobedientStringIds, picked at random. */
+  private fun loafText(who: String): String =
+      when (rng.pick(4)) {
+        0 -> "$who is loafing around!"
+        1 -> "$who won't obey!"
+        2 -> "$who turned away!"
+        else -> "$who pretended not to notice!"
+      }
+
   private fun confusionDamage(user: BattleMonState): Int {
     val atk = user.effective(BattleStat.ATTACK)
     val def = user.effective(BattleStat.DEFENSE).coerceAtLeast(1)

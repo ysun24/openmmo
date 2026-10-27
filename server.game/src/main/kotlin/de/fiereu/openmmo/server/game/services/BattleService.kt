@@ -503,6 +503,14 @@ constructor(
                 terrain = trainerBackground(trainer) ?: terrain ?: terrainHere(session),
                 musicKey = musicFor(trainer),
                 underwater = underwater))
+    // Gen 3 obedience: traded monsters listen up to the badge level of the player's region.
+    battle.trainerName = stored.info.name
+    val region =
+        if (session.attributes[PLAYER_STATE]?.regionId?.toInt() == Region.HOENN.wireValue.toInt())
+            Region.HOENN
+        else Region.KANTO
+    battle.obedienceLevel =
+        de.fiereu.openmmo.server.game.progression.BadgeService.obedienceLevel(stored, region)
     battle.own.actives.clear()
     battle.own.actives.addAll(healthy.take(actualFormat))
     battle.foe.actives.clear()

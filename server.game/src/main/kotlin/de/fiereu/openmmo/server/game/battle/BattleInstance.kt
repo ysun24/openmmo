@@ -128,6 +128,15 @@ class BattleInstance(
   /** Set when the other side is a player rather than the AI, see [PvpDuel]. */
   var pvp: PvpDuel? = null
 
+  /**
+   * The player's name, the OT their own monsters carry; a monster with another OT is traded and
+   * obeys only up to [obedienceLevel] (battle_util.c IsMonDisobedient). Empty: everything obeys.
+   */
+  var trainerName: String = ""
+
+  /** 10, 30/50/70 with badges 2/4/6, 100 (everything obeys) with badge 8: see BadgeService. */
+  var obedienceLevel: Int = 100
+
   /** Result held until the client confirms that its battle-to-map transition has finished. */
   var pendingResult: BattleResult? = null
 

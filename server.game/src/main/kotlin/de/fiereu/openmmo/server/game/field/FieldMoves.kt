@@ -3,12 +3,12 @@ package de.fiereu.openmmo.server.game.field
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Region
 import de.fiereu.openmmo.net.game.packets.field.FieldAction
+import de.fiereu.openmmo.server.game.progression.BadgeService
 
 /**
- * Which move each field action needs and which badge unlocks it, per game (party_menu.c
- * CursorCB_FieldMove: an HM needs `FLAG_BADGE01_GET + fieldMove`, in each game's own field move
- * order). FireRed: Flash 1, Cut 2, Fly 3, Strength 4, Surf 5, Rock Smash 6, Waterfall 7. Emerald:
- * Cut 1, Flash 2, Rock Smash 3, Strength 4, Surf 5, Fly 6, Dive 7, Waterfall 8.
+ * Which move each field action needs; the badge that unlocks it comes from [BadgeService]
+ * (party_menu.c CursorCB_FieldMove: an HM needs `FLAG_BADGE01_GET + fieldMove`, in each game's own
+ * order).
  */
 object FieldMoves {
   // National move ids.
@@ -39,38 +39,19 @@ object FieldMoves {
           FieldAction.DIVE to DIVE,
       )
 
-  private val kantoBadge =
-      mapOf(
-          FieldAction.FLASH to 1,
-          FieldAction.CUT to 2,
-          FieldAction.FLY to 3,
-          FieldAction.STRENGTH to 4,
-          FieldAction.SURF to 5,
-          FieldAction.ROCK_SMASH to 6,
-          FieldAction.WATERFALL to 7,
-      )
-  private val hoennBadge =
-      mapOf(
-          FieldAction.CUT to 1,
-          FieldAction.FLASH to 2,
-          FieldAction.ROCK_SMASH to 3,
-          FieldAction.STRENGTH to 4,
-          FieldAction.SURF to 5,
-          FieldAction.FLY to 6,
-          FieldAction.DIVE to 7,
-          FieldAction.WATERFALL to 8,
-      )
-
-  /** The badge number (1-8) [action] needs in [region], or null when it needs none. */
+  /**
+   * The badge number (1-8) [action] needs in [region], or null when it needs none. The table lives
+   * in [BadgeService], the one source of truth for badges.
+   */
   fun badgeFor(region: Region, action: FieldAction): Int? =
-      (if (region == Region.HOENN) hoennBadge else kantoBadge)[action]
+      moveOf[action]?.let { BadgeService.fieldMoveBadge(region, it) }
 
   /** Dive does not exist in FireRed. */
   fun existsIn(region: Region, action: FieldAction): Boolean =
       action != FieldAction.DIVE || region == Region.HOENN
 
   /** The story flag a badge sets: `<region>/FLAG_BADGE0n_GET`. */
-  fun badgeFlag(region: Region, badge: Int): String = "${region.storyName}/FLAG_BADGE0${badge}_GET"
+  fun badgeFlag(region: Region, badge: Int): String = BadgeService.flag(region, badge)
 
   /**
    * checkpartymove: the first party monster (in slot order, not an egg) that knows [moveId], or
