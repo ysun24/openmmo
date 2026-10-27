@@ -63,3 +63,7 @@ body.touch.chat-open #chat-tabs button.on { background: var(--accent); }
 .seller { color: #8cc8ff; }
 .feeinfo { font-size: 12px; color: var(--muted); }
 .countdown { color: var(--accent); font-weight: 700; }
+/* integration: incoming friend requests */
+.list.requests .item.req { display: flex; align-items: center; gap: calc(var(--pu, 2px) * 4); }
+.list.requests .item.req .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.list.requests .item.req .act { display: flex; gap: calc(var(--pu, 2px) * 2); flex: none; }
