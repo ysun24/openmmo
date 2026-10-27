@@ -21,6 +21,8 @@ import javax.inject.Singleton
             ChatCommandModule::class,
             SocialModule::class,
             ScriptSpecialModule::class,
+            // r5-contests
+            de.fiereu.openmmo.server.game.contest.ContestModule::class,
         ])
 interface GameServerComponent {
 

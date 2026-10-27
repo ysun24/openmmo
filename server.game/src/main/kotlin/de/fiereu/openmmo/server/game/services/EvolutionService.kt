@@ -79,6 +79,9 @@ constructor(
     private val prompts: MoveLearnPrompts,
     private val sessions: SessionRegistry,
     private val entityIds: EntityIdService,
+    /** r5-contests: the beauty condition (EVO_BEAUTY). */
+    private val beauty: de.fiereu.openmmo.server.game.contest.MonBeauty =
+        de.fiereu.openmmo.server.game.contest.MonBeauty { 0 },
 ) {
   private val queues = ConcurrentHashMap<Long, ConcurrentLinkedDeque<EvoScene>>()
   private val showing = ConcurrentHashMap<Long, EvoScene>()
@@ -133,8 +136,8 @@ constructor(
       EvolutionMethod.LEVEL_CASCOON -> level >= evo.param && upperPersonality(mon) % 10 > 4
       // Shedinja is the extra monster Ninjask's evolution leaves behind, never a target itself.
       EvolutionMethod.LEVEL_SHEDINJA -> false
-      // Beauty is a contest stat this server does not keep.
-      EvolutionMethod.BEAUTY -> false
+      // r5-contests: Feebas evolves on a level up once its beauty reaches the param (170).
+      EvolutionMethod.BEAUTY -> beauty.beautyOf(mon.id) >= evo.param
       else -> false
     }
   }

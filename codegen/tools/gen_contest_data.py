@@ -357,7 +357,32 @@ hit_start = [int(x) for x in re.search(r"sArrowHitRangeStart\[BLENDER_MAX_PLAYER
 divisor = [int(x) for x in re.search(r"sNumPlayersToSpeedDivisor\[\] = \{([^}]*)\}", bl).group(1).split(",")]
 names = {m.group(1): m.group(2) for m in re.finditer(r'static const u8 sText_(\w+)\[\] = _\("([^"]*)"\);', bl)}
 
+# ------------------------------------------------------------------ paintings
+cp_strings = {}
+for m in re.finditer(r"^(\w+)::\n((?:\s*\.string \"[^\n]*\"\n)+)", read("data/text/contest_painting.inc"), re.M):
+    cp_strings[m.group(1)] = c_string("".join(re.findall(r'\.string "([^"]*)"', m.group(2)))).rstrip("$")
+painting = read("src/contest_painting.c")
+caps = re.findall(r"=\s*(gContestPainting\w+),", painting.split("sMuseumCaptions[", 1)[1].split("};", 1)[0])
+default_winners = []
+dw = co.split("gDefaultContestWinners[] =", 1)[1].split("\n};", 1)[0]
+for m in re.finditer(r"\[CONTEST_WINNER_\w+ - 1\]\s*=\s*\{(.*?)\}", dw, re.S):
+    b = m.group(1)
+    default_winners.append({
+        "dex": species_to_dex(re.search(r"\.species\s*=\s*(\w+)", b).group(1)),
+        "category": contest_c[re.search(r"\.contestCategory\s*=\s*(\w+)", b).group(1)],
+        "nickname": re.search(r'\.monName\s*=\s*_\("([^"]*)"\)', b).group(1),
+        "trainer": re.search(r'\.trainerName\s*=\s*_\("([^"]*)"\)', b).group(1),
+        "rank": contest_c[re.search(r"\.contestRank\s*=\s*(\w+)", b).group(1)],
+    })
+
 data = {
+    "paintings": {
+        "museumCaptions": [cp_strings.get(c, "") for c in caps],
+        "hallCaption": cp_strings.get("gContestHallPaintingCaption", ""),
+        "rankNames": [cp_strings.get(k, "") for k in ("gContestRankNormal", "gContestRankSuper", "gContestRankHyper", "gContestRankMaster")],
+        "contestNames": [cp_strings.get(k, "") for k in ("gContestCoolness", "gContestBeauty", "gContestCuteness", "gContestSmartness", "gContestToughness")],
+        "defaultWinners": default_winners,
+    },
     "moves": {str(k): v for k, v in sorted(moves_out.items())},
     "effects": effects_out,
     "comboStarterLookup": combo_lookup,

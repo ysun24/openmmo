@@ -98,6 +98,13 @@ private constructor(root: JsonObject) {
   val arrowHitRangeStart: List<Int>
   val speedDivisor: List<Int>
   val blenderNames: Map<String, String>
+  /** sMuseumCaptions: three per category (captionId = category * 3 + variant). */
+  val museumCaptions: List<String>
+  val hallCaption: String
+  val paintingRankNames: List<String>
+  val paintingContestNames: List<String>
+  /** gDefaultContestWinners: the hall's paintings before the player won anything. */
+  val defaultWinners: List<DefaultWinner>
 
   init {
     fun JsonElement.ints() = jsonArray.map { it.jsonPrimitive.int }
@@ -184,6 +191,16 @@ private constructor(root: JsonObject) {
     arrowHitRangeStart = bl.getValue("arrowHitRangeStart").ints()
     speedDivisor = bl.getValue("speedDivisor").ints()
     blenderNames = bl.getValue("names").jsonObject.mapValues { it.value.jsonPrimitive.content }
+    val pt = root.getValue("paintings").jsonObject
+    museumCaptions = pt.getValue("museumCaptions").strs()
+    hallCaption = pt.s("hallCaption")
+    paintingRankNames = pt.getValue("rankNames").strs()
+    paintingContestNames = pt.getValue("contestNames").strs()
+    defaultWinners =
+        pt.getValue("defaultWinners").jsonArray.map {
+          val o = it.jsonObject
+          DefaultWinner(o.i("dex"), o.i("category"), o.s("nickname"), o.s("trainer"), o.i("rank"))
+        }
   }
 
   fun move(id: Int): ContestMoveDef = moves[id] ?: NO_MOVE
@@ -211,6 +228,15 @@ private constructor(root: JsonObject) {
     @Suppress("unused") private fun JsonArray.ignore() = Unit
   }
 }
+
+/** One of gDefaultContestWinners. */
+data class DefaultWinner(
+    val dex: Int,
+    val category: Int,
+    val nickname: String,
+    val trainer: String,
+    val rank: Int,
+)
 
 /** The decomp's contest constants. */
 object Contest {

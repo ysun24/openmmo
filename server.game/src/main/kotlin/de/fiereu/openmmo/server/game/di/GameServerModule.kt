@@ -58,7 +58,14 @@ object GameServerModule {
 
   @Provides @Singleton fun interestPolicy(impl: PassThroughInterestPolicy): InterestPolicy = impl
 
-  @Provides @Singleton fun scriptRegistry(): ScriptRegistry = ScriptRegistry.generated()
+  // r5-contests: the contest lane's hand-ported scripts stand in for their generated stubs.
+  @Provides
+  @Singleton
+  fun scriptRegistry(
+      contests: de.fiereu.openmmo.server.game.contest.ContestLaneScripts
+  ): ScriptRegistry =
+      ScriptRegistry(
+          de.fiereu.openmmo.server.game.script.generated.GeneratedScripts.byLabel + contests.byLabel)
 
   @Provides
   @Singleton
