@@ -10,6 +10,8 @@ export const STEP_RUN = 125;
 export const STEP_BY_MODE = { walk: STEP_WALK, run: STEP_RUN, mach_bike: 70, acro_bike: 125, surf: 125, underwater: 250 };
 /** Kanto's Bicycle is slower than the Mach Bike. */
 const KANTO_BIKE = 95;
+/** Mach Bike step times for PLAYER_SPEED_NORMAL, FAST and FASTEST (16, 8 and 4 frames a tile). */
+const MACH_TIERS = [250, 125, 70];
 export const JUMP_MS = 520; // a 2-tile ledge hop (JUMP_2 = 32 GBA frames)
 const TURN_HOLD = 90; // ms a fresh direction press only turns before walking
 const MAX_PENDING = 8;
@@ -81,6 +83,8 @@ export class World {
     this.lastBump = 0;
     /** performance.now() until which the server, not the input, moves the self (ice, currents). */
     this.forcedUntil = 0;
+    /** Hoenn Mach Bike acceleration (bike.c bikeFrameCounter / bikeSpeed). */
+    this.mach = { counter: 0, speed: 0 };
     this.conns = []; // [{key, ox, oy, info, res}]
     this.fade = 0; // 1 = black
     this.fadeHoldUntil = 0;
@@ -265,6 +269,7 @@ export class World {
     else if (t && !t.loading && t.z !== Z_BRIDGE) me.z = t.z === Z_WATER ? Z_LAND : t.z;
     else me.z = null; // learnt from the tile once its collision has loaded
     this.pending = [];
+    this.mach.counter = this.mach.speed = 0;
     this.stats.snaps++;
     // Each step of server forced movement keeps the input held off a little longer.
     if (this.forcedUntil) this.forcedUntil = performance.now() + FORCED_HOLD;
@@ -360,7 +365,8 @@ export class World {
       if (ent.kind === 'npc' && ent.gfx === BOULDER_GFX[region] && this.field && this.field.strength && me.mode === 'walk') return { kind: 'push' };
       return { kind: 'block' };
     }
-    if (to.beh === 'MUDDY_SLOPE' && dir === 'up' && me.mode !== 'mach_bike') return { kind: 'block' };
+    // ForcedMovement_MuddySlope: only a Mach Bike at full speed climbs it.
+    if (to.beh === 'MUDDY_SLOPE' && dir === 'up' && (me.mode !== 'mach_bike' || (this.machAccel() && this.mach.counter < 2))) return { kind: 'block' };
     if ((to.beh === 'BUMPY_SLOPE' || to.beh === 'RAIL') && me.mode !== 'acro_bike') return { kind: 'block' };
     return { kind: 'walk', x: nx, y: ny, z: elevationAfter(me.z, from ? from.z : me.z, to.z) };
   }
@@ -378,10 +384,15 @@ export class World {
     return false;
   }
 
+  /** Emerald's Mach Bike accelerates (FRLG's Bicycle rides at one speed). */
+  machAccel() {
+    return this.self.mode === 'mach_bike' && !!this.map && this.map.region !== 0;
+  }
+
   /** How long one step of the predicted self takes. */
   stepMs(run) {
     const me = this.self;
-    if (me.mode === 'mach_bike') return this.map && this.map.region === 0 ? KANTO_BIKE : STEP_BY_MODE.mach_bike;
+    if (me.mode === 'mach_bike') return this.machAccel() ? MACH_TIERS[this.mach.counter] : KANTO_BIKE;
     if (me.mode !== 'walk') return STEP_BY_MODE[me.mode] || STEP_WALK;
     const canRun = !this.field || this.field.canRun;
     return run && canRun && this.behAt(me.x, me.y) !== 'NO_RUNNING' ? STEP_RUN : STEP_WALK;
@@ -452,12 +463,22 @@ export class World {
 
   tryStep(input, carry, continuing, now = performance.now()) {
     const me = this.self;
-    if (!input.enabled || !input.dir || this.pending.length >= MAX_PENDING) return;
+    if (!input.enabled || this.pending.length >= MAX_PENDING) return;
     if (this.forcedUntil) {
       if (now < this.forcedUntil) return;
       this.forcedUntil = 0;
     }
-    const dir = input.dir;
+    const mach = this.machAccel() ? this.mach : null;
+    if (!mach) this.mach.counter = this.mach.speed = 0;
+    let dir = input.dir;
+    let coast = false;
+    if (!dir) {
+      // MachBikeTransition_TrySlowDown: a released Mach Bike rolls on, one speed tier slower per step.
+      if (!mach || !mach.speed || !continuing) return;
+      mach.counter = --mach.speed;
+      dir = me.facing;
+      coast = true;
+    }
     if (dir !== me.facing && !continuing) {
       me.facing = dir;
       this.send({ t: 'face', dir });
@@ -467,6 +488,8 @@ export class World {
     }
     const out = this.predictStep(dir);
     if (out.kind === 'block' || out.kind === 'push') {
+      this.mach.counter = this.mach.speed = 0; // Bike_SetBikeStill
+      if (coast) return;
       const [dx, dy] = DIRS[dir];
       const nx = me.x + dx, ny = me.y + dy;
       if (me.facing !== dir) {
@@ -493,6 +516,11 @@ export class World {
     me.z = out.z;
     me.jumping = out.kind === 'jump';
     me.dur = me.jumping ? JUMP_MS : this.stepMs(input.run);
+    if (mach && !coast) {
+      // MachBikeTransition_TrySpeedUp: NORMAL, FAST, then FASTEST.
+      mach.speed = mach.counter + (mach.counter >> 1);
+      if (mach.counter < 2) mach.counter++;
+    }
     me.run = me.dur === STEP_RUN && me.mode === 'walk';
     me.t = carry;
     me.moving = true;
