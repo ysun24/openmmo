@@ -48,6 +48,9 @@ interface GameActions {
 
   fun duel(name: String): String?
 
+  /** A challenge with rules: [levelCap] 0 = none, [maxParty] 1-6, [turnSeconds] 0 = no timer. */
+  fun duelRules(name: String, levelCap: Int, maxParty: Int, turnSeconds: Int): String?
+
   fun duelAnswer(accept: Boolean): String?
 
   fun tradeRequest(name: String): String?
@@ -125,7 +128,15 @@ object Dispatcher {
           else g.battleLearn(m.reqInt("slot", 0..3))
         }
         "battle.close" -> g.battleClose()
-        "duel" -> g.duel(m.name("name"))
+        "duel" ->
+            if (m.keys.none { it in DUEL_RULE_FIELDS }) g.duel(m.name("name"))
+            else
+                g.duelRules(
+                    m.name("name"),
+                    m.int("levelCap")?.also { if (it != 0 && it !in 1..100) throw bad("levelCap") }
+                        ?: 0,
+                    m.int("party")?.also { if (it !in 1..6) throw bad("party") } ?: 6,
+                    m.int("timer")?.also { if (it != 0 && it !in 5..240) throw bad("timer") } ?: 0)
         "duel.answer" -> g.duelAnswer(m.bool("accept") ?: throw bad("accept"))
         "trade.request" -> g.tradeRequest(m.name("name"))
         "trade.accept",
@@ -169,6 +180,8 @@ object Dispatcher {
         "market.cancel" -> g.marketCancel(m.id("id"))
         else -> "unknown message type: $t"
       }
+
+  private val DUEL_RULE_FIELDS = setOf("levelCap", "party", "timer")
 
   private fun bad(field: String) = BadMessage("missing or bad field: $field")
 

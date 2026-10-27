@@ -614,5 +614,10 @@ object GameProtocol : Protocol() {
     c2s<MarketInventoryRequestPacket>(0x6Eu, MarketInventoryRequestPacketCodec)
     s2c<MarketResultPacket>(0xCCu, MarketResultPacketCodec)
     s2c<MarketInventoryPacket>(0xCDu, MarketInventoryPacketCodec)
+    // OpenMMO-only duel rules and turn timer (see packets/battle/DuelRulesPackets). 0xEE and 0xEF
+    // were free in both directions.
+    c2s<DuelRulesChallengePacket>(0xEEu, DuelRulesChallengePacketCodec)
+    s2c<DuelRulesPacket>(0xEEu, DuelRulesPacketCodec)
+    s2c<BattleTurnTimerPacket>(0xEFu, BattleTurnTimerPacketCodec)
   }
 }

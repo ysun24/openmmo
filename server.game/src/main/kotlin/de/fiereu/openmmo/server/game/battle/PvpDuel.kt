@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.battle
 
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
+import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import kotlinx.coroutines.sync.Mutex
 
 /**
@@ -9,7 +10,11 @@ import kotlinx.coroutines.sync.Mutex
  * [BattleMonState] objects, so damage dealt in one view is the state of the other. Every turn waits
  * for both players' actions before the [TurnEngine] resolves it.
  */
-class PvpDuel(val first: BattleInstance, val second: BattleInstance) {
+class PvpDuel(
+    val first: BattleInstance,
+    val second: BattleInstance,
+    val rules: DuelRules = DuelRules.DEFAULT,
+) {
   /** Both players' packets arrive on their own threads. */
   val mutex = Mutex()
 
@@ -18,6 +23,15 @@ class PvpDuel(val first: BattleInstance, val second: BattleInstance) {
 
   /** Sides that owe a replacement for a fainted monster before the next turn. */
   val forced = mutableSetOf<Long>()
+
+  /** Turn timeouts per character id. At [DuelRules.MAX_TIMEOUTS] that player forfeits. */
+  val timeouts = mutableMapOf<Long, Int>()
+
+  /** Bumped whenever a turn timer is armed, so a stale timeout does nothing. */
+  var timerGeneration = 0
+
+  /** Cancels the running turn timer. */
+  var cancelTimer: () -> Unit = {}
 
   var finished = false
 

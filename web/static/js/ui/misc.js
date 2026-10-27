@@ -3,6 +3,7 @@ import { h, fmtMoney, hpBar, same } from '../util.js';
 import { panels, rerender, setFocus } from './panels.js';
 import { monImg } from './common.js';
 import * as market from './market.js';
+import { openChallenge, describeRules } from './battle.js';
 
 let app, lastParty = null, lastInvite = null;
 
@@ -18,7 +19,7 @@ export function update(state, changed) {
       lastInvite = inv;
       if (inv) {
         const p = panels.open('invite', 'Duel challenge', { onBack: () => app.send({ t: 'duel.answer', accept: false }) });
-        rerender(p.body, () => [h('p.big', `${inv.from} challenges you to a duel!`),
+        rerender(p.body, () => [h('p.big', `${inv.from} challenges you to a duel!`), h('p.muted', describeRules(inv.rules)),
           h('div.row', h('button.go.grow', { type: 'button', 'data-k': 'acc', on: { click: () => app.send({ t: 'duel.answer', accept: true }) } }, 'Accept'),
             h('button.danger.grow', { type: 'button', 'data-k': 'dec', on: { click: () => app.send({ t: 'duel.answer', accept: false }) } }, 'Decline'))]);
         setFocus(p.body, p.body.querySelector('[data-k=acc]'));
@@ -57,7 +58,7 @@ export function openMenu() {
     item('POKéMON & Bag', 'party', openParty),
     item('Market', 'market', () => market.open()),
     item('Trade with…', 'trade', () => askName('Trade with', (n) => app.send({ t: 'trade.request', name: n }))),
-    item('Duel…', 'duel', () => askName('Duel', (n) => app.send({ t: 'duel', name: n }))),
+    item('Duel…', 'duel', () => askName('Duel', (n) => openChallenge(n))),
     item('Chat', 'chat', () => app.openChat()),
     item(app.showFps ? 'Hide FPS' : 'Show FPS', 'fps', () => app.toggleFps()),
     item('Log out', 'logout', () => app.logout()),
@@ -86,7 +87,7 @@ export function openPlayer(ent) {
   p.title.textContent = ent.name || 'Player';
   const act = (label, k, fn, cls = '') => h('button' + cls, { type: 'button', 'data-k': k, on: { click: () => { panels.close('player'); fn(); } } }, label);
   rerender(p.body, () => [h('div.row',
-    act('⚔ Duel', 'duel', () => app.send({ t: 'duel', name: ent.name }), '.grow'),
+    act('⚔ Duel', 'duel', () => openChallenge(ent.name), '.grow'),
     act('⇄ Trade', 'trade', () => app.send({ t: 'trade.request', name: ent.name }), '.grow'),
     act('✉ Chat', 'chat', () => app.openChat(`@${ent.name} `), '.grow'))]);
   p.onClose = () => app.setHighlight(null);
