@@ -4,7 +4,9 @@ import { Emitter } from './util.js';
 // r3-battle: 'evolution' (the evolution scene, also outside battles). r3-items: dex..learn.
 // r3-social: 'social'.
 export const SECTIONS = ['world', 'chat', 'ui', 'party', 'pc', 'battle', 'invite', 'evolution', 'trade', 'market',
-  'dex', 'trainer', 'daycare', 'decor', 'learn', 'social'];
+  'dex', 'trainer', 'daycare', 'decor', 'learn', 'social',
+  // r5-minigames
+  'minigames'];
 
 export function defaultWsUrl() {
   const q = new URLSearchParams(location.search).get('ws');

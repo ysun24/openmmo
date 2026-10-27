@@ -159,6 +159,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
             })
         // r4: Emerald secret bases (decoration / entrance atlases, spots, decorations).
         put("secretBases", SecretBaseExport(out).export(1, GbaGame.EMERALD, entries[1]))
+        // r5-minigames: slot / roulette graphics, Fame Checker texts, Easy Chat words.
+        put("minigames", MinigameExport(decomp, out).export())
         put(
             "players",
             buildJsonObject {

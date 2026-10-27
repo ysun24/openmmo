@@ -16,6 +16,7 @@ import * as misc from './ui/misc.js';
 import * as progress from './ui/progress.js';
 import * as field from './ui/field.js';
 import * as sbui from './ui/secretbase.js';
+import * as minigames from './ui/minigames.js';
 import * as social from './ui/social.js';
 import * as typer from './ui/typewriter.js';
 import { music } from './audio.js';
@@ -112,7 +113,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui, minigames];
 UIS.forEach((u) => u.init(app));
 typer.init();
 
@@ -576,6 +577,8 @@ function onPress(btn, repeat = false) {
   if (top) {
     // The shop's B steps back out of the quantity picker before it closes the shop.
     if (top.name === 'shop' && btn === 'b') return shop.back();
+    // r5-minigames: a minigame window can take the buttons itself (Dodrio's heads, Jump's A).
+    if (top.onKey && top.onKey(btn, repeat)) return;
     if (isDir) return cursorSound(top.body, () => navMove(top.body, btn));
     if (btn === 'a') return sfx.play('select', app.region()), navActivate(top.body);
     if (btn === 'b') return panels.back();

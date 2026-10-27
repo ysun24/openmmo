@@ -28,6 +28,8 @@ interface MinigameModule {
   @Binds @IntoSet fun specials(h: MinigameSpecials): ScriptSpecial
 
   @Binds @IntoSet fun coinsCommand(c: MinigameCommands.Coins): ChatCommand
+
+  @Binds @IntoSet fun warpCommand(c: MinigameCommands.Warp): ChatCommand
 }
 
 /**
