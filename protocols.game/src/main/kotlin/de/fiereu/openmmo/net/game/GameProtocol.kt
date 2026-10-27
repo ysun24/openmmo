@@ -657,5 +657,11 @@ object GameProtocol : Protocol() {
     c2s<MarketQueryPacket>(0xFDu, MarketQueryPacketCodec)
     c2s<TradeOfferPcMonPacket>(0xFEu, TradeOfferPcMonPacketCodec)
     s2c<CommunityPacket>(0xFDu, CommunityPacketCodec)
+    // r5-contests: contests, blender, pokeblocks, berry trees (packets/contest). The reserved
+    // 0xD4-0xD7 were retail in both directions except c2s 0xD5; s2c 0xC6 was free.
+    c2s<de.fiereu.openmmo.net.game.packets.contest.ContestActionPacket>(
+        0xD5u, de.fiereu.openmmo.net.game.packets.contest.ContestActionPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.contest.ContestStatePacket>(
+        0xC6u, de.fiereu.openmmo.net.game.packets.contest.ContestStatePacketCodec)
   }
 }
