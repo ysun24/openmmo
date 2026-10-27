@@ -64,7 +64,8 @@ class OverworldState {
       val notice: Notice? = null,
   )
 
-  data class Notice(val seq: Int, val text: String)
+  /** [kind] is a [de.fiereu.openmmo.client.net.NoticeKind] wire name (presence, reward, …). */
+  data class Notice(val seq: Int, val text: String, val kind: String = "info")
 
   private val lock = Any()
   private var dialog: DialogView? = null
@@ -114,7 +115,8 @@ class OverworldState {
   fun setStack(itemId: Int, quantity: Int) =
       synchronized(lock) { if (quantity > 0) bag[itemId] = quantity else bag.remove(itemId) }
 
-  fun setNotice(text: String) = synchronized(lock) { notice = Notice((notice?.seq ?: 0) + 1, text) }
+  fun setNotice(text: String, kind: String = "info") =
+      synchronized(lock) { notice = Notice((notice?.seq ?: 0) + 1, text, kind) }
 
   fun setTransitioning(value: Boolean) = synchronized(lock) { transitioning = value }
 

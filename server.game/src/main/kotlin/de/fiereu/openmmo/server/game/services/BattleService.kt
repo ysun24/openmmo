@@ -47,6 +47,8 @@ import de.fiereu.openmmo.server.game.battle.StatCalculator
 import de.fiereu.openmmo.server.game.battle.TurnEngine
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.battle.acquiredMonsterDelta
+import de.fiereu.openmmo.server.game.progression.Friendship
+import de.fiereu.openmmo.server.game.progression.FriendshipEvent
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.world.interest.InterestManager
@@ -63,15 +65,9 @@ import kotlinx.serialization.json.put
 
 private val log = KotlinLogging.logger {}
 
-/** Gen 3 friendship: +5/+3/+2 on a level up below 100/200/above, -1 on a faint. */
-internal fun friendshipAfterLevelUp(friendship: Int): Int =
-    (friendship +
-            when {
-              friendship < 100 -> 5
-              friendship < 200 -> 3
-              else -> 2
-            })
-        .coerceAtMost(255)
+/** Gen 3 friendship on a level up (FRIENDSHIP_EVENT_GROW_LEVEL); see [Friendship]. */
+internal fun friendshipAfterLevelUp(friendship: Int, sootheBell: Boolean = false): Int =
+    Friendship.adjusted(friendship, FriendshipEvent.GROW_LEVEL, sootheBell, luxuryBall = false)
 
 /**
  * Orchestrates battles: builds the battle state from the party and the opposing side, collects the
@@ -484,6 +480,9 @@ constructor(
           enemies.joinToString { "${it.species.name} level ${it.level}" }
     }
     val foeFormat = if (actualFormat == 2 && enemies.size >= 2) 2 else actualFormat
+    // r3-items: the leads are seen as they come out (GetSetPokedexFlag FLAG_SET_SEEN).
+    characterStore.registerSeen(
+        charId, enemies.take(foeFormat.coerceAtLeast(1)).map { it.species.id })
     val battle =
         battles.create(
             charId,
@@ -604,6 +603,13 @@ constructor(
   }
 
   private suspend fun afterTurn(battle: BattleInstance, events: List<BattleEvent>) {
+    // r3-items: every foe that came out this turn is seen in the pokedex.
+    battle
+        .opponentMons()
+        .filterNotNull()
+        .map { it.species.id }
+        .takeIf { it.isNotEmpty() }
+        ?.let { characterStore.registerSeen(battle.charId, it) }
     events.filterIsInstance<BattleEvent.Fled>().firstOrNull()?.let {
       // Roar / Whirlwind / Teleport ended a wild battle.
       emitter.sendFled(battle)

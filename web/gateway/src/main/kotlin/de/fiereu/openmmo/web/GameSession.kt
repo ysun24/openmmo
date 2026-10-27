@@ -24,6 +24,8 @@ class GameSession(val client: GameClient) : GameActions {
           market = client.market.state,
           ackSeq = ackSeq.get(),
           moving = moving,
+          progress = client.progress.state,
+          playSeconds = client.progress.playSeconds(),
       )
 
   private fun battleOver(): Boolean {
@@ -112,6 +114,53 @@ class GameSession(val client: GameClient) : GameActions {
     return null
   }
 
+  override fun itemMove(item: Int, mon: Long, slot: Int): String? {
+    if (inBattle()) return "not outside a battle"
+    client.progress.useOnMove(item, mon, slot)
+    return null
+  }
+
+  override fun learnReply(slot: Int?): String? {
+    client.progress.learnReply(slot)
+    return null
+  }
+
+  override fun itemRegister(item: Int): String? {
+    client.progress.register(item)
+    return null
+  }
+
+  override fun itemRegistered(): String? {
+    if (inBattle()) return "not outside a battle"
+    client.progress.useRegistered()
+    return null
+  }
+
+  override fun daycareDeposit(mon: Long?): String? {
+    if (mon == null) client.progress.daycareCancel() else client.progress.daycareDeposit(mon)
+    return null
+  }
+
+  override fun daycareWithdraw(index: Int?): String? {
+    if (index == null) client.progress.daycareCancel() else client.progress.daycareWithdraw(index)
+    return null
+  }
+
+  override fun decorBuy(id: Int, qty: Int): String? {
+    client.progress.decorBuy(id, qty)
+    return null
+  }
+
+  override fun decorClose(): String? {
+    client.progress.shopClosed()
+    return null
+  }
+
+  override fun progressRefresh(): String? {
+    client.progress.refresh()
+    return null
+  }
+
   private companion object {
     const val PARTY = OverworldClient.LIST_PARTY
     const val PC = OverworldClient.LIST_PC
@@ -120,6 +169,8 @@ class GameSession(val client: GameClient) : GameActions {
 
   override fun shopClose(): String? {
     client.overworld.closeShop()
+    // r3-items: lets the clerk say "Please come again!".
+    client.progress.shopClosed()
     return null
   }
 

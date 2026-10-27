@@ -14,11 +14,9 @@ import de.fiereu.openmmo.maps.WildEncounterTable
 import de.fiereu.openmmo.moves.MoveRegistry
 import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
 import de.fiereu.openmmo.net.game.packets.battle.EvolutionReplyPacket
-import de.fiereu.openmmo.pokemon.EvolutionRegistry
 import de.fiereu.openmmo.pokemon.LearnsetRegistry
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.battle.BattleTerrain
-import de.fiereu.openmmo.server.game.battle.MoveLearnPrompts
 import de.fiereu.openmmo.server.game.battle.MoveLearner
 import de.fiereu.openmmo.server.game.battle.testMon
 import de.fiereu.openmmo.server.game.session.SessionRegistry
@@ -26,6 +24,7 @@ import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.EntityIdService
 import de.fiereu.openmmo.server.game.testsupport.FakeCharacterRepository
 import de.fiereu.openmmo.server.game.testsupport.FakeSession
+import de.fiereu.openmmo.server.game.testsupport.evolutionService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.ints.shouldBeInRange
@@ -36,17 +35,6 @@ import kotlin.random.Random
 import kotlinx.coroutines.test.runTest
 
 private val items = ItemRegistry()
-
-private fun evolutionService(store: CharacterStore) =
-    EvolutionService(
-        store,
-        SpeciesRegistry(),
-        EvolutionRegistry(),
-        items,
-        MoveLearner(LearnsetRegistry(), MoveRegistry()),
-        MoveLearnPrompts(),
-        SessionRegistry(),
-        EntityIdService())
 
 class EvolutionAndEncounterTest :
     FunSpec({

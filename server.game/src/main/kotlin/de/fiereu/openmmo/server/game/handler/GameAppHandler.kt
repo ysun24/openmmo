@@ -74,8 +74,10 @@ import de.fiereu.openmmo.net.game.packets.guild.GuildMotdUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankLabelUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankPermissionUpdatePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
+import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferItemPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeRequestPacket
+import de.fiereu.openmmo.server.game.progression.ProgressActionService
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogService
@@ -124,6 +126,7 @@ constructor(
     private val partyStorageService: PartyStorageService,
     private val tradeService: TradeService,
     private val marketService: MarketService,
+    private val progressActions: ProgressActionService,
     private val scriptRunner: ScriptRunner,
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
@@ -148,6 +151,7 @@ constructor(
     onSuspend<ExchangeItemRequestPacket> { event -> shopService.onBuy(event) }
     onSuspend<ShopSellRequestPacket> { event -> shopService.onSell(event) }
     onSuspend<FieldItemUsePacket> { event -> fieldItemService.onUse(event) }
+    onSuspend<ProgressActionPacket> { event -> progressActions.onAction(event) }
     onSuspend<SwapInventorySlotsPacket> { event -> partyStorageService.onSwap(event) }
 
     onSuspend<CreateMarketListingPacket> { event -> marketService.onCreate(event) }
@@ -235,11 +239,13 @@ constructor(
     val state = session.attributes[PLAYER_STATE] ?: return
     log.info { "Player ${state.characterId} disconnected." }
     val charId = state.characterId
+    val name = charId?.let { characterStore.getCharacter(it)?.info?.name }
     if (charId != null) {
       // The battle flush must land before the unload evicts the character from the cache, and
       // before the rollback, which would otherwise be overwritten by the party it persists.
       battleService.onDisconnect(session)
       tradeService.onDisconnect(charId)
+      progressActions.onLeave(charId)
       // Undo the interrupted script here rather than leaving it to the coroutine's own cleanup,
       // which runs on another thread and would race the flush below.
       scriptRunner.rollBack(session, state, entityId = -1)
@@ -252,7 +258,8 @@ constructor(
         ChatMessagePacket(
             type = ChatType.GAME_NOTIFICATIONS,
             language = Language.EN,
-            message = "A player left the game.",
+            message =
+                if (name != null) "Player $name left the game." else "A player left the game.",
             sender = "",
         ),
     )

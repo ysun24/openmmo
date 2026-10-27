@@ -12,6 +12,11 @@ data class GameServerConfig(
     val db: DbConfig = DbConfig(),
     val rootKey: String? = null,
     val rootKeyFile: String? = null,
+    /**
+     * Login user ids whose characters are admins. The login server's bootstrap account is the first
+     * user of an empty database, so this defaults to user 1.
+     */
+    val adminUserIds: Set<Int> = setOf(1),
 ) {
   override fun equals(other: Any?): Boolean =
       other is GameServerConfig &&
@@ -23,7 +28,8 @@ data class GameServerConfig(
           rootKeyFile == other.rootKeyFile &&
           sessionSecret.contentEquals(other.sessionSecret) &&
           sessionTokenMaxAge == other.sessionTokenMaxAge &&
-          db == other.db
+          db == other.db &&
+          adminUserIds == other.adminUserIds
 
   override fun hashCode(): Int {
     var h = host.hashCode()
@@ -35,6 +41,7 @@ data class GameServerConfig(
     h = h * 31 + sessionSecret.contentHashCode()
     h = h * 31 + sessionTokenMaxAge.hashCode()
     h = h * 31 + db.hashCode()
+    h = h * 31 + adminUserIds.hashCode()
     return h
   }
 }

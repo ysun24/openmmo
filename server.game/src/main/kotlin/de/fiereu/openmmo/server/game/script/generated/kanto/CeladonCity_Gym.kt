@@ -1,7 +1,13 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.dialog.generated.kanto.CeladonCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -12,7 +18,11 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Kay : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Kay")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LASS_KAY
+    ctx.gymTrainer(
+        132, CeladonCity_Gym.KayIntro, CeladonCity_Gym.KayDefeat, CeladonCity_Gym.KayPostBattle)
+  }
 }
 
 /**
@@ -24,7 +34,14 @@ internal object CeladonCity_Gym_EventScript_Kay : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Bridget : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Bridget")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BEAUTY_BRIDGET
+    ctx.gymTrainer(
+        265,
+        CeladonCity_Gym.BridgetIntro,
+        CeladonCity_Gym.BridgetDefeat,
+        CeladonCity_Gym.BridgetPostBattle)
+  }
 }
 
 /**
@@ -36,7 +53,11 @@ internal object CeladonCity_Gym_EventScript_Bridget : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Tina : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Tina")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_PICNICKER_TINA
+    ctx.gymTrainer(
+        160, CeladonCity_Gym.TinaIntro, CeladonCity_Gym.TinaDefeat, CeladonCity_Gym.TinaPostBattle)
+  }
 }
 
 /**
@@ -49,7 +70,14 @@ internal object CeladonCity_Gym_EventScript_Tina : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Tamia : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Tamia")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BEAUTY_TAMIA
+    ctx.gymTrainer(
+        266,
+        CeladonCity_Gym.TamiaIntro,
+        CeladonCity_Gym.TamiaDefeat,
+        CeladonCity_Gym.TamiaPostBattle)
+  }
 }
 
 /**
@@ -61,7 +89,11 @@ internal object CeladonCity_Gym_EventScript_Tamia : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Lori : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Lori")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BEAUTY_LORI
+    ctx.gymTrainer(
+        267, CeladonCity_Gym.LoriIntro, CeladonCity_Gym.LoriDefeat, CeladonCity_Gym.LoriPostBattle)
+  }
 }
 
 /**
@@ -74,7 +106,11 @@ internal object CeladonCity_Gym_EventScript_Lori : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Lisa : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Lisa")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LASS_LISA
+    ctx.gymTrainer(
+        133, CeladonCity_Gym.LisaIntro, CeladonCity_Gym.LisaDefeat, CeladonCity_Gym.LisaPostBattle)
+  }
 }
 
 /**
@@ -90,7 +126,28 @@ internal object CeladonCity_Gym_EventScript_Lisa : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Erika : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Erika")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LEADER_ERIKA: badge 4, TM19
+    val giveTm: suspend () -> Unit = giveTm@{
+      ctx.say(CeladonCity_Gym.ExplainRainbowBadgeTakeThis)
+      if (!ctx.giveItem(Items.TM19)) return@giveTm
+      ctx.say(CeladonCity_Gym.ReceivedTM19FromErika)
+      ctx.setFlag(KantoFlags.FLAG_GOT_TM19_FROM_ERIKA)
+      ctx.say(CeladonCity_Gym.ExplainTM19)
+    }
+    if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_ERIKA)) {
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM19_FROM_ERIKA)) giveTm()
+      else ctx.say(CeladonCity_Gym.ErikaPostBattle)
+      return
+    }
+    if (ctx.trainerBattle(417) != BattleResult.VICTORY) return
+    ctx.say(CeladonCity_Gym.ErikaDefeat)
+    ctx.clearFlag(KantoFlags.FLAG_HIDE_FAME_CHECKER_ERIKA_JOURNALS)
+    ctx.setFlag(KantoFlags.FLAG_DEFEATED_ERIKA)
+    ctx.setFlag(KantoFlags.FLAG_BADGE04_GET)
+    giveTm()
+    ctx.badgeAwarded(4)
+  }
 }
 
 /**
@@ -102,7 +159,11 @@ internal object CeladonCity_Gym_EventScript_Erika : Script {
  * ```
  */
 internal object CeladonCity_Gym_EventScript_Mary : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeladonCity_Gym_EventScript_Mary")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_COOLTRAINER_MARY
+    ctx.gymTrainer(
+        402, CeladonCity_Gym.MaryIntro, CeladonCity_Gym.MaryDefeat, CeladonCity_Gym.MaryPostBattle)
+  }
 }
 
 /**

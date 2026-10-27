@@ -5,6 +5,7 @@ import de.fiereu.openmmo.dialog.generated.hoenn.SlateportCity
 import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -282,7 +283,15 @@ internal object SlateportCity_EventScript_AquaGrunt3 : Script {
  * ```
  */
 internal object SlateportCity_EventScript_DecorClerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port SlateportCity_EventScript_DecorClerk")
+  override suspend fun run(ctx: ScriptContext) {
+    // gText_ComeBackWithSecretPower has no ROM offset in our dialog table, so it goes as a notice.
+    if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_SECRET_POWER)) {
+      ctx.progress?.tell(ctx.session, "Please come back when you have SECRET POWER.")
+      return
+    }
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("SlateportCity_PokemartDecor")
+  }
 }
 
 /**
@@ -299,7 +308,10 @@ internal object SlateportCity_EventScript_DecorClerk : Script {
  * ```
  */
 internal object SlateportCity_EventScript_DollClerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port SlateportCity_EventScript_DollClerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("SlateportCity_PokemartDecor_Dolls")
+  }
 }
 
 internal object SlateportCity_EventScript_Man3 : Script {

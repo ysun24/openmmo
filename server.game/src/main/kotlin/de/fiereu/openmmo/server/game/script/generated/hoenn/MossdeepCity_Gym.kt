@@ -1,7 +1,14 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
+import de.fiereu.openmmo.dialog.generated.hoenn.MossdeepCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -16,8 +23,41 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_TateAndLiza : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port MossdeepCity_Gym_EventScript_TateAndLiza")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_TATE_AND_LIZA_1: badge 7, TM04
+    val giveTm: suspend () -> Unit = giveTm@{
+      if (!ctx.giveItem(Items.TM04)) return@giveTm
+      ctx.say(MossdeepCity_Gym.ExplainCalmMind)
+      ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_CALM_MIND)
+    }
+    if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_MOSSDEEP_GYM)) {
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_CALM_MIND)) giveTm()
+      else ctx.say(MossdeepCity_Gym.TateAndLizaPostBattle)
+      return
+    }
+    ctx.say(MossdeepCity_Gym.TateAndLizaIntro)
+    if (ctx.trainerBattle(271) != BattleResult.VICTORY) return
+    ctx.say(MossdeepCity_Gym.TateAndLizaDefeat)
+    ctx.say(MossdeepCity_Gym.ReceivedMindBadge)
+    ctx.say(MossdeepCity_Gym.ExplainMindBadgeTakeThis)
+    ctx.setFlag(HoennFlags.FLAG_DEFEATED_MOSSDEEP_GYM)
+    ctx.setFlag(HoennFlags.FLAG_BADGE07_GET)
+    ctx.setFlag(HoennFlags.FLAG_HIDE_AQUA_HIDEOUT_GRUNTS)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_SLATEPORT_CITY_STERNS_SHIPYARD_MR_BRINEY)
+    ctx.clearFlag(HoennFlags.FLAG_UNKNOWN_0x393)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_SLATEPORT_CITY_HARBOR_PATRONS)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_MOSSDEEP_CITY_TEAM_MAGMA)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_MOSSDEEP_CITY_SPACE_CENTER_1F_TEAM_MAGMA)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_MOSSDEEP_CITY_SPACE_CENTER_2F_TEAM_MAGMA)
+    ctx.clearFlag(HoennFlags.FLAG_HIDE_MOSSDEEP_CITY_SPACE_CENTER_2F_STEVEN)
+    ctx.setVar(HoennVars.VAR_MOSSDEEP_CITY_STATE, 1)
+    ctx.setFlag(HoennFlags.FLAG_HIDE_MOSSDEEP_CITY_SPACE_CENTER_1F_STEVEN)
+    ctx.setVar(HoennVars.VAR_MOSSDEEP_SPACE_CENTER_STATE, 1)
+    giveTm()
+    ctx.say(MossdeepCity_Gym.RegisteredTateAndLiza)
+    ctx.setFlag(HoennFlags.FLAG_ENABLE_TATE_AND_LIZA_MATCH_CALL)
+    ctx.badgeAwarded(7)
+  }
 }
 
 /**
@@ -29,7 +69,14 @@ internal object MossdeepCity_Gym_EventScript_TateAndLiza : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Preston : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Preston")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_PRESTON
+    ctx.gymTrainer(
+        233,
+        MossdeepCity_Gym.PrestonIntro,
+        MossdeepCity_Gym.PrestonDefeat,
+        MossdeepCity_Gym.PrestonPostBattle)
+  }
 }
 
 /**
@@ -41,7 +88,14 @@ internal object MossdeepCity_Gym_EventScript_Preston : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Blake : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Blake")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BLAKE
+    ctx.gymTrainer(
+        235,
+        MossdeepCity_Gym.BlakeIntro,
+        MossdeepCity_Gym.BlakeDefeat,
+        MossdeepCity_Gym.BlakePostBattle)
+  }
 }
 
 /**
@@ -53,7 +107,14 @@ internal object MossdeepCity_Gym_EventScript_Blake : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Maura : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Maura")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_MAURA
+    ctx.gymTrainer(
+        246,
+        MossdeepCity_Gym.MauraIntro,
+        MossdeepCity_Gym.MauraDefeat,
+        MossdeepCity_Gym.MauraPostBattle)
+  }
 }
 
 /**
@@ -65,7 +126,14 @@ internal object MossdeepCity_Gym_EventScript_Maura : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Samantha : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Samantha")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SAMANTHA
+    ctx.gymTrainer(
+        245,
+        MossdeepCity_Gym.SamanthaIntro,
+        MossdeepCity_Gym.SamanthaDefeat,
+        MossdeepCity_Gym.SamanthaPostBattle)
+  }
 }
 
 /**
@@ -77,7 +145,14 @@ internal object MossdeepCity_Gym_EventScript_Samantha : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Virgil : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Virgil")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_VIRGIL
+    ctx.gymTrainer(
+        234,
+        MossdeepCity_Gym.VirgilIntro,
+        MossdeepCity_Gym.VirgilDefeat,
+        MossdeepCity_Gym.VirgilPostBattle)
+  }
 }
 
 /**
@@ -89,7 +164,14 @@ internal object MossdeepCity_Gym_EventScript_Virgil : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Hannah : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Hannah")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_HANNAH
+    ctx.gymTrainer(
+        244,
+        MossdeepCity_Gym.HannahIntro,
+        MossdeepCity_Gym.HannahDefeat,
+        MossdeepCity_Gym.HannahPostBattle)
+  }
 }
 
 /**
@@ -116,7 +198,14 @@ internal object MossdeepCity_Gym_EventScript_GymGuide : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Nate : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Nate")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_NATE
+    ctx.gymTrainer(
+        582,
+        MossdeepCity_Gym.NateIntro,
+        MossdeepCity_Gym.NateDefeat,
+        MossdeepCity_Gym.NatePostBattle)
+  }
 }
 
 /**
@@ -128,7 +217,14 @@ internal object MossdeepCity_Gym_EventScript_Nate : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Sylvia : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Sylvia")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SYLVIA
+    ctx.gymTrainer(
+        575,
+        MossdeepCity_Gym.SylviaIntro,
+        MossdeepCity_Gym.SylviaDefeat,
+        MossdeepCity_Gym.SylviaPostBattle)
+  }
 }
 
 /**
@@ -140,7 +236,14 @@ internal object MossdeepCity_Gym_EventScript_Sylvia : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Clifford : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Clifford")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_CLIFFORD
+    ctx.gymTrainer(
+        584,
+        MossdeepCity_Gym.CliffordIntro,
+        MossdeepCity_Gym.CliffordDefeat,
+        MossdeepCity_Gym.CliffordPostBattle)
+  }
 }
 
 /**
@@ -152,7 +255,14 @@ internal object MossdeepCity_Gym_EventScript_Clifford : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Macey : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Macey")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_MACEY
+    ctx.gymTrainer(
+        591,
+        MossdeepCity_Gym.MaceyIntro,
+        MossdeepCity_Gym.MaceyDefeat,
+        MossdeepCity_Gym.MaceyPostBattle)
+  }
 }
 
 /**
@@ -164,7 +274,14 @@ internal object MossdeepCity_Gym_EventScript_Macey : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Kathleen : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Kathleen")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_KATHLEEN
+    ctx.gymTrainer(
+        583,
+        MossdeepCity_Gym.KathleenIntro,
+        MossdeepCity_Gym.KathleenDefeat,
+        MossdeepCity_Gym.KathleenPostBattle)
+  }
 }
 
 /**
@@ -176,7 +293,14 @@ internal object MossdeepCity_Gym_EventScript_Kathleen : Script {
  * ```
  */
 internal object MossdeepCity_Gym_EventScript_Nicholas : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port MossdeepCity_Gym_EventScript_Nicholas")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_NICHOLAS
+    ctx.gymTrainer(
+        585,
+        MossdeepCity_Gym.NicholasIntro,
+        MossdeepCity_Gym.NicholasDefeat,
+        MossdeepCity_Gym.NicholasPostBattle)
+  }
 }
 
 /**

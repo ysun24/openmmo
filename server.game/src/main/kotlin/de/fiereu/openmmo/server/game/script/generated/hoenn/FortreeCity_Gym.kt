@@ -1,7 +1,14 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
+import de.fiereu.openmmo.dialog.generated.hoenn.FortreeCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -16,7 +23,32 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Winona : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Winona")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_WINONA_1: badge 6, TM40
+    val giveTm: suspend () -> Unit = giveTm@{
+      if (!ctx.giveItem(Items.TM40)) return@giveTm
+      ctx.say(FortreeCity_Gym.ExplainAerialAce)
+      ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_AERIAL_ACE)
+    }
+    if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_FORTREE_GYM)) {
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_AERIAL_ACE)) giveTm()
+      else ctx.say(FortreeCity_Gym.WinonaPostBattle)
+      return
+    }
+    ctx.say(FortreeCity_Gym.WinonaIntro)
+    if (ctx.trainerBattle(270) != BattleResult.VICTORY) return
+    ctx.say(FortreeCity_Gym.WinonaDefeat)
+    ctx.say(FortreeCity_Gym.ReceivedFeatherBadge)
+    ctx.say(FortreeCity_Gym.ExplainFeatherBadgeTakeThis)
+    ctx.setFlag(HoennFlags.FLAG_DEFEATED_FORTREE_GYM)
+    ctx.setFlag(HoennFlags.FLAG_BADGE06_GET)
+    giveTm()
+    ctx.say(FortreeCity_Gym.RegisteredWinona)
+    ctx.setFlag(HoennFlags.FLAG_ENABLE_WINONA_MATCH_CALL)
+    ctx.setVar(HoennVars.VAR_SCOTT_FORTREE_CALL_STEP_COUNTER, 0)
+    ctx.setFlag(HoennFlags.FLAG_SCOTT_CALL_FORTREE_GYM)
+    ctx.badgeAwarded(6)
+  }
 }
 
 /**
@@ -28,7 +60,14 @@ internal object FortreeCity_Gym_EventScript_Winona : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Jared : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Jared")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_JARED
+    ctx.gymTrainer(
+        401,
+        FortreeCity_Gym.JaredIntro,
+        FortreeCity_Gym.JaredDefeat,
+        FortreeCity_Gym.JaredPostBattle)
+  }
 }
 
 /**
@@ -40,7 +79,14 @@ internal object FortreeCity_Gym_EventScript_Jared : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Flint : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Flint")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_FLINT
+    ctx.gymTrainer(
+        654,
+        FortreeCity_Gym.FlintIntro,
+        FortreeCity_Gym.FlintDefeat,
+        FortreeCity_Gym.FlintPostBattle)
+  }
 }
 
 /**
@@ -52,7 +98,14 @@ internal object FortreeCity_Gym_EventScript_Flint : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Ashley : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Ashley")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_ASHLEY
+    ctx.gymTrainer(
+        655,
+        FortreeCity_Gym.AshleyIntro,
+        FortreeCity_Gym.AshleyDefeat,
+        FortreeCity_Gym.AshleyPostBattle)
+  }
 }
 
 /**
@@ -64,7 +117,14 @@ internal object FortreeCity_Gym_EventScript_Ashley : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Edwardo : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Edwardo")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_EDWARDO
+    ctx.gymTrainer(
+        404,
+        FortreeCity_Gym.EdwardoIntro,
+        FortreeCity_Gym.EdwardoDefeat,
+        FortreeCity_Gym.EdwardoPostBattle)
+  }
 }
 
 /**
@@ -91,7 +151,14 @@ internal object FortreeCity_Gym_EventScript_GymGuide : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Humberto : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Humberto")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_HUMBERTO
+    ctx.gymTrainer(
+        402,
+        FortreeCity_Gym.HumbertoIntro,
+        FortreeCity_Gym.HumbertoDefeat,
+        FortreeCity_Gym.HumbertoPostBattle)
+  }
 }
 
 /**
@@ -103,7 +170,14 @@ internal object FortreeCity_Gym_EventScript_Humberto : Script {
  * ```
  */
 internal object FortreeCity_Gym_EventScript_Darius : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Gym_EventScript_Darius")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_DARIUS
+    ctx.gymTrainer(
+        803,
+        FortreeCity_Gym.DariusIntro,
+        FortreeCity_Gym.DariusDefeat,
+        FortreeCity_Gym.DariusPostBattle)
+  }
 }
 
 /**

@@ -43,6 +43,10 @@ data class Pokemon(
     val friendship: Int = DEFAULT_FRIENDSHIP,
     /** The held item's wire id, 0 for none. */
     val heldItem: Int = 0,
+    /**
+     * PP Up / PP Max count per move slot, two bits each, slot 0 lowest (the decomp's ppBonuses).
+     */
+    val ppBonuses: Int = 0,
 ) {
   // seed is an unsigned 32-bit value on the wire, so mask before the modulo to avoid a negative
   // index when the high bit is set.
@@ -58,25 +62,5 @@ data class PokemonMove(val id: Short, var pp: Byte)
 
 const val DEFAULT_FRIENDSHIP = 70
 
-/** The Gen 3 `status1` bits (include/constants/battle.h STATUS1_*). */
-object StatusCondition {
-  const val NONE = 0
-  const val SLEEP_MASK = 0x07
-  const val POISON = 0x08
-  const val BURN = 0x10
-  const val FREEZE = 0x20
-  const val PARALYSIS = 0x40
-  const val TOXIC = 0x80
-
-  /** A short name for a packed status: "slp", "psn", "brn", "frz", "par", "tox" or null. */
-  fun code(status: Int): String? =
-      when {
-        status and SLEEP_MASK != 0 -> "slp"
-        status and TOXIC != 0 -> "tox"
-        status and POISON != 0 -> "psn"
-        status and BURN != 0 -> "brn"
-        status and FREEZE != 0 -> "frz"
-        status and PARALYSIS != 0 -> "par"
-        else -> null
-      }
-}
+/** The Gen 3 `status1` bits; one definition, see [MonStatus]. */
+typealias StatusCondition = MonStatus

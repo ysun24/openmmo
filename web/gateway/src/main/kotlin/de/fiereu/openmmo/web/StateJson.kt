@@ -10,13 +10,16 @@ import de.fiereu.openmmo.client.world.Entity
 import de.fiereu.openmmo.client.world.MapKey
 import de.fiereu.openmmo.client.world.OverworldState
 import de.fiereu.openmmo.client.world.WorldState
+import de.fiereu.openmmo.common.MonStatus
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
+import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
 import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import de.fiereu.openmmo.net.game.packets.trade.TradeStage
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
+import de.fiereu.openmmo.progression.Gen3Data
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -43,10 +46,15 @@ data class Sources(
     val ackSeq: Int,
     /** Entities that changed tile in the last step duration. */
     val moving: Set<Long>,
+    /** r3-items progression (pokedex, badges, day care…), null before the first push. */
+    val progress: ProgressStatePacket? = null,
+    /** Play time including the seconds since the last push. */
+    val playSeconds: Int = 0,
 )
 
 /** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
 class StateJson(private val names: Names) {
+  private val progressJson = ProgressJson(names)
 
   /** Every section, keyed by its name. A section with nothing to show is [JsonNull]. */
   fun build(s: Sources): Map<String, JsonElement> =
@@ -54,7 +62,7 @@ class StateJson(private val names: Names) {
           "world" to world(s),
           "chat" to chat(s.world),
           "ui" to ui(s),
-          "party" to party(s.party),
+          "party" to party(s.party, s.progress),
           "pc" to pc(s),
           "battle" to battle(s.battle),
           "invite" to invite(s.battle),
@@ -62,7 +70,7 @@ class StateJson(private val names: Names) {
           "evolution" to evolution(s.battle),
           "trade" to trade(s.trade),
           "market" to market(s),
-      )
+      ) + progressJson.sections(s)
 
   fun world(s: Sources): JsonElement {
     val w = s.world
@@ -164,7 +172,8 @@ class StateJson(private val names: Names) {
               })
       put("money", v?.money ?: s.tradeMoney ?: s.market.money)
       val bag = v?.bag?.takeIf { it.isNotEmpty() } ?: s.tradeBag
-      put("bag", bagJson(bag))
+      put("bag", bagJson(bag, s.party))
+      put("registered", s.progress?.registeredItem?.toInt()?.takeIf { it != 0 })
       put("locked", v != null && (v.transitioning || v.scriptLocked || v.inScript))
       val n = v?.notice
       put(
@@ -174,6 +183,8 @@ class StateJson(private val names: Names) {
               buildJsonObject {
                 put("seq", n.seq)
                 put("text", n.text)
+                // presence (join/leave: chat only), system, reward, error or info.
+                put("kind", n.kind)
               })
     }
   }
@@ -186,7 +197,7 @@ class StateJson(private val names: Names) {
     return names.speaker(e.map.regionId, e.graphicsId)
   }
 
-  fun bagJson(bag: Map<Int, Int>): JsonArray = buildJsonArray {
+  fun bagJson(bag: Map<Int, Int>, party: List<Pokemon> = emptyList()): JsonArray = buildJsonArray {
     bag.toSortedMap().forEach { (id, qty) ->
       if (qty > 0)
           addJsonObject {
@@ -198,50 +209,73 @@ class StateJson(private val names: Names) {
               put("pocket", info.pocket)
               put("desc", info.description)
               put("use", info.use)
+              if (info.register) put("register", true)
+              val tm = info.tmIndex
+              if (tm != null) {
+                put("teaches", info.teaches?.let(names::move))
+                // Gen 3's party menu marks who is ABLE to learn it.
+                putJsonArray("able") {
+                  party
+                      .filter { m ->
+                        !m.isEgg &&
+                            Gen3Data.canLearnTmhm(m.dexId, tm) &&
+                            m.moves.none { it.id.toInt() == info.teaches }
+                      }
+                      .forEach { add(it.id.toString()) }
+                }
+              }
             }
           }
     }
   }
 
-  fun party(party: List<Pokemon>): JsonElement = buildJsonArray {
-    party
-        .sortedBy { it.containerSlot }
-        .forEachIndexed { i, mon ->
-          addJsonObject {
-            put("slot", i)
-            put("dex", mon.dexId)
-            val species = names.species(mon.dexId)
-            put("name", species)
-            put(
-                "nick",
-                mon.nickname.takeIf { it.isNotEmpty() && !it.equals(species, ignoreCase = true) })
-            put("level", mon.level.toInt())
-            put("hp", mon.hp.toInt())
-            put("maxHp", names.maxHp(mon))
-            put("id", mon.id.toString())
-            names.summary(mon)?.let { sum ->
-              putJsonObject("stats") { sum.stats.forEach { (k, v) -> put(k, v) } }
-              put("nature", sum.nature)
-              put("ability", sum.ability)
-              putJsonArray("types") { sum.types.forEach { add(it) } }
-            }
-            putJsonArray("moves") {
-              mon.moves
-                  .filter { it.id.toInt() != 0 }
-                  .forEach {
+  fun party(party: List<Pokemon>, progress: ProgressStatePacket? = null): JsonElement =
+      buildJsonArray {
+        party
+            .sortedBy { it.containerSlot }
+            .map { ProgressJson.withExtras(it, progress) }
+            .forEachIndexed { i, mon ->
+              addJsonObject {
+                put("slot", i)
+                put("dex", mon.dexId)
+                val species = names.species(mon.dexId)
+                put("name", if (mon.isEgg) "EGG" else species)
+                put(
+                    "nick",
+                    mon.nickname.takeIf {
+                      it.isNotEmpty() && !it.equals(species, ignoreCase = true)
+                    })
+                put("level", mon.level.toInt())
+                put("hp", mon.hp.toInt())
+                put("maxHp", names.maxHp(mon))
+                put("id", mon.id.toString())
+                names.summary(mon)?.let { sum ->
+                  putJsonObject("stats") { sum.stats.forEach { (k, v) -> put(k, v) } }
+                  put("nature", sum.nature)
+                  put("ability", sum.ability)
+                  putJsonArray("types") { sum.types.forEach { add(it) } }
+                }
+                putJsonArray("moves") {
+                  mon.moves.forEachIndexed { slot, it ->
+                    if (it.id.toInt() == 0) return@forEachIndexed
                     addJsonObject {
+                      put("slot", slot)
+                      put("id", it.id.toInt())
                       put("name", names.move(it.id.toInt()))
                       put("pp", it.pp.toInt())
-                      put("maxPp", names.maxPp(it.id.toInt()))
+                      put("maxPp", MonStatus.maxPp(names.maxPp(it.id.toInt()), mon.ppBonuses, slot))
+                      put("ppUps", (mon.ppBonuses shr (slot * 2)) and 3)
                     }
                   }
+                }
+                put("status", MonStatus.label(mon.status))
+                if (mon.isEgg) put("egg", true)
+                put("ot", mon.ot)
+                put("xp", mon.xp)
+                put("shiny", mon.isShiny)
+              }
             }
-            put("ot", mon.ot)
-            put("xp", mon.xp)
-            put("shiny", mon.isShiny)
-          }
-        }
-  }
+      }
 
   /** The PC boxes, and whether the player stands where the PC can be used. */
   fun pc(s: Sources): JsonElement = buildJsonObject {

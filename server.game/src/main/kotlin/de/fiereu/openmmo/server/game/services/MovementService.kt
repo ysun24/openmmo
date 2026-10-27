@@ -11,10 +11,12 @@ import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
 import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
 import de.fiereu.openmmo.net.game.packets.MapData
 import de.fiereu.openmmo.net.game.packets.MovementPacket
+import de.fiereu.openmmo.server.game.progression.ProgressActionService
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 private val log = KotlinLogging.logger {}
@@ -58,6 +60,7 @@ constructor(
     private val characterStore: CharacterStore,
     private val encounterService: EncounterService,
     private val mapScriptService: MapScriptService,
+    private val progressActions: Provider<ProgressActionService>,
 ) {
 
   /** One step. The client sends the tile it left and the direction, the server derives the rest. */
@@ -182,6 +185,8 @@ constructor(
     characterStore.updatePosition(charId, toX.toShort(), toY.toShort(), facing = msg.direction)
     state.x = toX.toShort()
     state.y = toY.toShort()
+    // r3-items: day care steps, egg hatching, the Escape Rope's outdoor point.
+    progressActions.get().onStep(ctx, charId, currentMap, toX, toY)
 
     // The client already walked itself there, so only the observers need telling.
     presenceService.broadcastToObservers(

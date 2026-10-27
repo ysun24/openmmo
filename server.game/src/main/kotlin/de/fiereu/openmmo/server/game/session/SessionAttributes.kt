@@ -37,6 +37,8 @@ data class OpenShop(
     val bankId: Int,
     val mapId: Int,
     val shelf: Map<ItemDef, ShopItem>,
+    /** The clerk, who says "Please come again!" when the window closes. */
+    val npcEntityId: Long = -1,
 )
 
 val OPEN_SHOP = SessionAttribute.of<OpenShop>("openShop")

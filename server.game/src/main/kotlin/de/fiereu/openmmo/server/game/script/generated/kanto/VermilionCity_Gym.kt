@@ -1,7 +1,13 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.dialog.generated.kanto.VermilionCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -15,7 +21,29 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object VermilionCity_Gym_EventScript_LtSurge : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VermilionCity_Gym_EventScript_LtSurge")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LEADER_LT_SURGE: badge 3, TM34
+    val giveTm: suspend () -> Unit = giveTm@{
+      ctx.say(VermilionCity_Gym.ExplainThunderBadgeTakeThis)
+      if (!ctx.giveItem(Items.TM34)) return@giveTm
+      ctx.say(VermilionCity_Gym.ReceivedTM34FromLtSurge)
+      ctx.setFlag(KantoFlags.FLAG_GOT_TM34_FROM_SURGE)
+      ctx.say(VermilionCity_Gym.ExplainTM34)
+    }
+    if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_LT_SURGE)) {
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM34_FROM_SURGE)) giveTm()
+      else ctx.say(VermilionCity_Gym.LtSurgePostBattle)
+      return
+    }
+    ctx.say(VermilionCity_Gym.LtSurgeIntro)
+    if (ctx.trainerBattle(416) != BattleResult.VICTORY) return
+    ctx.say(VermilionCity_Gym.LtSurgeDefeat)
+    ctx.clearFlag(KantoFlags.FLAG_HIDE_FAME_CHECKER_LT_SURGE_JOURNAL)
+    ctx.setFlag(KantoFlags.FLAG_DEFEATED_LT_SURGE)
+    ctx.setFlag(KantoFlags.FLAG_BADGE03_GET)
+    giveTm()
+    ctx.badgeAwarded(3)
+  }
 }
 
 /**
@@ -27,7 +55,14 @@ internal object VermilionCity_Gym_EventScript_LtSurge : Script {
  * ```
  */
 internal object VermilionCity_Gym_EventScript_Baily : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VermilionCity_Gym_EventScript_Baily")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_ENGINEER_BAILY
+    ctx.gymTrainer(
+        220,
+        VermilionCity_Gym.BailyIntro,
+        VermilionCity_Gym.BailyDefeat,
+        VermilionCity_Gym.BailyPostBattle)
+  }
 }
 
 /**
@@ -40,7 +75,14 @@ internal object VermilionCity_Gym_EventScript_Baily : Script {
  * ```
  */
 internal object VermilionCity_Gym_EventScript_Dwayne : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VermilionCity_Gym_EventScript_Dwayne")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SAILOR_DWAYNE
+    ctx.gymTrainer(
+        141,
+        VermilionCity_Gym.DwayneIntro,
+        VermilionCity_Gym.DwayneDefeat,
+        VermilionCity_Gym.DwaynePostBattle)
+  }
 }
 
 /**
@@ -68,7 +110,14 @@ internal object VermilionCity_Gym_EventScript_GymGuy : Script {
  * ```
  */
 internal object VermilionCity_Gym_EventScript_Tucker : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port VermilionCity_Gym_EventScript_Tucker")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_GENTLEMAN_TUCKER
+    ctx.gymTrainer(
+        423,
+        VermilionCity_Gym.TuckerIntro,
+        VermilionCity_Gym.TuckerDefeat,
+        VermilionCity_Gym.TuckerPostBattle)
+  }
 }
 
 /**

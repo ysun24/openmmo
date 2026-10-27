@@ -1,5 +1,7 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.server.game.progression.DaycareScripts
+import de.fiereu.openmmo.server.game.progression.KANTO_DAYCARE
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -21,8 +23,7 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object FourIsland_PokemonDayCare_EventScript_DaycareWoman : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FourIsland_PokemonDayCare_EventScript_DaycareWoman")
+  override suspend fun run(ctx: ScriptContext) = DaycareScripts.woman(ctx, KANTO_DAYCARE)
 }
 
 internal val FourIsland_PokemonDayCareScripts: Map<String, Script> =

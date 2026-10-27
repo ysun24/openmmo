@@ -11,6 +11,10 @@ import de.fiereu.openmmo.net.game.packets.dialog.*
 import de.fiereu.openmmo.net.game.packets.gtl.*
 import de.fiereu.openmmo.net.game.packets.guild.*
 import de.fiereu.openmmo.net.game.packets.market.*
+import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
+import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacketCodec
+import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
+import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacketCodec
 import de.fiereu.openmmo.net.game.packets.trade.*
 
 object GameProtocol : Protocol() {
@@ -617,6 +621,9 @@ object GameProtocol : Protocol() {
     c2s<MarketInventoryRequestPacket>(0x6Eu, MarketInventoryRequestPacketCodec)
     s2c<MarketResultPacket>(0xCCu, MarketResultPacketCodec)
     s2c<MarketInventoryPacket>(0xCDu, MarketInventoryPacketCodec)
+    // r3-items: pokedex, badges, items on moves, day care, decorations (OpenMMO-only).
+    c2s<ProgressActionPacket>(0xF8u, ProgressActionPacketCodec)
+    s2c<ProgressStatePacket>(0xE7u, ProgressStatePacketCodec)
     // OpenMMO-only duel rules and turn timer (see packets/battle/DuelRulesPackets). 0xEE and 0xEF
     // were free in both directions.
     c2s<DuelRulesChallengePacket>(0xEEu, DuelRulesChallengePacketCodec)

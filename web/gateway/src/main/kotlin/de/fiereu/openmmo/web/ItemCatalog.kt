@@ -15,8 +15,16 @@ data class ItemInfo(
     val description: String,
     /** The mart price; a mart buys it back for half, and never when that is 0. */
     val price: Int,
-    /** `mon` (used on a party monster), `field` (used on the player) or null. */
+    /**
+     * `mon` (used on a party monster), `move` (a monster, then one of its moves), `teach` (a TM or
+     * HM), `field` (used on the player) or null.
+     */
     val use: String?,
+    /** The move a Gen 3 TM/HM teaches, and its index (TM01 = 0, HM01 = 50). */
+    val teaches: Int? = null,
+    val tmIndex: Int? = null,
+    /** A key item that can be registered to the select button. */
+    val register: Boolean = false,
 )
 
 /**
@@ -109,12 +117,14 @@ class ItemCatalog(private val decomp: File) {
               else -> "items"
             }
     val use =
-        when (fieldUse) {
-          "medicine" -> "mon"
-          "repel" -> "field"
-          else -> null
-        }
-    return ItemInfo(pocket, g?.description.orEmpty(), price, use)
+        FIELD_USE[norm(name)]
+            ?: when (fieldUse) {
+              "medicine" -> "mon"
+              "repel" -> "field"
+              else -> null
+            }
+    val register = pocket == "key" && norm(name) in REGISTRABLE
+    return ItemInfo(pocket, g?.description.orEmpty(), price, use, register = register)
   }
 
   private fun parseEmerald(): Map<String, Gba> {
@@ -155,6 +165,81 @@ class ItemCatalog(private val decomp: File) {
 
   private companion object {
     const val ITEM_REGION_BLOCK = 5000
+
+    /**
+     * How the server's FieldItemEffects uses an item out of battle, where the gen 5 field use says
+     * otherwise (status heals, PP items, Rare Candy, stones, vitamins, EV berries, the Escape
+     * Rope). Keys are [norm]alised names.
+     */
+    val FIELD_USE: Map<String, String> =
+        (listOf(
+                "antidote",
+                "burnheal",
+                "iceheal",
+                "awakening",
+                "paralyzeheal",
+                "fullheal",
+                "healpowder",
+                "lavacookie",
+                "rarecandy",
+                "firestone",
+                "waterstone",
+                "thunderstone",
+                "leafstone",
+                "moonstone",
+                "sunstone",
+                "hpup",
+                "protein",
+                "iron",
+                "carbos",
+                "calcium",
+                "zinc",
+                "pomegberry",
+                "kelpsyberry",
+                "qualotberry",
+                "hondewberry",
+                "grepaberry",
+                "tamatoberry",
+                "oranberry",
+                "sitrusberry",
+                "cheriberry",
+                "chestoberry",
+                "pechaberry",
+                "rawstberry",
+                "aspearberry",
+                "lumberry",
+                "fullrestore",
+                "revive",
+                "maxrevive",
+                "revivalherb",
+                "energypowder",
+                "energyroot",
+                "berryjuice",
+                "elixir",
+                "maxelixir")
+            .associateWith { "mon" } +
+            listOf("ether", "maxether", "leppaberry", "ppup", "ppmax").associateWith { "move" } +
+            listOf("escaperope", "repel", "superrepel", "maxrepel").associateWith { "field" })
+
+    /** Key items the GBA lets the player register to SELECT. */
+    val REGISTRABLE =
+        setOf(
+            "bicycle",
+            "machbike",
+            "acrobike",
+            "oldrod",
+            "goodrod",
+            "superrod",
+            "itemfinder",
+            "dowsingmchn",
+            "vsseeker",
+            "wailmerpail",
+            "sprayduck",
+            "pokeflute",
+            "townmap",
+            "coinCase".lowercase(),
+            "devonscope",
+            "silphscope")
     val TM = Regex("[TH]M\\d+")
 
     fun norm(s: String) =

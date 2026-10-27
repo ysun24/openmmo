@@ -1,6 +1,10 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.PetalburgCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.MovementStep.SET_INVISIBLE
 import de.fiereu.openmmo.server.game.script.MovementStep.WALK_DOWN
 import de.fiereu.openmmo.server.game.script.Script
@@ -61,10 +65,42 @@ internal object PetalburgCity_Gym_EventScript_Norman : Script {
       0 -> beginWallyTutorial(ctx)
       1 -> PetalburgCity_Gym_EventScript_ReturnFromWallyTutorial.run(ctx)
       2 -> ctx.say(PetalburgCity_Gym.NormanGoToRustboro)
-      else -> ctx.say(PetalburgCity_Gym.NormanGoToRustboro)
+      3 -> ctx.say(PetalburgCity_Gym.NormanGoToDewford)
+      4,
+      5 -> ctx.say(PetalburgCity_Gym.YouHaveGottenStronger)
+      6 -> normanBattle(ctx)
+      else ->
+          if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_FACADE)) giveFacade(ctx)
+          else ctx.say(PetalburgCity_Gym.DadGoingToKeepTraining)
     }
   }
 }
+
+/** PetalburgCity_Gym_EventScript_NormanBattle, without Wally's father's walk-in afterwards. */
+private suspend fun normanBattle(ctx: ScriptContext) {
+  ctx.say(PetalburgCity_Gym.NormanIntro)
+  if (ctx.trainerBattle(TRAINER_NORMAN_1) != BattleResult.VICTORY) return
+  ctx.say(PetalburgCity_Gym.NormanDefeat)
+  ctx.say(PetalburgCity_Gym.ReceivedBalanceBadge)
+  ctx.say(PetalburgCity_Gym.ExplainBalanceBadgeTakeThis)
+  ctx.setFlag(HoennFlags.FLAG_DEFEATED_PETALBURG_GYM)
+  ctx.setVar(HoennVars.VAR_PETALBURG_GYM_STATE, 7)
+  ctx.setFlag(HoennFlags.FLAG_BADGE05_GET)
+  ctx.setFlag(HoennFlags.FLAG_HIDE_MAUVILLE_GYM_WATTSON)
+  ctx.clearFlag(HoennFlags.FLAG_HIDE_MAUVILLE_CITY_WATTSON)
+  ctx.clearFlag(HoennFlags.FLAG_HIDE_DEWFORD_HALL_SLUDGE_BOMB_MAN)
+  giveFacade(ctx)
+  ctx.say(PetalburgCity_Gym.DadHappyAndSad)
+  ctx.badgeAwarded(5)
+}
+
+private suspend fun giveFacade(ctx: ScriptContext) {
+  if (!ctx.giveItem(Items.TM42)) return
+  ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_FACADE)
+  ctx.say(PetalburgCity_Gym.ExplainFacade)
+}
+
+private const val TRAINER_NORMAN_1 = 269
 
 private suspend fun beginWallyTutorial(ctx: ScriptContext) {
   ctx.sayNpc(LOCALID_NORMAN, PetalburgCity_Gym.DadYoureHereWithYourPokemon)
@@ -99,7 +135,14 @@ private suspend fun beginWallyTutorial(ctx: ScriptContext) {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Mary : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Mary")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_MARY
+    ctx.gymTrainer(
+        89,
+        PetalburgCity_Gym.MaryIntro,
+        PetalburgCity_Gym.MaryDefeat,
+        PetalburgCity_Gym.MaryPostBattle)
+  }
 }
 
 /**
@@ -112,7 +155,14 @@ internal object PetalburgCity_Gym_EventScript_Mary : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Randall : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Randall")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_RANDALL
+    ctx.gymTrainer(
+        71,
+        PetalburgCity_Gym.RandallIntro,
+        PetalburgCity_Gym.RandallDefeat,
+        PetalburgCity_Gym.RandallPostBattle)
+  }
 }
 
 /**
@@ -125,7 +175,14 @@ internal object PetalburgCity_Gym_EventScript_Randall : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Parker : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Parker")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_PARKER
+    ctx.gymTrainer(
+        72,
+        PetalburgCity_Gym.ParkerIntro,
+        PetalburgCity_Gym.ParkerDefeat,
+        PetalburgCity_Gym.ParkerPostBattle)
+  }
 }
 
 /**
@@ -138,7 +195,14 @@ internal object PetalburgCity_Gym_EventScript_Parker : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Alexia : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Alexia")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_ALEXIA
+    ctx.gymTrainer(
+        90,
+        PetalburgCity_Gym.AlexiaIntro,
+        PetalburgCity_Gym.AlexiaDefeat,
+        PetalburgCity_Gym.AlexiaPostBattle)
+  }
 }
 
 /**
@@ -151,7 +215,14 @@ internal object PetalburgCity_Gym_EventScript_Alexia : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_George : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_George")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_GEORGE
+    ctx.gymTrainer(
+        73,
+        PetalburgCity_Gym.GeorgeIntro,
+        PetalburgCity_Gym.GeorgeDefeat,
+        PetalburgCity_Gym.GeorgePostBattle)
+  }
 }
 
 /**
@@ -164,7 +235,14 @@ internal object PetalburgCity_Gym_EventScript_George : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Jody : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Jody")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_JODY
+    ctx.gymTrainer(
+        91,
+        PetalburgCity_Gym.JodyIntro,
+        PetalburgCity_Gym.JodyDefeat,
+        PetalburgCity_Gym.JodyPostBattle)
+  }
 }
 
 /**
@@ -177,7 +255,14 @@ internal object PetalburgCity_Gym_EventScript_Jody : Script {
  * ```
  */
 internal object PetalburgCity_Gym_EventScript_Berke : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Gym_EventScript_Berke")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BERKE
+    ctx.gymTrainer(
+        74,
+        PetalburgCity_Gym.BerkeIntro,
+        PetalburgCity_Gym.BerkeDefeat,
+        PetalburgCity_Gym.BerkePostBattle)
+  }
 }
 
 /**

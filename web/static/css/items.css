@@ -1,0 +1,57 @@
+/* r3-items: pokedex, trainer card / badge case, decorations, day care (ui/progress.js). */
+.dex-counts .chip, .panel .chip { background: #2d3344; border: 1px solid var(--line); border-radius: 12px; padding: 2px 10px; font-size: 13px; }
+.dexlist { max-height: 60vh; overflow-y: auto; }
+.item.dexrow { grid-template-columns: 3.2em 1.2em 32px 1fr auto; }
+.item.dexrow.unknown { grid-template-columns: 3.2em 1fr; color: var(--muted); opacity: .6; }
+.dexno { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.ball { color: #e44; font-size: 12px; text-align: center; }
+.ball.seen { color: transparent; }
+.dexpage { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; background: #f4f0e0; color: #222; border-radius: 8px; padding: 10px; }
+.dexpage .muted { color: #555 !important; }
+.dexsprite .big { width: 96px; height: 96px; image-rendering: pixelated; }
+.dexname { font-size: 18px; }
+.dextext { background: #f4f0e0; color: #222; border-radius: 8px; padding: 10px 12px; margin: 0; line-height: 1.45; }
+.type { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 4px; color: #fff; background: #777; text-transform: uppercase; }
+.type[data-type=FIRE] { background: #e0642c; } .type[data-type=WATER] { background: #4a7fe0; } .type[data-type=GRASS] { background: #5aa83c; }
+.type[data-type=ELECTRIC] { background: #d8b41c; } .type[data-type=PSYCHIC] { background: #e0507a; } .type[data-type=ICE] { background: #6cc4c4; }
+.type[data-type=DRAGON] { background: #6a44e0; } .type[data-type=DARK] { background: #5a463a; } .type[data-type=FIGHTING] { background: #b02c24; }
+.type[data-type=POISON] { background: #9440a0; } .type[data-type=GROUND] { background: #c8a450; } .type[data-type=FLYING] { background: #9480e0; }
+.type[data-type=BUG] { background: #94a420; } .type[data-type=ROCK] { background: #a89034; } .type[data-type=GHOST] { background: #6a5490; }
+.type[data-type=STEEL] { background: #a8a8c0; } .type[data-type=NORMAL] { background: #a0a078; }
+
+.tcard { border-radius: 12px; padding: 12px 14px; color: #1e2a20; background: linear-gradient(160deg, #d8f0c8, #a8d898); border: 3px solid #5a8c4c; display: grid; gap: 4px; }
+.tcard[data-region=hoenn] { background: linear-gradient(160deg, #d0e4f8, #98c0e8); border-color: #4c74a8; color: #1c2638; }
+.tc-top { display: flex; justify-content: space-between; font-weight: 800; letter-spacing: .08em; margin-bottom: 4px; }
+.tc-id { font-size: 11px; background: #fff8; border-radius: 6px; padding: 1px 6px; }
+.tc-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #0003; padding: 2px 0; }
+.badgecase { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; background: #0002; padding: 8px; border-radius: 8px; }
+.badge { display: grid; justify-items: center; gap: 2px; }
+.badge i { width: 34px; height: 34px; border-radius: 50%; background: #0003; box-shadow: inset 0 0 0 2px #0002; display: block; }
+.badge small { font-size: 9px; font-weight: 700; letter-spacing: .03em; }
+.badge.got i { box-shadow: 0 1px 2px #0006, inset 0 -3px 0 #0003; }
+/* Badge colours after the FireRed / Emerald badge art. */
+.badge.got[data-region=kanto][data-badge="1"] i { background: radial-gradient(circle at 35% 30%, #ddd, #8a8a8a); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="2"] i { background: radial-gradient(circle at 35% 30%, #bfe8ff, #3a8ad8); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="3"] i { background: radial-gradient(circle at 35% 30%, #ffe8a0, #e09a20); clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="4"] i { background: conic-gradient(#e44, #ea4, #ee4, #4c4, #4ae, #84e, #e44); clip-path: polygon(50% 0, 65% 30%, 100% 35%, 72% 60%, 80% 100%, 50% 80%, 20% 100%, 28% 60%, 0 35%, 35% 30%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="5"] i { background: radial-gradient(circle at 35% 30%, #ffc0e0, #c04090); clip-path: polygon(50% 0, 100% 100%, 50% 70%, 0 100%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="6"] i { background: radial-gradient(circle at 35% 30%, #ffe080, #c8a000); border-radius: 50%; box-shadow: inset 0 0 0 6px #b08000; }
+.badge.got[data-region=kanto][data-badge="7"] i { background: radial-gradient(circle at 50% 70%, #ffd040, #e03010); clip-path: polygon(50% 0, 80% 40%, 100% 100%, 0 100%, 20% 40%); border-radius: 0; }
+.badge.got[data-region=kanto][data-badge="8"] i { background: radial-gradient(circle at 35% 30%, #c0ffb0, #30a040); clip-path: polygon(50% 0, 70% 20%, 100% 50%, 70% 80%, 50% 100%, 30% 80%, 0 50%, 30% 20%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="1"] i { background: radial-gradient(circle at 35% 30%, #e8d8b0, #8a6a3a); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="2"] i { background: radial-gradient(circle at 35% 30%, #ffd0a0, #c86020); }
+.badge.got[data-region=hoenn][data-badge="3"] i { background: radial-gradient(circle at 35% 30%, #fff0a0, #e0b000); clip-path: polygon(40% 0, 100% 0, 60% 45%, 90% 45%, 20% 100%, 40% 55%, 10% 55%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="4"] i { background: radial-gradient(circle at 50% 70%, #ffe060, #e02000); clip-path: polygon(50% 0, 85% 45%, 75% 100%, 25% 100%, 15% 45%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="5"] i { background: linear-gradient(90deg, #e04040 50%, #f0f0f0 50%); }
+.badge.got[data-region=hoenn][data-badge="6"] i { background: radial-gradient(circle at 35% 30%, #d0f0ff, #4090c0); clip-path: polygon(50% 0, 100% 30%, 60% 100%, 40% 100%, 0 30%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="7"] i { background: radial-gradient(circle at 35% 30%, #ffc0f0, #a040c0); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
+.badge.got[data-region=hoenn][data-badge="8"] i { background: radial-gradient(circle at 35% 30%, #c0e0ff, #2050c0); clip-path: polygon(50% 0, 90% 60%, 70% 100%, 30% 100%, 10% 60%); border-radius: 0; }
+
+.decor-ic { width: 32px; height: 32px; border-radius: 6px; display: grid; place-items: center; background: #445; font-size: 18px; }
+.decor-ic[data-cat=plant] { background: #2c5a34; } .decor-ic[data-cat=doll] { background: #6a3c5a; } .decor-ic[data-cat=desk], .decor-ic[data-cat=chair] { background: #5a4630; }
+.decor-ic[data-cat=mat] { background: #30485a; } .decor-ic[data-cat=poster] { background: #5a5030; } .decor-ic[data-cat=cushion] { background: #5a3030; }
+.item .status { font-size: 10px; font-weight: 800; padding: 0 5px; border-radius: 3px; color: #fff; margin-left: 4px; }
+.item .status[data-s=PSN] { background: #9440a0; } .item .status[data-s=BRN] { background: #e0642c; } .item .status[data-s=PAR] { background: #c8a000; }
+.item .status[data-s=SLP] { background: #777; } .item .status[data-s=FRZ] { background: #4ab0c8; }
+.item .able { font-size: 11px; font-weight: 800; }
+.item .able.yes { color: #6c6; } .item .able.no { color: #c66; }

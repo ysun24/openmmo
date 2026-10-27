@@ -147,7 +147,12 @@ class StateJsonTest {
             "invite",
             "evolution",
             "trade",
-            "market"),
+            "market",
+            "dex",
+            "trainer",
+            "daycare",
+            "decor",
+            "learn"),
         out.keys.toList())
   }
 
@@ -179,6 +184,7 @@ class StateJsonTest {
                "money":3000,
                "bag":[{"item":5017,"name":"Potion","qty":3,"pocket":"items","desc":"Restores 20 HP.",
                        "use":"mon"}],
+               "registered":null,
                "locked":true,"notice":null}"""),
         ui)
   }
@@ -262,9 +268,9 @@ class StateJsonTest {
     assertEquals(
         parse(
             """[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":30,"maxHp":39,
-                 "id":"100","moves":[],"ot":"Ash","xp":0,"shiny":false},
+                 "id":"100","moves":[],"status":null,"ot":"Ash","xp":0,"shiny":false},
                 {"slot":1,"dex":1,"name":"BULBASAUR","nick":"Bulby","level":15,"hp":30,"maxHp":39,
-                 "id":"101","moves":[],"ot":"Ash","xp":0,"shiny":false}]"""),
+                 "id":"101","moves":[],"status":null,"ot":"Ash","xp":0,"shiny":false}]"""),
         out["party"])
     assertEquals(
         parse(
@@ -347,7 +353,7 @@ class StateJsonTest {
                "mine":[{"id":"1","kind":"item","dex":null,"item":5017,"name":"Potion","level":null,
                         "qty":2,"price":150,"expiresAt":1793000000,"mine":true}],
                "inventory":{"party":[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,
-                                      "hp":30,"maxHp":39,"id":"100","moves":[],"ot":"Ash",
+                                      "hp":30,"maxHp":39,"id":"100","moves":[],"status":null,"ot":"Ash",
                                       "xp":0,"shiny":false}],"bag":[]},
                "log":["BUY ok: Bought 2x Potion for 300."]}"""),
         m)
@@ -404,7 +410,7 @@ class StateJsonTest {
         parse(
             """[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":30,"maxHp":39,
                  "id":"100","stats":{"hp":39,"atk":20},"nature":"HARDY","ability":"BLAZE",
-                 "types":["FIRE"],"moves":[],"ot":"Ash","xp":0,"shiny":false}]"""),
+                 "types":["FIRE"],"moves":[],"status":null,"ot":"Ash","xp":0,"shiny":false}]"""),
         out["party"])
     assertEquals(
         parse(
@@ -412,7 +418,7 @@ class StateJsonTest {
                  "hp":30,"maxHp":39}]}"""),
         out["pc"])
     assertEquals(
-        parse("""{"seq":1,"text":"CHARMANDER's HP was restored by 9 point(s)."}"""),
+        parse("""{"seq":1,"text":"CHARMANDER's HP was restored by 9 point(s).","kind":"info"}"""),
         (out["ui"] as kotlinx.serialization.json.JsonObject)["notice"])
   }
 

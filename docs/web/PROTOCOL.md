@@ -313,3 +313,43 @@ serves `.mid` as `audio/midi`.
 - `battle.backgrounds[<region>][<key>]` → 240x160 PNG; keys `tall_grass long_grass sand underwater water pond_water rock cave building plain gym leader stadium champion elite_<name> team_aqua team_magma` (FireRed: no team_*, elite_lorelei/bruno/agatha/lance).
 - `battle.anims[<TYPE>|hit|sleep|ball|sparkle|stat]` → `{file, frame, frames}` sprite sheets from graphics/battle_anims.
 - `battleMusicExtra[<region>]` → `{elite, champion, rival, team, pvp, victoryElite}` song constants (alongside `battleMusic.gym`), picked with `battle.music`.
+
+## 7. r3-items (round 3, additive)
+
+### 7.1 Browser → gateway
+| t | fields | effect |
+|---|---|---|
+| `item.move` | `item`, `mon` (id string), `slot` 0-3 | Ether / Max Ether / Leppa / PP Up / PP Max on move `slot`; for a TM/HM `slot` is the move to forget when the monster knows four |
+| `learn.reply` | `slot` 0-3 or `null` | answers `learn`: forget `slot` for the new move, `null` gives it up |
+| `item.register` | `item` (0 clears) | registers a key item (GBA SELECT; the browser's key **C** uses it) |
+| `item.registered` | — | uses the registered item |
+| `daycare.deposit` | `mon` or `null` | answers `daycare.open == "deposit"` (null cancels) |
+| `daycare.withdraw` | `index` 0-1 or `null` | answers `daycare.open == "withdraw"` |
+| `decor.buy` | `id`, `qty` 1-99 | buys at the open decoration shop |
+| `decor.close` | — | closes it ("Please come again!"); `shop.close` now does the same for marts |
+| `progress.refresh` | — | asks for a fresh push |
+
+`item.use` keeps working for every item whose bag `use` is `mon` or `field`.
+
+### 7.2 Gateway → browser
+- `ui.bag[].use`: `mon`, `move` (pick a monster, then a move), `teach` (TM/HM), `field`, or null. TM/HM rows add
+  `teaches` (move name) and `able` (party ids that can learn it, Gen 3 table); key items that register add `register: true`.
+  TM descriptions are now "Teaches MOVE. <move description>" with the Gen 3 TM→move mapping.
+- `ui.registered`: the registered item id or null. `ui.notice.kind`: `presence` (joins/leaves — chat only, never a
+  toast), `system`, `reward`, `error`, `info`.
+- `party[]`: `status` (`PSN`/`BRN`/`FRZ`/`PAR`/`SLP` or null), `egg: true` for eggs (name `EGG`), `moves[]` gain
+  `slot`, `id`, `ppUps`, and `maxPp` includes PP Ups.
+- New sections (null until the first server push):
+  - `dex`: `{region, seen, caught, regionalSeen, regionalCaught, regionalSize, nationalSize, regional:[dex…],
+    entries:[{dex, name, caught, types, hoenn?, category?, heightM?, weightKg?, text?}]}` — one entry per seen species;
+    the page fields only for caught ones.
+  - `trainer`: `{name, money, playSeconds, dexSeen, dexCaught, badges:{kanto:[8 bool], hoenn:[8 bool]}, badgeNames,
+    region, registered, registeredName, admin, developer}`.
+  - `daycare`: `{open: "deposit"|"withdraw"|null, mons:[{index, id, dex, name, level, gained, fee}], egg}` or null.
+  - `decor`: `{owned:[{id, name, category, qty}], shop:[{id, name, category, price}]|null}` or null.
+  - `learn`: `{mon, name, move:{id,name,type,power,pp,maxPp,desc}, moves:[…]}` or null.
+
+### 7.3 Game protocol (OpenMMO-only)
+c2s `0xF8` `ProgressActionPacket(action u8, itemId s16, monId s64, arg1 s32, arg2 s32)` and s2c `0xE7`
+`ProgressStatePacket` (see `protocols.game/.../packets/progress/ProgressPackets.kt`; s2c 0xF8-0xFB were taken, so the
+state packet uses the free 0xE7).

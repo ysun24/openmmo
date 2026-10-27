@@ -1,7 +1,13 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.dialog.generated.kanto.CeruleanCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -13,7 +19,14 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object CeruleanCity_Gym_EventScript_Luis : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Gym_EventScript_Luis")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SWIMMER_MALE_LUIS
+    ctx.gymTrainer(
+        234,
+        CeruleanCity_Gym.LuisIntro,
+        CeruleanCity_Gym.LuisDefeat,
+        CeruleanCity_Gym.LuisPostBattle)
+  }
 }
 
 /**
@@ -25,7 +38,14 @@ internal object CeruleanCity_Gym_EventScript_Luis : Script {
  * ```
  */
 internal object CeruleanCity_Gym_EventScript_Diana : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Gym_EventScript_Diana")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_PICNICKER_DIANA
+    ctx.gymTrainer(
+        150,
+        CeruleanCity_Gym.DianaIntro,
+        CeruleanCity_Gym.DianaDefeat,
+        CeruleanCity_Gym.DianaPostBattle)
+  }
 }
 
 /**
@@ -40,7 +60,28 @@ internal object CeruleanCity_Gym_EventScript_Diana : Script {
  * ```
  */
 internal object CeruleanCity_Gym_EventScript_Misty : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CeruleanCity_Gym_EventScript_Misty")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LEADER_MISTY: badge 2, TM03
+    val giveTm: suspend () -> Unit = giveTm@{
+      ctx.say(CeruleanCity_Gym.ExplainCascadeBadge)
+      if (!ctx.giveItem(Items.TM03)) return@giveTm
+      ctx.say(CeruleanCity_Gym.ReceivedTM03FromMisty)
+      ctx.setFlag(KantoFlags.FLAG_GOT_TM03_FROM_MISTY)
+      ctx.say(CeruleanCity_Gym.ExplainTM03)
+    }
+    if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_MISTY)) {
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM03_FROM_MISTY)) giveTm()
+      else ctx.say(CeruleanCity_Gym.ExplainTM03)
+      return
+    }
+    ctx.say(CeruleanCity_Gym.MistyIntro)
+    if (ctx.trainerBattle(415) != BattleResult.VICTORY) return
+    ctx.say(CeruleanCity_Gym.MistyDefeat)
+    ctx.setFlag(KantoFlags.FLAG_DEFEATED_MISTY)
+    ctx.setFlag(KantoFlags.FLAG_BADGE02_GET)
+    giveTm()
+    ctx.badgeAwarded(2)
+  }
 }
 
 /**

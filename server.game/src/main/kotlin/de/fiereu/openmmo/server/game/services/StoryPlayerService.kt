@@ -2,6 +2,7 @@ package de.fiereu.openmmo.server.game.services
 
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.MAX_PARTY_SIZE
+import de.fiereu.openmmo.common.MonStatus
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.enums.PokemonContainer
@@ -79,13 +80,13 @@ constructor(
           val definition = species.get(pokemon.dexId) ?: return@map pokemon
           pokemon.copy(
               hp = StatCalculator.computeAll(definition, pokemon).hp.toShort(),
-              // r3-battle: a Poke Center also cures the major status the battle left behind.
-              status = 0,
               moves =
-                  pokemon.moves.map { move ->
-                    val maxPp = moves.get(move.id.toInt())?.pp ?: move.pp.toInt()
-                    PokemonMove(move.id, maxPp.toByte())
+                  pokemon.moves.mapIndexed { slot, move ->
+                    val base = moves.get(move.id.toInt())?.pp ?: move.pp.toInt()
+                    PokemonMove(move.id, MonStatus.maxPp(base, pokemon.ppBonuses, slot).toByte())
                   },
+              // HealPlayerParty also cures the status condition.
+              status = MonStatus.NONE,
           )
         }
     healed.forEach { characters.updatePokemon(characterId, it) }

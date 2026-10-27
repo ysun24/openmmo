@@ -44,7 +44,23 @@ data class StoredCharacter(
     val storyFlags: MutableSet<String> = mutableSetOf(),
     val storyVars: MutableMap<String, Int> = mutableMapOf(),
     val skins: Map<SkinSlot, Skin> = emptyMap(),
-)
+    /** Monsters left at the day care (container DAYCARE), at most two. */
+    val daycare: MutableList<Pokemon> = mutableListOf(),
+    /** Pokedex: national numbers seen, and those owned at some point (always also seen). */
+    val dexSeen: Set<Int> = emptySet(),
+    val dexCaught: Set<Int> = emptySet(),
+) {
+  /**
+   * The same character with every species it owns registered as caught, as the games do whenever a
+   * monster is received (caught, gift, trade, evolution, hatch). Itself when nothing is new.
+   */
+  fun withOwnedInDex(): StoredCharacter {
+    val owned = (pokemon.asSequence() + pcStorage + daycare).filter { !it.isEgg }.map { it.dexId }
+    val newCaught = owned.filterNot { it in dexCaught }.toSet()
+    if (newCaught.isEmpty()) return this
+    return copy(dexCaught = dexCaught + newCaught, dexSeen = dexSeen + newCaught)
+  }
+}
 
 /**
  * Write-through cache over [CharacterRepository]. Memory is the live version and the database
@@ -182,11 +198,17 @@ constructor(
           info = stored.info.copy(money = fresh.info.money),
           pokemon = fresh.pokemon.toMutableList(),
           pcStorage = fresh.pcStorage.toMutableList(),
+          daycare = fresh.daycare.toMutableList(),
           items = fresh.items.toMutableMap(),
       )
     }
-    characters.computeIfPresent(id) { _, stored -> refresh(stored) }
     persisted.computeIfPresent(id) { _, stored -> refresh(stored) }
+    var registered = false
+    characters.computeIfPresent(id) { _, stored ->
+      val fresh2 = refresh(stored)
+      fresh2.withOwnedInDex().also { registered = it !== fresh2 }
+    }
+    if (registered) markDirty(id)
   }
 
   suspend fun getCharactersByUser(userId: Int): List<StoredCharacter> {
@@ -221,7 +243,7 @@ constructor(
     var applied = false
     val present =
         characters.computeIfPresent(characterId) { _, stored ->
-          val updated = change(stored)
+          val updated = change(stored)?.withOwnedInDex()
           if (updated == null) {
             stored
           } else {
@@ -411,10 +433,10 @@ constructor(
     var diverged = false
     characters.computeIfPresent(id) { _, current ->
       if (current === base) {
-        written
+        written.withOwnedInDex().also { if (it !== written) diverged = true }
       } else {
         diverged = true
-        redo ?: written
+        (redo ?: written).withOwnedInDex()
       }
     }
     if (diverged) markDirty(id)
@@ -445,6 +467,16 @@ constructor(
     mutate(characterId) { stored ->
       val newVars = stored.storyVars.toMutableMap()
       if (value == 0) newVars.remove(key) else newVars[key] = value
+      if (newVars == stored.storyVars) null else stored.copy(storyVars = newVars)
+    }
+  }
+
+  /** Sets several story vars at once (0 removes one), as one write. */
+  fun setStoryVars(characterId: Long, values: Map<String, Int>) {
+    if (values.isEmpty()) return
+    mutate(characterId) { stored ->
+      val newVars = stored.storyVars.toMutableMap()
+      for ((k, v) in values) if (v == 0) newVars.remove(k) else newVars[k] = v
       if (newVars == stored.storyVars) null else stored.copy(storyVars = newVars)
     }
   }
@@ -536,9 +568,40 @@ constructor(
   }
 
   private fun cache(stored: StoredCharacter): StoredCharacter {
-    val existing = characters.putIfAbsent(stored.info.id, stored)
-    if (existing == null) persisted[stored.info.id] = stored
-    return existing ?: stored
+    // Characters from before the pokedex existed register what they already own on load.
+    val live = stored.withOwnedInDex()
+    val existing = characters.putIfAbsent(stored.info.id, live)
+    if (existing == null) {
+      persisted[stored.info.id] = stored
+      if (live !== stored) markDirty(stored.info.id)
+    }
+    return existing ?: live
+  }
+
+  /**
+   * A change to anything other than the bag, money, party or pc a player could trade, written
+   * before returning (a pokedex entry, a day care deposit, a decoration bought together with its
+   * price). False when [change] refused or the write failed; a failed write puts back [change]'s
+   * input, so a racing position update in that window can be lost, never an item.
+   */
+  suspend fun commitDurably(
+      characterId: Long,
+      change: (StoredCharacter) -> StoredCharacter?,
+  ): Boolean {
+    var before: StoredCharacter? = null
+    return mutateDurably(
+        characterId,
+        apply = { stored -> change(stored).also { if (it != null) before = stored } },
+        rollback = { before ?: it },
+    )
+  }
+
+  /** Marks [dexIds] as seen (a wild or trainer monster sent out). Not durable, like a step. */
+  fun registerSeen(characterId: Long, dexIds: Collection<Int>) {
+    mutate(characterId) { stored ->
+      val new = dexIds.filter { it > 0 && it !in stored.dexSeen }
+      if (new.isEmpty()) null else stored.copy(dexSeen = stored.dexSeen + new)
+    }
   }
 
   private fun markDirty(id: Long) {

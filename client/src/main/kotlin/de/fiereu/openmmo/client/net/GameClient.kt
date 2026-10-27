@@ -45,6 +45,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPagePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
+import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap
@@ -84,6 +85,9 @@ class GameClient(
 
   /** Global market state and actions (MarketClient.kt). */
   val market = MarketClient({ session?.send(it) }, { onChange() })
+
+  /** r3-items: pokedex, badges, trainer card, day care, decorations, item-on-move use. */
+  val progress = ProgressClient({ session?.send(it) }, { onChange() })
 
   /** Npcs, dialog, shop and scripted movement. */
   val overworld = OverworldClient(world, { session?.send(it) }, onChange)
@@ -298,8 +302,10 @@ class GameClient(
         log.info { "[chat] $sender: ${p.message}" }
         world.addChat(ChatLine(sender, p.message))
         if (p.sender.isNullOrEmpty()) {
-          battle.notice(p.message)
-          world.overworld.setNotice(p.message)
+          val kind = NoticeKind.classify(p.message, p.type == ChatType.SYSTEM_ANNOUNCEMENTS)
+          // Joins and leaves stay in the chat log; they are no battle line and no toast.
+          if (kind != NoticeKind.PRESENCE) battle.notice(p.message)
+          world.overworld.setNotice(p.message, kind.wire)
         }
         onChange()
       }
@@ -318,6 +324,7 @@ class GameClient(
         overworld.handle(event)
       }
       on<MarketInventoryPacket> { event -> market.onInventory(event.packet) }
+      on<ProgressStatePacket> { event -> progress.onState(event.packet) }
       on<MarketResultPacket> { event -> market.onResult(event.packet) }
       on<GtlSearchPagePacket> { event -> market.onPage(event.packet) }
       on<CurrencyBalancePacket> { event ->
