@@ -187,7 +187,8 @@ object Dispatcher {
         "evolution.close" -> g.evolutionClose()
         "battle.switch" -> g.battleSwitch(m.reqInt("slot", 0..5))
         "battle.run" -> g.battleRun()
-        "battle.ball" -> m.int("item")?.let { g.battleBallItem(it) } ?: g.battleBall()
+        "battle.ball" ->
+            m.int("item").let { if (it != null) g.battleBallItem(it) else g.battleBall() }
         "battle.learn" -> {
           val slot = m["slot"]
           if (slot == null || slot is JsonNull) g.battleLearn(null)

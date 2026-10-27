@@ -84,8 +84,10 @@ export const root = () => evoEl || $('#battle');
 export const busy = () => playing || queue.length > 0;
 
 export function update(state, changed) {
-  updateEvolution(state.evolution || null);
   const nb = state.battle;
+  // The evolution scene waits until the battle screen is gone, as on the GBA.
+  const battleUp = !!nb && !(b && dismissed && nb.phase === 'ENDED');
+  if (!battleUp || evoEl) updateEvolution(state.evolution || null);
   if (!nb) {
     if (b) close();
     return;
@@ -986,6 +988,7 @@ function render(state) {
       btn('Continue', 'cont', () => {
         dismissed = true;
         $('#battle').classList.add('hidden');
+        updateEvolution(app.net.state.evolution || null);
       }));
   }
 

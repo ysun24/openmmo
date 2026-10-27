@@ -25,7 +25,7 @@ constructor(
     private val battles: BattleService,
 ) : ChatCommand {
   override val name = "monset"
-  override val usage = "/monset <slot> <status|held|friendship|hp|level> <value>"
+  override val usage = "/monset <slot> <status|held|friendship|hp|level|almost> <value>"
   override val description = "sets a party monster's status, held item, friendship, hp or level"
   override val permission = CharacterPermissions.DEVELOPER
 
@@ -72,6 +72,16 @@ constructor(
                   de.fiereu.openmmo.server.game.battle.ExpCurves.totalXpFor(it.growthRate, level)
                 } ?: mon.xp
             mon.copy(level = level.toByte(), xp = xp)
+          }
+          // `almost <any>`: one EXP point short of the next level, so the next win levels up.
+          "almost" -> {
+            val def = de.fiereu.openmmo.pokemon.SpeciesRegistry().get(mon.dexId)
+            val xp =
+                def?.let {
+                  de.fiereu.openmmo.server.game.battle.ExpCurves.totalXpFor(
+                      it.growthRate, mon.level + 1) - 1
+                } ?: mon.xp
+            mon.copy(xp = xp)
           }
           else -> return ctx.reply("Usage: $usage")
         }

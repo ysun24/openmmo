@@ -328,6 +328,9 @@ class BattleClient(
   /** r3-battle: set when an extension ball event played the throw. */
   private var ballShown = false
 
+  /** r3-battle: the last ball held, so the battle end reads CAUGHT whatever the ball. */
+  private var caughtSeen = false
+
   /** r3-battle: the position the next retail switch-in fills. */
   private var pendingSwitchPos: Int? = null
 
@@ -410,6 +413,8 @@ class BattleClient(
       is BattleSlotEventEnumPacket -> if (p.eventType.toInt() == 0) say("Got away safely!")
       is BattleListEventPacket -> {
         // r3-battle: the extension ball event already played the throw with its real shakes.
+        // The retail throw event only follows a catch.
+        synchronized(lock) { caughtSeen = true }
         if (!synchronized(lock) { ballShown.also { ballShown = false } }) {
           say("You threw a POKé BALL!")
           fx("ball", "foe", "shakes" to BALL_SHAKES, "caught" to true)
@@ -524,7 +529,10 @@ class BattleClient(
           timer = null,
       )
     }
-    synchronized(lock) { pendingExp = null }
+    synchronized(lock) {
+      pendingExp = null
+      caughtSeen = false
+    }
     val s = snapshot()
     fx(
         "start",
@@ -794,7 +802,7 @@ class BattleClient(
           p.phase == FLED_PHASE -> "FLED"
           s.party.isNotEmpty() && s.party.all { it.fainted } -> "DEFEAT"
           s.opponent.isNotEmpty() && s.opponent.all { it.fainted } -> "VICTORY"
-          s.log.any { it.contains("POKé BALL") } -> "CAUGHT"
+          synchronized(lock) { caughtSeen } -> "CAUGHT"
           s.log.any { it.contains("won the battle") } ->
               if (s.log.last { it.contains("won the battle") }.startsWith("${myName()} ")) "VICTORY"
               else "DEFEAT"
@@ -1072,7 +1080,10 @@ class BattleClient(
         val ball = e.str("ball") ?: "POKé BALL"
         val shakes = e.int("shakes") ?: 0
         val caught = e.bool("caught")
-        synchronized(lock) { ballShown = true }
+        synchronized(lock) {
+          ballShown = true
+          if (caught) caughtSeen = true
+        }
         say("You threw a ${ball.uppercase()}!")
         fx("ball", "foe", "shakes" to shakes, "caught" to caught, "ball" to ball)
         if (!caught) synchronized(lock) { ballShown = false }
