@@ -25,7 +25,7 @@ export const sfx = {
     const name = table && table[role];
     if (!name) return Promise.resolve(false);
     const now = performance.now();
-    if (now - (this.last.get(role) || 0) < minGapMs) return Promise.resolve(false);
+    if (now - (this.last.get(role) ?? -Infinity) < minGapMs) return Promise.resolve(false);
     this.last.set(role, now);
     this.played.push(role);
     if (this.played.length > 30) this.played.shift();
