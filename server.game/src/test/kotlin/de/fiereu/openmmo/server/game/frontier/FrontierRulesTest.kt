@@ -30,6 +30,7 @@ import io.kotest.matchers.shouldNotBe
 import java.time.LocalDateTime
 import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.put
 
 private val data = FrontierData()
 private val speciesRegistry = SpeciesRegistry()
@@ -440,5 +441,38 @@ class FrontierRulesTest :
         }
         s.addPoints(20_000)
         s.battlePoints shouldBe FrontierRules.MAX_BATTLE_FRONTIER_POINTS
+      }
+
+      test("a REST keeps the paused challenge: team (hp, status, pp, evs), step and floor state") {
+        val mon =
+            de.fiereu.openmmo.server.game.services.trade
+                .tradeMon(9, 0, 376)
+                .copy(hp = 17, status = 0x08, heldItem = 5021, friendship = 200)
+        mon.eVs.atk = 255
+        val rest =
+            FrontierRest(
+                "pyramid",
+                "pyramid:singles:50",
+                3,
+                listOf(mon),
+                kotlinx.serialization.json.buildJsonObject {
+                  put("lvl", "50")
+                  put("at", 6)
+                  put("fought", FrontierRest.ints(listOf(4, 99)))
+                  put("partner", FrontierMonJson.encodeAll(listOf(mon)))
+                })
+        val s = FrontierSave()
+        s.rest = rest
+        val back = FrontierSave.fromJson(0, s.toJson().toString()).rest!!
+        back.desk shouldBe "pyramid"
+        back.key shouldBe "pyramid:singles:50"
+        back.step shouldBe 3
+        back.team shouldBe listOf(mon)
+        back.team.single().eVs.atk shouldBe 255
+        back.int("at") shouldBe 6
+        back.string("lvl") shouldBe "50"
+        back.ints("fought") shouldBe listOf(4, 99)
+        back.mons("partner") shouldBe listOf(mon)
+        FrontierSave.fromJson(0, FrontierSave().toJson().toString()).rest shouldBe null
       }
     })

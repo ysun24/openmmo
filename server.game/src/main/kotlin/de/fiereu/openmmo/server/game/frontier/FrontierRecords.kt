@@ -45,6 +45,8 @@ class FrontierSave(
     val towerBest: MutableMap<String, Long> = mutableMapOf(),
     /** Prizes taken once per mode / type (receivedPrize). */
     val prizesTaken: MutableSet<String> = mutableSetOf(),
+    /** A challenge on hold (REST), resumed at its desk. */
+    var rest: FrontierRest? = null,
 ) {
   fun streak(key: String): Streak = streaks.getOrPut(key) { Streak() }
 
@@ -74,6 +76,7 @@ class FrontierSave(
     put("hill", JsonObject(hillBest.mapValues { JsonPrimitive(it.value) }))
     put("ttower", JsonObject(towerBest.mapValues { JsonPrimitive(it.value) }))
     put("prizes", JsonArray(prizesTaken.map { JsonPrimitive(it) }))
+    rest?.let { put("rest", it.toJson()) }
   }
 
   companion object {
@@ -105,6 +108,7 @@ class FrontierSave(
           prizesTaken =
               o["prizes"]?.jsonArray?.map { it.jsonPrimitive.content }?.toMutableSet()
                   ?: mutableSetOf(),
+          rest = o["rest"]?.jsonObject?.let(FrontierRest::fromJson),
       )
     }
   }

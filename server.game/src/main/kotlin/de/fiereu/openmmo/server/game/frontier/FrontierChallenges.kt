@@ -14,6 +14,8 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -66,9 +68,30 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   // --- desk dispatch ---------------------------------------------------------------------------
 
   suspend fun runDesk() {
-    svc.save(run.charId)
+    val save = svc.save(run.charId)
     val d = run.desk
     val parts = d.split(":")
+    val rest = save.rest
+    if (rest != null && parts[0] !in setOf("card", "exchange")) {
+      if (rest.desk != d) {
+        return message(
+            "BATTLE FRONTIER",
+            "Your ${deskTitle(rest.desk)} challenge is on hold. Please continue it there first.")
+      }
+      // The paused challenge resumes once (Emerald clears frontierChallengePaused on resume).
+      save.rest = null
+      svc.persist(run.charId)
+      message(deskTitle(d), "We've been waiting for you! Let's continue your challenge.")
+      when (parts[0]) {
+        "tower" -> tower(BattleMode.byKey(parts.getOrNull(1)), rest)
+        "palace" -> streakFacility(Facility.PALACE, BattleMode.byKey(parts.getOrNull(1)), rest)
+        "arena" -> streakFacility(Facility.ARENA, BattleMode.SINGLES, rest)
+        "factory" -> factory(BattleMode.byKey(parts.getOrNull(1)), tent = false, resume = rest)
+        "pike" -> pike(rest)
+        "pyramid" -> pyramid(rest)
+      }
+      return
+    }
     when (parts[0]) {
       "card" -> card()
       "exchange" -> exchange(parts.getOrElse(1) { "Vitamins" })
@@ -87,6 +110,37 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   }
 
   // --- common pieces ---------------------------------------------------------------------------
+
+  private fun deskTitle(desk: String): String =
+      when (desk.substringBefore(":")) {
+        "tower" -> "BATTLE TOWER"
+        "palace" -> "BATTLE PALACE"
+        "arena" -> "BATTLE ARENA"
+        "factory" -> "BATTLE FACTORY"
+        "pike" -> "BATTLE PIKE"
+        "pyramid" -> "BATTLE PYRAMID"
+        "dome" -> "BATTLE DOME"
+        else -> "BATTLE FRONTIER"
+      }
+
+  /**
+   * REST: the challenge is saved (streak, the next battle, the team and the facility's state) and
+   * ends here; talking to the same desk resumes it.
+   */
+  private suspend fun rest(
+      title: String,
+      key: String,
+      step: Int,
+      team: List<Pokemon>,
+      extra: JsonObjectBuilder.() -> Unit = {}
+  ) {
+    val save = svc.save(run.charId)
+    save.rest = FrontierRest(run.desk, key, step, team, buildJsonObject(extra))
+    svc.persist(run.charId)
+    message(
+        title,
+        "Your challenge has been saved. Please rest, then talk to me again to continue where you left off.")
+  }
 
   private suspend fun chooseLevel(title: String): LevelMode? =
       when (menu(
@@ -229,18 +283,29 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
     else "${f.title.removePrefix("BATTLE ")} SYMBOL (GOLD)"
   }
 
-  /** The screen between two battles: continue or retire (the decomp's "rest" is not kept). */
+  /** The screen between two battles: continue or retire. */
   private suspend fun between(
       title: String,
       text: String,
       team: List<Pokemon>,
       preview: FacilityOpponent?,
       extra: JsonObjectBuilder.() -> Unit = {}
-  ): Boolean {
+  ): Boolean = betweenChoice(title, text, team, preview, false, extra) != "retire"
+
+  /** The between screen with REST offered: "continue", "retire" or "rest". */
+  private suspend fun betweenChoice(
+      title: String,
+      text: String,
+      team: List<Pokemon>,
+      preview: FacilityOpponent?,
+      canRest: Boolean = true,
+      extra: JsonObjectBuilder.() -> Unit = {}
+  ): String {
     val a =
         run.ask(
             screen("between", title) {
               put("text", text)
+              if (canRest) put("rest", true)
               put("team", buildJsonArray { team.forEach { add(svc.card(it)) } })
               preview?.let {
                 put("opponent", it.name)
@@ -249,7 +314,11 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
               }
               extra()
             })
-    return a["v"]?.jsonPrimitive?.contentOrNull != "retire"
+    return when (val v = a["v"]?.jsonPrimitive?.contentOrNull) {
+      "retire",
+      "rest" -> if (v == "rest" && !canRest) "continue" else v
+      else -> "continue"
+    }
   }
 
   private suspend fun lose(key: String, title: String, text: String) {
@@ -287,35 +356,39 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   // --- Battle Tower ----------------------------------------------------------------------------
 
   /** battle_tower.c: 7 battles a round, singles / doubles / multis (NPC partner) / link multis. */
-  private suspend fun tower(mode: BattleMode) {
+  private suspend fun tower(mode: BattleMode, resume: FrontierRest? = null) {
     val title = "BATTLE TOWER"
-    val choice =
-        menu(
+    if (resume == null) {
+      val choice =
+          menu(
+              title,
+              "Welcome to the BATTLE TOWER! ${mode.name} BATTLE ROOM.",
+              listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
+      if (choice == "info") {
+        message(
             title,
-            "Welcome to the BATTLE TOWER! ${mode.name} BATTLE ROOM.",
-            listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
-    if (choice == "info") {
-      message(
-          title,
-          "Battle seven TRAINERS in a row. Lose once and your streak ends. Each set of seven wins earns Battle Points.")
-      return
+            "Battle seven TRAINERS in a row. Lose once and your streak ends. Each set of seven wins earns Battle Points.")
+        return
+      }
+      if (choice != "challenge") return
     }
-    if (choice != "challenge") return
-    val lvl = chooseLevel(title) ?: return
+    val lvl = resume?.let { LevelMode.byKey(it.string("lvl")) } ?: chooseLevel(title) ?: return
     val size = FrontierRules.partySize(Facility.TOWER, mode)
     if (mode == BattleMode.LINK_MULTIS) return linkMultis(lvl)
-    var team = chooseTeam(title, size, lvl) ?: return
+    var team = resume?.team ?: chooseTeam(title, size, lvl) ?: return
     val key = streakKey(Facility.TOWER, mode, lvl)
     val save = svc.save(run.charId)
     val st = save.streak(key)
-    if (!st.active) st.current = 0
-    st.active = false
+    if (resume == null) {
+      if (!st.active) st.current = 0
+      st.active = false
+    }
     svc.persist(run.charId)
     // Multis with an NPC partner: pick one of the tower's trainers
     // (LoadMultiPartnerCandidatesData).
-    var partnerTeam: List<Pokemon> = emptyList()
-    var partnerName = ""
-    if (mode == BattleMode.MULTIS) {
+    var partnerTeam: List<Pokemon> = resume?.mons("partner").orEmpty()
+    var partnerName = resume?.string("partnerName").orEmpty()
+    if (mode == BattleMode.MULTIS && resume == null) {
       val level = FrontierRules.enemyLevel(lvl, partyMax(team))
       val candidates =
           (0 until 4).map { FrontierRules.randomScaledTrainerId(st.current / 7, 0, rng) }.distinct()
@@ -332,9 +405,9 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
       partnerTeam = p.mons
       partnerName = data.frontier.trainers[pid].name
     }
-    val fought = mutableListOf<Int>()
-    var brainThisRound = false
-    for (battleNum in 0 until FrontierRules.FRONTIER_STAGES_PER_CHALLENGE) {
+    val fought = resume?.ints("fought").orEmpty().toMutableList()
+    var brainThisRound = resume?.bool("brain") ?: false
+    for (battleNum in (resume?.step ?: 0) until FrontierRules.FRONTIER_STAGES_PER_CHALLENGE) {
       val challengeNum = st.current / FrontierRules.FRONTIER_STAGES_PER_CHALLENGE
       val level = FrontierRules.enemyLevel(lvl, partyMax(team))
       val status =
@@ -365,9 +438,20 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
           opp = trainerOpponent(id, level, count).first
         }
       }
-      if (!between(title, "Battle ${battleNum + 1} of 7. Win streak: ${st.current}.", team, opp)) {
-        lose(key, title, "You retired. Your streak of ${st.current} has ended.")
-        return
+      when (betweenChoice(
+          title, "Battle ${battleNum + 1} of 7. Win streak: ${st.current}.", team, opp)) {
+        "retire" -> {
+          lose(key, title, "You retired. Your streak of ${st.current} has ended.")
+          return
+        }
+        "rest" ->
+            return rest(title, key, battleNum, team) {
+              put("lvl", lvl.key)
+              put("fought", FrontierRest.ints(fought))
+              put("brain", brainThisRound)
+              put("partner", FrontierMonJson.encodeAll(partnerTeam))
+              put("partnerName", partnerName)
+            }
       }
       val hooks = if (mode == BattleMode.MULTIS) NpcPartnerHooks(setOf(1)) else null
       val out =
@@ -537,30 +621,34 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   // --- Palace / Arena (and their tents) --------------------------------------------------------
 
   /** battle_palace.c / battle_arena.c: Tower-style 7-battle rounds with their battle rules. */
-  private suspend fun streakFacility(f: Facility, mode: BattleMode) {
+  private suspend fun streakFacility(f: Facility, mode: BattleMode, resume: FrontierRest? = null) {
     val title = f.title
     val info =
         if (f == Facility.PALACE)
             "In the BATTLE PALACE your POKéMON choose their own moves, by their natures."
         else
             "In the BATTLE ARENA POKéMON battle one on one for three turns. If both remain, the REFEREE judges Mind, Skill and Body."
-    val choice =
-        menu(
-            title,
-            "Welcome to the $title!",
-            listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
-    if (choice == "info") return message(title, info)
-    if (choice != "challenge") return
-    val lvl = chooseLevel(title) ?: return
-    var team = chooseTeam(title, FrontierRules.FRONTIER_PARTY_SIZE, lvl) ?: return
+    if (resume == null) {
+      val choice =
+          menu(
+              title,
+              "Welcome to the $title!",
+              listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
+      if (choice == "info") return message(title, info)
+      if (choice != "challenge") return
+    }
+    val lvl = resume?.let { LevelMode.byKey(it.string("lvl")) } ?: chooseLevel(title) ?: return
+    var team = resume?.team ?: chooseTeam(title, FrontierRules.FRONTIER_PARTY_SIZE, lvl) ?: return
     val key = streakKey(f, mode, lvl)
     val save = svc.save(run.charId)
     val st = save.streak(key)
-    if (!st.active) st.current = 0
-    st.active = false
-    val fought = mutableListOf<Int>()
-    var brainThisRound = false
-    for (battleNum in 0 until 7) {
+    if (resume == null) {
+      if (!st.active) st.current = 0
+      st.active = false
+    }
+    val fought = resume?.ints("fought").orEmpty().toMutableList()
+    var brainThisRound = resume?.bool("brain") ?: false
+    for (battleNum in (resume?.step ?: 0) until 7) {
       val level = FrontierRules.enemyLevel(lvl, partyMax(team))
       val status = FrontierRules.brainStatus(f, mode, st.current, save.symbolsOf(f))
       val opp =
@@ -572,8 +660,15 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
                 }
             trainerOpponent(id, level, FrontierRules.FRONTIER_PARTY_SIZE).first
           }
-      if (!between(title, "Battle ${battleNum + 1} of 7. Win streak: ${st.current}.", team, opp)) {
-        return lose(key, title, "You retired. Your streak of ${st.current} has ended.")
+      when (betweenChoice(
+          title, "Battle ${battleNum + 1} of 7. Win streak: ${st.current}.", team, opp)) {
+        "retire" -> return lose(key, title, "You retired. Your streak of ${st.current} has ended.")
+        "rest" ->
+            return rest(title, key, battleNum, team) {
+              put("lvl", lvl.key)
+              put("fought", FrontierRest.ints(fought))
+              put("brain", brainThisRound)
+            }
       }
       val hooks: FacilityHooks =
           if (f == Facility.PALACE) PalaceHooks(rng)
@@ -859,68 +954,79 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   // --- Battle Factory / Slateport Tent ---------------------------------------------------------
 
   /** battle_factory.c / battle_factory_screen.c: rent three of six, swap one after each win. */
-  private suspend fun factory(mode: BattleMode, tent: Boolean) {
+  private suspend fun factory(mode: BattleMode, tent: Boolean, resume: FrontierRest? = null) {
     val title = if (tent) "SLATEPORT BATTLE TENT" else "BATTLE FACTORY"
-    val choice =
-        menu(
-            title,
-            "Welcome to the $title! Here you battle with rental POKéMON.",
-            listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
-    if (choice == "info")
-        return message(
-            title,
-            "Choose three of six rental POKéMON. After each win you may swap one of yours for one of your opponent's.")
-    if (choice != "challenge") return
-    val lvl = if (tent) LevelMode.TENT else chooseLevel(title) ?: return
+    if (resume == null) {
+      val choice =
+          menu(
+              title,
+              "Welcome to the $title! Here you battle with rental POKéMON.",
+              listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
+      if (choice == "info")
+          return message(
+              title,
+              "Choose three of six rental POKéMON. After each win you may swap one of yours for one of your opponent's.")
+      if (choice != "challenge") return
+    }
+    val lvl =
+        if (tent) LevelMode.TENT
+        else resume?.let { LevelMode.byKey(it.string("lvl")) } ?: chooseLevel(title) ?: return
     val table = if (tent) data.tents.getValue("slateport") else data.frontier
     val key = if (tent) "tent:slateport" else streakKey(Facility.FACTORY, mode, lvl)
     val save = svc.save(run.charId)
     val st = save.streak(key)
-    if (!st.active) st.current = 0
-    st.active = false
+    if (resume == null) {
+      if (!st.active) st.current = 0
+      st.active = false
+    }
     val stages = if (tent) FrontierRules.TENT_STAGES else 7
     val challengeNum = st.current / stages
     val rentsKey = "${mode.key}:${lvl.key}"
     val rank = FactoryRules.rentalRank(save.factoryRents[rentsKey] ?: 0)
     val level = FactoryRules.level(lvl)
-    // GenerateInitialRentalMons (the tent draws from its own 70 sets).
-    val rentalIds =
-        if (tent) {
-          val ids = mutableListOf<Int>()
-          while (ids.size < 6) {
-            val id = rng.nextInt(table.mons.size)
-            val m = table.mons[id]
-            if (ids.any {
-              table.mons[it].species == m.species ||
-                  (m.item != "NONE" && table.mons[it].item == m.item)
-            })
-                continue
-            ids += id
+    var team: List<Pair<Int, Pokemon>>
+    if (resume != null) {
+      team = resume.ints("ids").zip(resume.team)
+    } else {
+      // GenerateInitialRentalMons (the tent draws from its own 70 sets).
+      val rentalIds =
+          if (tent) {
+            val ids = mutableListOf<Int>()
+            while (ids.size < 6) {
+              val id = rng.nextInt(table.mons.size)
+              val m = table.mons[id]
+              if (ids.any {
+                table.mons[it].species == m.species ||
+                    (m.item != "NONE" && table.mons[it].item == m.item)
+              })
+                  continue
+              ids += id
+            }
+            ids
+          } else FactoryRules.initialRentals(table.mons, lvl, challengeNum, rank, rng)
+      val rentals =
+          rentalIds.mapIndexed { i, id ->
+            val iv =
+                if (tent) 0 else FactoryRules.fixedIv(challengeNum + if (i < rank) 1 else 0, false)
+            id to svc.mons.facilityMon(table.mons[id], level, iv, rng, avoidReturn = true)
           }
-          ids
-        } else FactoryRules.initialRentals(table.mons, lvl, challengeNum, rank, rng)
-    val rentals =
-        rentalIds.mapIndexed { i, id ->
-          val iv =
-              if (tent) 0 else FactoryRules.fixedIv(challengeNum + if (i < rank) 1 else 0, false)
-          id to svc.mons.facilityMon(table.mons[id], level, iv, rng, avoidReturn = true)
-        }
-    val a =
-        run.ask(
-            screen("rental", title) {
-              put("text", "Please choose three rental POKéMON.")
-              put("count", 3)
-              put("mons", buildJsonArray { rentals.forEach { add(svc.card(it.second)) } })
-            })
-    if (a["v"]?.jsonPrimitive?.contentOrNull == "cancel") return
-    val picks = svc.ints(a, "picks").distinct().filter { it in rentals.indices }.take(3)
-    if (picks.size != 3) return message(title, "Please choose three POKéMON.")
-    save.factoryRents[rentsKey] = (save.factoryRents[rentsKey] ?: 0) + 1
-    var team = picks.map { rentals[it] }
+      val a =
+          run.ask(
+              screen("rental", title) {
+                put("text", "Please choose three rental POKéMON.")
+                put("count", 3)
+                put("mons", buildJsonArray { rentals.forEach { add(svc.card(it.second)) } })
+              })
+      if (a["v"]?.jsonPrimitive?.contentOrNull == "cancel") return
+      val picks = svc.ints(a, "picks").distinct().filter { it in rentals.indices }.take(3)
+      if (picks.size != 3) return message(title, "Please choose three POKéMON.")
+      save.factoryRents[rentsKey] = (save.factoryRents[rentsKey] ?: 0) + 1
+      team = picks.map { rentals[it] }
+    }
     var lastOpp: List<Pair<Int, Pokemon>> = emptyList()
-    val fought = mutableListOf<Int>()
-    var brainThisRound = false
-    for (battleNum in 0 until stages) {
+    val fought = resume?.ints("fought").orEmpty().toMutableList()
+    var brainThisRound = resume?.bool("brain") ?: false
+    for (battleNum in (resume?.step ?: 0) until stages) {
       val status =
           if (tent) BrainStatus.NOT_READY
           else
@@ -979,14 +1085,23 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
                 intro = "${t.name}: ${t.speechBefore}")
       }
       val style = FactoryRules.battleStyle(oppIds.map { table.mons[it] }, data.factoryStyles)
-      if (!between(
+      when (betweenChoice(
           title,
           "Battle ${battleNum + 1} of $stages. Win streak: ${st.current}.",
           team.map { it.second },
-          opp) {
+          opp,
+          canRest = !tent) {
             put("hint", "Your next opponent's style: ${FactoryRules.STYLE_NAMES[style]}.")
-          })
-          return lose(key, title, "You retired.")
+          }) {
+        "retire" -> return lose(key, title, "You retired.")
+        "rest" ->
+            return rest(title, key, battleNum, team.map { it.second }) {
+              put("lvl", lvl.key)
+              put("ids", FrontierRest.ints(team.map { it.first }))
+              put("fought", FrontierRest.ints(fought))
+              put("brain", brainThisRound)
+            }
+      }
       val out =
           svc.battle(
               run, team.map { it.second }, opp, format = if (mode == BattleMode.DOUBLES) 2 else 1)
@@ -1099,29 +1214,34 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
       }
 
   /** battle_pike.c: 14 rooms, three doors each, one hinted by the lady; no healing in between. */
-  private suspend fun pike() {
+  private suspend fun pike(resume: FrontierRest? = null) {
     val title = "BATTLE PIKE"
-    val choice =
-        menu(
-            title,
-            "Welcome to the BATTLE PIKE! Choose one of three paths through 14 rooms.",
-            listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
-    if (choice == "info")
-        return message(
-            title,
-            "Behind each door waits a battle, a healer, a wild POKéMON, a status-inflicting POKéMON or someone to talk to. Your POKéMON are not healed between rooms.")
-    if (choice != "challenge") return
-    val lvl = chooseLevel(title) ?: return
-    var team = chooseTeam(title, 3, lvl) ?: return
+    if (resume == null) {
+      val choice =
+          menu(
+              title,
+              "Welcome to the BATTLE PIKE! Choose one of three paths through 14 rooms.",
+              listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
+      if (choice == "info")
+          return message(
+              title,
+              "Behind each door waits a battle, a healer, a wild POKéMON, a status-inflicting POKéMON or someone to talk to. Your POKéMON are not healed between rooms.")
+      if (choice != "challenge") return
+    }
+    val lvl = resume?.let { LevelMode.byKey(it.string("lvl")) } ?: chooseLevel(title) ?: return
+    // The Pike keeps HP, status and PP between rooms: the paused team is restored as it was.
+    var team = resume?.team ?: chooseTeam(title, 3, lvl) ?: return
     val key = streakKey(Facility.PIKE, BattleMode.SINGLES, lvl)
     val save = svc.save(run.charId)
     val st = save.streak(key)
-    if (!st.active) st.current = 0
-    st.active = false
-    var healingDisabled = false
-    val fought = mutableListOf<Int>()
-    var brainBeatenNow = false
-    for (room in 1..PikeRules.NUM_PIKE_ROOMS) {
+    if (resume == null) {
+      if (!st.active) st.current = 0
+      st.active = false
+    }
+    var healingDisabled = resume?.bool("healingDisabled") ?: false
+    val fought = resume?.ints("fought").orEmpty().toMutableList()
+    var brainBeatenNow = resume?.bool("brain") ?: false
+    for (room in (resume?.step ?: 1)..PikeRules.NUM_PIKE_ROOMS) {
       val queen = PikeRules.queenStatus(st.current, save.symbolsOf(Facility.PIKE), 1)
       val hint =
           PikeRules.hintedRoom(queen != BrainStatus.NOT_READY, healingDisabled, pikeView(team), rng)
@@ -1136,9 +1256,17 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
                 put("room", room)
                 put("streak", st.current)
                 put("team", buildJsonArray { team.forEach { add(svc.card(it)) } })
+                put("rest", true)
               })
       if (a["v"]?.jsonPrimitive?.contentOrNull == "retire")
           return lose(key, title, "You retired from the BATTLE PIKE.")
+      if (a["v"]?.jsonPrimitive?.contentOrNull == "rest")
+          return rest(title, key, room, team) {
+            put("lvl", lvl.key)
+            put("fought", FrontierRest.ints(fought))
+            put("healingDisabled", healingDisabled)
+            put("brain", brainBeatenNow)
+          }
       val door = (a["door"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, 2)
       val type = PikeRules.roomBehind(door, hint, healingDisabled, pikeView(team), rng)
       val level = FrontierRules.enemyLevel(lvl, partyMax(team))
@@ -1293,41 +1421,42 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   /**
    * battle_pyramid.c: seven dark floors of 4x4 squares, trainers, items, an exit; a bag of its own.
    */
-  private suspend fun pyramid() {
+  private suspend fun pyramid(resume: FrontierRest? = null) {
     val title = "BATTLE PYRAMID"
-    val choice =
-        menu(
-            title,
-            "Welcome to the BATTLE PYRAMID! Climb seven floors to the top.",
-            listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
-    if (choice == "info")
-        return message(
-            title,
-            "The floors are dark; defeating TRAINERS widens your light. Items you find go into the PYRAMID BAG. Your POKéMON may not hold items and are not healed between floors.")
-    if (choice != "challenge") return
-    val lvl = chooseLevel(title) ?: return
-    var team = chooseTeam(title, 3, lvl, pyramid = true) ?: return
+    if (resume == null) {
+      val choice =
+          menu(
+              title,
+              "Welcome to the BATTLE PYRAMID! Climb seven floors to the top.",
+              listOf("challenge" to "CHALLENGE", "info" to "INFO", "cancel" to "CANCEL"))
+      if (choice == "info")
+          return message(
+              title,
+              "The floors are dark; defeating TRAINERS widens your light. Items you find go into the PYRAMID BAG. Your POKéMON may not hold items and are not healed between floors.")
+      if (choice != "challenge") return
+    }
+    val lvl = resume?.let { LevelMode.byKey(it.string("lvl")) } ?: chooseLevel(title) ?: return
+    var team = resume?.team ?: chooseTeam(title, 3, lvl, pyramid = true) ?: return
     val key = streakKey(Facility.PYRAMID, BattleMode.SINGLES, lvl)
     val save = svc.save(run.charId)
     val st = save.streak(key)
-    if (!st.active) st.current = 0
-    st.active = false
-    // InitPyramidBagItems: a HYPER POTION and an ETHER.
-    val bag = linkedMapOf("HYPER_POTION" to 1, "ETHER" to 1)
-    var brainBeatenNow = false
-    val fought = mutableListOf<Int>()
-    for (floor in 0 until 7) {
+    if (resume == null) {
+      if (!st.active) st.current = 0
+      st.active = false
+    }
+    // InitPyramidBagItems: a HYPER POTION and an ETHER (a paused challenge keeps its bag).
+    val bag: LinkedHashMap<String, Int> =
+        resume?.extra?.get("bag")?.jsonObject?.let { o ->
+          LinkedHashMap(o.mapValues { it.value.jsonPrimitive.intOrNull ?: 0 })
+        } ?: linkedMapOf("HYPER_POTION" to 1, "ETHER" to 1)
+    var brainBeatenNow = resume?.bool("brain") ?: false
+    val fought = resume?.ints("fought").orEmpty().toMutableList()
+    // The floor a REST left: its squares, the player's square and the light come back as saved.
+    var restored = resume
+    for (floor in (resume?.step ?: 0) until 7) {
       val round = (st.current / 7) % PyramidRules.TOTAL_ROUNDS
-      val tmplId = PyramidRules.floorTemplate(floor, data.pyramidFloorOptions, rng)
-      val tmpl = data.pyramidFloorTemplates[tmplId.coerceIn(0, data.pyramidFloorTemplates.size - 1)]
-      val (entrance, exit) = PyramidRules.entranceAndExit(rng.nextInt(), rng.nextInt())
-      val grid = List(PyramidRules.SQUARES) { PyramidSquare("floor") }
-      grid[exit].kind = "exit"
-      val free =
-          (0 until PyramidRules.SQUARES)
-              .filter { it != entrance && it != exit }
-              .shuffled(rng)
-              .toMutableList()
+      val r = restored
+      restored = null
       // The top floor (7th) is the brain's when ready; otherwise trainers and items.
       val brain =
           if (floor == 6)
@@ -1337,23 +1466,51 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
                   st.current,
                   save.symbolsOf(Facility.PYRAMID))
           else BrainStatus.NOT_READY
-      repeat(tmpl.numTrainers.coerceAtMost(free.size)) {
-        val sq = free.removeAt(0)
-        grid[sq].kind = "trainer"
-        grid[sq].trainer =
-            FrontierRules.nextTrainerId(
-                    st.current / 7 + if (floor == 6) 1 else 0, floor, fought, rng)
-                .also { fought += it }
+      val grid: List<PyramidSquare>
+      var at: Int
+      var light: Int
+      if (r != null) {
+        grid =
+            r.extra["grid"]?.jsonArray?.map {
+              val o = it.jsonObject
+              PyramidSquare(
+                  o["kind"]?.jsonPrimitive?.contentOrNull ?: "floor",
+                  o["trainer"]?.jsonPrimitive?.intOrNull ?: -1,
+                  o["item"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                  o["seen"]?.jsonPrimitive?.contentOrNull == "true")
+            } ?: List(PyramidRules.SQUARES) { PyramidSquare("floor") }
+        at = r.int("at")
+        light = r.int("light", PyramidRules.LIGHT_START)
+      } else {
+        val tmplId = PyramidRules.floorTemplate(floor, data.pyramidFloorOptions, rng)
+        val tmpl =
+            data.pyramidFloorTemplates[tmplId.coerceIn(0, data.pyramidFloorTemplates.size - 1)]
+        val (entrance, exit) = PyramidRules.entranceAndExit(rng.nextInt(), rng.nextInt())
+        grid = List(PyramidRules.SQUARES) { PyramidSquare("floor") }
+        grid[exit].kind = "exit"
+        val free =
+            (0 until PyramidRules.SQUARES)
+                .filter { it != entrance && it != exit }
+                .shuffled(rng)
+                .toMutableList()
+        repeat(tmpl.numTrainers.coerceAtMost(free.size)) {
+          val sq = free.removeAt(0)
+          grid[sq].kind = "trainer"
+          grid[sq].trainer =
+              FrontierRules.nextTrainerId(
+                      st.current / 7 + if (floor == 6) 1 else 0, floor, fought, rng)
+                  .also { fought += it }
+        }
+        val pickups = if (lvl == LevelMode.LV50) data.pyramidPickup50 else data.pyramidPickupOpen
+        repeat(tmpl.numItems.coerceAtMost(free.size)) {
+          val sq = free.removeAt(0)
+          grid[sq].kind = "item"
+          grid[sq].item =
+              PyramidRules.pickup(floor, rng.nextInt(100), data.pyramidPickupSlots, pickups[round])
+        }
+        at = entrance
+        light = PyramidRules.LIGHT_START
       }
-      val pickups = if (lvl == LevelMode.LV50) data.pyramidPickup50 else data.pyramidPickupOpen
-      repeat(tmpl.numItems.coerceAtMost(free.size)) {
-        val sq = free.removeAt(0)
-        grid[sq].kind = "item"
-        grid[sq].item =
-            PyramidRules.pickup(floor, rng.nextInt(100), data.pyramidPickupSlots, pickups[round])
-      }
-      var at = entrance
-      var light = PyramidRules.LIGHT_START
       var note = "Floor ${floor + 1}. Find the exit!"
       while (true) {
         grid.forEachIndexed { i, s -> if (PyramidRules.visible(at, i, light)) s.seen = true }
@@ -1391,9 +1548,33 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
                             }
                       })
                   put("team", buildJsonArray { team.forEach { add(svc.card(it)) } })
+                  put("rest", true)
                 })
         when (a["v"]?.jsonPrimitive?.contentOrNull) {
           "retire" -> return lose(key, title, "You retired from the BATTLE PYRAMID.")
+          // The Pyramid saves anywhere on a floor (its start menu's SAVE).
+          "rest" ->
+              return rest(title, key, floor, team) {
+                put("lvl", lvl.key)
+                put("fought", FrontierRest.ints(fought))
+                put("brain", brainBeatenNow)
+                put("at", at)
+                put("light", light)
+                put("bag", JsonObject(bag.mapValues { JsonPrimitive(it.value) }))
+                put(
+                    "grid",
+                    buildJsonArray {
+                      grid.forEach { sq ->
+                        add(
+                            buildJsonObject {
+                              put("kind", sq.kind)
+                              put("trainer", sq.trainer)
+                              put("item", sq.item)
+                              put("seen", sq.seen.toString())
+                            })
+                      }
+                    })
+              }
           "use" -> {
             val item = a["item"]?.jsonPrimitive?.contentOrNull ?: continue
             val target = a["target"]?.jsonPrimitive?.intOrNull ?: 0

@@ -140,8 +140,13 @@ function renderBetween(s) {
     s.opponent ? h('p.fr-vs', s.brain ? '★ ' : '', 'NEXT: ', h('b', s.opponent)) : null,
     s.hint ? h('p.muted', s.hint) : null,
     h('div.fr-list', (s.team || []).map((m) => monCard(m))),
-    h('div.fr-opts', btn('CONTINUE', 'fr-continue', () => answer({ v: 'continue' })), btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
+    h('div.fr-opts', btn('CONTINUE', 'fr-continue', () => answer({ v: 'continue' })), restBtn(s), btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
   ];
+}
+
+// REST (Emerald's save-and-quit between battles / the Pyramid's SAVE): offered when the server says so.
+function restBtn(s) {
+  return s.rest ? btn('REST', 'fr-rest', () => answer({ v: 'rest' })) : null;
 }
 
 function renderSwap(s) {
@@ -189,7 +194,7 @@ function renderDoors(s) {
     h('p.fr-hint', '“' + (s.hint || '') + '”'),
     h('div.fr-doors', ['LEFT', 'CENTER', 'RIGHT'].map((d, i) => btn(d, 'fr-door' + i, () => answer({ door: i }), '.fr-door'))),
     h('div.fr-list', (s.team || []).map((m) => monCard(m))),
-    h('div.fr-opts', btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
+    h('div.fr-opts', restBtn(s), btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
   ];
 }
 
@@ -216,7 +221,7 @@ function renderPyramid(s) {
     h('div.fr-pyr', grid, h('div.fr-col', h('h3', 'PYRAMID BAG'), h('div.fr-bag', bag.length ? bag : [h('p.muted', 'Empty')]),
       pyrUse ? h('p.muted', 'Use on which POKéMON?') : null)),
     h('div.fr-list', team),
-    h('div.fr-opts', btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
+    h('div.fr-opts', restBtn(s), btn('RETIRE', 'fr-retire', () => answer({ v: 'retire' }))),
   ];
 }
 

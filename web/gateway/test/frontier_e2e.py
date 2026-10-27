@@ -8,6 +8,7 @@ Every facility screen comes in as state.world.frontier and is answered with {t:'
 Battles are fought with the first move that has pp. Ends with ALL OK.
 """
 import argparse
+import os
 import sys
 import threading
 import time
@@ -253,6 +254,97 @@ def main():
         assert f3["bp"] == bp0 - 48, (bp0, f3["bp"])
         answer(A, v="cancel")
         ok(f"exchange: bought {f['screen']['items'][0]['name']} for 48 BP ({bp0} -> {f3['bp']})")
+    if want("rest"):
+        import subprocess
+
+        def rest_db():
+            db = os.environ.get("OPENMMO_GAME_DB_CONTAINER", "openmmo-game-db")
+            out = subprocess.run(
+                ["docker", "exec", db, "psql", "-At", "-U", "openmmo_game_user", "-d", "openmmo_game_db",
+                 "-c", "select data::jsonb->'rest'->>'desk', data::jsonb->'rest'->>'step' from frontier_records "
+                       "where data::jsonb ? 'rest'"], capture_output=True, text=True)
+            return out.stdout.strip()
+
+        def rest_run(desk, label, reach, at_rest, resumed):
+            """Answers screens until `reach(screen)`, then REST; the desk again resumes it."""
+            command(A, f"/frontier {desk}")
+            picks = menus(["challenge", "50"])
+            state = {}
+
+            def f(s):
+                if reach(s):
+                    state["at"] = at_rest(s)
+                    return {"v": "rest"}
+                return picks(s)
+            log = drive(A, f)
+            texts = [t for k, t in log if k == "message"]
+            assert any("has been saved" in t for t in texts), log[-4:]
+            row = rest_db()
+            assert row.startswith(desk), row
+            ok(f"{label}: REST at {state['at']} saved to the database ({row})")
+            command(A, f"/frontier {desk}")
+            seen = {}
+
+            def g(s):
+                if s["kind"] in ("between", "doors", "pyramid"):
+                    seen["s"] = s
+                    return {"v": "retire"}
+                return picks(s)
+            log = drive(A, g)
+            texts = [t for k, t in log if k == "message"]
+            assert any("waiting for you" in t for t in texts), log[:3]
+            got = resumed(seen.get("s") or {})
+            assert got == state["at"], (got, state["at"], seen)
+            assert not rest_db(), "resuming cleared the paused challenge"
+            ok(f"{label}: resumed from the attendant at {got}")
+
+        rest_run("tower:singles", "Battle Tower",
+                 lambda s: s["kind"] == "between" and "Battle 2 of 7" in s.get("text", ""),
+                 lambda s: s["text"].split(".")[0], lambda s: (s.get("text") or "").split(".")[0])
+        rest_run("pike", "Battle Pike",
+                 lambda s: s["kind"] == "doors" and s.get("room") == 2,
+                 lambda s: (s["room"], [m.get("hp") for m in s.get("team") or []]),
+                 lambda s: (s.get("room"), [m.get("hp") for m in s.get("team") or []]))
+        moved = {"n": 0}
+
+        def pyr_reach(s):
+            if s["kind"] != "pyramid":
+                return False
+            moved["n"] += 1
+            return moved["n"] >= 3
+
+        pyr_moves = pyramid_picks()
+
+        def pyr_drive(s):
+            return pyr_moves(s)
+        # pyramid: two moves, then REST on the third screen of the floor
+        command(A, "/frontier pyramid")
+        state = {}
+
+        def pf(s):
+            if pyr_reach(s):
+                state["at"] = (s["floor"], s["at"], s["light"], [c["kind"] for c in s["grid"]])
+                return {"v": "rest"}
+            return pyr_drive(s)
+        log = drive(A, pf)
+        assert any("has been saved" in t for k, t in log if k == "message"), log[-4:]
+        row = rest_db()
+        assert row.startswith("pyramid"), row
+        ok(f"Battle Pyramid: REST on floor {state['at'][0]} square {state['at'][1]} saved ({row})")
+        command(A, "/frontier pyramid")
+        seen = {}
+
+        def pg(s):
+            if s["kind"] == "pyramid":
+                seen["s"] = s
+                return {"v": "retire"}
+            return menus(["challenge", "50"])(s)
+        log = drive(A, pg)
+        s2 = seen["s"]
+        got = (s2["floor"], s2["at"], s2["light"], [c["kind"] for c in s2["grid"]])
+        assert got == state["at"], (got, state["at"])
+        ok(f"Battle Pyramid: resumed on floor {got[0]} square {got[1]} with the same squares and light")
+
     if want("multi"):
         ub, pb, nb = args.b.split(":")
         B = Player(args.ws, nb)
