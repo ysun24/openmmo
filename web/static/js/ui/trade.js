@@ -5,7 +5,7 @@ import { h, fmtMoney, same } from '../util.js';
 import { panels, rerender } from './panels.js';
 import { monImg } from './common.js';
 
-let app, last = null, p = null, lastInv = null, tick = 0;
+let app, last = null, p = null, lastInv = null, tick = 0, lastOpen = null;
 
 export function init(a) {
   app = a;
@@ -27,6 +27,7 @@ export function update(state) {
   if (same(t, last) && same(inv, lastInv) && p) return;
   last = t;
   lastInv = inv;
+  if (t.phase === 'OPEN') lastOpen = t;
   if (!p) p = panels.open('trade', 'Trade', { onBack: () => onBack() });
   p.title.textContent = `Trade with ${t.partner || '?'}`;
   rerender(p.body, () => view(t, state));
@@ -76,6 +77,10 @@ function view(t, state) {
       h('button.danger', { type: 'button', 'data-k': 'cancel', on: { click: () => app.send({ t: 'trade.cancel' }) } }, 'Cancel request')];
   }
   if (t.phase === 'COMPLETED' || t.phase === 'CLOSED') {
+    // The final state carries no offers; show what was on the table when it was still open.
+    const was = lastOpen && lastOpen.partner === t.partner ? lastOpen : t;
+    const empty = (o) => !o.mons.length && !(o.pcMons || []).length && !o.items.length && !o.money;
+    if (empty(t.mine) && empty(t.theirs)) t = { ...t, mine: { ...was.mine, stage: 'NONE' }, theirs: { ...was.theirs, stage: 'NONE' } };
     return [h('p.big', t.phase === 'COMPLETED' ? 'Trade complete!' : 'Trade closed.'), msg,
       h('div.offer-cols', offerView('You gave', t.mine), offerView(`${t.partner} gave`, t.theirs)),
       h('button', { type: 'button', 'data-k': 'close', on: { click: () => { panels.close('trade'); p = null; } } }, 'Close')];

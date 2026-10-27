@@ -21,7 +21,8 @@
 #chat-log p.ch-guild .tag, #chat-log p.ch-guild b { color: #7be38a; }
 #chat-log p.ch-whisper { color: #e3b8ff; }
 #chat-log p.ch-whisper b { color: #d08cff; }
-body.touch.chat-open #chat-tabs button { font-size: 13px; padding: 5px 9px; min-height: 32px; }
+body.touch.chat-open #chat-tabs button { font-size: 13px; padding: 5px 9px; min-height: 32px; background: #101422ee; }
+body.touch.chat-open #chat-tabs button.on { background: var(--accent); }
 
 /* ------------------------------------------------------------------ shared bits */
 .dot { width: 10px; height: 10px; border-radius: 50%; background: #555a70; flex: none; }

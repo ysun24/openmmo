@@ -122,7 +122,7 @@ function chart(hist) {
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `price history of ${hist.name}` });
   svg.append(el('line', { class: 'axis', x1: L, y1: H - B, x2: W - R, y2: H - B }), el('line', { class: 'axis', x1: L, y1: T, x2: L, y2: H - B }));
   for (const v of [top, (top + bot) / 2, bot]) svg.append(el('text', { x: L - 4, y: y(v) + 3, 'text-anchor': 'end' }, '₽' + Math.round(v).toLocaleString('en-US')));
-  for (const [d, label] of [[d0, '30d ago'], [d0 + 15, '15d'], [today, 'today']]) svg.append(el('text', { x: x(d), y: H - 6, 'text-anchor': 'middle' }, label));
+  for (const [d, label, anchor] of [[d0, '30d ago', 'start'], [d0 + 15, '15d', 'middle'], [today, 'today', 'end']]) svg.append(el('text', { x: x(d), y: H - 6, 'text-anchor': anchor }, label));
   const bw = Math.max(3, (W - L - R) / 30 - 3);
   for (const d of days) {
     const bh = (d.volume / vmax) * 26;
