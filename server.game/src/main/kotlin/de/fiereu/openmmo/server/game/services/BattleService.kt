@@ -701,7 +701,14 @@ constructor(
   /** Battle Palace: every position picks for itself, turn after turn, until the battle ends. */
   private suspend fun autoTurn(battle: BattleInstance) {
     if (battle.pendingResult != null || battles.byChar(battle.charId) !== battle) return
+    // Paced like the decomp, one turn after the other, so the browser plays each turn.
+    if (battle.turn > 1) kotlinx.coroutines.delay(AUTO_TURN_PACE_MS)
+    if (battle.pendingResult != null || battles.byChar(battle.charId) !== battle) return
     resolveTurn(battle)
+  }
+
+  private companion object {
+    const val AUTO_TURN_PACE_MS = 2500L
   }
 
   /** Who controls battle position [pos] of side 0 in a multi battle (null outside one). */
