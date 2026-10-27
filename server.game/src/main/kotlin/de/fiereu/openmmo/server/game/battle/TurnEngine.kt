@@ -1,62 +1,23 @@
 package de.fiereu.openmmo.server.game.battle
 
-import de.fiereu.openmmo.common.enums.MoveEffect
-import de.fiereu.openmmo.moves.MoveDef
+import de.fiereu.openmmo.common.enums.Ability
+import de.fiereu.openmmo.items.ItemRegistry
 import de.fiereu.openmmo.moves.MoveRegistry
 import de.fiereu.openmmo.typechart.TypeChart
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val CRIT_DENOMINATOR = 16
-private const val TACKLE_ID = 33
-
-sealed interface BattleEvent {
-  data class MoveUsed(val attackerId: Long, val moveId: Short, val moveSlot: Int, val ppLeft: Int) :
-      BattleEvent
-
-  /** A move that reached no target of its own, so its message lands on the opponent. */
-  sealed interface MoveWithoutTarget : BattleEvent {
-    val attackerId: Long
-    val moveId: Short
-  }
-
-  data class MoveMissed(override val attackerId: Long, override val moveId: Short) :
-      MoveWithoutTarget
-
-  data class MoveFailed(override val attackerId: Long, override val moveId: Short) :
-      MoveWithoutTarget
-
-  data class DamageDealt(
-      val targetId: Long,
-      val newHp: Int,
-      val crit: Boolean,
-      val effectiveness: Int,
-  ) : BattleEvent
-
-  data class StageChanged(
-      val targetId: Long,
-      val stat: BattleStat,
-      val stage: Int,
-      val effectiveValue: Int,
-      val delta: Int,
-      val failed: Boolean,
-  ) : BattleEvent
-
-  data class Fainted(val targetId: Long) : BattleEvent
-}
-
-private data class TurnAction(
-    val attacker: BattleMonState,
-    val defender: BattleMonState,
-    val move: MoveDef?,
-)
-
-private data class StageEffect(val stat: BattleStat, val delta: Int, val onSelf: Boolean)
+internal const val TACKLE_ID = 33
+internal const val STRUGGLE_ID = 165
 
 /**
- * Resolves one wild battle turn with the Gen 3 core rules: priority and speed order, accuracy
- * stages, the damage formula with crit, STAB, and type chart, and stat stage moves. Effects outside
- * that core fail gracefully without touching state.
+ * The Gen 3 battle engine (src/battle_main.c turn order, src/battle_script_commands.c move
+ * effects, src/battle_util.c end of turn). One call resolves a whole turn for every battle
+ * position of both sides: switches first, then moves by priority and speed, then the end of turn
+ * effects. Single and double battles run through the same code; a position is a [BattlerRef].
+ *
+ * The battle is always seen from one player's view (side 0 = that player's party). A
+ * player-vs-player duel calls it on one of the two linked views with both players' choices.
  */
 @Singleton
 class TurnEngine
@@ -64,225 +25,234 @@ class TurnEngine
 constructor(
     private val moves: MoveRegistry,
     private val typeChart: TypeChart,
+    private val items: ItemRegistry,
 ) {
+  /** Tests and older callers built the engine from moves and the type chart only. */
+  constructor(moves: MoveRegistry, typeChart: TypeChart) : this(moves, typeChart, ItemRegistry())
 
-  /**
-   * [opponentMoveId] is the move a human opponent picked in a player-vs-player battle. Null lets
-   * the AI pick one, as in wild and trainer battles.
-   */
+  private val held = HeldItems(items)
+
+  private fun ctx(battle: BattleInstance) = BattleCtx(battle, moves, typeChart, held)
+
+  /** Resolves one full turn. Missing choices for side 1 are filled in by the AI. */
+  fun resolve(battle: BattleInstance, choices: List<BattleChoice>): List<BattleEvent> {
+    val ctx = ctx(battle)
+    val all = choices.toMutableList()
+    for (pos in battle.foe.actives.indices) {
+      if (all.none { it.side == 1 && it.pos == pos } && ctx.live(BattlerRef(1, pos)) != null) {
+        all += BattleAi.choose(ctx, BattlerRef(1, pos))
+      }
+    }
+    MoveRunner(ctx).runTurn(all)
+    return ctx.events
+  }
+
+  /** The single-battle turn: the player's move against the AI's (or a human rival's) move. */
   fun resolveTurn(
       battle: BattleInstance,
       playerMoveId: Short,
       opponentMoveId: Short? = null,
-  ): List<BattleEvent> {
-    val events = mutableListOf<BattleEvent>()
-    val player = battle.activeMon()
-    val enemy = battle.opponentMon()
+  ): List<BattleEvent> =
+      resolve(
+          battle,
+          listOfNotNull(
+              BattleChoice.UseMove(0, 0, playerMoveId.toInt()),
+              opponentMoveId?.let { BattleChoice.UseMove(1, 0, it.toInt()) }))
 
-    val playerAction = TurnAction(player, enemy, moves.get(playerMoveId.toInt()))
-    val enemyAction = TurnAction(enemy, player, enemyMove(battle, enemy, opponentMoveId))
+  /** The player already switched (or used an item), so only the opposing side acts. */
+  fun resolveSwitchTurn(battle: BattleInstance, opponentMoveId: Short? = null): List<BattleEvent> =
+      resolve(
+          battle,
+          listOfNotNull(
+              BattleChoice.Pass(0, 0), opponentMoveId?.let { BattleChoice.UseMove(1, 0, it.toInt()) }))
 
-    for (action in order(battle, playerAction, enemyAction)) {
-      if (action.attacker.fainted) continue
-      execute(battle, action, events)
-      if (player.fainted || enemy.fainted) break
-    }
-    return events
-  }
-
-  /** A voluntary switch spends the player's turn, so the enemy attacks the incoming monster. */
-  fun resolveSwitchTurn(battle: BattleInstance, opponentMoveId: Short? = null): List<BattleEvent> {
-    val events = mutableListOf<BattleEvent>()
-    val enemy = battle.opponentMon()
-    if (enemy.fainted) return events
-    execute(
-        battle,
-        TurnAction(enemy, battle.activeMon(), enemyMove(battle, enemy, opponentMoveId)),
-        events)
-    return events
-  }
-
-  private fun enemyMove(battle: BattleInstance, enemy: BattleMonState, chosen: Short?): MoveDef? =
-      if (chosen != null) moves.get(chosen.toInt()) else pickEnemyMove(battle, enemy)
-
-  /** The enemy AI picks a random usable move, falling back to Tackle with no pp left. */
-  private fun pickEnemyMove(battle: BattleInstance, enemy: BattleMonState): MoveDef? {
-    val usable = enemy.moves.filter { it.id.toInt() != 0 && it.pp > 0 }
-    if (usable.isEmpty()) return moves.get(TACKLE_ID)
-    return moves.get(usable[battle.rng.pick(usable.size)].id.toInt())
-  }
-
-  private fun order(
-      battle: BattleInstance,
-      a: TurnAction,
-      b: TurnAction,
-  ): List<TurnAction> {
-    val pa = a.move?.priority ?: 0
-    val pb = b.move?.priority ?: 0
-    if (pa != pb) return if (pa > pb) listOf(a, b) else listOf(b, a)
-    val sa = a.attacker.effective(BattleStat.SPEED)
-    val sb = b.attacker.effective(BattleStat.SPEED)
-    if (sa != sb) return if (sa > sb) listOf(a, b) else listOf(b, a)
-    return if (battle.rng.coinFlip()) listOf(a, b) else listOf(b, a)
-  }
-
-  private fun execute(
-      battle: BattleInstance,
-      action: TurnAction,
-      events: MutableList<BattleEvent>
-  ) {
-    val attacker = action.attacker
-    val move = action.move
-    if (move == null) {
-      events += BattleEvent.MoveFailed(attacker.entityId, 0)
-      return
-    }
-    val moveId = move.id.toShort()
-    val slot = attacker.moves.indexOfFirst { it.id == moveId }
-    if (slot >= 0 && attacker.moves[slot].pp > 0) {
-      attacker.moves[slot].pp = (attacker.moves[slot].pp - 1).toByte()
-    }
-    events +=
-        BattleEvent.MoveUsed(
-            attacker.entityId,
-            moveId,
-            slot.coerceAtLeast(0),
-            attacker.moves.getOrNull(slot)?.pp?.toInt() ?: 0)
-
-    if (!accuracyCheck(battle, action, move)) {
-      events += BattleEvent.MoveMissed(attacker.entityId, moveId)
-      return
-    }
-
-    val stage = stageEffect(move.effect)
-    when {
-      move.power > 0 -> damage(battle, action, move, events)
-      stage != null -> applyStage(action, stage, events)
-      else -> events += BattleEvent.MoveFailed(attacker.entityId, moveId)
+  /** What the AI would pick for every opposing position. */
+  fun aiChoices(battle: BattleInstance, side: Int = 1): List<BattleChoice> {
+    val ctx = ctx(battle)
+    return ctx.sideState(side).actives.indices.mapNotNull { pos ->
+      val ref = BattlerRef(side, pos)
+      ctx.live(ref)?.let { BattleAi.choose(ctx, ref) }
     }
   }
 
-  private fun accuracyCheck(battle: BattleInstance, action: TurnAction, move: MoveDef): Boolean {
-    if (move.accuracy == 0) return true
-    val stage =
-        action.attacker.stage(BattleStat.ACCURACY) - action.defender.stage(BattleStat.EVASION)
-    val threshold = StatStages.scaleAccuracy(move.accuracy, stage)
-    return battle.rng.accuracyRoll() <= threshold
+  /** The entry effects of the monsters that start the battle, fastest first. */
+  fun startOfBattle(battle: BattleInstance): List<BattleEvent> {
+    val ctx = ctx(battle)
+    for ((ref, _) in ctx.liveBySpeed()) ctx.onEntry(ref)
+    return ctx.events
   }
 
-  private fun damage(
-      battle: BattleInstance,
-      action: TurnAction,
-      move: MoveDef,
-      events: MutableList<BattleEvent>,
-  ) {
-    val attacker = action.attacker
-    val defender = action.defender
-    val eff = typeChart.effectiveness(move.type, defender.species.type1, defender.species.type2)
-    if (eff == 0) {
-      events += BattleEvent.MoveFailed(attacker.entityId, move.id.toShort())
-      return
-    }
-    val physical = MoveCategory.isPhysical(move.type)
-    val atkStat = if (physical) BattleStat.ATTACK else BattleStat.SP_ATTACK
-    val defStat = if (physical) BattleStat.DEFENSE else BattleStat.SP_DEFENSE
-    val crit = battle.rng.critRoll(CRIT_DENOMINATOR)
-    // A crit ignores the attacker's negative stages and the defender's positive stages.
-    val atk =
-        if (crit && attacker.stage(atkStat) < 0) attacker.unstaged(atkStat)
-        else attacker.effective(atkStat)
-    val def =
-        if (crit && defender.stage(defStat) > 0) defender.unstaged(defStat)
-        else defender.effective(defStat)
+  /**
+   * Brings party slot [slot] out at [pos] on [side] between turns (a replacement for a fainted
+   * monster) and runs its entry effects.
+   */
+  fun switchIn(battle: BattleInstance, side: Int, pos: Int, slot: Int): List<BattleEvent> {
+    val ctx = ctx(battle)
+    MoveRunner(ctx).switchTo(BattlerRef(side, pos), slot)
+    return ctx.events
+  }
 
-    var dmg = (2 * attacker.level / 5 + 2) * move.power * atk / def / 50 + 2
-    if (crit) dmg *= 2
-    if (attacker.species.hasType(move.type)) dmg = dmg * 3 / 2
-    dmg = dmg * eff / TypeChart.NEUTRAL
-    dmg = dmg * battle.rng.damageRoll() / 100
-    if (dmg < 1) dmg = 1
-
-    defender.currentHp = (defender.currentHp - dmg).coerceAtLeast(0)
-    events += BattleEvent.DamageDealt(defender.entityId, defender.currentHp, crit, eff)
-    if (defender.fainted) {
-      events += BattleEvent.Fainted(defender.entityId)
-      return
+  /**
+   * The Gen 3 escape roll (src/battle_main.c TryRunFromBattle): a faster monster always gets away,
+   * otherwise speed ratio plus 30 per earlier attempt out of 256. Smoke Ball and Run Away always
+   * work; trapping (Mean Look, Wrap, Shadow Tag, Arena Trap, Magnet Pull) never does.
+   */
+  fun tryEscape(battle: BattleInstance): Pair<Boolean, List<BattleEvent>> {
+    val ctx = ctx(battle)
+    val me = battle.activeMons().firstOrNull { it != null && !it.fainted } ?: return true to emptyList()
+    val foe = battle.opponentMons().firstOrNull { it != null && !it.fainted } ?: return true to emptyList()
+    if (ctx.heldEffect(me)?.name == "CAN_ALWAYS_RUN") {
+      ctx.say("Got away safely!")
+      return true to ctx.events
     }
-    secondaryEffect(move.effect)?.let { secondary ->
-      if (move.secondaryEffectChance > 0 &&
-          battle.rng.accuracyRoll() <= move.secondaryEffectChance) {
-        applyStage(action, secondary, events)
+    if (me.ability == Ability.RUN_AWAY) return true to ctx.events
+    trappedBy(ctx, me)?.let {
+      ctx.say(it)
+      return false to ctx.events
+    }
+    val mySpeed = ctx.speedOf(me)
+    val foeSpeed = ctx.speedOf(foe).coerceAtLeast(1)
+    battle.escapeAttempts += 1
+    if (mySpeed > foeSpeed) return true to ctx.events
+    val odds = (mySpeed * 128 / foeSpeed + 30 * (battle.escapeAttempts - 1)) and 0xFF
+    val escaped = battle.rng.pick(256) < odds
+    if (!escaped) ctx.say("Can't escape!")
+    return escaped to ctx.events
+  }
+
+  /** Why [mon] cannot switch out or flee, or null. */
+  fun switchBlock(battle: BattleInstance, mon: BattleMonState): String? = trappedBy(ctx(battle), mon)
+
+  private fun trappedBy(ctx: BattleCtx, mon: BattleMonState): String? {
+    if (ctx.heldEffect(mon)?.name == "CAN_ALWAYS_RUN") return null
+    val v = mon.volatile
+    if (v.cantEscape || v.trapTurns > 0 || v.ingrained) return "${ctx.name(mon)} can't escape!"
+    val myRef = ctx.refOf(mon) ?: return null
+    for (foeRef in ctx.foesOf(myRef)) {
+      val foe = ctx.live(foeRef) ?: continue
+      when (foe.ability) {
+        Ability.SHADOW_TAG -> if (mon.ability != Ability.SHADOW_TAG) return "${ctx.name(mon)} can't escape!"
+        Ability.ARENA_TRAP ->
+            if (!mon.hasType(de.fiereu.openmmo.common.enums.PokemonType.FLYING) &&
+                mon.ability != Ability.LEVITATE)
+                return "${ctx.name(mon)} can't escape!"
+        Ability.MAGNET_PULL ->
+            if (mon.hasType(de.fiereu.openmmo.common.enums.PokemonType.STEEL))
+                return "${ctx.name(mon)} can't escape!"
+        else -> Unit
       }
     }
+    return null
   }
 
-  private fun applyStage(
-      action: TurnAction,
-      effect: StageEffect,
-      events: MutableList<BattleEvent>,
-  ) {
-    val target = if (effect.onSelf) action.attacker else action.defender
-    val applied = target.changeStage(effect.stat, effect.delta)
-    val value =
-        when (effect.stat) {
-          BattleStat.ACCURACY,
-          BattleStat.EVASION -> 0
-          else -> target.effective(effect.stat)
+  internal fun context(battle: BattleInstance): BattleCtx = ctx(battle)
+
+  /**
+   * Uses a bag item from the player's side on [target] (a party monster, or the active one for X
+   * items). Returns whether it had an effect, with the events. Balls are not handled here.
+   */
+  fun useBagItem(
+      battle: BattleInstance,
+      itemName: String,
+      effect: BattleItemEffect,
+      target: BattleMonState,
+      moveSlot: Int = -1,
+      side: Int = 0,
+      user: String = "You",
+  ): Pair<Boolean, List<BattleEvent>> {
+    val ctx = ctx(battle)
+    val who = ctx.name(target)
+    val upper = itemName.uppercase()
+    val worked =
+        when (effect) {
+          is BattleItemEffect.Heal -> {
+            if (target.fainted || target.currentHp >= target.maxHp && !(effect.cures && (target.hasStatus || target.confused))) false
+            else {
+              ctx.say("$user used $upper!")
+              val gained = ctx.heal(target, effect.hp, "item")
+              if (effect.cures) {
+                ctx.cureStatus(target, null)
+                if (target.confused) {
+                  target.volatile.confusionTurns = 0
+                  ctx.emit(BattleEvent.VolatileChanged(target.entityId, "confused", false))
+                }
+              }
+              if (gained > 0) ctx.say("$who's HP was restored by $gained point(s).", target.entityId)
+              true
+            }
+          }
+          is BattleItemEffect.Revive -> {
+            if (!target.fainted) false
+            else {
+              ctx.say("$user used $upper!")
+              target.currentHp = 0
+              ctx.setHp(target, (target.maxHp * effect.fraction).toInt().coerceIn(1, target.maxHp), "revive")
+              ctx.say("$who was revived!", target.entityId)
+              true
+            }
+          }
+          is BattleItemEffect.Cure -> {
+            val hasBit = target.status and effect.bits != 0
+            val conf = effect.confusion && target.confused
+            if (target.fainted || !hasBit && !conf) false
+            else {
+              ctx.say("$user used $upper!")
+              if (hasBit) ctx.cureStatus(target, "$who was cured of its ${statusName(target.status)}!")
+              if (conf) {
+                target.volatile.confusionTurns = 0
+                ctx.emit(BattleEvent.VolatileChanged(target.entityId, "confused", false))
+                ctx.say("$who snapped out of confusion!", target.entityId)
+              }
+              true
+            }
+          }
+          is BattleItemEffect.RestorePp -> {
+            val slots = if (effect.allMoves) target.moves.indices.toList() else listOf(moveSlot)
+            var any = false
+            for (s in slots) {
+              val m = target.moves.getOrNull(s) ?: continue
+              if (m.id.toInt() == 0) continue
+              val max = moves.get(m.id.toInt())?.pp ?: continue
+              if (m.pp >= max) continue
+              m.pp = (m.pp + effect.amount.toLong()).coerceAtMost(max.toLong()).toInt().toByte()
+              any = true
+            }
+            if (any) {
+              ctx.say("$user used $upper!")
+              ctx.say("$who's PP was restored.", target.entityId)
+            }
+            any
+          }
+          is BattleItemEffect.StatUp -> {
+            if (target.fainted || target.stage(effect.stat) >= StatStages.MAX) false
+            else {
+              ctx.say("$user used $upper!")
+              ctx.raiseStat(target, target, effect.stat, 1, announce = false)
+              true
+            }
+          }
+          BattleItemEffect.DireHit -> {
+            if (target.volatile.focusEnergy) false
+            else {
+              ctx.say("$user used $upper!")
+              target.volatile.focusEnergy = true
+              ctx.say("$who is getting pumped!", target.entityId)
+              true
+            }
+          }
+          BattleItemEffect.GuardSpec -> {
+            val s = ctx.sideState(side)
+            if (s.mistTurns > 0) false
+            else {
+              ctx.say("$user used $upper!")
+              s.mistTurns = 5
+              ctx.say("Your team became shrouded in MIST!")
+              true
+            }
+          }
+          BattleItemEffect.Escape,
+          BattleItemEffect.Ball -> false
         }
-    events +=
-        BattleEvent.StageChanged(
-            target.entityId,
-            effect.stat,
-            target.stage(effect.stat),
-            value,
-            effect.delta,
-            applied == 0)
+    return worked to ctx.events
   }
-
-  private fun stageEffect(effect: MoveEffect): StageEffect? =
-      when (effect) {
-        MoveEffect.ATTACK_UP -> StageEffect(BattleStat.ATTACK, 1, true)
-        MoveEffect.DEFENSE_UP -> StageEffect(BattleStat.DEFENSE, 1, true)
-        MoveEffect.SPEED_UP -> StageEffect(BattleStat.SPEED, 1, true)
-        MoveEffect.SPECIAL_ATTACK_UP -> StageEffect(BattleStat.SP_ATTACK, 1, true)
-        MoveEffect.SPECIAL_DEFENSE_UP -> StageEffect(BattleStat.SP_DEFENSE, 1, true)
-        MoveEffect.ACCURACY_UP -> StageEffect(BattleStat.ACCURACY, 1, true)
-        MoveEffect.EVASION_UP -> StageEffect(BattleStat.EVASION, 1, true)
-        MoveEffect.ATTACK_UP_2 -> StageEffect(BattleStat.ATTACK, 2, true)
-        MoveEffect.DEFENSE_UP_2 -> StageEffect(BattleStat.DEFENSE, 2, true)
-        MoveEffect.SPEED_UP_2 -> StageEffect(BattleStat.SPEED, 2, true)
-        MoveEffect.SPECIAL_ATTACK_UP_2 -> StageEffect(BattleStat.SP_ATTACK, 2, true)
-        MoveEffect.SPECIAL_DEFENSE_UP_2 -> StageEffect(BattleStat.SP_DEFENSE, 2, true)
-        MoveEffect.ACCURACY_UP_2 -> StageEffect(BattleStat.ACCURACY, 2, true)
-        MoveEffect.EVASION_UP_2 -> StageEffect(BattleStat.EVASION, 2, true)
-        MoveEffect.ATTACK_DOWN -> StageEffect(BattleStat.ATTACK, -1, false)
-        MoveEffect.DEFENSE_DOWN -> StageEffect(BattleStat.DEFENSE, -1, false)
-        MoveEffect.SPEED_DOWN -> StageEffect(BattleStat.SPEED, -1, false)
-        MoveEffect.SPECIAL_ATTACK_DOWN -> StageEffect(BattleStat.SP_ATTACK, -1, false)
-        MoveEffect.SPECIAL_DEFENSE_DOWN -> StageEffect(BattleStat.SP_DEFENSE, -1, false)
-        MoveEffect.ACCURACY_DOWN -> StageEffect(BattleStat.ACCURACY, -1, false)
-        MoveEffect.EVASION_DOWN -> StageEffect(BattleStat.EVASION, -1, false)
-        MoveEffect.ATTACK_DOWN_2 -> StageEffect(BattleStat.ATTACK, -2, false)
-        MoveEffect.DEFENSE_DOWN_2 -> StageEffect(BattleStat.DEFENSE, -2, false)
-        MoveEffect.SPEED_DOWN_2 -> StageEffect(BattleStat.SPEED, -2, false)
-        MoveEffect.SPECIAL_ATTACK_DOWN_2 -> StageEffect(BattleStat.SP_ATTACK, -2, false)
-        MoveEffect.SPECIAL_DEFENSE_DOWN_2 -> StageEffect(BattleStat.SP_DEFENSE, -2, false)
-        MoveEffect.ACCURACY_DOWN_2 -> StageEffect(BattleStat.ACCURACY, -2, false)
-        MoveEffect.EVASION_DOWN_2 -> StageEffect(BattleStat.EVASION, -2, false)
-        else -> null
-      }
-
-  private fun secondaryEffect(effect: MoveEffect): StageEffect? =
-      when (effect) {
-        MoveEffect.ATTACK_DOWN_HIT -> StageEffect(BattleStat.ATTACK, -1, false)
-        MoveEffect.DEFENSE_DOWN_HIT -> StageEffect(BattleStat.DEFENSE, -1, false)
-        MoveEffect.SPEED_DOWN_HIT -> StageEffect(BattleStat.SPEED, -1, false)
-        MoveEffect.SPECIAL_ATTACK_DOWN_HIT -> StageEffect(BattleStat.SP_ATTACK, -1, false)
-        MoveEffect.SPECIAL_DEFENSE_DOWN_HIT -> StageEffect(BattleStat.SP_DEFENSE, -1, false)
-        MoveEffect.ACCURACY_DOWN_HIT -> StageEffect(BattleStat.ACCURACY, -1, false)
-        MoveEffect.EVASION_DOWN_HIT -> StageEffect(BattleStat.EVASION, -1, false)
-        MoveEffect.ATTACK_UP_HIT -> StageEffect(BattleStat.ATTACK, 1, true)
-        MoveEffect.DEFENSE_UP_HIT -> StageEffect(BattleStat.DEFENSE, 1, true)
-        else -> null
-      }
 }

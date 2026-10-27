@@ -1,6 +1,9 @@
 package de.fiereu.openmmo.net.game.packets.battle
 
+import de.fiereu.bytecodec.Codec
 import de.fiereu.bytecodec.CodecScope
+import de.fiereu.bytecodec.ReadBuffer
+import de.fiereu.bytecodec.WriteBuffer
 import de.fiereu.bytecodec.PacketCodec
 import de.fiereu.bytecodec.U8
 import de.fiereu.bytecodec.Utf16LeNullTerminated
@@ -16,11 +19,25 @@ import de.fiereu.bytecodec.Utf16LeNullTerminated
  * the duel only), [maxParty] how many party monsters each side brings (1-6), [turnSeconds] 0 = no
  * turn timer.
  */
-data class DuelRules(val levelCap: Int = 0, val maxParty: Int = 6, val turnSeconds: Int = 0) {
+data class DuelRules(
+    val levelCap: Int = 0,
+    val maxParty: Int = 6,
+    val turnSeconds: Int = 0,
+    /** r3-battle: a 2v2 double battle instead of 1v1. */
+    val doubles: Boolean = false,
+) {
   companion object {
     val DEFAULT = DuelRules()
     const val MAX_TIMEOUTS = 3
   }
+}
+
+/** r3-battle: a trailing flags byte older senders leave out (reads as 0). */
+private object TrailingFlags : Codec<Int> {
+  override fun read(buf: ReadBuffer): Int =
+      if (buf.remaining() > 0) buf.readByte().toInt() and 0xFF else 0
+
+  override fun write(buf: WriteBuffer, value: Int) = buf.writeByte(value.toByte())
 }
 
 /** c2s: challenge the named online player under [rules]. */
@@ -32,7 +49,8 @@ object DuelRulesChallengePacketCodec : PacketCodec<DuelRulesChallengePacket>() {
     val cap = field(U8) { it.rules.levelCap }
     val party = field(U8) { it.rules.maxParty }
     val seconds = field(U8) { it.rules.turnSeconds }
-    return DuelRulesChallengePacket(name, DuelRules(cap, party, seconds))
+    val flags = field(TrailingFlags) { if (it.rules.doubles) 1 else 0 }
+    return DuelRulesChallengePacket(name, DuelRules(cap, party, seconds, flags and 1 != 0))
   }
 }
 
@@ -48,7 +66,8 @@ object DuelRulesPacketCodec : PacketCodec<DuelRulesPacket>() {
     val cap = field(U8) { it.rules.levelCap }
     val party = field(U8) { it.rules.maxParty }
     val seconds = field(U8) { it.rules.turnSeconds }
-    return DuelRulesPacket(name, DuelRules(cap, party, seconds))
+    val flags = field(TrailingFlags) { if (it.rules.doubles) 1 else 0 }
+    return DuelRulesPacket(name, DuelRules(cap, party, seconds, flags and 1 != 0))
   }
 }
 

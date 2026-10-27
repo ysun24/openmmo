@@ -59,7 +59,15 @@ private constructor(
           for (b in 0 until attrWidth) {
             attr = attr or ((bytes[m * attrWidth + b].toInt() and 0xFF) shl (8 * b))
           }
-          (idToCategory[attr and behaviorMask] ?: TileBehavior.NORMAL).ordinal
+          val named = idToCategory[attr and behaviorMask] ?: TileBehavior.NORMAL
+          // FireRed marks encounter tiles with METATILE_ATTRIBUTE_ENCOUNTER_TYPE (bits 24-26:
+          // 1 = land, 2 = water) instead of a behavior flag.
+          val encounterType = if (attrWidth == 4) (attr ushr 24) and 0x7 else 0
+          when {
+            encounterType == 1 && !named.hasLandEncounters -> TileBehavior.LAND_ENCOUNTER
+            encounterType == 2 && !named.isSurfableWater -> TileBehavior.POND_WATER
+            else -> named
+          }.ordinal
         }
       }
 
@@ -123,6 +131,21 @@ private constructor(
           "MB_WATER_SOUTH_ARROW_WARP" -> TileBehavior.SOUTH_ARROW_WARP
           "MB_EAST_ARROW_WARP" -> TileBehavior.EAST_ARROW_WARP
           "MB_WEST_ARROW_WARP" -> TileBehavior.WEST_ARROW_WARP
+          // r3-battle: encounter and battle background tiles.
+          "MB_CAVE" -> TileBehavior.CAVE
+          "MB_INDOOR_ENCOUNTER" -> TileBehavior.INDOOR_ENCOUNTER
+          "MB_DEEP_SAND",
+          "MB_FOOTPRINTS" -> TileBehavior.DEEP_SAND
+          "MB_ASHGRASS" -> TileBehavior.ASH_GRASS
+          "MB_SAND" -> TileBehavior.SAND
+          "MB_MOUNTAIN_TOP" -> TileBehavior.MOUNTAIN
+          "MB_POND_WATER",
+          "MB_SEAWEED",
+          "MB_SEAWEED_NO_SURFACING" -> TileBehavior.POND_WATER
+          "MB_DEEP_WATER",
+          "MB_OCEAN_WATER",
+          "MB_INTERIOR_DEEP_WATER",
+          "MB_SOOTOPOLIS_DEEP_WATER" -> TileBehavior.DEEP_WATER
           else -> null
         }
 

@@ -18,6 +18,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleBulkStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityDeltaPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleListEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleQueuedEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePacket
@@ -157,6 +158,8 @@ class BattleServiceTest :
                   EntityPresencePacket::class,
                   BattleSidePacket::class,
                   BattleFieldStatePacket::class,
+                  // r3-battle: the extended state (format, positions, status) follows the field.
+                  BattleExtPacket::class,
                   BattleTileMapPacket::class,
                   BattleQueuedEventPacket::class,
               )
@@ -316,18 +319,35 @@ class BattleServiceTest :
         }
       }
 
-      test("the ball throw names the Poke Ball by the id the client knows") {
+      test("a thrown ball is taken from the bag and reports its shakes") {
+        runTest {
+          val fx = Fixture(this)
+          val (session, charId) = fx.playerWithParty()
+          fx.store.addItem(charId, 5004, 1)
+          session.startBattle(fx.service)
+
+          session.act(fx.service, BattleAction.ITEM, 5004)
+
+          (fx.store.getCharacter(charId)?.items?.get(5004) ?: 0) shouldBe 0
+          val ball =
+              session.sent.filterIsInstance<BattleExtPacket>().map { it.json }.single {
+                it.contains("\"k\":\"ball\"")
+              }
+          ball.contains("Poké Ball").shouldBeTrue()
+          // A caught monster also gets the retail throw event, named by the client's ball id.
+          session.sent.filterIsInstance<BattleListEventPacket>().forEach { it.value shouldBe 5004.toShort() }
+        }
+      }
+
+      test("a ball needs one in the bag") {
         runTest {
           val fx = Fixture(this)
           val (session, _) = fx.playerWithParty()
           session.startBattle(fx.service)
 
-          session.act(fx.service, BattleAction.ITEM)
+          session.act(fx.service, BattleAction.ITEM, 5004)
 
-          session.sent
-              .filterIsInstance<BattleListEventPacket>()
-              .single { it.subKind == 4.toByte() }
-              .value shouldBe 5004.toShort()
+          session.sent.filterIsInstance<BattleExtPacket>().none { it.json.contains("\"k\":\"ball\"") }.shouldBeTrue()
         }
       }
 

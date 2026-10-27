@@ -20,6 +20,9 @@ class BattleRegistry @Inject constructor() {
       opponent: List<BattleMonState>,
       rng: BattleRng,
       rules: BattleRules = BattleRules(),
+      own: BattleSideState? = null,
+      foe: BattleSideState? = null,
+      field: BattleField? = null,
   ): BattleInstance {
     val battle =
         BattleInstance(
@@ -32,6 +35,13 @@ class BattleRegistry @Inject constructor() {
             rules.catchable,
             rules.escapable,
             rules.trainer,
+            format = rules.format,
+            terrain = rules.terrain,
+            musicKey = rules.musicKey,
+            underwater = rules.underwater,
+            own = own ?: BattleSideState(MutableList(rules.format) { it }),
+            foe = foe ?: BattleSideState(MutableList(rules.format) { it }),
+            field = field ?: BattleField(),
         )
     byChar[charId] = battle
     return battle

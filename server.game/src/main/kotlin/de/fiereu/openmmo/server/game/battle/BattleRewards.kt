@@ -46,9 +46,14 @@ class BattleRewards @Inject constructor() {
       defeated: SpeciesDef,
       defeatedLevel: Int,
       fromTrainer: Boolean = false,
-  ): RewardResult {
-    val gained =
-        if (fromTrainer) trainerXp(defeated, defeatedLevel) else wildXp(defeated, defeatedLevel)
+  ): RewardResult =
+      applyXp(
+          winner,
+          defeated,
+          if (fromTrainer) trainerXp(defeated, defeatedLevel) else wildXp(defeated, defeatedLevel))
+
+  /** Pays [gained] EXP (already split and multiplied) plus [defeated]'s EV yield. */
+  fun applyXp(winner: BattleMonState, defeated: SpeciesDef, gained: Int): RewardResult {
     val rate = winner.species.growthRate
     val cap = ExpCurves.totalXpFor(rate, ExpCurves.MAX_LEVEL)
     val newXp = minOf(winner.source.xp + gained, cap)

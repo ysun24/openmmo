@@ -66,6 +66,12 @@ jteCodegen {
     inputDirs.from(sourceDecompDir)
     extraArgs.set(listOf(sourceDecompDir.asFile.absolutePath))
   }
+  // Level, friendship, stone and trade evolutions (src/data/pokemon/evolution.h).
+  register("evolution") {
+    mainClass.set("de.fiereu.openmmo.codegen.evolution.Main")
+    inputDirs.from(sourceDecompDir)
+    extraArgs.set(listOf(sourceDecompDir.asFile.absolutePath))
+  }
   register("learnset") {
     mainClass.set("de.fiereu.openmmo.codegen.learnset.Main")
     inputDirs.from(sourceDecompDir)
