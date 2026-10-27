@@ -143,6 +143,7 @@ constructor(
     private val stats: ContestStatsService,
     private val characters: CharacterStore,
     private val docs: ContestDocs,
+    private val names: ContestNames,
 ) {
   private val cases = ConcurrentHashMap<Long, MutableList<Pokeblock?>>()
   private val locks = ConcurrentHashMap<Long, Mutex>()
@@ -190,11 +191,12 @@ constructor(
         val before = stats.get(monId)
         val after =
             PokeblockRules.feed(before, mon.nature, block)
-                ?: return@withLock "${mon.nickname} won't eat any more…" to null
+                ?: return@withLock "${mon.nickname.ifBlank { names.species(mon.dexId) }} won't eat any more…" to null
         c[slot] = null
         repo.savePokeblocks(charId, c)
         stats.set(monId, after)
-        PokeblockRules.ateText(mon.nickname, block, mon.nature) to after
+        PokeblockRules.ateText(mon.nickname.ifBlank { names.species(mon.dexId) }, block, mon.nature) to
+            after
       }
 
   fun blockJson(slot: Int, b: Pokeblock) = buildJsonObject {
@@ -399,7 +401,15 @@ constructor(
     return true
   }
 
+  /**
+   * The POKéBLOCK CASE: the item catalogue has no such item, so owning it is the decomp's
+   * FLAG_RECEIVED_POKEBLOCK_CASE, which the contest reception sets when it hands the case over.
+   */
+  fun hasCase(charId: Long): Boolean =
+      characters.getCharacter(charId)?.storyFlags?.contains("hoenn/FLAG_RECEIVED_POKEBLOCK_CASE") == true
+
   fun hasItem(charId: Long, decompName: String): Boolean {
+    if (decompName == "POKEBLOCK_CASE") return hasCase(charId)
     val def = ItemNames.byDecompName(decompName) ?: return false
     val id = items.idOrNull(def) ?: return false
     return (characters.getCharacter(charId)?.items?.get(id) ?: 0) > 0

@@ -143,15 +143,16 @@ constructor(
     when (a.firstOrNull()) {
       "kit" -> {
         val give =
-            listOf("POKEBLOCK_CASE" to 1, "WAILMER_PAIL" to 1) +
+            listOf("POKEBLOCK_CASE" to 1, "WAILMER_PAIL" to 1, "RARE_CANDY" to 3) +
                 lane.data.berries.take(20).map { it.item.removePrefix("ITEM_") to 5 }
         for ((n, q) in give) {
           val def = ItemNames.byDecompName(n) ?: continue
           val id = items.idOrNull(def) ?: continue
-          if (n.endsWith("BERRY") || (characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0)
+          if (n.endsWith("BERRY") || n == "RARE_CANDY" || (characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0)
               characters.addItem(charId, id, q)
         }
         characters.getCharacter(charId)?.items?.let { ctx.session.send(storyItemStacksPacket(it)) }
+        characters.setStoryFlag(charId, "hoenn/FLAG_RECEIVED_POKEBLOCK_CASE")
         ctx.reply("POKéBLOCK CASE, WAILMER PAIL and berries added.")
       }
       "stats" -> {

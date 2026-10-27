@@ -144,6 +144,136 @@ def run_contest(a, b):
     ok("Ash won the Normal Rank Cool contest")
 
 
+def bag_qty(p, name):
+    for it in (p.state.get("ui") or {}).get("bag") or []:
+        if it["name"].lower() == name.lower():
+            return it["qty"], it["item"]
+    return 0, None
+
+
+def run_blender(a):
+    print("== blender (Ash + the old-timer at BERRY BLENDER 1)")
+    command(a, "/contestdev kit", "added")
+    goto(a, "lobby 27 6 up")
+    a.send(t="a")
+    answer_dialogs(a, lambda q: (docs(q).get("blender") or {}).get("phase") == "choose", 40, log=True)
+    berries = docs(a)["blender"]["berries"]
+    ok(f"Ash: the blender's berry menu lists {len(berries)} berries")
+    a.send(t="blender.berry", berry=berries[0]["berry"])
+    a.wait(lambda q: (docs(q).get("blender") or {}).get("phase") in ("play", "start"), 30, "blender start")
+    seats = a.wait(lambda q: docs(q)["blender"].get("seats"), 10, "seats")
+    you = docs(a)["blender"]["you"]
+    start = seats[you]["hitStart"]
+    ok(f"Ash: blending with {[x['name'] for x in seats]}")
+    presses = 0
+    t0 = time.time()
+    last_frame = -1
+    while time.time() - t0 < 240:
+        d = docs(a).get("blender") or {}
+        if d.get("phase") == "result":
+            break
+        if d.get("phase") == "play" and d.get("frame") != last_frame and d.get("speed"):
+            last_frame = d["frame"]
+            target = (start * 256) & 0xFFFF
+            delta = (target - d["arrow"]) & 0xFFFF
+            frames = delta / d["speed"]
+            if frames < 8:  # the mark comes within this update window
+                time.sleep(max(0.0, frames / 60.0 - 0.01))
+                a.send(t="blender.press", pos=target)
+                presses += 1
+        time.sleep(0.01)
+    d = a.wait(lambda q: (docs(q).get("blender") or {}).get("phase") == "result" and docs(q)["blender"], 60, "blender result")
+    me = next(r for r in d["ranking"] if r["seat"] == you)
+    ok(f"Ash: {presses} presses, BEST {me['best']} GOOD {me['good']} MISS {me['miss']}, max {d['maxRpm'] / 100:.2f} RPM")
+    ok(f"Ash: got {d['block']['name']} LV{d['block']['level']} feel {d['block']['feel']} (received={d['received']})")
+    assert d["received"]
+    a.send(t="blender.close")
+    answer_dialogs(a, lambda q: dialog(q) is None and not docs(q).get("blender"), 30)
+    a.send(t="pokeblocks.open")
+    blocks = a.wait(lambda q: (docs(q).get("pokeblocks") or {}).get("blocks"), 10, "case")
+    ok(f"Ash: the POKéBLOCK CASE holds {len(blocks)} blocks")
+    a.send(t="pokeblocks.close")
+
+
+def run_feebas(a):
+    print("== Feebas -> Milotic (Pokeblocks raise beauty, evolution on a level up)")
+    command(a, "/contestdev kit", "added")
+    if not any(m["dex"] == 349 for m in a.state.get("party") or []):
+        command(a, "/givemon 349 20")
+        a.wait(lambda q: any(m["dex"] == 349 for m in q.state.get("party") or []), 10, "Feebas")
+    for _ in range(4):
+        command(a, "/contestdev block 0 60 0 0 0 5", "added")
+    a.send(t="pokeblocks.open")
+    case = a.wait(lambda q: (docs(q).get("pokeblocks") or {}).get("party"), 10, "case")
+    feebas = next(m for m in case if m["dex"] == 349)
+    for i in range(4):
+        case = docs(a)["pokeblocks"]
+        blk = next(b for b in case["blocks"] if b["dry"] == 60)
+        seq = a.state["contests"]["seq"]
+        a.send(t="pokeblocks.feed", slot=blk["slot"], mon=feebas["id"])
+        a.wait(lambda q: q.state["contests"]["seq"] > seq, 10, "fed")
+        m = next(m for m in docs(a)["pokeblocks"]["party"] if m["id"] == feebas["id"])
+        print(f"      fed block {i + 1}: {docs(a)['pokeblocks']['message']!r} beauty={m['beauty']} sheen={m['sheen']}")
+    assert m["beauty"] >= 170, m
+    ok(f"Feebas beauty {m['beauty']} (EVO_BEAUTY needs 170)")
+    a.send(t="pokeblocks.close")
+    time.sleep(0.5)
+    qty, candy = bag_qty(a, "Rare Candy")
+    assert candy, "rare candy"
+    a.send(t="item.use", item=candy, mon=feebas["id"])
+    ev = a.wait(lambda q: q.state.get("evolution"), 20, "evolution scene")
+    ok(f"evolution scene: {ev['name']} -> {ev['toName']} (dex {ev['fromDex']} -> {ev['toDex']})")
+    assert ev["toDex"] == 350
+    while True:
+        ev = a.state.get("evolution")
+        if not ev:
+            break
+        if ev["phase"] in ("done", "finished", "end"):
+            a.send(t="evolution.close")
+        else:
+            a.send(t="evolution.answer", proceed=True)
+        time.sleep(1.0)
+        if any(m["dex"] == 350 for m in a.state.get("party") or []) and not a.state.get("evolution"):
+            break
+        if any(m["dex"] == 350 for m in a.state.get("party") or []):
+            a.send(t="evolution.close")
+    a.wait(lambda q: any(m["dex"] == 350 for m in q.state.get("party") or []), 30, "Milotic in party")
+    ok("Feebas evolved into Milotic")
+
+
+def run_berry(a):
+    print("== berry tree (Route 104 soil at 35,6: plant, water, grow, pick)")
+    command(a, "/contestdev kit", "added")
+    goto(a, "route104 35 7 up")
+    a.send(t="berry.trees")  # the browser asks on every map change
+    a.wait(lambda q: (docs(q).get("berryTrees") or {}).get("map") == "Route104", 15, "map trees")
+    tree = lambda q: next(t for t in docs(q)["berryTrees"]["trees"] if t["tree"] == 9)
+    if tree(a)["stage"] != 0:
+        a.send(t="a")
+        answer_dialogs(a, lambda q: tree(q)["stage"] == 0, 30, log=True)
+    before, _ = bag_qty(a, "Cheri Berry")
+    a.send(t="a")
+    answer_dialogs(a, lambda q: "berryChoose" in docs(q), 30, log=True)
+    item = next(b for b in docs(a)["berryChoose"]["berries"] if b["name"] == "CHERI")["item"]
+    a.send(t="berryChoose.pick", item=item)
+    answer_dialogs(a, lambda q: tree(q)["stage"] == 1 and dialog(q) is None, 30, log=True)
+    ok(f"planted a CHERI BERRY: {tree(a)}")
+    for stage in range(1, 5):
+        a.send(t="a")
+        answer_dialogs(a, lambda q: tree(q)["watered"] >= stage and dialog(q) is None, 30, log=True)
+        command(a, "/contestdev grow 3", "grew")
+        a.wait(lambda q: tree(q)["stage"] == stage + 1, 10, f"stage {stage + 1}")
+        print(f"      watered and grew: {tree(a)}")
+    t = tree(a)
+    assert t["stage"] == 5, t
+    ok(f"berries: {t['yield']} (watered {t['watered']} times)")
+    a.send(t="a")
+    answer_dialogs(a, lambda q: tree(q)["stage"] == 0 and dialog(q) is None, 30, log=True)
+    after, _ = bag_qty(a, "Cheri Berry")
+    ok(f"picked: Cheri Berries {before - 1} -> {after}")
+    assert after == before - 1 + t["yield"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ws", required=True)
@@ -161,8 +291,9 @@ def main():
         if not p.state.get("party"):
             command(p, "/givemon 4 20")
             p.wait(lambda q: q.state.get("party"), 8, "party")
-    if args.only == "contest":
-        run_contest(a, b)
+    for part in args.only.split(","):
+        {"contest": lambda: run_contest(a, b), "blender": lambda: run_blender(a),
+         "feebas": lambda: run_feebas(a), "berry": lambda: run_berry(a)}[part]()
     print("ALL OK")
 
 
