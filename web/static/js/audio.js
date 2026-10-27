@@ -301,6 +301,41 @@ class Song {
     if (fadeIn > 0) this.out.gain.linearRampToValueAtTime(v, at + fadeIn);
   }
 
+  /**
+   * Pauses at `at` for a fanfare (PlayFanfare: m4aMPlayStop on the BGM player): notes still sounding
+   * or already scheduled past `at` are dropped and the read position goes back to the first event
+   * after `at`, so resume() continues at the same spot in the song (m4aMPlayContinue).
+   */
+  pause(at) {
+    if (this.stopped || this.paused) return;
+    this.paused = true;
+    this.pausedAt = at;
+    const g = this.out.gain;
+    this.outLevel = g.value;
+    g.cancelScheduledValues(at);
+    g.setValueAtTime(g.value, at);
+    g.linearRampToValueAtTime(0, at + 0.03);
+    for (const c of this.ch) {
+      for (const n of [...c.notes.values()]) {
+        try { n.src.stop(at + 0.04); } catch {}
+        this.kill(n);
+      }
+      c.notes.clear();
+    }
+    const ev = this.data.events;
+    while (this.i > 0 && this.t0 + ev[this.i - 1].t > at) this.i--;
+  }
+
+  resume(at) {
+    if (this.stopped || !this.paused) return;
+    this.paused = false;
+    this.t0 += at - this.pausedAt;
+    const g = this.out.gain;
+    g.cancelScheduledValues(at);
+    g.setValueAtTime(0, at);
+    g.linearRampToValueAtTime(this.outLevel || (this.info.vol ?? 127) / 127, at + 0.15);
+  }
+
   stop(at, fade) {
     if (this.stopped) return;
     this.stopped = true;
@@ -327,6 +362,7 @@ class Song {
   /** Schedules every event up to `until` (AudioContext time). Returns false once finished. */
   pump(until) {
     if (this.stopped) return false;
+    if (this.paused) return true;
     const ev = this.data.events;
     while (true) {
       if (this.i >= ev.length || (this.data.loopEnd !== null && this.data.loopStart && ev[this.i].t >= this.data.loopEnd)) {
@@ -721,10 +757,9 @@ export const music = {
     const plain = { ...data, loopStart: null }; // effects never loop
     const s = new Song(this, name, info, plain, idx.waves || [], idx.samples || {}, this.sfxMaster);
     const at = this.ctx.currentTime + 0.01;
-    if (fanfare) {
-      this.duck = 0;
-      this.applyGain();
-    }
+    // A fanfare pauses the map music and resumes it at the same spot afterwards.
+    const paused = fanfare ? this.song : null;
+    if (paused) paused.pause(at);
     s.start(at, 0);
     this.effects = (this.effects || 0) + 1;
     await new Promise((res) => {
@@ -738,10 +773,7 @@ export const music = {
     });
     s.stop(this.ctx.currentTime, 0.05);
     this.effects--;
-    if (fanfare) {
-      this.duck = 1;
-      this.applyGain();
-    }
+    if (paused && paused === this.song) paused.resume(this.ctx.currentTime + 0.05);
     return true;
   },
 
