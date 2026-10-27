@@ -8,7 +8,7 @@ import { monImg } from './common.js';
 const PAGE = 20;
 let app, p = null, tab = 'browse', last = null, listBox = null, filt = null, chartBox = null, lastOpenSeq = null;
 let chartFor = null; // {kind, id}
-const q = { kind: null, id: null, min: null, max: null, sort: 'new', page: 0 };
+const q = { kind: 'mon', id: null, min: null, max: null, sort: 'new', page: 0 };
 
 export function init(a) {
   app = a;
@@ -46,13 +46,13 @@ export function showHistory(kind, id) {
 }
 
 function buildStatic() {
-  const kind = h('select', { 'aria-label': 'kind', 'data-k': 'fkind' }, h('option', { value: '' }, 'All'), h('option', { value: 'mon' }, 'POKéMON'), h('option', { value: 'item' }, 'Items'));
+  const kind = h('select', { 'aria-label': 'kind', 'data-k': 'fkind' }, h('option', { value: 'mon' }, 'POKéMON'), h('option', { value: 'item' }, 'Items'));
   const id = h('input', { type: 'number', placeholder: 'dex / item id', inputmode: 'numeric', 'aria-label': 'dex or item id', 'data-k': 'fid' });
   const min = h('input', { type: 'number', placeholder: 'min ₽', inputmode: 'numeric', 'aria-label': 'min price', 'data-k': 'fmin' });
   const max = h('input', { type: 'number', placeholder: 'max ₽', inputmode: 'numeric', 'aria-label': 'max price', 'data-k': 'fmax' });
   const sort = h('select', { 'aria-label': 'sort', 'data-k': 'fsort' }, h('option', { value: 'new' }, 'Newest'), h('option', { value: 'price' }, 'Price ↑'), h('option', { value: 'price-desc' }, 'Price ↓'));
   const go = h('button', { type: 'button', 'data-k': 'fgo', on: { click: () => {
-    q.kind = kind.value || null;
+    q.kind = kind.value || 'mon';
     q.id = id.value ? +id.value : null;
     q.min = min.value ? +min.value : null;
     q.max = max.value ? +max.value : null;
