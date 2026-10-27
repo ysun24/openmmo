@@ -149,14 +149,12 @@ class FameCheckerSpecials @Inject constructor(private val fame: FameCheckerServi
       mapOf(
           "SetFlavorTextFlagFromSpecialVars" to
               { ctx ->
-                fame.setFlavorText(
-                    ctx.playerEntityId, ctx.specialVar(0x4), ctx.specialVar(0x5))
+                fame.setFlavorText(ctx.playerEntityId, ctx.specialVar(0x4), ctx.specialVar(0x5))
                 0
               },
           "UpdatePickStateFromSpecialVar8005" to
               { ctx ->
-                fame.setPickState(
-                    ctx.playerEntityId, ctx.specialVar(0x4), ctx.specialVar(0x5))
+                fame.setPickState(ctx.playerEntityId, ctx.specialVar(0x4), ctx.specialVar(0x5))
                 0
               },
       )
