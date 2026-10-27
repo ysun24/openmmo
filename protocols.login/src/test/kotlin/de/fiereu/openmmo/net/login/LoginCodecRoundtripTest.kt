@@ -6,6 +6,11 @@ import de.fiereu.openmmo.net.login.packets.JoinGameServerPacket
 import de.fiereu.openmmo.net.login.packets.JoinGameServerPacketCodec
 import de.fiereu.openmmo.net.login.packets.MfaResponsePacket
 import de.fiereu.openmmo.net.login.packets.MfaResponsePacketCodec
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacket
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacketCodec
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacket
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacketCodec
+import de.fiereu.openmmo.net.login.packets.RegisterResult
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacket
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacketCodec
 import de.fiereu.openmmo.net.login.packets.ToSConfirmationPacket
@@ -36,5 +41,21 @@ class LoginCodecRoundtripTest :
       test("MfaResponsePacket roundtrips a string") {
         val pkt = MfaResponsePacket(mfaCode = "123456")
         MfaResponsePacketCodec.decodeBytes(MfaResponsePacketCodec.encodeToBytes(pkt)) shouldBe pkt
+      }
+
+      test("RegisterRequestPacket roundtrips") {
+        val pkt = RegisterRequestPacket("misty_2", "a".repeat(40), "ABCD-EFGH")
+        RegisterRequestPacketCodec.decodeBytes(
+            RegisterRequestPacketCodec.encodeToBytes(pkt)) shouldBe pkt
+      }
+
+      test("RegisterResponsePacket roundtrips every result and maps unknown ids to SYSTEM_ERROR") {
+        for (r in RegisterResult.entries) {
+          val pkt = RegisterResponsePacket(r)
+          RegisterResponsePacketCodec.decodeBytes(
+              RegisterResponsePacketCodec.encodeToBytes(pkt)) shouldBe pkt
+        }
+        RegisterResponsePacketCodec.decodeBytes(byteArrayOf(99)).result shouldBe
+            RegisterResult.SYSTEM_ERROR
       }
     })

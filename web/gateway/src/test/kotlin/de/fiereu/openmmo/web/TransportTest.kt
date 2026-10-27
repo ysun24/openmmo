@@ -79,6 +79,34 @@ class TransportTest {
   }
 
   @Test
+  fun `wildcard origins cover exactly one subdomain label`() {
+    val allowed = setOf("https://*.a.pinggy.link")
+    assertTrue(OriginGuard.originAllowed("https://abc-12.a.pinggy.link", "game:8080", allowed))
+    assertTrue(OriginGuard.originAllowed("https://ABC.a.pinggy.link", "game:8080", allowed))
+    assertFalse(OriginGuard.originAllowed("http://abc.a.pinggy.link", "game:8080", allowed))
+    assertFalse(OriginGuard.originAllowed("https://x.y.a.pinggy.link", "game:8080", allowed))
+    assertFalse(OriginGuard.originAllowed("https://a.pinggy.link", "game:8080", allowed))
+    assertFalse(OriginGuard.originAllowed("https://evil-a.pinggy.link", "game:8080", allowed))
+    assertFalse(OriginGuard.originAllowed("https://abc.a.pinggy.link.evil", "game:8080", allowed))
+  }
+
+  @Test
+  fun `client address takes the last forwarded hop only when trusted`() {
+    assertEquals("10.0.0.5", WsSession.clientAddress("1.2.3.4", "10.0.0.5", false))
+    assertEquals("9.9.9.9", WsSession.clientAddress("1.1.1.1, 9.9.9.9", "10.0.0.5", true))
+    assertEquals("10.0.0.5", WsSession.clientAddress(null, "10.0.0.5", true))
+    assertEquals("10.0.0.5", WsSession.clientAddress(" , ", "10.0.0.5", true))
+  }
+
+  @Test
+  fun `keyed limiter is per key`() {
+    val k = KeyedRateLimiter(1, 60_000)
+    assertTrue(k.tryAcquire("a", 0))
+    assertFalse(k.tryAcquire("a", 1))
+    assertTrue(k.tryAcquire("b", 1))
+  }
+
+  @Test
   fun `login rate limit is five a minute`() {
     val r = RateLimiter(5, 60_000)
     repeat(5) { assertTrue(r.tryAcquire(1000L + it)) }

@@ -236,6 +236,7 @@ function showLogin(msg, err = false) {
   const st = $('#login-status');
   st.textContent = msg || '';
   st.classList.toggle('err', err);
+  if (msg) st.scrollIntoView({ block: 'nearest' }); // phones: the status sits below the fold
   $('#login-btn').disabled = false;
   setTimeout(() => ($('#user').value ? $('#pass') : $('#user')).focus({ preventScroll: true }), 0);
 }
@@ -380,6 +381,47 @@ net.on('login', (m) => {
   if (saved.name) $('#cname').value = saved.name;
   if (saved.region !== undefined) $('#region').value = String(saved.region);
 })();
+// deploy: "注册 / Register" tab — invite-code registration (PROTOCOL.md 11), then the normal login
+let registerMode = false;
+function setRegisterMode(on) {
+  registerMode = on;
+  $('#tab-login').classList.toggle('on', !on);
+  $('#tab-register').classList.toggle('on', on);
+  $('#tab-login').setAttribute('aria-selected', String(!on));
+  $('#tab-register').setAttribute('aria-selected', String(on));
+  document.querySelectorAll('#login-form .reg-only').forEach((el) => el.classList.toggle('hidden', !on));
+  $('#invite').required = on;
+  $('#pass2').required = on;
+  $('#pass').autocomplete = on ? 'new-password' : 'current-password';
+  $('#login-btn').textContent = on ? '注册并登录 / Register' : 'Log in';
+  $('#login-status').textContent = '';
+}
+$('#tab-login').addEventListener('click', () => setRegisterMode(false));
+$('#tab-register').addEventListener('click', () => setRegisterMode(true));
+{
+  // an invite link: https://host/#invite=CODE opens the register tab with the code filled in
+  const m = /(?:^#|&)invite=([A-Za-z0-9-]{4,32})/.exec(location.hash);
+  if (m) {
+    setRegisterMode(true);
+    $('#invite').value = m[1].toUpperCase();
+  }
+}
+const REGISTER_ERRORS = {
+  BAD_USERNAME: 'Username: 3–16 letters, digits or _ / 用户名需 3–16 位字母数字或下划线',
+  BAD_PASSWORD: 'Password must be at least 8 characters / 密码至少 8 位',
+  BAD_INVITE: 'Invite code is wrong, used up or expired / 邀请码无效或已用完',
+  USERNAME_TAKEN: 'That username is taken / 用户名已被占用',
+  RATE_LIMITED: 'Too many tries, wait a bit / 尝试次数过多，请稍后再试',
+};
+net.on('register', (m) => {
+  if (m.ok) {
+    $('#login-status').textContent = 'Account created, logging in… / 注册成功，正在登录…';
+    return;
+  }
+  pendingLogin = null;
+  showLogin('Register failed: ' + (REGISTER_ERRORS[m.error] || m.error || 'unknown error'), true);
+});
+
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const user = $('#user').value.trim();
@@ -388,20 +430,36 @@ $('#login-form').addEventListener('submit', async (e) => {
   const region = +$('#region').value;
   const remember = $('#remember').checked;
   const gender = +$('#gender').value;
+  const st = $('#login-status');
+  if (registerMode) {
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(user)) return showLogin(REGISTER_ERRORS.BAD_USERNAME, true);
+    if (pass.length < 8) return showLogin(REGISTER_ERRORS.BAD_PASSWORD, true);
+    if (pass !== $('#pass2').value) return showLogin('Passwords do not match / 两次密码不一致', true);
+  }
   creds = { user, pass, name, region, remember, gender };
   saveSession(null);
   localStorage.setItem('openmmo.login', JSON.stringify({ user, name, region }));
   $('#login-btn').disabled = true;
-  const st = $('#login-status');
   st.classList.remove('err');
   st.textContent = 'Connecting…';
   try {
-    await doLogin(false);
-    st.textContent = 'Logging in…';
+    if (registerMode) {
+      await assetsReady;
+      if (net.status !== 'online') await net.connect();
+      net.resetState();
+      world.reset();
+      pendingLogin = { viaToken: false, remember: !!remember };
+      send({ t: 'register', user, pass, invite: $('#invite').value.trim(), name, region, gender, remember: !!remember });
+      st.textContent = 'Creating account… / 正在注册…';
+    } else {
+      await doLogin(false);
+      st.textContent = 'Logging in…';
+    }
   } catch {
     showLogin('Cannot reach the gateway.', true);
   }
   $('#pass').value = '';
+  $('#pass2').value = '';
 });
 
 // first load: assets + fonts behind the loading screen, then resume a remembered session or log in

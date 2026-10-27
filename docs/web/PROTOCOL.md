@@ -499,3 +499,31 @@ Static assets (manifest):
   "frameSlice": 8, "arrow": png, "arrowSize": "WxH", "arrowSteps": [[x, y]...]}}` — 9-slice
   `border-image` sources composed from the games' frame tiles; `arrowSteps` are the source
   offsets of the bobbing "more" arrow, one step per 8 frames.
+
+## 11. deploy (home deployment: invite registration; all additive)
+
+### 11.1 Browser → gateway
+- `register`: `user` (3–16 of `[A-Za-z0-9_]`, case-insensitive unique), `pass` (8–128 chars),
+  `invite` (code from `invite.ps1` / `server.login invite create`), plus the `login` fields `name`,
+  `region`, `gender`, `remember`. Creates the account, then logs in exactly like `login`.
+
+### 11.2 Gateway → browser
+- `{"t":"register","ok":true}` followed by the usual `login` reply, or
+  `{"t":"register","ok":false,"error":"..."}` with `BAD_USERNAME`, `BAD_PASSWORD`, `BAD_INVITE`,
+  `USERNAME_TAKEN`, `RATE_LIMITED`, `BAD_CHARACTER`, `ALREADY_LOGGED_IN`, `SYSTEM_ERROR` or
+  `LOGIN_SERVER_UNREACHABLE`.
+- `login` may now fail with `RATE_LIMITED` from the login server too (too many wrong passwords for
+  that username in 15 minutes, or too many attempts on one connection).
+
+### 11.3 Login protocol (OpenMMO-only)
+- `RegisterRequestPacket` C2S `0x70`: `username`, `password` (SHA-1 hex, like `PasswordLogin`),
+  `invite` — all UTF-16LE null-terminated. `RegisterResponsePacket` S2C `0x70`: `U8` result
+  (`RegisterResult`: 0 OK, 1 SYSTEM_ERROR, 2 BAD_USERNAME, 3 BAD_PASSWORD, 4 USERNAME_TAKEN,
+  5 BAD_INVITE, 6 RATE_LIMITED, 7 ALREADY_LOGGED_IN). 0x70+ is never used by retail;
+  `LoginProtocolTest` checks it.
+
+### 11.4 Gateway options
+- `--game-host HOST`: connect to the game server at HOST instead of the login host (compose).
+- `--trust-forwarded true`: take the client address from the last `X-Forwarded-For` hop and accept
+  an `Origin` matching `X-Forwarded-Host`; only behind a proxy/tunnel that sets them.
+- `--allow-origin` entries may use one wildcard label, e.g. `https://*.a.pinggy.link`.

@@ -29,8 +29,15 @@
   <section id="login" class="screen hidden">
     <form id="login-form" class="card" autocomplete="on">
       <h1>Open<span>MMO</span></h1>
+      <div id="login-tabs" class="tabs" role="tablist" aria-label="Log in or register">
+        <button type="button" id="tab-login" role="tab" aria-selected="true" class="on">登录 / Log in</button>
+        <button type="button" id="tab-register" role="tab" aria-selected="false">注册 / Register</button>
+      </div>
       <label>Username <input id="user" name="username" autocomplete="username" required maxlength="32" autocapitalize="off" spellcheck="false"></label>
       <label>Password <input id="pass" name="password" type="password" autocomplete="current-password" required maxlength="64"></label>
+      <label class="reg-only hidden">Repeat password <input id="pass2" name="password2" type="password" autocomplete="new-password" maxlength="64"></label>
+      <label class="reg-only hidden">Invite code / 邀请码 <input id="invite" name="invite" maxlength="32" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></label>
+      <p class="reg-only hidden hint">3–16 letters, digits or _ · password at least 8 characters</p>
       <label>Character <input id="cname" name="character" maxlength="12" autocapitalize="off" spellcheck="false" placeholder="same as username"></label>
       <label>Region
         <select id="region" name="region">
