@@ -312,6 +312,52 @@ def warp(A, seq):
     return seq
 
 
+# ---------------------------------------------------------------- r3-social helpers
+
+def social(p):
+    return p.state.get("social") or {}
+
+
+def chat_lines(p):
+    return p.state.get("chat") or []
+
+
+def errors_since(p, since):
+    return [m["msg"] for _, m in p.messages[since:] if m.get("t") == "error"]
+
+
+def tp(p, where, x, y, facing="down"):
+    """Developer warp (/tp, r3-social) and wait until the map changed and the self tile matches."""
+    region, bank, mp = (int(v) for v in where.split(":"))
+    p.send(t="say", text=f"/tp {where} {x} {y} {facing}")
+    p.wait(lambda q: (q.world.get("map") or {}).get("bank") == bank
+           and q.world["map"]["map"] == mp and q.world["map"]["region"] == region
+           and q.world.get("inWorld") and (q.self_entity() or {}).get("x") == x
+           and (q.self_entity() or {}).get("y") == y, 12, f"/tp {where}")
+    time.sleep(0.8)
+
+
+def leave_guild(p):
+    g = social(p).get("guild") or {}
+    if not g.get("inGuild"):
+        return
+    p.send(t="guild.disband" if g.get("myRank") == 5 else "guild.leave")
+    p.wait(lambda q: not (social(q).get("guild") or {}).get("inGuild"), 8, "out of the guild")
+
+
+def press_until(p, pred, what, tries=14):
+    """Presses A (or picks choice 0) until pred holds; for npc dialogs that open a window."""
+    for _ in range(tries):
+        if pred(p):
+            return
+        d = (p.state.get("ui") or {}).get("dialog")
+        if d and d.get("choices"):
+            p.send(t="choose", index=0)
+        else:
+            p.send(t="a")
+        time.sleep(0.7)
+    p.wait(pred, 5, what)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -352,8 +398,14 @@ def main():
     B = Player(args.ws, nb)
     login(A, ua, pa, na)
     login(B, ub, pb, nb)
-    if A.world["map"] != B.world["map"]:
-        warp(A, 10_000)
+    # A previous run may have ended elsewhere (or failed half way): start both in the house.
+    for p, x in ((A, 6), (B, 7)):
+        m = p.world["map"]
+        if (m["region"], m["bank"], m["map"]) != (0, 4, 1) or (p.state.get("trade") or {}).get("phase") in (
+                "OPEN", "REQUEST_SENT", "REQUEST_RECEIVED"):
+            p.send(t="trade.cancel")
+            p.send(t="battle.close")
+            tp(p, "0:4:1", x, 6)
     A.wait(lambda q: any(e["kind"] == "player" and e["name"] == nb for e in q.world["entities"]),
            5, "other player visible")
     ok(f"{na} sees {nb} as entity: "
@@ -473,6 +525,278 @@ def main():
        f"{[(e['gfx'], e['x'], e['y'], e['facing']) for e in npcs]}")
     seq = warp(A, seq)
     ok(f"{na} back on {A.world['map']['name']}")
+
+
+    # ================================================================ r3-social
+    print("== chat channels")
+    since = len(A.messages)
+    A.send(t="say", text="hello world channel", channel="global")
+    B.wait(lambda q: any(c.get("channel") == "global" and c["text"] == "hello world channel"
+                         for c in chat_lines(q)), 5, "global chat on B")
+    A.send(t="say", text="hello trade channel", channel="trade")
+    B.wait(lambda q: any(c.get("channel") == "trade" and c["sender"] == na for c in chat_lines(q)), 5,
+           "trade chat on B")
+    A.send(t="say", text="psst", channel="whisper", to=nb)
+    B.wait(lambda q: any(c.get("channel") == "whisper" and c.get("to") == nb and c["sender"] == na
+                         for c in chat_lines(q)), 5, "whisper on B")
+    A.wait(lambda q: any(c.get("channel") == "whisper" and c.get("to") == nb for c in chat_lines(q)), 5,
+           "whisper echo on A")
+    A.send(t="say", text="x", channel="whisper", to="NobodyHere")
+    A.wait(lambda q: any(c.get("channel") == "system" and "not online" in c["text"] for c in chat_lines(q)),
+           5, "whisper to offline refused")
+    A.send(t="say", text="y" * 230, channel="global")
+    A.wait(lambda q: any("limited to 200" in c["text"] for c in chat_lines(q)), 5, "length limit")
+    A.send(t="say", text="z", channel="shout")
+    A.wait(lambda q: "bad channel: shout" in errors_since(q, since), 5, "bad channel error")
+    ok(f"channels: {[(c.get('channel'), c['sender'], c.get('to'), c['text'][:20]) for c in chat_lines(B)[-4:]]}")
+
+    print("== friends + profile + block")
+    for p, other in ((A, nb), (B, na)):
+        p.send(t="social.refresh")
+        p.wait(lambda q: "social" in q.state, 5, "social section")
+        if any(f["name"] == other for f in social(p)["friends"]):
+            p.send(t="friends.remove", name=other)
+            p.wait(lambda q: not any(f["name"] == other for f in social(q)["friends"]), 5, "clean friends")
+        if other in social(p)["blocked"]:
+            p.send(t="unblock", name=other)
+            p.wait(lambda q: other not in social(q)["blocked"], 5, "clean blocks")
+    A.send(t="friends.add", name=nb)
+    A.wait(lambda q: any(f["name"] == nb and f["online"] and f["location"] for f in social(q)["friends"]),
+           5, "friend online with location")
+    B.wait(lambda q: any(f"{na} added you as a friend." in c["text"] for c in chat_lines(q)), 5,
+           "friend notice on B")
+    B.send(t="friends.add", name=na)
+    A.send(t="social.refresh")
+    A.wait(lambda q: any(f["name"] == nb and f["mutual"] for f in social(q)["friends"]), 5, "mutual")
+    ok(f"{na} friends: {social(A)['friends']}")
+    seq0 = social(A).get("profileSeq", 0)
+    A.send(t="profile", name=nb)
+    A.wait(lambda q: social(q).get("profileSeq", 0) > seq0, 5, "profile")
+    prof = social(A)["profile"]
+    assert prof["name"] == nb and prof["online"] and prof["friend"] and prof["party"], prof
+    ok(f"profile of {nb}: {prof}")
+    B.send(t="block", name=na)
+    B.wait(lambda q: na in social(q)["blocked"], 5, "blocked")
+    A.send(t="say", text="can you hear me", channel="global")
+    A.send(t="say", text="psst again", channel="whisper", to=nb)
+    A.wait(lambda q: any("not accepting messages" in c["text"] for c in chat_lines(q)), 5, "whisper blocked")
+    time.sleep(0.5)
+    assert not any(c["text"] == "can you hear me" for c in chat_lines(B)), chat_lines(B)[-3:]
+    ok(f"{nb} blocked {na}: global hidden, whisper refused")
+    B.send(t="unblock", name=na)
+    B.wait(lambda q: na not in social(q)["blocked"], 5, "unblocked")
+    B.send(t="friends.add", name=na)
+    B.wait(lambda q: any(f["name"] == na for f in social(q)["friends"]), 5, "B re-adds A")
+
+    print("== guild")
+    for p in (A, B):
+        leave_guild(p)
+    command(A, "/givemoney 20000")
+    gname = f"E2E Guild {int(time.time()) % 100000}"
+    A.send(t="guild.create", name=gname, tag="E2E")
+    A.wait(lambda q: (social(q).get("guild") or {}).get("name") == gname, 8, "guild created")
+    A.send(t="guild.invite", name=nb)
+    B.wait(lambda q: (social(q).get("invite") or {}).get("guild") == gname, 8, "guild invite")
+    ok(f"{nb} invite: {social(B)['invite']}")
+    B.send(t="guild.answer", accept=True)
+    B.wait(lambda q: (social(q).get("guild") or {}).get("name") == gname, 8, "B joined")
+    A.wait(lambda q: len(social(q)["guild"]["members"]) == 2, 8, "two members")
+    A.send(t="guild.rank", name=nb, rank=2)
+    B.wait(lambda q: social(q)["guild"]["myRankName"] == "Officer", 8, "B promoted")
+    B.send(t="guild.motd", text="Meet at the Pokemon Center")
+    A.wait(lambda q: social(q)["guild"]["motd"] == "Meet at the Pokemon Center", 8, "motd")
+    B.send(t="say", text="guild hello", channel="guild")
+    A.wait(lambda q: any(c.get("channel") == "guild" and c["text"] == "guild hello" for c in chat_lines(q)),
+           5, "guild chat")
+    ok(f"guild: {[(m['name'], m['rankName'], m['online']) for m in social(A)['guild']['members']]} "
+       f"motd={social(A)['guild']['motd']!r} log={[l['text'] for l in social(A)['guild']['log'][:3]]}")
+    A.send(t="guild.kick", name=nb)
+    B.wait(lambda q: not social(q)["guild"]["inGuild"], 8, "B kicked")
+    A.send(t="guild.invite", name=nb)
+    B.wait(lambda q: (social(q).get("invite") or {}).get("guild") == gname, 8, "second invite")
+    B.send(t="guild.answer", accept=False)
+    B.wait(lambda q: social(q).get("invite") is None, 5, "invite declined")
+    A.send(t="guild.disband")
+    A.wait(lambda q: not social(q)["guild"]["inGuild"], 8, "disbanded")
+    B.send(t="guild.leave")  # not in a guild: answered with a notice, not an error
+    ok("guild kick / decline / disband / leave done")
+
+    print("== pc + market clerk")
+    tp(A, "0:5:4", 0, 3, "up")
+    tp(B, "0:5:4", 4, 5)
+    assert A.state["pc"]["here"], A.state["pc"]
+    clerk = A.wait(lambda q: next((e for e in q.world["entities"] if e["kind"] == "npc" and e["gfx"] == 68
+                                   and (e["x"], e["y"]) == (0, 2)), None), 5, "market clerk npc")
+    ok(f"market clerk in Viridian PC: {clerk}")
+    open0 = A.state["market"].get("openSeq", 0)
+    A.send(t="a")
+    A.wait(lambda q: q.state["market"].get("openSeq", 0) > open0, 5, "clerk opens market")
+    A.wait(lambda q: q.state["market"].get("info"), 5, "market info")
+    ok(f"clerk opened the market: info={A.state['market']['info']}")
+    if len(B.state["party"]) < 2:
+        command(B, "/givemon 19 5")
+        B.wait(lambda q: len(q.state["party"]) >= 2, 8, "second mon for B")
+    npc0 = len(B.state["pc"]["mons"])
+    B.send(t="pc.deposit", slot=len(B.state["party"]) - 1)
+    B.wait(lambda q: len(q.state["pc"]["mons"]) == npc0 + 1, 8, "deposit")
+    ok(f"{nb} deposited, pc={[(m['slot'], m['name']) for m in B.state['pc']['mons']]}")
+    B.send(t="pc.withdraw", slot=B.state["pc"]["mons"][-1]["slot"])
+    B.wait(lambda q: len(q.state["pc"]["mons"]) == npc0, 8, "withdraw")
+    B.send(t="pc.deposit", slot=len(B.state["party"]) - 1)
+    B.wait(lambda q: len(q.state["pc"]["mons"]) == npc0 + 1, 8, "deposit again")
+    pc_mon = B.state["pc"]["mons"][-1]
+
+    print("== trade: pc monster, walk lock, history")
+    a_party0 = len(A.state["party"])
+    A.send(t="trade.request", name=nb)
+    B.wait(lambda q: (q.state.get("trade") or {}).get("phase") == "REQUEST_RECEIVED", 8, "request")
+    exp = B.state["trade"].get("expiresAt", 0) / 1000 - time.time()
+    assert 50 < exp <= 61, exp
+    ok(f"request lapses in {exp:.0f} s")
+    B.send(t="trade.accept")
+    for p in (A, B):
+        p.wait(lambda q: (q.state.get("trade") or {}).get("phase") == "OPEN", 8, "trade open")
+    before = A.self_entity()
+    seq += 1
+    A.send(t="step", dir="down", run=False, seq=seq)
+    time.sleep(1.0)
+    after = A.self_entity()
+    assert (before["x"], before["y"]) == (after["x"], after["y"]), (before, after)
+    ok(f"{na} cannot walk while the trade window is open (stays at {after['x']},{after['y']})")
+    A.send(t="trade.mon", slot=0)
+    B.wait(lambda q: q.state["trade"]["theirs"]["mons"], 5, "party mon offered")
+    A.send(t="trade.mon", slot=0)
+    B.wait(lambda q: not q.state["trade"]["theirs"]["mons"], 5, "party mon withdrawn")
+    B.send(t="trade.pcMon", slot=pc_mon["slot"])
+    A.wait(lambda q: q.state["trade"]["theirs"]["pcMons"], 5, "pc mon offered")
+    A.send(t="trade.money", amount=10)
+    B.wait(lambda q: q.state["trade"]["theirs"]["money"] == 10, 5, "money offered")
+    ok(f"{na} sees PC offer: {A.state['trade']['theirs']['pcMons']}")
+    for p in (A, B):
+        p.send(t="trade.ready")
+    for p in (A, B):
+        p.wait(lambda q: q.state["trade"]["theirs"]["stage"] == "READY" and
+               q.state["trade"]["mine"]["stage"] == "READY", 8, "both ready")
+    for p in (A, B):
+        p.send(t="trade.confirm")
+    for p in (A, B):
+        p.wait(lambda q: (q.state.get("trade") or {}).get("phase") == "COMPLETED", 10, "trade completed")
+    A.wait(lambda q: len(q.state["party"]) + len(q.state["pc"]["mons"]) > a_party0, 8, "A got the mon")
+    B.wait(lambda q: not any(m["id"] == pc_mon["id"] for m in q.state["pc"]["mons"]), 8, "left B's pc")
+    A.send(t="trade.history")
+    A.wait(lambda q: social(q).get("tradeHistory"), 5, "trade history")
+    ok(f"trade history: {social(A)['tradeHistory'][:2]}")
+    A.send(t="trade.request", name=nb)
+    B.wait(lambda q: (q.state.get("trade") or {}).get("phase") == "REQUEST_RECEIVED", 8, "request 2")
+    B.send(t="trade.decline")
+    A.wait(lambda q: (q.state.get("trade") or {}).get("phase") == "CLOSED", 8, "declined")
+
+    print("== market: fees, seller names, cancel, history, sales")
+    A.send(t="market.info")
+    A.wait(lambda q: q.state["market"].get("info"), 5, "info")
+    info = A.state["market"]["info"]
+    if len(A.state["party"]) < 2:
+        command(A, "/givemon 16 5")
+        A.wait(lambda q: len(q.state["party"]) >= 2, 8, "second mon for A")
+    A.send(t="market.inventory")
+    A.wait(lambda q: len(q.state["market"]["inventory"]["party"]) >= 2, 5, "inventory party")
+    mon = A.state["market"]["inventory"]["party"][-1]
+    money0 = A.state["ui"]["money"]
+    price = 4321
+    fee = max(info["minFee"], price * info["feePermille"] // 1000) if info["feePermille"] else 0
+    A.send(t="market.listMon", slot=mon["slot"], price=price)
+    A.wait(lambda q: any(r["price"] == price and r["kind"] == "mon" for r in q.state["market"]["mine"]), 8,
+           "mon listed")
+    A.wait(lambda q: q.state["ui"]["money"] == money0 - fee, 5, f"fee {fee} charged")
+    listing = next(r for r in A.state["market"]["mine"] if r["price"] == price)
+    ok(f"{na} listed {listing['name']} for {price}, fee {fee} (money {money0} -> {A.state['ui']['money']})")
+    B.send(t="market.search", kind="mon", id=listing["dex"], sort="new", page=0)
+    B.wait(lambda q: any(r["id"] == listing["id"] and r.get("seller") == na
+                         for r in q.state["market"]["browse"]), 8, "seller name in browse")
+    ok(f"{nb} sees seller: {next(r for r in B.state['market']['browse'] if r['id'] == listing['id'])}")
+    B.send(t="market.buy", id=listing["id"])
+    B.wait(lambda q: any("BUY ok" in l and listing["name"].upper() in l.upper()
+                         for l in q.state["market"]["log"]), 8, "bought mon")
+    A.send(t="market.sales")
+    A.wait(lambda q: any(r["id"] == listing["id"] and r["buyer"] == nb
+                         for r in (q.state["market"].get("sales") or [])), 8, "sales history")
+    ok(f"{na} sales: {A.state['market']['sales'][:2]}")
+    B.send(t="market.history", kind="mon", id=listing["dex"])
+    B.wait(lambda q: (q.state["market"].get("history") or {}).get("id") == listing["dex"]
+           and q.state["market"]["history"]["days"], 8, "price history")
+    ok(f"price history: {B.state['market']['history']}")
+    command(A, "/giveitem 5017 2")
+    A.send(t="market.listItem", item=5017, qty=1, price=999)
+    A.wait(lambda q: any(r["price"] == 999 for r in q.state["market"]["mine"]), 8, "item listed")
+    item_listing = next(r for r in A.state["market"]["mine"] if r["price"] == 999)
+    A.send(t="market.cancel", id=item_listing["id"])
+    A.wait(lambda q: not any(r["id"] == item_listing["id"] for r in q.state["market"]["mine"]), 8,
+           "cancelled")
+    A.wait(lambda q: any("CANCEL ok" in l for l in q.state["market"]["log"]), 5, "cancel ok")
+    ok(f"listing {item_listing['id']} cancelled: {A.state['market']['log'][-1]!r}")
+
+    print("== shop")
+    tp(A, "0:6:3", 4, 3, "left")
+    press_until(A, lambda q: (q.state.get("ui") or {}).get("shop"), "mart window")
+    shop = A.state["ui"]["shop"]
+    offer = shop["offers"][0]
+    m0 = A.state["ui"]["money"]
+    A.send(t="shop.buy", item=offer["item"], qty=1)
+    A.wait(lambda q: q.state["ui"]["money"] == m0 - offer["price"], 8, "bought from mart")
+    ok(f"bought 1x {offer['name']} for {offer['price']}")
+    sell = A.wait(lambda q: next((s for s in q.state["ui"]["shop"]["sell"] if s["item"] == offer["item"]),
+                                 None), 8, "item in the sell list")
+    m1 = A.state["ui"]["money"]
+    A.send(t="shop.sell", item=sell["item"], qty=1)
+    A.wait(lambda q: q.state["ui"]["money"] == m1 + sell["price"], 8, "sold to mart")
+    ok(f"sold 1x {sell['name']} for {sell['price']}")
+    A.send(t="shop.close")
+    A.wait(lambda q: not q.state["ui"].get("shop"), 5, "mart closed")
+    press_until(A, lambda q: not (q.state.get("ui") or {}).get("dialog"), "mart dialog closed")
+
+    print("== battle actions")
+    command(A, "/giveitem 5004 5")
+    if len(A.state["party"]) < 2:
+        command(A, "/givemon 16 5")
+        A.wait(lambda q: len(q.state["party"]) >= 2, 8, "two mons")
+    A.send(t="say", text="/testbattle 19 2")
+    A.wait(lambda q: q.battle() and q.battle()["phase"] == "ACTION", 10, "battle ACTION")
+    since = len(A.messages)
+    A.send(t="battle.learn", slot=None)
+    A.wait(lambda q: "nothing to learn" in errors_since(q, since), 5, "learn answered")
+    active = A.battle()["activeSlot"]
+    target = next(i for i, m in enumerate(A.battle()["party"]) if i != active and m["hp"] > 0)
+    A.send(t="battle.switch", slot=target)
+    A.wait(lambda q: q.battle()["activeSlot"] == target and q.battle()["phase"] == "ACTION", 10, "switched")
+    ok(f"switched to slot {target}: {A.battle()['me']['name']}")
+    A.send(t="battle.ball")
+    A.wait(lambda q: q.battle() and (q.battle()["phase"] == "ACTION" or q.battle().get("result")), 15,
+           "ball thrown")
+    ok(f"ball: result={A.battle().get('result')} log tail={A.battle()['log'][-2:]}")
+    if not A.battle().get("result"):
+        A.send(t="battle.run")
+        A.wait(lambda q: q.battle() and (q.battle().get("result") or q.battle()["phase"] == "ACTION"), 10, "ran")
+        for _ in range(8):
+            if A.battle().get("result"):
+                break
+            A.send(t="battle.run")
+            time.sleep(1.0)
+    A.wait(lambda q: q.battle() and q.battle().get("result"), 10, "battle over")
+    ok(f"battle ended: {A.battle()['result']}")
+    A.send(t="battle.close")
+    A.wait(lambda q: q.state.get("battle") is None, 5, "closed")
+
+    print("== anti-abuse")
+    for i in range(12):
+        B.send(t="say", text=f"spam {i}", channel="global")
+    B.wait(lambda q: any("too fast" in c["text"] for c in chat_lines(q)), 5, "chat rate limit")
+    time.sleep(0.5)
+    got = sum(1 for c in chat_lines(A) if c["text"].startswith("spam "))
+    assert got <= 8, got
+    ok(f"chat burst of 12: {got} delivered, the rest refused")
+
+    tp(A, "0:4:1", 6, 6)
+    tp(B, "0:4:1", 7, 6)
 
     print("== summary")
     print(f"   state messages: {na} {A.state_count}, {nb} {B.state_count}")
