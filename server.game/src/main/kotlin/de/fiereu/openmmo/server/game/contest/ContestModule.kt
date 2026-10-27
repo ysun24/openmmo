@@ -7,14 +7,13 @@ import dagger.multibindings.IntoSet
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.CharacterPermissions
-import de.fiereu.openmmo.common.DynamicWarp
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.items.ItemRegistry
 import de.fiereu.openmmo.maps.MapManager
 import de.fiereu.openmmo.net.game.packets.contest.ContestActionPacket
 import de.fiereu.openmmo.server.game.battle.ItemNames
 import de.fiereu.openmmo.server.game.script.ScriptSpecial
-import de.fiereu.openmmo.server.game.services.ScriptWarpService
+import de.fiereu.openmmo.server.game.services.WarpService
 import de.fiereu.openmmo.server.game.services.command.ChatCommand
 import de.fiereu.openmmo.server.game.services.command.CommandContext
 import de.fiereu.openmmo.server.game.services.storyItemStacksPacket
@@ -128,7 +127,7 @@ constructor(
     private val items: ItemRegistry,
     private val characters: CharacterStore,
     private val maps: MapManager,
-    private val warp: ScriptWarpService,
+    private val warp: WarpService,
 ) : ChatCommand {
   override val name = "contestdev"
   override val usage =
@@ -183,18 +182,29 @@ constructor(
         ctx.reply("Berry trees grew $h hours.")
       }
       "goto" -> {
-        val (map, x, y) =
+        val (map, x0, y0) =
             when (a.getOrNull(1)) {
               "museum" -> Triple("LilycoveCity_LilycoveMuseum_2F", 11, 9)
               "route104" -> Triple("Route104", 13, 21)
               "route123" -> Triple("Route123", 68, 11)
-              else -> Triple("LilycoveCity_ContestLobby", 14, 5)
+              else -> Triple("LilycoveCity_ContestLobby", 14, 4)
             }
+        val x = a.getOrNull(2)?.toIntOrNull() ?: x0
+        val y = a.getOrNull(3)?.toIntOrNull() ?: y0
+        val facing = when (a.getOrNull(4)) { "down" -> Direction.DOWN; "left" -> Direction.LEFT; "right" -> Direction.RIGHT; else -> Direction.UP }
         val def = maps.getMapByName(1, map) ?: return ctx.reply("No map $map")
-        warp.warp(
+        warp.executeWarp(
             ctx.session,
-            ctx.state,
-            DynamicWarp(def.regionId, def.bankId, def.mapId, x.toShort(), y.toShort(), Direction.UP))
+            charId,
+            de.fiereu.openmmo.maps.WarpTile(
+                x = 0,
+                y = 0,
+                targetRegionId = def.regionId,
+                targetBankId = def.bankId,
+                targetMapId = def.mapId,
+                targetX = x,
+                targetY = y,
+                exitFacing = facing))
       }
       else -> ctx.reply(usage)
     }
