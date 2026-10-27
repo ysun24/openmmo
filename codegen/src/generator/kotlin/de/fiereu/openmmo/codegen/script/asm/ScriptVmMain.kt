@@ -282,7 +282,7 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
         value(map)?.let { out["OPENMMO_HEAL_${i + 1}"] = it }
       }
     }
-    for (n in listOf("TRAINER_FLAGS_START", "VARS_START", "VARS_END", "SPECIAL_VARS_START",
+    for (n in listOf("TRAINER_FLAGS_START", "TRAINER_FLAGS_END", "VARS_START", "VARS_END", "SPECIAL_VARS_START",
         "SPECIAL_FLAGS_START", "MOVEMENT_ACTION_STEP_END", "VAR_TEXT_COLOR", "ITEM_SILPH_SCOPE",
         "TRAINER_STEVEN", "SPECIAL_BATTLE_STEVEN", "SPECIES_NONE", "NUM_SPECIES")) value(n)?.let { out[n] = it }
     out

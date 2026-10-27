@@ -67,9 +67,10 @@ class ScriptVm(
   private val varsEnd = img.const("VARS_END")
   private val specialVarsStart = img.const("SPECIAL_VARS_START")
   private val trainerFlagsStart = img.const("TRAINER_FLAGS_START")
+  private val trainerFlagsEnd = img.constOrNull("TRAINER_FLAGS_END") ?: (trainerFlagsStart + TRAINER_FLAG_COUNT - 1)
   private val specialFlagsStart = img.constOrNull("SPECIAL_FLAGS_START") ?: 0x4000
   private val stdTable = img.labels["gStdScripts"] ?: 0
-  private val stdEnd = img.labels["gStdScripts_End"] ?: stdTable
+  private val stdEnd = img.labels["gStdScripts_End"] ?: img.labels["gStdScriptsEnd"] ?: stdTable
 
   // ------------------------------------------------------------------ running
 
@@ -131,7 +132,7 @@ class ScriptVm(
   }
 
   private fun flagKeys(id: Int): List<String> {
-    if (id >= trainerFlagsStart && id < trainerFlagsStart + TRAINER_FLAG_COUNT) {
+    if (id in trainerFlagsStart..trainerFlagsEnd) {
       val t = id - trainerFlagsStart
       return listOf(
           "${img.region}/TRAINER_DEFEATED_$t", "${img.region}/OPENMMO_TRAINER_$t")
@@ -185,7 +186,7 @@ class ScriptVm(
       else -> {
         val keys = flagKeys(id)
         // Trainer flags keep the field service's key; named flags every alias.
-        if (id >= trainerFlagsStart && id < trainerFlagsStart + TRAINER_FLAG_COUNT)
+        if (id in trainerFlagsStart..trainerFlagsEnd)
             ctx.setFlag(keys[0])
         else keys.forEach(ctx::setFlag)
         ctx.onFlagSet(keys.first())

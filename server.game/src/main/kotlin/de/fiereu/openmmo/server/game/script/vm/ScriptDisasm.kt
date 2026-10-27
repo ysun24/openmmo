@@ -16,7 +16,7 @@ class ScriptDisasm(private val img: ScriptImage) {
   private val queue = ArrayDeque<Int>()
 
   private val stdTable = img.labels["gStdScripts"] ?: 0
-  private val stdEnd = img.labels["gStdScripts_End"] ?: stdTable
+  private val stdEnd = img.labels["gStdScripts_End"] ?: img.labels["gStdScriptsEnd"] ?: stdTable
 
   fun enqueue(addr: Int) {
     if (addr != 0 && img.contains(addr) && addr !in visited) queue.addLast(addr)
