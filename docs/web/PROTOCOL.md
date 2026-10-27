@@ -528,7 +528,7 @@ Static assets (manifest):
   an `Origin` matching `X-Forwarded-Host`; only behind a proxy/tunnel that sets them.
 - `--allow-origin` entries may use one wildcard label, e.g. `https://*.a.pinggy.link`.
 
-## 11. r4-gaps (round 4: remaining gaps; all additive)
+## 12. r4-gaps (round 4: remaining gaps; all additive)
 
 ### Surf blob (assets)
 - `fieldEffects` gains `surfBlobMay` (Emerald's blob in May's palette) and `surfBlobKanto`
