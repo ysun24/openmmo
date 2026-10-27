@@ -128,6 +128,8 @@ class StateJson(private val names: Names) {
     if (e.running) put("run", true)
     if (e.jumpSeq > 0) put("jump", e.jumpSeq)
     if (e.exclaimSeq > 0) put("exclaim", e.exclaimSeq)
+    // Integration: another player's gender picks the female player sprite.
+    if (e.female) put("female", true)
   }
 
   /** The player's own field state (r3-field): world.field. */

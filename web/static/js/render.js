@@ -292,7 +292,7 @@ export class Renderer {
     if (e.kind === 'player' && e.mode && e.mode !== 'walk') {
       const man = assets.manifest;
       const p = man && man.players && man.players[String(region)];
-      const female = p && e.gfx === p.femaleGfx;
+      const female = p && (e.female || e.gfx === p.femaleGfx);
       const table = MODE_GFX[region] && MODE_GFX[region][female ? 'f' : 'm'];
       const gfx = table && table[e.mode];
       if (gfx !== undefined) {

@@ -176,6 +176,7 @@ export class World {
     o.name = e.name;
     o.gfx = e.gfx;
     o.mode = e.mode || 'walk';
+    o.female = !!e.female;
     o.run = !!e.run;
     const jumped = (e.jump || 0) > o.jumpSeq;
     o.jumpSeq = e.jump || 0;

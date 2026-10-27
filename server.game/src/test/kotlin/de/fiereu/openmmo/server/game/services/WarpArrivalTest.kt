@@ -9,6 +9,7 @@ import de.fiereu.openmmo.maps.WarpTile
 import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
 import de.fiereu.openmmo.net.game.packets.LoadMapPacket
 import de.fiereu.openmmo.net.game.packets.RenderScreenPacket
+import de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket
 import de.fiereu.openmmo.server.game.session.PENDING_MAP_LOAD
 import de.fiereu.openmmo.server.game.session.SCRIPT_SCOPE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -320,7 +321,9 @@ class WarpArrivalTest :
           // The arrival re-enters the map the player never really left.
           f.presence.enter(session)
 
-          session.sent.map { it::class } shouldBe listOf(watcher.sent.first()::class)
+          // (A girl's FieldAvatarPacket rides along so her sprite is right; not a snapshot.)
+          session.sent.filterNot { it is FieldAvatarPacket }.map { it::class } shouldBe
+              listOf(watcher.sent.first()::class)
         }
       }
 

@@ -79,13 +79,21 @@ constructor(
     interestManager.join(ctx, key)
   }
 
-  /** A surfing or cycling player's travel mode, for an observer that just met it. */
+  /**
+   * A player's travel mode and sprite gender, for an observer that just met it (sent when either
+   * differs from a walking boy).
+   */
   private fun avatarFor(ctx: SessionContext): FieldAvatarPacket? {
     val state = ctx.attributes[PLAYER_STATE] ?: return null
     val id = state.characterId ?: return null
-    if (state.travel == TravelMode.WALK && !state.running) return null
-    return FieldAvatarPacket(id, state.travel, state.running)
+    val female = isFemale(id)
+    if (state.travel == TravelMode.WALK && !state.running && !female) return null
+    return FieldAvatarPacket(id, state.travel, state.running, female = female)
   }
+
+  /** CharacterInfo.rivalSex 1: the character plays the region's girl. */
+  fun isFemale(charId: Long): Boolean =
+      characterStore.getCharacter(charId)?.info?.rivalSex?.toInt() == 1
 
   private fun observers(ctx: SessionContext, key: MapInterestKey): List<SessionContext> =
       policy.filter(ctx, interestManager.members(key))

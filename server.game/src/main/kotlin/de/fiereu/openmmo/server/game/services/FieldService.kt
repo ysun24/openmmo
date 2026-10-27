@@ -137,7 +137,8 @@ constructor(
   /** Tell the player and its observers how it travels now. */
   fun broadcastAvatar(ctx: SessionContext, state: PlayerState) {
     val id = state.characterId ?: return
-    val p = FieldAvatarPacket(id, state.travel, state.running)
+    val p =
+        FieldAvatarPacket(id, state.travel, state.running, female = presenceService.isFemale(id))
     ctx.send(p)
     presenceService.broadcastToObservers(ctx, p)
   }
@@ -194,7 +195,9 @@ constructor(
     if (run != state.running) {
       state.running = run
       presenceService.broadcastToObservers(
-          ctx, FieldAvatarPacket(stored.info.id, state.travel, run))
+          ctx,
+          FieldAvatarPacket(
+              stored.info.id, state.travel, run, female = stored.info.rivalSex.toInt() == 1))
     }
   }
 

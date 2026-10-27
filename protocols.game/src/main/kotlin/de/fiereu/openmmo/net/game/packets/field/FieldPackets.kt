@@ -73,18 +73,26 @@ data class FieldAvatarPacket(
     val mode: TravelMode,
     val running: Boolean = false,
     val exclaim: Boolean = false,
+    /**
+     * Integration: the character's sprite is the region's female player (CharacterInfo.rivalSex).
+     */
+    val female: Boolean = false,
 )
 
 object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
   override fun CodecScope<FieldAvatarPacket>.body(): FieldAvatarPacket {
     val id = field(S64LE) { it.entityId }
     val mode = field(U8) { it.mode.ordinal }
-    val flags = field(U8) { (if (it.running) 1 else 0) or (if (it.exclaim) 2 else 0) }
+    val flags =
+        field(U8) {
+          (if (it.running) 1 else 0) or (if (it.exclaim) 2 else 0) or (if (it.female) 4 else 0)
+        }
     return FieldAvatarPacket(
         id,
         TravelMode.entries.getOrElse(mode) { TravelMode.WALK },
         flags and 1 != 0,
-        flags and 2 != 0)
+        flags and 2 != 0,
+        flags and 4 != 0)
   }
 }
 

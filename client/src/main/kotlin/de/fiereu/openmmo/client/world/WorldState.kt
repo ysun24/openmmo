@@ -25,6 +25,8 @@ data class Entity(
     val jumpSeq: Int = 0,
     /** Grows by one per trainer "!" over this entity. */
     val exclaimSeq: Int = 0,
+    /** A player drawn with the region's female sprite (FieldAvatarPacket). */
+    val female: Boolean = false,
 )
 
 /**
