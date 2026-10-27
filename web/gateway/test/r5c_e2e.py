@@ -195,6 +195,50 @@ def run_blender(a):
     a.send(t="pokeblocks.close")
 
 
+def press_loop(p, limit=240):
+    """Presses at the player's own mark from the extrapolated arrow; returns the press count."""
+    presses, last, t0 = 0, -1, time.time()
+    while time.time() - t0 < limit:
+        d = docs(p).get("blender") or {}
+        if d.get("phase") == "result":
+            break
+        if d.get("phase") == "play" and d.get("frame") != last and d.get("speed") and d.get("seats"):
+            last = d["frame"]
+            target = (d["seats"][d["you"]]["hitStart"] * 256) & 0xFFFF
+            frames = ((target - d["arrow"]) & 0xFFFF) / d["speed"]
+            if frames < 8:
+                time.sleep(max(0.0, frames / 60.0 - 0.01))
+                p.send(t="blender.press", pos=target)
+                presses += 1
+        time.sleep(0.01)
+    return presses
+
+
+def blend_one(p, where, out):
+    command(p, "/contestdev kit", "added")
+    goto(p, where)
+    p.send(t="a")
+    answer_dialogs(p, lambda q: (docs(q).get("blender") or {}).get("phase") == "choose", 40)
+    p.send(t="blender.berry", berry=docs(p)["blender"]["berries"][1 if p.label == "Gary" else 0]["berry"])
+    p.wait(lambda q: (docs(q).get("blender") or {}).get("phase") == "play", 60, "play")
+    press_loop(p)
+    d = p.wait(lambda q: (docs(q).get("blender") or {}).get("phase") == "result" and docs(q)["blender"], 60, "result")
+    out[p.label] = [r["name"] for r in d["ranking"]], d["block"]["name"]
+    p.send(t="blender.close")
+    answer_dialogs(p, lambda q: dialog(q) is None and not docs(q).get("blender"), 30)
+
+
+def run_blender_link(a, b):
+    print("== link blender (two players, no NPCs)")
+    out = {}
+    ta = threading.Thread(target=blend_one, args=(a, "lobby 23 6 up", out))
+    tb = threading.Thread(target=blend_one, args=(b, "lobby 22 5 right", out))
+    ta.start(); time.sleep(2); tb.start(); ta.join(400); tb.join(400)
+    print("      ", out)
+    assert sorted(out[a.label][0]) == ["Ash", "Gary"], out
+    ok(f"Ash and Gary blended together: {out}")
+
+
 def run_feebas(a):
     print("== Feebas -> Milotic (Pokeblocks raise beauty, evolution on a level up)")
     command(a, "/contestdev kit", "added")
@@ -293,7 +337,7 @@ def main():
             p.wait(lambda q: q.state.get("party"), 8, "party")
     for part in args.only.split(","):
         {"contest": lambda: run_contest(a, b), "blender": lambda: run_blender(a),
-         "feebas": lambda: run_feebas(a), "berry": lambda: run_berry(a)}[part]()
+         "feebas": lambda: run_feebas(a), "link": lambda: run_blender_link(a, b), "berry": lambda: run_berry(a)}[part]()
     print("ALL OK")
 
 

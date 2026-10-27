@@ -590,3 +590,53 @@ Static assets (manifest):
   sheet, 16x16 cells; "!!" is pictures 3, 4, 5 (4, 4, 52 GBA frames).
 - Rematch battles use the trainer's `trainerbattle_rematch` intro / defeat texts and its rematch
   post-battle line.
+
+## 13. r5-contests (round 5: Hoenn contests, Berry Blender, Pokéblocks, berry trees, paintings)
+
+One OpenMMO-only JSON channel (both ends are this project): c2s 0xD5 `ContestActionPacket {json}`
+and s2c 0xC6 `ContestStatePacket {json}` (UTF-8, 32-bit length). The reserved 0xD4-0xD7 were retail
+in both directions except c2s 0xD5; s2c 0xC6 was free.
+
+- State section `contests`: `{seq, docs: {<kind>: <document>}}`. The server sends one document per
+  kind (`{"k": kind, ...}`); `{"k":"close","what":kind}` removes it. `seq` grows per document.
+- Browser → gateway: any message whose type prefix is `contest`, `contestEntry`, `blender`,
+  `pokeblocks`, `berry`, `berryChoose`, `painting` or `conditions` is forwarded verbatim (max 4096
+  bytes) as the action JSON; the server validates the fields.
+
+Documents and actions:
+- `contestEntry` `{open, party: [{id, slot, dex, name, level, egg, nature, cool, beauty, cute, smart,
+  tough, sheen, rankRibbons[5], ribbons, eligible[5][4]}]}` (the reception's rank / category /
+  monster menus; `eligible` is TryEnterContestMon's result per category and rank: 0 can't, 1 equal
+  rank, 2 won before, 3 egg, 4 fainted). Answer `contestEntry.choose {rank, category, slot}` or
+  `contestEntry.cancel`.
+- `contest` `{phase, category, rank, appeal, applause, you, contestants: [{index, you, player, dex,
+  shiny, name, trainer, round1, hearts, turn, condition, status, attention}]}` plus per phase:
+  `waiting {players, names, waitMs}` (the join window; up to 4 players, NPCs fill), `intro {title}`
+  (primary judging = round 1 points), `select {prompt, canMove, moves: [{slot, id, name, category,
+  appeal, jam, description, combo, repeat}], timeoutMs}` → `contest.move {slot}`, `appeals {round,
+  events: [{k, who, text?, a, b, move?, moveName?, moveCategory?}]}` (k: enter, appeal, text, hearts
+  (a = before, b = change), judge (a = symbol), stars (a), status (text = shield/nervous/skip/
+  attention), crowd (a = applause level, b = change), skip, leave, round, order, end) → `contest.ready`
+  when animated, `results {results: [{index, place, round1, round2, total}], winner, text}` →
+  `contest.ready`.
+- `blender` phases: `choose {berries: [{berry, name, qty}]}` → `blender.berry {berry}` /
+  `blender.cancel`; `wait {players, waitMs}` (→ `blender.start` to start now); `start` / `play {you,
+  frame, arrow, speed, progress, rpm, maxRpm, seats: [{name, npc, berry, berryName, arrow, hitStart}],
+  hits: [{seat, score: best|good|miss}]}` → `blender.press {pos}` (the arrow position the browser saw,
+  extrapolated at 60 frames/s; the server accepts it when the arrow passed there in the last 45
+  frames); `result {ranking, maxRpm, record, newRecord, block, received}` → `blender.again` /
+  `blender.close`; `message` / `record {text}` → `blender.close`.
+- `pokeblocks` `{open, message, blocks: [{slot, color, name, spicy, dry, sweet, bitter, sour, feel,
+  level}], party: [mon as above]}`; actions `pokeblocks.open`, `pokeblocks.feed {slot, mon}`,
+  `pokeblocks.toss {slot}`, `pokeblocks.give {slot}` (contest lady), `pokeblocks.close`.
+- `berryChoose {berries: [{item, berry, name, qty, description}]}` (Bag_ChooseBerry) →
+  `berryChoose.pick {item}` / `berryChoose.cancel`.
+- `berryTrees {map, region, bank, mapId, trees: [{tree, x, y, berry, stage, name, watered,
+  yield}]}`, asked with `berry.trees` on every map change; the renderer draws
+  OBJ_EVENT_GFX_BERRY_TREE (gfx 60) objects from it.
+- `painting {dex, shiny, nickname, trainer, category, rank, museum, caption, fossil?}` →
+  `painting.close`.
+- `conditions {mons: [...]}`, asked with `conditions`.
+- Assets: manifest `contest.berryTrees` `{"1".."43": sheet}`, 9 frames of 16x32 per berry (dirt,
+  sprout x2, tree x6, each in its stage's palette), `contest.stageAnims` `{"1".."5": [[frame,
+  gbaFrames]...]}` (sAnim_BerryTreeStage0-4).
