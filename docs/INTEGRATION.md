@@ -45,7 +45,8 @@ the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sect
     the whole Celadon / Mauville Game Corner (clerks, gamblers, slot machines via `playslotmachine`,
     roulette, prize corners), the Lilycove ferry attendant. `Bag_ChooseBerry` now gives the interpreter the
     decomp item number (the script continues with `removeitem VAR_ITEM_ID`).
-  - kept: the contest receptionists (entry screen, matchmaking with other online players and the live
+  - kept: the link blender (two online players blend together; the decomp one needs a link cable) and
+    the contest receptionists (entry screen, matchmaking with other online players and the live
     contest screen are UI flows the decomp hall cutscene + `startcontest` cannot express); the PC 2F Union
     Room / Wireless Club / Direct Corner attendants and the Mystery Gift deliveryman (they replace
     link-cable features); the Battle Frontier attendants open the frontier desks (their battle-room walks

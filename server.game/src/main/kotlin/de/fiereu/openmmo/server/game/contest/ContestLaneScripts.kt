@@ -360,15 +360,18 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
   }
 
   /**
-   * r5 merge: only the receptionists stay hand-ported (the entry screen, matchmaking with other
-   * online players and the live contest screen are UI flows the decomp's hall cutscene and
-   * `startcontest` cannot express). Berry trees, the blenders, the blender records, the hall
-   * winners and the museum frames now run the decomp scripts in the interpreter, which calls the
-   * same [ContestSpecials]. The other hand ports below are kept for the dev command / tests.
+   * r5 merge: only the receptionists and the link blender stay hand-ported (the entry screen,
+   * matchmaking with other online players and the live contest screen are UI flows the decomp's
+   * hall cutscene and `startcontest` cannot express). Berry trees, the blenders, the blender
+   * records, the hall winners and the museum frames now run the decomp scripts in the interpreter,
+   * which calls the same [ContestSpecials]. The other hand ports below are kept for the dev command
+   * / tests.
    */
   val byLabel: Map<String, Script> = buildMap {
     put("LilycoveCity_ContestLobby_EventScript_ContestReceptionist", receptionist)
     put("LilycoveCity_ContestLobby_EventScript_LinkContestReceptionist", receptionist)
+    // The link blender: two online players blend together (the decomp's needs a link cable).
+    put("BerryBlender_EventScript_BerryBlenderLink", linkBlender)
   }
 
   /** The hand ports the interpreter replaced (r5 merge), still reachable for comparison. */
@@ -380,7 +383,6 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     put("BerryBlender_EventScript_BerryBlender1", blender(1))
     put("BerryBlender_EventScript_BerryBlender2", blender(2))
     put("BerryBlender_EventScript_BerryBlender3", blender(3))
-    put("BerryBlender_EventScript_BerryBlenderLink", linkBlender)
     listOf("Cool", "Beauty", "Cute", "Smart", "Tough").forEachIndexed { i, c ->
       put("LilycoveCity_LilycoveMuseum_2F_EventScript_${c}Painting", museumPainting(i))
     }
