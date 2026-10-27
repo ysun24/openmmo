@@ -12,6 +12,8 @@ export const STEP_BY_MODE = { walk: STEP_WALK, run: STEP_RUN, mach_bike: 70, acr
 const KANTO_BIKE = 95;
 /** Mach Bike step times for PLAYER_SPEED_NORMAL, FAST and FASTEST (16, 8 and 4 frames a tile). */
 const MACH_TIERS = [250, 125, 70];
+/** JumpSpecial on and off the surf blob (1 tile, JUMP_TYPE_HIGH, 16 GBA frames + the rise). */
+const SURF_HOP_MS = 320;
 export const JUMP_MS = 520; // a 2-tile ledge hop (JUMP_2 = 32 GBA frames)
 const TURN_HOLD = 90; // ms a fresh direction press only turns before walking
 const MAX_PENDING = 8;
@@ -29,6 +31,9 @@ export const SURFABLE = new Set(['WATER', 'POND_WATER', 'DEEP_WATER', 'SEMI_DEEP
   'CURRENT_EAST', 'CURRENT_WEST', 'CURRENT_NORTH', 'CURRENT_SOUTH']);
 // Boulder gfx per region (OBJ_EVENT_GFX_PUSHABLE_BOULDER).
 const BOULDER_GFX = { 0: 97, 1: 87 };
+// Cut trees and Rock Smash rocks per region, with their ANIM_REMOVE_OBSTACLE frame time
+// (sAnim_TreeCut 6 GBA frames a frame, sAnim_RockBreak 8).
+const OBSTACLE_GFX = { 0: { 95: 100, 96: 133 }, 1: { 82: 100, 86: 133 } };
 
 const keyOf = (m) => (m ? `${m.region}:${m.bank}:${m.map}` : null);
 
@@ -85,6 +90,8 @@ export class World {
     this.forcedUntil = 0;
     /** Hoenn Mach Bike acceleration (bike.c bikeFrameCounter / bikeSpeed). */
     this.mach = { counter: 0, speed: 0 };
+    /** Removed cut trees / smashed rocks still playing their break animation. */
+    this.dying = [];
     this.conns = []; // [{key, ox, oy, info, res}]
     this.fade = 0; // 1 = black
     this.fadeHoldUntil = 0;
@@ -117,11 +124,30 @@ export class World {
       seen.add(e.id);
       this.serverEntity(e, now);
     }
-    for (const id of this.ents.keys()) if (!seen.has(id)) this.ents.delete(id);
+    for (const [id, o] of this.ents) {
+      if (seen.has(id)) continue;
+      this.ents.delete(id);
+      this.breakObstacle(o, newKey, now);
+    }
     if (s) this.reconcile(s, w.ackSeq ?? 0, now);
   }
 
+  /** A cut tree or smashed rock next to the self that the server removed: play its break frames. */
+  breakObstacle(o, mapKey, now) {
+    const region = this.map ? this.map.region : 0;
+    const ms = o.kind === 'npc' && OBSTACLE_GFX[region] && OBSTACLE_GFX[region][o.gfx];
+    if (!ms || mapKey !== this.mapKey || !this.hasSelf) return;
+    if (Math.abs(o.x - this.self.x) + Math.abs(o.y - this.self.y) > 1) return;
+    o.moving = false;
+    o.facing = 'down';
+    o.breakAt = now;
+    o.breakMs = ms;
+    o.breakFrame = 0;
+    this.dying.push(o);
+  }
+
   changeMap(newKey, desc, now) {
+    this.dying = [];
     const c = this.conns.find((c) => c.key === newKey);
     if (c && this.mapKey && this.hasSelf) {
       // seamless: shift our frame of reference into the connected map
@@ -186,6 +212,7 @@ export class World {
     o.female = !!e.female;
     o.run = !!e.run;
     const jumped = (e.jump || 0) > o.jumpSeq;
+    const boulder = o.kind === 'npc' && o.gfx === BOULDER_GFX[this.map ? this.map.region : 0];
     o.jumpSeq = e.jump || 0;
     if ((e.exclaim || 0) > o.exclaimSeq) o.exclaimAt = now;
     o.exclaimSeq = e.exclaim || 0;
@@ -213,6 +240,8 @@ export class World {
       o.y = e.y;
       o.lastMove = now;
       this.enterTile(o, now);
+      // DoBoulderFinish: FLDEFF_DUST where a STRENGTH boulder comes to rest.
+      if (boulder && o.moving) this.fx.push({ kind: 'dust', x: o.x, y: o.y, t0: now + o.dur, dur: 300 });
     }
     o.facing = e.facing || o.facing;
   }
@@ -224,6 +253,8 @@ export class World {
     me.gfx = s.gfx;
     me.kind = 'player';
     const mode = s.mode || 'walk';
+    // Starting to surf is a JumpSpecial onto the blob (1 tile).
+    if (mode === 'surf' && me.mode === 'walk') this.surfHop = true;
     if (mode !== me.mode) {
       me.mode = mode;
       if (mode === 'surf' || mode === 'underwater') me.z = Z_WATER;
@@ -247,14 +278,16 @@ export class World {
   snap(s, slide) {
     const me = this.self;
     const d = Math.abs(s.x - me.x) + Math.abs(s.y - me.y);
+    const hop = this.surfHop;
+    this.surfHop = false;
     if (slide && d === 1) {
       place(me);
       me.fx = me.px / 16;
       me.fy = me.py / 16;
       me.t = 0;
-      me.dur = 120;
+      me.dur = hop ? SURF_HOP_MS : 120;
       me.moving = true;
-      me.jumping = false;
+      me.jumping = !!hop;
     } else {
       me.moving = false;
       me.jumping = false;
@@ -451,12 +484,17 @@ export class World {
       }
       place(e);
     }
+    if (this.dying.length) {
+      for (const o of this.dying) o.breakFrame = Math.floor((now - o.breakAt) / o.breakMs);
+      this.dying = this.dying.filter((o) => o.breakFrame < 4);
+    }
     // expire effects
     if (this.fx.length) this.fx = this.fx.filter((f) => now < f.t0 + f.dur);
     // y-sorted draw list, reused (no per-frame allocation)
     const dl = this.drawList;
     dl.length = 0;
     for (const e of this.ents.values()) dl.push(e);
+    for (const o of this.dying) dl.push(o);
     if (this.hasSelf) dl.push(me);
     dl.sort(byY);
   }
@@ -514,8 +552,8 @@ export class World {
     me.x = out.x;
     me.y = out.y;
     me.z = out.z;
-    me.jumping = out.kind === 'jump';
-    me.dur = me.jumping ? JUMP_MS : this.stepMs(input.run);
+    me.jumping = out.kind === 'jump' || out.kind === 'stopSurf';
+    me.dur = out.kind === 'jump' ? JUMP_MS : out.kind === 'stopSurf' ? SURF_HOP_MS : this.stepMs(input.run);
     if (mach && !coast) {
       // MachBikeTransition_TrySpeedUp: NORMAL, FAST, then FASTEST.
       mach.speed = mach.counter + (mach.counter >> 1);
@@ -526,10 +564,10 @@ export class World {
     me.moving = true;
     me.parity ^= 1;
     if (out.kind === 'stopSurf') me.mode = 'walk';
-    if (me.jumping) this.stats.jumps++;
+    if (out.kind === 'jump') this.stats.jumps++;
     const seq = ++this.seq;
     this.pending.push({ seq, x: out.x, y: out.y });
-    this.send(me.jumping ? { t: 'step', dir, run: !!input.run, seq, jump: true } : { t: 'step', dir, run: !!input.run, seq });
+    this.send(out.kind === 'jump' ? { t: 'step', dir, run: !!input.run, seq, jump: true } : { t: 'step', dir, run: !!input.run, seq });
     this.lastLocalAct = performance.now();
     this.stats.steps++;
     if (this.forcesMovement(this.behAt(out.x, out.y))) this.forcedUntil = now + FORCED_HOLD + 200;

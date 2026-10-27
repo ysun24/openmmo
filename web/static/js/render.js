@@ -264,6 +264,7 @@ export class Renderer {
       idx = Array.isArray(w) ? w[e.parity % w.length] : w;
     } else idx = running && f['run' + Face] !== undefined ? f['run' + Face] : f[face];
     if (idx === undefined) idx = f.down ?? 0;
+    if (e.breakFrame !== undefined) idx = Math.min(3, e.breakFrame); // ANIM_REMOVE_OBSTACLE
     const fw = d.frameW, fh = d.frameH;
     const img = d._img.img;
     const perRow = Math.max(1, Math.floor(img.width / fw));
