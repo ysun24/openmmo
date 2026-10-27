@@ -25,7 +25,7 @@ export function init(a) {
   const bar = document.getElementById('topbar');
   const menuBtn = document.getElementById('btn-menu');
   if (bar && menuBtn && !document.getElementById('btn-link')) {
-    const b = h('button#btn-link.small', { type: 'button', 'aria-label': 'Open link menu', on: { click: openHub } }, '⇄ Link');
+    const b = h('button#btn-link.small', { type: 'button', 'aria-label': 'Open link menu', on: { click: openHub } }, '⇄', h('span.lbl', ' Link'));
     bar.insertBefore(b, menuBtn);
   }
   const coins = h('span#coins.hidden', { title: 'COIN CASE' }, '');
