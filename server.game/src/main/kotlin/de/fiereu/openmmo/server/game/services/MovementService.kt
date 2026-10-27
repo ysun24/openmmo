@@ -260,6 +260,10 @@ constructor(
             if (outcome is StepOutcome.Jump) MOVE_MODE_JUMP else MOVE_MODE_WALK),
     )
 
+    // Gen 3 forced movement (ice, currents, spinners, slopes) carries the player on; no
+    // encounter rolls on those tiles.
+    if (fieldService.startForcedMovement(ctx, state, currentMap, toX, toY, msg.direction)) return
+
     // Story coordinate events take precedence over trainers, trainers over random encounters.
     if (!mapScriptService.onStep(ctx, state, currentMap, toX, toY) &&
         !fieldService.checkTrainerSight(ctx, state, currentMap, toX, toY)) {

@@ -25,6 +25,8 @@ import de.fiereu.openmmo.server.game.field.FieldObstacle
 import de.fiereu.openmmo.server.game.field.FieldRules
 import de.fiereu.openmmo.server.game.field.FieldText
 import de.fiereu.openmmo.server.game.field.FlyDestinations
+import de.fiereu.openmmo.server.game.field.ForcedMovement
+import de.fiereu.openmmo.server.game.field.ForcedStep
 import de.fiereu.openmmo.server.game.field.RawLine
 import de.fiereu.openmmo.server.game.field.storyName
 import de.fiereu.openmmo.server.game.script.MovementStep
@@ -824,6 +826,41 @@ constructor(
         if (abs(dx) >= abs(dy)) (if (dx > 0) "east" else "west")
         else (if (dy > 0) "south" else "north")
     return "The ITEMFINDER is responding! Something is buried to the $dir."
+  }
+
+  /**
+   * Gen 3 forced movement after a step that landed on ([x], [y]) moving [moved] (ice, currents,
+   * walk/slide tiles, spinners, muddy slopes, the Cycling Road): plays the steps as a short
+   * cutscene the player cannot steer. True when something moved the player.
+   */
+  fun startForcedMovement(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      x: Int,
+      y: Int,
+      moved: Direction,
+  ): Boolean {
+    val path =
+        ForcedMovement.path(map, x, y, moved, state.elevation, state.travel) { ox, oy ->
+          obstacleAt(state, map, ox, oy)
+        }
+    if (path.isEmpty()) return false
+    val steps =
+        path.map { s ->
+          val fast = s.kind != ForcedStep.Kind.WALK
+          when (s.dir) {
+            Direction.UP -> if (fast) MovementStep.FAST_UP else MovementStep.WALK_UP
+            Direction.DOWN -> if (fast) MovementStep.FAST_DOWN else MovementStep.WALK_DOWN
+            Direction.LEFT -> if (fast) MovementStep.FAST_LEFT else MovementStep.WALK_LEFT
+            else -> if (fast) MovementStep.FAST_RIGHT else MovementStep.WALK_RIGHT
+          }
+        }
+    log.info {
+      "Forced movement for char=${state.characterId} from ($x, $y): ${path.map { it.dir }}"
+    }
+    run(session, state, -1) { ctx -> ctx.moveSelf(*steps.toTypedArray()) }
+    return true
   }
 
   /** Developer teleport (/fieldtp): warp to map [name] (decomp dir name) at (x, y). */

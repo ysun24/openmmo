@@ -13,6 +13,7 @@ const KANTO_BIKE = 95;
 export const JUMP_MS = 520; // a 2-tile ledge hop (JUMP_2 = 32 GBA frames)
 const TURN_HOLD = 90; // ms a fresh direction press only turns before walking
 const MAX_PENDING = 8;
+const FORCED_HOLD = 400; // ms after a forced step before the input may move the self again
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 // Elevation (MapGridGetElevationAt): 0 and 15 are wildcards, 1 water, 3 land.
@@ -78,6 +79,8 @@ export class World {
     this.turnWait = 0;
     this.lastLocalAct = 0;
     this.lastBump = 0;
+    /** performance.now() until which the server, not the input, moves the self (ice, currents). */
+    this.forcedUntil = 0;
     this.conns = []; // [{key, ox, oy, info, res}]
     this.fade = 0; // 1 = black
     this.fadeHoldUntil = 0;
@@ -263,6 +266,8 @@ export class World {
     else me.z = null; // learnt from the tile once its collision has loaded
     this.pending = [];
     this.stats.snaps++;
+    // Each step of server forced movement keeps the input held off a little longer.
+    if (this.forcedUntil) this.forcedUntil = performance.now() + FORCED_HOLD;
     place(me);
   }
 
@@ -360,6 +365,19 @@ export class World {
     return { kind: 'walk', x: nx, y: ny, z: elevationAfter(me.z, from ? from.z : me.z, to.z) };
   }
 
+  /** Whether a step onto behaviour [b] starts server forced movement (server ForcedMovement). */
+  forcesMovement(b) {
+    const mode = this.self.mode;
+    const water = mode === 'surf' || mode === 'underwater';
+    const bike = mode === 'mach_bike' || mode === 'acro_bike';
+    if (b === 'ICE' || /^(WALK|SLIDE|SPIN)_/.test(b)) return true;
+    if (/^CURRENT_/.test(b)) return water;
+    if (b === 'WATERFALL') return mode === 'surf';
+    if (b === 'MUDDY_SLOPE') return mode !== 'mach_bike';
+    if (b === 'CYCLING_ROAD_PULL_DOWN') return bike;
+    return false;
+  }
+
   /** How long one step of the predicted self takes. */
   stepMs(run) {
     const me = this.self;
@@ -435,6 +453,10 @@ export class World {
   tryStep(input, carry, continuing, now = performance.now()) {
     const me = this.self;
     if (!input.enabled || !input.dir || this.pending.length >= MAX_PENDING) return;
+    if (this.forcedUntil) {
+      if (now < this.forcedUntil) return;
+      this.forcedUntil = 0;
+    }
     const dir = input.dir;
     if (dir !== me.facing && !continuing) {
       me.facing = dir;
@@ -482,6 +504,7 @@ export class World {
     this.send(me.jumping ? { t: 'step', dir, run: !!input.run, seq, jump: true } : { t: 'step', dir, run: !!input.run, seq });
     this.lastLocalAct = performance.now();
     this.stats.steps++;
+    if (this.forcesMovement(this.behAt(out.x, out.y))) this.forcedUntil = now + FORCED_HOLD + 200;
     this.enterTile(me, now);
   }
 
