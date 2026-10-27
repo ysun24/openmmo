@@ -21,6 +21,10 @@ import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketItemStack
 import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
+import de.fiereu.openmmo.net.game.packets.social.CommunityBody
+import de.fiereu.openmmo.net.game.packets.social.MarketQueryOp
+import de.fiereu.openmmo.net.game.packets.social.MarketQueryPacket
+import de.fiereu.openmmo.net.game.packets.social.SaleRecord
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.LinkedBlockingQueue
@@ -71,6 +75,13 @@ class MarketClient(private val send: (Any) -> Unit, private val onChange: () -> 
       val browsePage: Int = 0,
       val mine: List<MarketEntry> = emptyList(),
       val log: List<String> = emptyList(),
+      /** Seller names by listing id, from the page metadata that follows each search. */
+      val sellers: Map<Long, String> = emptyMap(),
+      val priceHistory: CommunityBody.PriceHistory? = null,
+      val sales: List<SaleRecord>? = null,
+      val info: CommunityBody.MarketInfo? = null,
+      /** Bumped when a clerk asks the client to open the market window. */
+      val openSeq: Int = 0,
   )
 
   @Volatile
@@ -130,6 +141,36 @@ class MarketClient(private val send: (Any) -> Unit, private val onChange: () -> 
               nextRequestId(), GtlListKind.OWN_LISTINGS, MarketSortOrder.NEWEST.wire, 0))
 
   fun buy(listingId: Long) = send(GtlConfirmPurchasePacket(listingId, 1))
+
+  /** Price history of a species ([pokemon]) or item id, from completed sales. */
+  fun requestPriceHistory(pokemon: Boolean, refId: Int) =
+      send(MarketQueryPacket(MarketQueryOp.PRICE_HISTORY, if (pokemon) 0 else 1, refId))
+
+  fun requestSales() = send(MarketQueryPacket(MarketQueryOp.SALES_HISTORY))
+
+  fun requestInfo() = send(MarketQueryPacket(MarketQueryOp.INFO))
+
+  /** True when [body] was a market extra. */
+  fun onBody(body: CommunityBody): Boolean {
+    state =
+        when (body) {
+          is CommunityBody.ListingMetas ->
+              state.copy(
+                  sellers =
+                      (state.sellers + body.entries.associate { it.listingId to it.sellerName })
+                          .entries
+                          .toList()
+                          .takeLast(500)
+                          .associate { it.key to it.value })
+          is CommunityBody.PriceHistory -> state.copy(priceHistory = body)
+          is CommunityBody.SalesHistory -> state.copy(sales = body.entries)
+          is CommunityBody.MarketInfo -> state.copy(info = body)
+          CommunityBody.MarketOpen -> state.copy(openSeq = state.openSeq + 1)
+          else -> return false
+        }
+    onChange()
+    return true
+  }
 
   fun cancel(listingId: Long) = send(GtlListingCancelPacket(listingId.toString()))
 

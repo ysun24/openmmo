@@ -14,9 +14,7 @@ import de.fiereu.openmmo.client.world.MapKey
 import de.fiereu.openmmo.client.world.WorldState
 import de.fiereu.openmmo.common.enums.Arch
 import de.fiereu.openmmo.common.enums.Bitness
-import de.fiereu.openmmo.common.enums.ChatType
 import de.fiereu.openmmo.common.enums.Direction
-import de.fiereu.openmmo.common.enums.Language
 import de.fiereu.openmmo.common.enums.Platform
 import de.fiereu.openmmo.net.game.codecs.SkinSet
 import de.fiereu.openmmo.net.game.packets.CharactersListPacket
@@ -45,6 +43,9 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPagePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
+import de.fiereu.openmmo.net.game.packets.social.ChatChannel
+import de.fiereu.openmmo.net.game.packets.social.CommunityBody
+import de.fiereu.openmmo.net.game.packets.social.CommunityPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap
@@ -81,6 +82,9 @@ class GameClient(
 
   /** Trading, plus the party, bag and money it shows. */
   val trade = TradeClient(::send, onChange)
+
+  /** Friends, blocks, profiles, guild and trade history (SocialClient.kt, r3-social). */
+  val social = SocialClient(::send, onChange)
 
   /** Global market state and actions (MarketClient.kt). */
   val market = MarketClient({ session?.send(it) }, { onChange() })
@@ -181,8 +185,11 @@ class GameClient(
       session?.send(de.fiereu.openmmo.net.game.packets.ChatMessageSendPacket(0, text, null))
       return
     }
-    session?.send(ChatMessagePacket(ChatType.NORMAL, Language.EN, text, ""))
+    social.chat(ChatChannel.LOCAL, text)
   }
+
+  /** A chat line on [channel]; [to] names the whisper target. */
+  fun chat(channel: ChatChannel, text: String, to: String = "") = social.chat(channel, text, to)
 
   /** A slash command, e.g. "/testbattle 19 3". The server only parses these from this packet. */
   fun command(text: String) {
@@ -305,6 +312,18 @@ class GameClient(
       }
 
       on<KeepAlivePacket> { event -> event.session.send(event.packet) }
+
+      // r3-social: chat lines, friends, guild, market extras.
+      on<CommunityPacket> { event ->
+        when (val body = event.packet.body) {
+          is CommunityBody.Chat -> {
+            val sender = if (body.channel == ChatChannel.SYSTEM) "*" else body.from
+            world.addChat(ChatLine(sender, body.text, body.channel.name, body.to))
+            onChange()
+          }
+          else -> if (!market.onBody(body)) social.onBody(body)
+        }
+      }
 
       on<TradeStatePacket> { event -> trade.onState(event.packet) }
       on<PokemonContainerPacket> { event -> trade.onContainer(event.packet) }
