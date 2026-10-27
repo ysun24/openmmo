@@ -6,6 +6,7 @@ import de.fiereu.openmmo.server.game.GameServer
 import de.fiereu.openmmo.server.game.config.GameServerConfig
 import de.fiereu.openmmo.server.game.db.DatabaseBootstrap
 import de.fiereu.openmmo.server.game.handler.GameAppHandler
+import de.fiereu.openmmo.server.game.script.ScriptSpecialModule
 import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.DevCharacterSeeder
@@ -13,7 +14,14 @@ import javax.inject.Provider
 import javax.inject.Singleton
 
 @Singleton
-@Component(modules = [GameServerModule::class, ChatCommandModule::class, SocialModule::class])
+@Component(
+    modules =
+        [
+            GameServerModule::class,
+            ChatCommandModule::class,
+            SocialModule::class,
+            ScriptSpecialModule::class,
+        ])
 interface GameServerComponent {
 
   fun server(): GameServer
