@@ -1,0 +1,195 @@
+# OpenMMO at home: two databases, login, game, the web gateway and a Pinggy tunnel.
+# Everything talks over private compose networks. Nothing is published to the LAN: the only host
+# port is the gateway on 127.0.0.1:${LOCAL_PORT} (this PC only). Friends reach the gateway through
+# the tunnel, which dials out to Pinggy; no router port forwarding is needed.
+#
+#   docker compose --env-file .env -f compose.yml up -d      (start.ps1 does this)
+name: openmmo
+
+x-app: &app
+  image: openmmo:${OPENMMO_VERSION:?Set OPENMMO_VERSION}
+  pull_policy: never
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+x-db: &db
+  # postgres:18 (multi-arch index)
+  image: postgres:18@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+  restart: unless-stopped
+  shm_size: 128m
+  networks: [backend]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 20s
+
+services:
+  login-db:
+    <<: *db
+    environment:
+      POSTGRES_DB: ${LOGIN_DB_NAME:-openmmo_login_db}
+      POSTGRES_USER: ${LOGIN_DB_USER:-openmmo_login_user}
+      POSTGRES_PASSWORD: ${LOGIN_DB_PASSWORD:?Set LOGIN_DB_PASSWORD}
+    volumes:
+      - login_db:/var/lib/postgresql
+
+  game-db:
+    <<: *db
+    environment:
+      POSTGRES_DB: ${GAME_DB_NAME:-openmmo_game_db}
+      POSTGRES_USER: ${GAME_DB_USER:-openmmo_game_user}
+      POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:?Set GAME_DB_PASSWORD}
+    volumes:
+      - game_db:/var/lib/postgresql
+
+  # One-shot: creates the server keypair in the keys volume on the very first start.
+  keys:
+    <<: *app
+    restart: "no"
+    command: ["keys"]
+    network_mode: none
+    volumes:
+      - keys:/keys
+
+  login:
+    <<: *app
+    command: ["login"]
+    depends_on:
+      keys: { condition: service_completed_successfully }
+      login-db: { condition: service_healthy }
+    networks: [backend]
+    mem_limit: 768m
+    environment:
+      LOGIN_DB_HOST: login-db
+      LOGIN_DB_PORT: 5432
+      LOGIN_DB_NAME: ${LOGIN_DB_NAME:-openmmo_login_db}
+      LOGIN_DB_USER: ${LOGIN_DB_USER:-openmmo_login_user}
+      LOGIN_DB_PASSWORD: ${LOGIN_DB_PASSWORD:?Set LOGIN_DB_PASSWORD}
+      LOGIN_DB_SEED_DEV: "false"
+      OPENMMO_SESSION_SECRET: ${OPENMMO_SESSION_SECRET:?Set OPENMMO_SESSION_SECRET}
+      OPENMMO_ADMIN_USERNAME: ${OPENMMO_ADMIN_USERNAME:-}
+      OPENMMO_ADMIN_PASSWORD: ${OPENMMO_ADMIN_PASSWORD:-}
+      # The login server advertises this node, but the OpenMMO client (and so the gateway) only
+      # takes the port from it and dials the game host it was told with --game-host.
+      GAME_SERVER_PUBLIC_IPV4: 127.0.0.1
+      GAME_SERVER_PORT: 7777
+      TZ: ${TZ:-UTC}
+    volumes:
+      - keys:/keys:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/2106"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  game:
+    <<: *app
+    command: ["game"]
+    depends_on:
+      keys: { condition: service_completed_successfully }
+      game-db: { condition: service_healthy }
+    networks: [backend]
+    mem_limit: 2g
+    # The shutdown hook saves every character for up to 10 s.
+    stop_grace_period: 30s
+    environment:
+      GAME_DB_HOST: game-db
+      GAME_DB_PORT: 5432
+      GAME_DB_NAME: ${GAME_DB_NAME:-openmmo_game_db}
+      GAME_DB_USER: ${GAME_DB_USER:-openmmo_game_user}
+      GAME_DB_PASSWORD: ${GAME_DB_PASSWORD:?Set GAME_DB_PASSWORD}
+      GAME_DB_SEED_DEV: "false"
+      OPENMMO_SESSION_SECRET: ${OPENMMO_SESSION_SECRET:?Set OPENMMO_SESSION_SECRET}
+      # The bootstrap admin is the first login account, user 1.
+      OPENMMO_ADMIN_USER_IDS: ${OPENMMO_ADMIN_USER_IDS:-1}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - keys:/keys:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7777"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  gateway:
+    <<: *app
+    command: ["gateway"]
+    depends_on:
+      login: { condition: service_healthy }
+      game: { condition: service_healthy }
+    networks: [backend, edge]
+    mem_limit: 1536m
+    environment:
+      LOGIN_HOST: login
+      GAME_HOST: game
+      PINGGY_SUBDOMAIN: ${PINGGY_SUBDOMAIN:-}
+      GATEWAY_ALLOW_ORIGIN: ${GATEWAY_ALLOW_ORIGIN:-}
+      # Requests reach the gateway from the tunnel (Pinggy sets X-Forwarded-For/-Host) or from
+      # this PC; nothing else can connect to it.
+      GATEWAY_TRUST_FORWARDED: "true"
+      TZ: ${TZ:-UTC}
+    volumes:
+      - keys:/keys:ro
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET / HTTP/1.0\\r\\nHost: health\\r\\n\\r\\n' >&3 && head -c 12 <&3 | grep -q 200"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
+
+  tunnel:
+    <<: *app
+    command: ["tunnel"]
+    depends_on:
+      gateway: { condition: service_healthy }
+    networks: [edge]
+    mem_limit: 128m
+    environment:
+      TUNNEL: ${TUNNEL:-on}
+      TUNNEL_DRY_RUN: ${TUNNEL_DRY_RUN:-0}
+      PINGGY_TOKEN: ${PINGGY_TOKEN:-}
+      PINGGY_SUBDOMAIN: ${PINGGY_SUBDOMAIN:-}
+      PINGGY_SERVER: ${PINGGY_SERVER:-}
+      PINGGY_ALLOW_IPS: ${PINGGY_ALLOW_IPS:-}
+      PINGGY_EXTRA_OPTIONS: ${PINGGY_EXTRA_OPTIONS:-}
+      SITE_USER: ${SITE_USER:-}
+      SITE_PASS: ${SITE_PASS:-}
+      LOCAL_PORT: ${LOCAL_PORT:-8080}
+      TUNNEL_TARGET: gateway:8080
+    volumes:
+      - tunnel_state:/state
+
+networks:
+  # Databases, login and game: no route to the outside at all.
+  backend:
+    internal: true
+  # Gateway <-> tunnel, and the tunnel's way out to Pinggy.
+  edge: {}
+
+volumes:
+  login_db:
+  game_db:
+  keys:
+  tunnel_state:
