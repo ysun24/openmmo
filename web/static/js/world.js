@@ -257,7 +257,8 @@ export class World {
     // the server's elevation is the tile's (water when surfing)
     const t = this.tileAt(s.x, s.y);
     if (me.mode === 'surf' || me.mode === 'underwater') me.z = Z_WATER;
-    else if (t && t.z !== Z_BRIDGE) me.z = t.z === Z_WATER ? Z_LAND : t.z;
+    else if (t && !t.loading && t.z !== Z_BRIDGE) me.z = t.z === Z_WATER ? Z_LAND : t.z;
+    else me.z = null; // learnt from the tile once its collision has loaded
     this.pending = [];
     this.stats.snaps++;
     place(me);
@@ -330,6 +331,10 @@ export class World {
     const from = this.tileAt(me.x, me.y);
     const to = this.tileAt(nx, ny);
     if (!to || to.loading) return { kind: 'block' };
+    if (me.z === null || me.z === undefined) {
+      if (!from || from.loading) return { kind: 'block' };
+      me.z = me.mode === 'surf' ? Z_WATER : from.z === Z_BRIDGE ? Z_LAND : from.z;
+    }
     const water = me.mode === 'surf' || me.mode === 'underwater';
     if (!water && LEDGE[to.beh] === dir) {
       const lx = me.x + dx * 2, ly = me.y + dy * 2;

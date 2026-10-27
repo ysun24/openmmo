@@ -228,8 +228,7 @@ class PretGbaParser(
 
   private fun scriptsText(mapDirName: String): String =
       scriptTexts.getOrPut(mapDirName) {
-        File(rootDir, "data/maps/$mapDirName/scripts.inc").takeIf { it.exists() }?.readText()
-            ?: ""
+        File(rootDir, "data/maps/$mapDirName/scripts.inc").takeIf { it.exists() }?.readText() ?: ""
       }
 
   /** The body of `label::` up to the next label, or "" when the label is not in [text]. */
@@ -249,12 +248,17 @@ class PretGbaParser(
   private val dialogIds: Map<String, Int> by lazy {
     val file = dialogFile ?: return@lazy emptyMap()
     if (!file.exists()) return@lazy emptyMap()
-    readJson(file).jsonObject["lines"]?.jsonArrayOrNull().orEmpty().mapNotNull {
-      val o = it.jsonObject
-      val label = o["label"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-      val id = o["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-      label to id
-    }.toMap()
+    readJson(file)
+        .jsonObject["lines"]
+        ?.jsonArrayOrNull()
+        .orEmpty()
+        .mapNotNull {
+          val o = it.jsonObject
+          val label = o["label"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+          val id = o["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+          label to id
+        }
+        .toMap()
   }
 
   private fun parseItemBall(mapDirName: String, script: String): String {

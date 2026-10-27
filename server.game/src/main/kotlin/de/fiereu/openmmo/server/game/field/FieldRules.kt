@@ -38,8 +38,8 @@ data class FieldObstacle(val localId: Int, val kind: Kind) {
 /**
  * The Gen 3 step rules (field_player_avatar.c CheckForObjectEventCollision and
  * event_object_movement.c GetCollisionAtCoords), pure so they can be tested and mirrored by the
- * browser's prediction. Elevation follows ObjectEventUpdateElevation: 0 and 15 tiles are
- * wildcards, 15 (bridges) keeps the old elevation.
+ * browser's prediction. Elevation follows ObjectEventUpdateElevation: 0 and 15 tiles are wildcards,
+ * 15 (bridges) keeps the old elevation.
  */
 object FieldRules {
   /** ELEVATION_DEFAULT: land. */
@@ -86,7 +86,9 @@ object FieldRules {
     val fromBehavior = from?.behavior ?: TileBehavior.NORMAL
 
     // Ledges: the tile ahead is a ledge facing our way. Not while surfing (no ledges in water).
-    if (mode != TravelMode.SURF && mode != TravelMode.UNDERWATER && to.behavior.ledgeDirection == dir) {
+    if (mode != TravelMode.SURF &&
+        mode != TravelMode.UNDERWATER &&
+        to.behavior.ledgeDirection == dir) {
       val lx = fromX + dir.dx * 2
       val ly = fromY + dir.dy * 2
       val land = map.tileAt(lx, ly) ?: return StepOutcome.Blocked
@@ -141,7 +143,14 @@ object FieldRules {
    * IsPlayerFacingSurfableFishableWater: on land at the default elevation, facing a water tile the
    * player cannot walk onto.
    */
-  fun canStartSurf(map: MapDef, x: Int, y: Int, facing: Direction, z: Int, mode: TravelMode): Boolean {
+  fun canStartSurf(
+      map: MapDef,
+      x: Int,
+      y: Int,
+      facing: Direction,
+      z: Int,
+      mode: TravelMode
+  ): Boolean {
     if (mode == TravelMode.SURF || mode == TravelMode.UNDERWATER) return false
     if (z != LAND) return false
     val t = map.tileAt(x + facing.dx, y + facing.dy) ?: return false

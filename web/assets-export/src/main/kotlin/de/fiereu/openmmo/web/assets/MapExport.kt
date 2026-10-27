@@ -266,12 +266,13 @@ class MapExport(private val decompRoot: File, private val out: Output) {
 
     /**
      * The overworld field effect sprites the browser draws (r3-field): Emerald's art for both
-     * regions (FireRed's are the same pictures in vertical strips). name -> (file, frame w, frame h,
-     * palette under graphics/field_effects/palettes or null for the PNG's own).
+     * regions (FireRed's are the same pictures in vertical strips). name -> (file, frame w, frame
+     * h, palette under graphics/field_effects/palettes or null for the PNG's own).
      */
     private val FIELD_EFFECTS =
         listOf(
-            FieldEffectSpec("surfBlob", "surf_blob", 32, 32, null),
+            FieldEffectSpec(
+                "surfBlob", "surf_blob", 32, 32, "../../object_events/palettes/brendan"),
             FieldEffectSpec("tallGrass", "tall_grass", 16, 16, "general_1"),
             FieldEffectSpec("longGrass", "long_grass", 16, 16, "general_1"),
             FieldEffectSpec("shadow", "shadow_medium", 16, 8, null),

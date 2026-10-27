@@ -38,10 +38,18 @@ constructor(
   }
 
   /** The conditional coordinate trigger on one tile, the decomp coord_events table. */
-  fun atCoordinate(charId: Long, map: MapDef, x: Int, y: Int): Script? {
+  fun atCoordinate(charId: Long, map: MapDef, x: Int, y: Int, elevation: Int? = null): Script? {
     val trigger =
         map.coordScripts.firstOrNull {
-          it.x == x && it.y == y && storyService.getVar(charId, it.varKey) == it.value
+          it.x == x &&
+              it.y == y &&
+              // GetCoordEventScriptAtPosition: the event's elevation must be the player's (0 =
+              // any).
+              (elevation == null ||
+                  elevation == 0 ||
+                  it.elevation == 0 ||
+                  it.elevation == elevation) &&
+              storyService.getVar(charId, it.varKey) == it.value
         } ?: return null
     return resolve(trigger.script)
   }

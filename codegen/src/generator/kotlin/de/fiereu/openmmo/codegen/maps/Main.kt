@@ -13,7 +13,8 @@ private fun parseRegionSource(spec: String): RegionSource {
     "Invalid region spec '$spec', expected <region>|<dir>[|<dialog.json>]"
   }
   val region = REGIONS[parts[0]] ?: error("Unknown region '${parts[0]}', known: ${REGIONS.keys}")
-  return RegionSource(region = region, dir = File(parts[1]), dialog = parts.getOrNull(2)?.let(::File))
+  return RegionSource(
+      region = region, dir = File(parts[1]), dialog = parts.getOrNull(2)?.let(::File))
 }
 
 fun main(args: Array<String>) {

@@ -41,13 +41,18 @@ constructor(
     for (b in 1..8) story.setFlag(charId, FieldMoves.badgeFlag(region, b))
     story.setFlag(charId, "${region.storyName}/FLAG_SYS_B_DASH")
     FlyDestinations.forRegion(region).forEach { story.setFlag(charId, it.flag) }
-    items.all().firstOrNull { it.name.equals("Bicycle", true) }?.let { bike ->
-      val id = items.idOf(bike)
-      if ((characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0) characters.addItem(charId, id, 1)
-    }
-    items.all().firstOrNull { it.name.equals("Escape Rope", true) }?.let {
-      characters.addItem(charId, items.idOf(it), 3)
-    }
+    items
+        .all()
+        .firstOrNull { it.name.equals("Bicycle", true) }
+        ?.let { bike ->
+          val id = items.idOf(bike)
+          if ((characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0)
+              characters.addItem(charId, id, 1)
+        }
+    items
+        .all()
+        .firstOrNull { it.name.equals("Escape Rope", true) }
+        ?.let { characters.addItem(charId, items.idOf(it), 3) }
     val wanted =
         if (ctx.args.isEmpty())
             listOf(
@@ -74,13 +79,13 @@ constructor(
       characters.updatePokemon(
           charId,
           mon.copy(
-              moves =
-                  chunk.map { PokemonMove(it.toShort(), (moves.get(it)?.pp ?: 10).toByte()) }))
+              moves = chunk.map { PokemonMove(it.toShort(), (moves.get(it)?.pp ?: 10).toByte()) }))
     }
     characters.getCharacter(charId)?.items?.let { ctx.session.send(storyItemStacksPacket(it)) }
     field.sendInfo(ctx.session, ctx.state)
     val taught = minOf(wanted.size, party.size * 4)
-    ctx.reply("Field test kit: 8 badges, running shoes, FLY towns, bike; $taught field moves taught.")
+    ctx.reply(
+        "Field test kit: 8 badges, running shoes, FLY towns, bike; $taught field moves taught.")
   }
 }
 

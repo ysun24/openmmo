@@ -87,7 +87,9 @@ constructor(
   }
 
   private val itemfinderIds: List<Int> by lazy {
-    items.all().filter { it.name.equals("Dowsing MCHN", true) || it.name.equals("Itemfinder", true) }
+    items
+        .all()
+        .filter { it.name.equals("Dowsing MCHN", true) || it.name.equals("Itemfinder", true) }
         .flatMap(items::idsOf)
   }
 
@@ -239,7 +241,14 @@ constructor(
   }
 
   /** STRENGTH pushed boulder [localId] to (x, y): persist it and slide it for the player. */
-  fun pushBoulder(ctx: SessionContext, state: PlayerState, map: MapDef, localId: Int, x: Int, y: Int) {
+  fun pushBoulder(
+      ctx: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      localId: Int,
+      x: Int,
+      y: Int
+  ) {
     val charId = state.characterId ?: return
     val stored = stored(state) ?: return
     val npc = map.npcs.firstOrNull { it.entityIdx == localId } ?: return
@@ -256,7 +265,10 @@ constructor(
         GbaEntityMovePacket(
             entityId =
                 npcService.entityIdFor(
-                    map.regionId.toInt(), map.bankId.toInt() and 0xFF, map.mapId.toInt() and 0xFF, localId),
+                    map.regionId.toInt(),
+                    map.bankId.toInt() and 0xFF,
+                    map.mapId.toInt() and 0xFF,
+                    localId),
             bankId = map.bankId.toInt() and 0xFF,
             mapId = map.mapId.toInt() and 0xFF,
             x = x,
@@ -273,17 +285,28 @@ constructor(
    * The player pressed A on map npc [npc]. Handles HM obstacles, item balls and trainers; false
    * when the npc is none of those and its own script should run.
    */
-  fun onNpcInteract(session: SessionContext, state: PlayerState, map: MapDef, npc: NpcDef, entityId: Long): Boolean {
+  fun onNpcInteract(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      npc: NpcDef,
+      entityId: Long
+  ): Boolean {
     val region = region(state)
     val text = FieldText.of(region)
     val kind = obstacleKind(map, npc)
     return when {
       kind == FieldObstacle.Kind.CUT_TREE -> {
-        run(session, state, entityId) { ctx -> obstacleScript(ctx, state, map, npc, FieldAction.CUT, text.wantToCut, text.cantCut) }
+        run(session, state, entityId) { ctx ->
+          obstacleScript(ctx, state, map, npc, FieldAction.CUT, text.wantToCut, text.cantCut)
+        }
         true
       }
       kind == FieldObstacle.Kind.ROCK_SMASH_ROCK -> {
-        run(session, state, entityId) { ctx -> obstacleScript(ctx, state, map, npc, FieldAction.ROCK_SMASH, text.wantToSmash, text.cantSmash) }
+        run(session, state, entityId) { ctx ->
+          obstacleScript(
+              ctx, state, map, npc, FieldAction.ROCK_SMASH, text.wantToSmash, text.cantSmash)
+        }
         true
       }
       kind == FieldObstacle.Kind.BOULDER -> {
@@ -303,27 +326,35 @@ constructor(
   }
 
   /**
-   * The player pressed A facing ([fx], [fy]) where no npc stands: hidden items, the PC, water
-   * (SURF / WATERFALL) and dive spots. True when handled.
+   * The player pressed A facing ([fx], [fy]) where no npc stands: hidden items, the PC, water (SURF
+   * / WATERFALL) and dive spots. True when handled.
    */
-  fun onTileInteract(session: SessionContext, state: PlayerState, map: MapDef, fx: Int, fy: Int): Boolean {
+  fun onTileInteract(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      fx: Int,
+      fy: Int
+  ): Boolean {
     val stored = stored(state) ?: return false
     val region = region(state)
     val text = FieldText.of(region)
     // Hidden items are found by facing them (bg_event hidden_item).
-    map.hiddenItems.firstOrNull { it.x == fx && it.y == fy && it.flag !in stored.storyFlags }?.let { h ->
-      val item = itemByConstant(h.item)
-      if (item != null) {
-        run(session, state, -1) { ctx ->
-          if (ctx.giveItem(item, h.quantity)) {
-            ctx.setFlag(h.flag)
-            ctx.bufferString(2, item.name.uppercase())
-            ctx.sign(text.foundItem)
+    map.hiddenItems
+        .firstOrNull { it.x == fx && it.y == fy && it.flag !in stored.storyFlags }
+        ?.let { h ->
+          val item = itemByConstant(h.item)
+          if (item != null) {
+            run(session, state, -1) { ctx ->
+              if (ctx.giveItem(item, h.quantity)) {
+                ctx.setFlag(h.flag)
+                ctx.bufferString(2, item.name.uppercase())
+                ctx.sign(text.foundItem)
+              }
+            }
+            return true
           }
         }
-        return true
-      }
-    }
     val facing = map.tileAt(fx, fy)?.behavior
     if (facing == TileBehavior.PC) {
       // EventScript_PC: Pokemon Centers open the storage system, the bedroom PC the item storage.
@@ -336,9 +367,12 @@ constructor(
     val y = state.y.toInt()
     // Waterfall: only climbed surfing north.
     if (facing == TileBehavior.WATERFALL) {
-      if (state.travel == TravelMode.SURF && state.facingDirection == Direction.UP &&
+      if (state.travel == TravelMode.SURF &&
+          state.facingDirection == Direction.UP &&
           FieldMoves.usable(region, FieldAction.WATERFALL, stored.pokemon, stored.storyFlags)) {
-        run(session, state, -1) { ctx -> if (ctx.askYesNo(text.wantToWaterfall)) waterfall(ctx, state, map) }
+        run(session, state, -1) { ctx ->
+          if (ctx.askYesNo(text.wantToWaterfall)) waterfall(ctx, state, map)
+        }
       } else {
         run(session, state, -1) { ctx -> ctx.sign(text.cantWaterfall) }
       }
@@ -355,12 +389,16 @@ constructor(
       return true
     }
     // Dive spots (TrySetDiveWarp): A while surfing on deep water, or underwater below a surface.
-    if (region == Region.HOENN && FieldMoves.usable(region, FieldAction.DIVE, stored.pokemon, stored.storyFlags)) {
-      val line = when {
-        state.travel == TravelMode.SURF && diveTarget(map, x, y, Direction.DIVE) != null -> text.wantToDive
-        state.travel == TravelMode.UNDERWATER && diveTarget(map, x, y, Direction.EMERGE) != null -> text.wantToSurface
-        else -> null
-      }
+    if (region == Region.HOENN &&
+        FieldMoves.usable(region, FieldAction.DIVE, stored.pokemon, stored.storyFlags)) {
+      val line =
+          when {
+            state.travel == TravelMode.SURF && diveTarget(map, x, y, Direction.DIVE) != null ->
+                text.wantToDive
+            state.travel == TravelMode.UNDERWATER &&
+                diveTarget(map, x, y, Direction.EMERGE) != null -> text.wantToSurface
+            else -> null
+          }
       if (line != null) {
         run(session, state, -1) { ctx -> if (ctx.askYesNo(line)) dive(ctx, state, map) }
         return true
@@ -369,7 +407,12 @@ constructor(
     return false
   }
 
-  private fun run(session: SessionContext, state: PlayerState, entityId: Long, body: suspend (ScriptContext) -> Unit) {
+  private fun run(
+      session: SessionContext,
+      state: PlayerState,
+      entityId: Long,
+      body: suspend (ScriptContext) -> Unit
+  ) {
     scriptRunner.run(session, state, Script { body(it) }, entityId)
   }
 
@@ -400,14 +443,27 @@ constructor(
     removeObstacle(ctx.session, state, map, npc.entityIdx)
     if (action == FieldAction.ROCK_SMASH) {
       // special RockSmashWildEncounter
-      state.characterId?.let { encounterService.encounterNow(ctx.session, it, map, EncounterMethod.ROCK_SMASH, force = false) }
+      state.characterId?.let {
+        encounterService.encounterNow(
+            ctx.session, it, map, EncounterMethod.ROCK_SMASH, force = false)
+      }
     }
   }
 
   /** removeobject for a cut tree / smashed rock / taken ball, until the next map change. */
-  private fun removeObstacle(session: SessionContext, state: PlayerState, map: MapDef, localId: Int) {
+  private fun removeObstacle(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      localId: Int
+  ) {
     state.removedObjects += localId
-    npcService.despawnNpc(session, map.regionId.toInt(), map.bankId.toInt() and 0xFF, map.mapId.toInt() and 0xFF, localId)
+    npcService.despawnNpc(
+        session,
+        map.regionId.toInt(),
+        map.bankId.toInt() and 0xFF,
+        map.mapId.toInt() and 0xFF,
+        localId)
   }
 
   /** EventScript_StrengthBoulder. */
@@ -436,7 +492,12 @@ constructor(
   }
 
   /** An item ball: finditem. */
-  private suspend fun itemBallScript(ctx: ScriptContext, state: PlayerState, npc: NpcDef, text: FieldText) {
+  private suspend fun itemBallScript(
+      ctx: ScriptContext,
+      state: PlayerState,
+      npc: NpcDef,
+      text: FieldText
+  ) {
     val item = itemByConstant(npc.item) ?: return
     val map = currentMap(state) ?: return
     if (!ctx.giveItem(item, 1)) return
@@ -485,7 +546,14 @@ constructor(
   }
 
   /** Puts the player at (x, y) and tells it and its observers. */
-  private fun moveSelf(session: SessionContext, state: PlayerState, map: MapDef, x: Int, y: Int, dir: Direction) {
+  private fun moveSelf(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      x: Int,
+      y: Int,
+      dir: Direction
+  ) {
     val charId = state.characterId ?: return
     characterStore.updatePosition(charId, x.toShort(), y.toShort(), facing = dir)
     state.x = x.toShort()
@@ -519,7 +587,9 @@ constructor(
     val here = map.tileAt(x, y)?.behavior ?: return null
     if (dir == Direction.DIVE && here != TileBehavior.DEEP_WATER) return null
     val conn = map.connections.firstOrNull { it.direction == dir } ?: return null
-    val target = mapManager.getMap(map.regionId, conn.targetBank.toByte(), conn.targetMap.toByte()) ?: return null
+    val target =
+        mapManager.getMap(map.regionId, conn.targetBank.toByte(), conn.targetMap.toByte())
+            ?: return null
     val t = target.tileAt(x, y) ?: return null
     if (t.blocksMovement()) return null
     if (dir == Direction.EMERGE && !t.behavior.isSurfable) return null
@@ -532,7 +602,13 @@ constructor(
     val dir = if (state.travel == TravelMode.UNDERWATER) Direction.EMERGE else Direction.DIVE
     val target = diveTarget(map, x, y, dir) ?: return
     state.travel = if (dir == Direction.DIVE) TravelMode.UNDERWATER else TravelMode.SURF
-    ctx.warp(target.regionId.toInt(), target.bankId.toInt() and 0xFF, target.mapId.toInt() and 0xFF, x, y, state.facingDirection)
+    ctx.warp(
+        target.regionId.toInt(),
+        target.bankId.toInt() and 0xFF,
+        target.mapId.toInt() and 0xFF,
+        x,
+        y,
+        state.facingDirection)
   }
 
   // ------------------------------------------------------------------ field actions
@@ -547,8 +623,13 @@ constructor(
     val region = region(state)
     val a = event.packet.action
     val text = FieldText.of(region)
-    if (FieldMoves.moveOf.containsKey(a) && !FieldMoves.usable(region, a, stored.pokemon, stored.storyFlags)) {
-      session.send(notice(if (FieldMoves.existsIn(region, a)) "Can't use that until you have the right BADGE and a POKéMON that knows it." else "There is no such move here."))
+    if (FieldMoves.moveOf.containsKey(a) &&
+        !FieldMoves.usable(region, a, stored.pokemon, stored.storyFlags)) {
+      session.send(
+          notice(
+              if (FieldMoves.existsIn(region, a))
+                  "Can't use that until you have the right BADGE and a POKéMON that knows it."
+              else "There is no such move here."))
       return
     }
     val x = state.x.toInt()
@@ -559,17 +640,26 @@ constructor(
       FieldAction.CUT,
       FieldAction.ROCK_SMASH -> {
         val o = obstacleAt(state, map, fx, fy)
-        val want = if (a == FieldAction.CUT) FieldObstacle.Kind.CUT_TREE else FieldObstacle.Kind.ROCK_SMASH_ROCK
+        val want =
+            if (a == FieldAction.CUT) FieldObstacle.Kind.CUT_TREE
+            else FieldObstacle.Kind.ROCK_SMASH_ROCK
         if (o == null || o.kind != want) return cantHere(session)
         val npc = map.npcs.first { it.entityIdx == o.localId }
-        val entityId = npcService.entityIdFor(map.regionId.toInt(), map.bankId.toInt() and 0xFF, map.mapId.toInt() and 0xFF, o.localId)
+        val entityId =
+            npcService.entityIdFor(
+                map.regionId.toInt(),
+                map.bankId.toInt() and 0xFF,
+                map.mapId.toInt() and 0xFF,
+                o.localId)
         run(session, state, entityId) { ctx ->
           val mon = FieldMoves.partyMonWith(stored.pokemon, FieldMoves.moveOf.getValue(a))
           ctx.bufferString(1, mon?.let(::monName) ?: "")
           ctx.bufferString(2, if (a == FieldAction.CUT) "CUT" else "ROCK SMASH")
           ctx.say(text.usedMove)
           removeObstacle(session, state, map, npc.entityIdx)
-          if (a == FieldAction.ROCK_SMASH) encounterService.encounterNow(session, stored.info.id, map, EncounterMethod.ROCK_SMASH, false)
+          if (a == FieldAction.ROCK_SMASH)
+              encounterService.encounterNow(
+                  session, stored.info.id, map, EncounterMethod.ROCK_SMASH, false)
         }
       }
       FieldAction.STRENGTH ->
@@ -578,26 +668,34 @@ constructor(
       FieldAction.FLASH -> {
         if (!map.requiresFlash || state.flash) return cantHere(session)
         state.flash = true
-        session.send(notice("${FieldMoves.partyMonWith(stored.pokemon, FieldMoves.FLASH)?.let(::monName)} used FLASH!"))
+        session.send(
+            notice(
+                "${FieldMoves.partyMonWith(stored.pokemon, FieldMoves.FLASH)?.let(::monName)} used FLASH!"))
         sendInfo(session, state)
       }
       FieldAction.SURF -> {
-        if (!FieldRules.canStartSurf(map, x, y, state.facingDirection, state.elevation, state.travel)) return cantHere(session)
+        if (!FieldRules.canStartSurf(
+            map, x, y, state.facingDirection, state.elevation, state.travel))
+            return cantHere(session)
         run(session, state, -1) { ctx ->
-          ctx.bufferString(1, FieldMoves.partyMonWith(stored.pokemon, FieldMoves.SURF)?.let(::monName) ?: "")
+          ctx.bufferString(
+              1, FieldMoves.partyMonWith(stored.pokemon, FieldMoves.SURF)?.let(::monName) ?: "")
           ctx.bufferString(2, "SURF")
           ctx.say(text.usedMove)
           startSurf(session, state, map)
         }
       }
       FieldAction.WATERFALL -> {
-        if (state.travel != TravelMode.SURF || state.facingDirection != Direction.UP ||
-            FieldRules.waterfallClimb(map, x, y) == null) return cantHere(session)
+        if (state.travel != TravelMode.SURF ||
+            state.facingDirection != Direction.UP ||
+            FieldRules.waterfallClimb(map, x, y) == null)
+            return cantHere(session)
         run(session, state, -1) { waterfall(it, state, map) }
       }
       FieldAction.DIVE -> {
         val dir = if (state.travel == TravelMode.UNDERWATER) Direction.EMERGE else Direction.DIVE
-        if ((state.travel != TravelMode.SURF && state.travel != TravelMode.UNDERWATER) || diveTarget(map, x, y, dir) == null)
+        if ((state.travel != TravelMode.SURF && state.travel != TravelMode.UNDERWATER) ||
+            diveTarget(map, x, y, dir) == null)
             return cantHere(session)
         run(session, state, -1) { dive(it, state, map) }
       }
@@ -614,13 +712,19 @@ constructor(
           return
         }
         val female = stored.info.rivalSex.toInt() == 1
-        flyTo(session, state, target, if (female) town.femaleX else town.x, if (female) town.femaleY else town.y)
+        flyTo(
+            session,
+            state,
+            target,
+            if (female) town.femaleX else town.x,
+            if (female) town.femaleY else town.y)
       }
       FieldAction.TELEPORT -> {
         if (!map.isOutdoors && !map.allowEscaping) return cantHere(session)
-        val town = FlyDestinations.all.getOrNull((stored.storyVars[LAST_TOWN_VAR] ?: 0) - 1)
-            ?.takeIf { it.region == region }
-            ?: FlyDestinations.forRegion(region).first()
+        val town =
+            FlyDestinations.all.getOrNull((stored.storyVars[LAST_TOWN_VAR] ?: 0) - 1)?.takeIf {
+              it.region == region
+            } ?: FlyDestinations.forRegion(region).first()
         val target = mapManager.getMapByName(region.wireValue.toInt(), town.mapName) ?: return
         flyTo(session, state, target, town.x, town.y)
       }
@@ -628,10 +732,14 @@ constructor(
       FieldAction.ESCAPE_ROPE -> {
         if (!map.allowEscaping) return cantHere(session)
         if (a == FieldAction.ESCAPE_ROPE) {
-          val id = escapeRopeIds.firstOrNull { (stored.items[it] ?: 0) > 0 } ?: return tell(session, "You have no ESCAPE ROPE.")
+          val id =
+              escapeRopeIds.firstOrNull { (stored.items[it] ?: 0) > 0 }
+                  ?: return tell(session, "You have no ESCAPE ROPE.")
           run(session, state, -1) { ctx ->
             if (characterStore.addItem(stored.info.id, id, -1)) {
-              session.send(storyItemStacksPacket(characterStore.getCharacter(stored.info.id)?.items ?: emptyMap()))
+              session.send(
+                  storyItemStacksPacket(
+                      characterStore.getCharacter(stored.info.id)?.items ?: emptyMap()))
               escape(ctx, state, region)
             }
           }
@@ -639,9 +747,11 @@ constructor(
       }
       FieldAction.SWEET_SCENT -> {
         val tile = map.tileAt(x, y)
-        val method = if (state.travel == TravelMode.SURF) EncounterMethod.WATER else EncounterMethod.LAND
-        val ok = (method == EncounterMethod.WATER || tile?.behavior?.isLandEncounter == true) &&
-            encounterService.encounterNow(session, stored.info.id, map, method, force = true)
+        val method =
+            if (state.travel == TravelMode.SURF) EncounterMethod.WATER else EncounterMethod.LAND
+        val ok =
+            (method == EncounterMethod.WATER || tile?.behavior?.isLandEncounter == true) &&
+                encounterService.encounterNow(session, stored.info.id, map, method, force = true)
         if (!ok) session.send(notice("Looks like there's nothing here…"))
       }
       FieldAction.BIKE -> {
@@ -650,16 +760,21 @@ constructor(
           setTravel(session, state, TravelMode.WALK)
           return
         }
-        if (!FieldRules.canRide(map, x, y, state.travel)) return tell(session, "No cycling allowed here.")
-        val mode = if (region == Region.HOENN && event.packet.arg == 1) TravelMode.ACRO_BIKE else TravelMode.MACH_BIKE
+        if (!FieldRules.canRide(map, x, y, state.travel))
+            return tell(session, "No cycling allowed here.")
+        val mode =
+            if (region == Region.HOENN && event.packet.arg == 1) TravelMode.ACRO_BIKE
+            else TravelMode.MACH_BIKE
         setTravel(session, state, mode)
       }
       FieldAction.DISMOUNT -> {
         // FRLG's Cycling Road keeps the player on the bike.
-        if (state.travel == TravelMode.MACH_BIKE || state.travel == TravelMode.ACRO_BIKE) setTravel(session, state, TravelMode.WALK)
+        if (state.travel == TravelMode.MACH_BIKE || state.travel == TravelMode.ACRO_BIKE)
+            setTravel(session, state, TravelMode.WALK)
       }
       FieldAction.ITEMFINDER -> {
-        if (itemfinderIds.none { (stored.items[it] ?: 0) > 0 }) return tell(session, "You don't have an ITEMFINDER.")
+        if (itemfinderIds.none { (stored.items[it] ?: 0) > 0 })
+            return tell(session, "You don't have an ITEMFINDER.")
         session.send(notice(itemfinderReading(stored, map, x, y)))
       }
     }
@@ -685,11 +800,13 @@ constructor(
             .filter { it.flag !in stored.storyFlags && abs(it.x - x) <= 7 && abs(it.y - y) <= 5 }
             .minByOrNull { abs(it.x - x) + abs(it.y - y) }
             ?: return "… … … … Nope! There's no response."
-    if (near.x == x && near.y == y) return "Oh! The ITEMFINDER's responding! There's an item buried right underfoot!"
+    if (near.x == x && near.y == y)
+        return "Oh! The ITEMFINDER's responding! There's an item buried right underfoot!"
     val dx = near.x - x
     val dy = near.y - y
     val dir =
-        if (abs(dx) >= abs(dy)) (if (dx > 0) "east" else "west") else (if (dy > 0) "south" else "north")
+        if (abs(dx) >= abs(dy)) (if (dx > 0) "east" else "west")
+        else (if (dy > 0) "south" else "north")
     return "The ITEMFINDER is responding! Something is buried to the $dir."
   }
 
@@ -703,7 +820,13 @@ constructor(
   private fun flyTo(session: SessionContext, state: PlayerState, target: MapDef, x: Int, y: Int) {
     run(session, state, -1) { ctx ->
       state.travel = TravelMode.WALK
-      ctx.warp(target.regionId.toInt(), target.bankId.toInt() and 0xFF, target.mapId.toInt() and 0xFF, x, y, Direction.DOWN)
+      ctx.warp(
+          target.regionId.toInt(),
+          target.bankId.toInt() and 0xFF,
+          target.mapId.toInt() and 0xFF,
+          x,
+          y,
+          Direction.DOWN)
     }
   }
 
@@ -713,7 +836,13 @@ constructor(
     if (v <= 0) {
       val town = FlyDestinations.forRegion(region).first()
       val target = mapManager.getMapByName(region.wireValue.toInt(), town.mapName) ?: return
-      ctx.warp(target.regionId.toInt(), target.bankId.toInt() and 0xFF, target.mapId.toInt() and 0xFF, town.x, town.y, Direction.DOWN)
+      ctx.warp(
+          target.regionId.toInt(),
+          target.bankId.toInt() and 0xFF,
+          target.mapId.toInt() and 0xFF,
+          town.x,
+          town.y,
+          Direction.DOWN)
       return
     }
     val (bank, mapId, x, y) = unpackPos(v)
@@ -729,7 +858,12 @@ constructor(
   }
 
   /** Talking to a trainer: battle if undefeated, else the post-battle line. */
-  private suspend fun trainerTalk(ctx: ScriptContext, state: PlayerState, map: MapDef, npc: NpcDef) {
+  private suspend fun trainerTalk(
+      ctx: ScriptContext,
+      state: PlayerState,
+      map: MapDef,
+      npc: NpcDef
+  ) {
     val spot = npc.trainer ?: return
     if (ctx.isFlagSet(defeatedFlag(map, npc))) {
       if (spot.postText != 0) ctx.say(RawLine(spot.postText))
@@ -738,7 +872,12 @@ constructor(
     trainerBattle(ctx, state, map, npc)
   }
 
-  private suspend fun trainerBattle(ctx: ScriptContext, state: PlayerState, map: MapDef, npc: NpcDef) {
+  private suspend fun trainerBattle(
+      ctx: ScriptContext,
+      state: PlayerState,
+      map: MapDef,
+      npc: NpcDef
+  ) {
     val spot = npc.trainer ?: return
     if (spot.introText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.introText))
     val result = ctx.trainerBattle(spot.trainerId)
@@ -756,7 +895,8 @@ constructor(
         MovementType.FACE_DOWN -> listOf(Direction.DOWN)
         MovementType.FACE_LEFT -> listOf(Direction.LEFT)
         MovementType.FACE_RIGHT -> listOf(Direction.RIGHT)
-        MovementType.LOOK_AROUND -> listOf(Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT)
+        MovementType.LOOK_AROUND ->
+            listOf(Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT)
         MovementType.FACE_DOWN_AND_UP -> listOf(Direction.DOWN, Direction.UP)
         MovementType.FACE_LEFT_AND_RIGHT -> listOf(Direction.LEFT, Direction.RIGHT)
         else ->
@@ -778,33 +918,47 @@ constructor(
    * (same row/column, within its sight, nothing solid between) walks up and battles. True when one
    * did, so the step's encounter roll is skipped.
    */
-  fun checkTrainerSight(session: SessionContext, state: PlayerState, map: MapDef, px: Int, py: Int): Boolean {
+  fun checkTrainerSight(
+      session: SessionContext,
+      state: PlayerState,
+      map: MapDef,
+      px: Int,
+      py: Int
+  ): Boolean {
     val stored = stored(state) ?: return false
     val hit = spottingTrainer(stored, state, map, px, py) ?: return false
     val (npc, dir, dist) = hit
-    val entityId = npcService.entityIdFor(map.regionId.toInt(), map.bankId.toInt() and 0xFF, map.mapId.toInt() and 0xFF, npc.entityIdx)
+    val entityId =
+        npcService.entityIdFor(
+            map.regionId.toInt(),
+            map.bankId.toInt() and 0xFF,
+            map.mapId.toInt() and 0xFF,
+            npc.entityIdx)
     run(session, state, entityId) { ctx ->
       ctx.send(FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true))
       kotlinx.coroutines.delay(EXCLAIM_MS)
-      val walk = when (dir) {
-        Direction.UP -> MovementStep.WALK_UP
-        Direction.DOWN -> MovementStep.WALK_DOWN
-        Direction.LEFT -> MovementStep.WALK_LEFT
-        else -> MovementStep.WALK_RIGHT
-      }
-      val face = when (dir) {
-        Direction.UP -> MovementStep.FACE_UP
-        Direction.DOWN -> MovementStep.FACE_DOWN
-        Direction.LEFT -> MovementStep.FACE_LEFT
-        else -> MovementStep.FACE_RIGHT
-      }
-      ctx.moveNpc(npc.entityIdx, *(listOf(face) + List(dist - 1) { walk }).toTypedArray())
-      val back = when (dir.opposite()) {
-        Direction.UP -> MovementStep.FACE_UP
-        Direction.DOWN -> MovementStep.FACE_DOWN
-        Direction.LEFT -> MovementStep.FACE_LEFT
-        else -> MovementStep.FACE_RIGHT
-      }
+      val walk =
+          when (dir) {
+            Direction.UP -> MovementStep.WALK_UP
+            Direction.DOWN -> MovementStep.WALK_DOWN
+            Direction.LEFT -> MovementStep.WALK_LEFT
+            else -> MovementStep.WALK_RIGHT
+          }
+      val face =
+          when (dir) {
+            Direction.UP -> MovementStep.FACE_UP
+            Direction.DOWN -> MovementStep.FACE_DOWN
+            Direction.LEFT -> MovementStep.FACE_LEFT
+            else -> MovementStep.FACE_RIGHT
+          }
+      ctx.moveNpc(npc.entityIdx, *(listOf(face) + List(dist - 1) { walk } + face).toTypedArray())
+      val back =
+          when (dir.opposite()) {
+            Direction.UP -> MovementStep.FACE_UP
+            Direction.DOWN -> MovementStep.FACE_DOWN
+            Direction.LEFT -> MovementStep.FACE_LEFT
+            else -> MovementStep.FACE_RIGHT
+          }
       ctx.moveSelf(back)
       trainerBattle(ctx, state, map, npc)
     }
@@ -812,7 +966,13 @@ constructor(
   }
 
   /** (trainer, direction it looks, distance) of a trainer that sees (px, py), or null. */
-  internal fun spottingTrainer(stored: StoredCharacter, state: PlayerState, map: MapDef, px: Int, py: Int): Triple<NpcDef, Direction, Int>? {
+  internal fun spottingTrainer(
+      stored: StoredCharacter,
+      state: PlayerState,
+      map: MapDef,
+      px: Int,
+      py: Int
+  ): Triple<NpcDef, Direction, Int>? {
     for (npc in map.npcs) {
       val spot = npc.trainer ?: continue
       if (spot.sight <= 0 || spot.trainerId <= 0) continue
@@ -840,9 +1000,13 @@ constructor(
   }
 
   private fun packPos(map: MapDef, x: Int, y: Int): Int =
-      ((map.bankId.toInt() and 0xFF) shl 24) or ((map.mapId.toInt() and 0xFF) shl 16) or ((x and 0xFF) shl 8) or (y and 0xFF)
+      ((map.bankId.toInt() and 0xFF) shl 24) or
+          ((map.mapId.toInt() and 0xFF) shl 16) or
+          ((x and 0xFF) shl 8) or
+          (y and 0xFF)
 
-  private fun unpackPos(v: Int): List<Int> = listOf((v ushr 24) and 0xFF, (v ushr 16) and 0xFF, (v ushr 8) and 0xFF, v and 0xFF)
+  private fun unpackPos(v: Int): List<Int> =
+      listOf((v ushr 24) and 0xFF, (v ushr 16) and 0xFF, (v ushr 8) and 0xFF, v and 0xFF)
 
   companion object {
     const val UI_PC_MONS = 1

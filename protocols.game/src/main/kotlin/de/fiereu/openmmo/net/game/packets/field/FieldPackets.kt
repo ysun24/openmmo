@@ -65,7 +65,8 @@ enum class TravelMode {
 /**
  * s2c 0xE8: an avatar's travel mode changed (sent to the player and its observers, and to a new
  * observer when it first sees the player). [running] is the last step's run state. [exclaim] with
- * an npc's id is a trainer's "!" when it spots the player (the decomp's FLDEFF_EXCLAMATION_MARK_ICON).
+ * an npc's id is a trainer's "!" when it spots the player (the decomp's
+ * FLDEFF_EXCLAMATION_MARK_ICON).
  */
 data class FieldAvatarPacket(
     val entityId: Long,
@@ -80,10 +81,12 @@ object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
     val mode = field(U8) { it.mode.ordinal }
     val flags = field(U8) { (if (it.running) 1 else 0) or (if (it.exclaim) 2 else 0) }
     return FieldAvatarPacket(
-        id, TravelMode.entries.getOrElse(mode) { TravelMode.WALK }, flags and 1 != 0, flags and 2 != 0)
+        id,
+        TravelMode.entries.getOrElse(mode) { TravelMode.WALK },
+        flags and 1 != 0,
+        flags and 2 != 0)
   }
 }
-
 
 /** One FLY destination the player has visited, in the player's region. */
 data class FlyDestination(val bank: Int, val map: Int)

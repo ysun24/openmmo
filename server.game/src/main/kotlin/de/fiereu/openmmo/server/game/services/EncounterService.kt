@@ -55,8 +55,8 @@ constructor(
 
   /**
    * An encounter that is not a step: ROCK SMASH (rock_smash_mons, special RockSmashWildEncounter)
-   * and SWEET SCENT ([force]: always meets a monster when the tile has a table). True when a
-   * battle started.
+   * and SWEET SCENT ([force]: always meets a monster when the tile has a table). True when a battle
+   * started.
    */
   fun encounterNow(
       session: SessionContext,

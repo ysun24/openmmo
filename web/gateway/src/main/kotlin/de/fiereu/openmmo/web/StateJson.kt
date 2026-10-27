@@ -10,11 +10,11 @@ import de.fiereu.openmmo.client.world.Entity
 import de.fiereu.openmmo.client.world.MapKey
 import de.fiereu.openmmo.client.world.OverworldState
 import de.fiereu.openmmo.client.world.WorldState
-import de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket
-import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
+import de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
 import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import de.fiereu.openmmo.net.game.packets.trade.TradeStage

@@ -17,7 +17,7 @@ export function init(a) {
   // A small HUD button next to the menu (touch users have no F key).
   const bar = $('#topbar');
   if (bar && !$('#btn-field')) {
-    const b = h('button#btn-field', { type: 'button', title: 'Field moves (F)', on: { click: () => openField() } }, 'Field');
+    const b = h('button#btn-field.small', { type: 'button', title: 'Field moves (F)', on: { click: () => openField() } }, '✦ Field');
     const menu = $('#btn-menu');
     if (menu && menu.parentNode) menu.parentNode.insertBefore(b, menu);
     else bar.append(b);

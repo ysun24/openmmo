@@ -70,8 +70,7 @@ object FieldMoves {
       action != FieldAction.DIVE || region == Region.HOENN
 
   /** The story flag a badge sets: `<region>/FLAG_BADGE0n_GET`. */
-  fun badgeFlag(region: Region, badge: Int): String =
-      "${region.storyName}/FLAG_BADGE0${badge}_GET"
+  fun badgeFlag(region: Region, badge: Int): String = "${region.storyName}/FLAG_BADGE0${badge}_GET"
 
   /**
    * checkpartymove: the first party monster (in slot order, not an egg) that knows [moveId], or
@@ -84,10 +83,15 @@ object FieldMoves {
           .firstOrNull { mon -> mon.moves.any { it.id.toInt() == moveId } }
 
   /**
-   * Whether [action] passes the badge and party checks, given the player's [flags]. Not where it
-   * is used: [FieldService] checks the tile.
+   * Whether [action] passes the badge and party checks, given the player's [flags]. Not where it is
+   * used: [FieldService] checks the tile.
    */
-  fun usable(region: Region, action: FieldAction, party: List<Pokemon>, flags: Set<String>): Boolean {
+  fun usable(
+      region: Region,
+      action: FieldAction,
+      party: List<Pokemon>,
+      flags: Set<String>
+  ): Boolean {
     if (!existsIn(region, action)) return false
     val move = moveOf[action] ?: return false
     if (partyMonWith(party, move) == null) return false
