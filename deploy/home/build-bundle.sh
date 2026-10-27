@@ -78,7 +78,6 @@ docker save "openmmo:$VERSION" | gzip -6 >"$STAGE/openmmo-image-$VERSION.tar.gz"
 cp "$HERE/compose.yml" "$HERE/.env.example" "$HERE/README.md" "$STAGE/"
 cp "$HERE"/scripts/*.ps1 "$STAGE/"
 echo "$VERSION" >"$STAGE/VERSION"
-(cd "$STAGE" && sha256sum -- * >SHA256SUMS)
 # CRLF for the Windows-side text files, so Notepad and PowerShell 5 are happy.
 for f in "$STAGE"/*.ps1 "$STAGE/.env.example" "$STAGE/README.md" "$STAGE/compose.yml"; do
   sed -i 's/\r$//; s/$/\r/' "$f"

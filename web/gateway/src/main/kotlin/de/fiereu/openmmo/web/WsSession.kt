@@ -223,10 +223,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
   private fun register(msg: JsonObject) {
     if (game != null) return sendRegisterFailure("ALREADY_LOGGED_IN")
     val now = System.currentTimeMillis()
-    if (!loginLimiter.tryAcquire(now) ||
-        !shared.registersPerClient.tryAcquire(clientAddress, now)) {
-      return sendRegisterFailure("RATE_LIMITED")
-    }
+    if (!loginLimiter.tryAcquire(now)) return sendRegisterFailure("RATE_LIMITED")
     fun str(k: String) = (msg[k] as? JsonPrimitive)?.takeIf { it.isString }?.content
     val user = str("user")?.trim().orEmpty()
     val pass = str("pass").orEmpty()
@@ -239,6 +236,11 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     if (pass.length < MIN_PASSWORD || pass.length > 128) return sendRegisterFailure("BAD_PASSWORD")
     if (invite.isEmpty() || invite.length > 32) return sendRegisterFailure("BAD_INVITE")
     if (name.length > 16 || region !in 0..1) return sendRegisterFailure("BAD_CHARACTER")
+    // Only well-formed requests count against the address, so typos lock nobody out.
+    if (!shared.registersPerClient.tryAcquire(clientAddress, now)) {
+      log.warn { "registration rate limited for $clientAddress" }
+      return sendRegisterFailure("RATE_LIMITED")
+    }
     if (!loginBusy.compareAndSet(false, true)) return sendError("login already in progress")
     shared.blocking.execute {
       try {

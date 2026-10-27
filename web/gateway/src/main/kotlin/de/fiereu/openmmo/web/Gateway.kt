@@ -68,7 +68,7 @@ class Gateway(val config: GatewayConfig, val rootPublic: ECPublicKey) : AutoClos
 
   /** Shared by every socket from one client address (see [WsSession.clientAddress]). */
   val loginsPerClient = KeyedRateLimiter(30, 60_000)
-  val registersPerClient = KeyedRateLimiter(5, 3_600_000)
+  val registersPerClient = KeyedRateLimiter(20, 3_600_000)
 
   val stateJson = StateJson(CodegenNames(config.decomp))
   val files = StaticFiles(config.staticRoot.toPath())

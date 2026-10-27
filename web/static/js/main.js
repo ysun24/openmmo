@@ -236,6 +236,7 @@ function showLogin(msg, err = false) {
   const st = $('#login-status');
   st.textContent = msg || '';
   st.classList.toggle('err', err);
+  if (msg) st.scrollIntoView({ block: 'nearest' }); // phones: the status sits below the fold
   $('#login-btn').disabled = false;
   setTimeout(() => ($('#user').value ? $('#pass') : $('#user')).focus({ preventScroll: true }), 0);
 }
