@@ -61,26 +61,28 @@ class Story:
         self.region = region
 
     # ---- commands and state
-    def cmd(self, text, wait=1.0):
+    def cmd(self, text, wait=1.0, expect=None):
+        """A slash command; the reply line (containing `expect`, when given)."""
         before = len(self.p.chat_texts())
         self.p.send(t="say", text=text)
-        end = time.time() + wait
+        end = time.time() + (wait if expect is None else max(wait, 6))
         while time.time() < end:
-            new = self.p.chat_texts()[before:]
+            new = [c for c in self.p.chat_texts()[before:] if expect is None or expect in c]
             if new:
                 return new[-1]
             time.sleep(0.05)
         return ""
 
     def flag(self, name, value=None):
-        r = self.cmd(f"/script flag {name}" + ("" if value is None else (" on" if value else " off")))
+        r = self.cmd(f"/script flag {name}" + ("" if value is None else (" on" if value else " off")),
+                     expect=f"{name} is")
         return " is set" in r
 
     def trainer(self, name, value):
-        self.cmd(f"/script trainer {name} " + ("on" if value else "off"))
+        self.cmd(f"/script trainer {name} " + ("on" if value else "off"), expect=f"{name} is")
 
     def var(self, name, value=None):
-        r = self.cmd(f"/script var {name}" + ("" if value is None else f" {value}"))
+        r = self.cmd(f"/script var {name}" + ("" if value is None else f" {value}"), expect=f"{name} =")
         try:
             return int(r.rsplit("=", 1)[1].strip(" ."))
         except (IndexError, ValueError):
@@ -293,11 +295,17 @@ def has_item(s, name):
     """In the bag, or (items the wire catalogue lacks: SILPH SCOPE...) in the server's own count."""
     if any(name in k.replace("é", "E") for k in s.bag()):
         return True
-    r = s.cmd(f"/script hasitem {name.replace(' ', '_').replace('.', '')}", 3)
-    try:
-        return int(r.rsplit(" x", 1)[1]) > 0
-    except (IndexError, ValueError):
-        return False
+    item = name.replace(' ', '_').replace('.', '')
+    for _ in range(3):
+        before = len(s.p.chat_texts())
+        s.p.send(t="say", text=f"/script hasitem {item}")
+        end = time.time() + 4
+        while time.time() < end:
+            hit = [c for c in s.p.chat_texts()[before:] if f"ITEM_{item} x" in c]
+            if hit:
+                return int(hit[-1].rsplit(" x", 1)[1]) > 0
+            time.sleep(0.1)
+    return False
 
 
 @scene(0, "bill")
@@ -413,8 +421,9 @@ def scene_tower(s):
         s.tp("LavenderTown_VolunteerPokemonHouse", 3, 5, "up")
     fx, fy = npc_by_script(0, "LavenderTown_VolunteerPokemonHouse", "LavenderTown_VolunteerPokemonHouse_EventScript_MrFuji")
     s.stand_by("LavenderTown_VolunteerPokemonHouse", fx, fy, "down")
-    s.talk(timeout=30)
-    check(s.flag("FLAG_GOT_POKE_FLUTE") and has_item(s, "POKE FLUTE"), "Mr. Fuji gave the POKé FLUTE")
+    texts = s.talk(timeout=30)
+    got = s.flag("FLAG_GOT_POKE_FLUTE")
+    check(got and has_item(s, "POKE FLUTE"), f"Mr. Fuji gave the POKé FLUTE (flag {got}, bag {sorted(s.bag())}, {texts[-2:]})")
 
 
 @scene(0, "silph")
