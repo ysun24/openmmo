@@ -282,6 +282,7 @@ class ArenaHooks(
     private val trainerName: String,
 ) : FacilityHooks {
   override val allowSwitch: Boolean = false
+  override val bothDownIsLoss: Boolean = true
 
   private var pair: Pair<Long, Long>? = null
   private var turns = 0

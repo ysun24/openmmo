@@ -347,10 +347,25 @@ def main():
         res = {}
         # Expand the FRONTIER_MONS_* macros by plain substitution first.
         macros = {}
-        for m in re.finditer(r"#define\s+(FRONTIER_MONS_\w+)\s*\\\n((?:.*\\\n)*.*)", text):
-            macros[m.group(1)] = m.group(2).replace("\\", " ")
-        body = text
-        for _ in range(3):
+        fmacros = {}
+        for m in re.finditer(r"#define\s+(FRONTIER_MONS_\w+)(\(([^)]*)\))?[ \t]*\\\n((?:.*\\\n)*.*)", text):
+            body_ = m.group(4).replace("\\", " ")
+            if m.group(2):
+                fmacros[m.group(1)] = ([a.strip() for a in m.group(3).split(",")], body_)
+            else:
+                macros[m.group(1)] = body_
+        body = re.sub(r"#define[^\n]*(?:\\\n[^\n]*)*", " ", text)
+        for _ in range(6):
+            for k, (params, fb) in fmacros.items():
+                def expand(mm, params=params, fb=fb):
+                    args_ = [a.strip() for a in mm.group(1).split(",")]
+                    out = fb
+                    for pn, av in zip(params, args_):
+                        out = re.sub(r"##\s*" + pn + r"\b", av, out)
+                        out = re.sub(r"\b" + pn + r"\s*##", av, out)
+                        out = re.sub(r"\b" + pn + r"\b", av, out)
+                    return out.replace("_ ", "_")
+                body = re.sub(r"\b" + k + r"\s*\(([^()]*)\)", expand, body)
             for k, v in macros.items():
                 body = re.sub(r"\b" + k + r"\b", v, body)
         for name, val in all_arrays(body, pattern).items():

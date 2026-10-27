@@ -85,6 +85,10 @@ class FrontierRulesTest :
         data.exchange.first { it.id == "PROTEIN" }.cost shouldBe 1
         data.pyramidWild50.size shouldBe 20
         data.factoryStyles.size shouldBe 7
+        // Every trainer has a mon set, including the macro-built ones (FRONTIER_MONS_*_EXTRA(...)).
+        data.frontier.trainers.forEach { it.monSet.size shouldBeGreaterThanOrEqual 12 }
+        data.frontier.trainers[48].monSet.take(6) shouldBe listOf(2, 3, 4, 8, 9, 21)
+        data.tents.values.forEach { t -> t.trainers.forEach { it.monSet.size shouldBeGreaterThanOrEqual 3 } }
       }
 
       test("GetRandomScaledFrontierTrainerId: ranges per challenge, the 7th battle harder") {

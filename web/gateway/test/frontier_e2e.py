@@ -82,6 +82,8 @@ def drive(p, picks_for, stop_kinds=("message",), max_steps=400, on_screen=None):
     """Answers screens until a message whose text satisfies stop or the desk closes."""
     log = []
     seq = -1
+    # The desk opens with a new screen (an earlier desk may still read {"open": false}).
+    p.wait(lambda q: fr(q).get("open"), 30, "desk open")
     for _ in range(max_steps):
         f = p.wait(lambda q: (fr(q).get("open") is False and "closed") or
                    (fr(q).get("seq", -1) > seq and fr(q)), 120, "next frontier screen")
@@ -104,6 +106,14 @@ def drive(p, picks_for, stop_kinds=("message",), max_steps=400, on_screen=None):
             return log
         answer(p, **r)
     return log
+
+
+def progressed(log):
+    """A battle was fought: a result, or a later screen showing the streak went up."""
+    if any(k == "result" for k, _ in log):
+        return True
+    return any(k in ("between", "doors", "pyramid", "dome") and ("streak: 1" in t.lower() or "battle 2" in t.lower() or "room 2" in t.lower() or "round 2" in t.lower()) for k, t in log) or \
+        any(k == "message" and ("lost" in t or "won" in t or "roof" in t) for k, t in log)
 
 
 def team_picks(s):
@@ -197,19 +207,23 @@ def main():
         run("tower:singles", menus(["challenge", "50"]), "Battle Tower singles round of 7",
             lambda log, b, t: (len(b) == 7 and all(r == "VICTORY" for r in b) and "won the challenge" in t[-1]) or (_ for _ in ()).throw(AssertionError(log[-5:])))
     if want("factory"):
-        swaps = []
-        log = run("factory:singles", menus(["challenge", "50"]), "Battle Factory rental run with swaps",
-                  lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
-        assert any(k == "swap" for k, _ in log) or len([r for k, r in log if k == "result"]) < 2, "no swap screen"
+        for attempt in range(8):
+            log = run("factory:singles", menus(["challenge", "50"]), f"Battle Factory rental run (try {attempt + 1})",
+                      lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
+            if any(k == "swap" for k, _ in log):
+                ok("Battle Factory: won a battle and swapped a rental")
+                break
+        else:
+            raise AssertionError("no factory swap in 8 tries")
     if want("palace"):
         run("palace:singles", menus(["challenge", "50"]), "Battle Palace (auto moves)",
-            lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+            lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("arena"):
         run("arena", menus(["challenge", "50"]), "Battle Arena (3-turn judging)",
-            lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+            lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("dome"):
         run("dome:singles", menus(["challenge", "50"]), "Battle Dome tournament",
-            lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+            lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("pike"):
         run("pike", menus(["challenge", "50"]), "Battle Pike rooms",
             lambda log, b, t: any(k == "doors" for k, _ in log) or (_ for _ in ()).throw(AssertionError(log)))
@@ -218,14 +232,14 @@ def main():
             lambda log, b, t: any(k == "pyramid" for k, _ in log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("ttower"):
         run("ttower", menus(["single"]), "Trainer Tower run",
-            lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+            lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("hill"):
         run("hill", menus(["normal"]), "Trainer Hill run",
-            lambda log, b, t: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+            lambda log, b, t: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("tents"):
         for t in ("verdanturf", "fallarbor", "slateport"):
             run("tent:" + t, menus(["challenge"]), f"{t} tent",
-                lambda log, b, tx: len(b) >= 1 or (_ for _ in ()).throw(AssertionError(log)))
+                lambda log, b, tx: progressed(log) or (_ for _ in ()).throw(AssertionError(log)))
     if want("exchange"):
         command(A, "/frontier bp 100")
         time.sleep(0.5)

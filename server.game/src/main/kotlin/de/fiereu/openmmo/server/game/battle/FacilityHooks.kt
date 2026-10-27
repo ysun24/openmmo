@@ -20,6 +20,10 @@ interface FacilityHooks {
   val allowSwitch: Boolean
     get() = true
 
+  /** Battle Arena: a judgment draw that leaves both sides without monsters is a loss (B_OUTCOME_DREW). */
+  val bothDownIsLoss: Boolean
+    get() = false
+
   /** Player-side positions the AI plays (the Battle Tower multi battle's NPC partner). */
   val aiPositions: Set<Int>
     get() = emptySet()

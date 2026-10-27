@@ -843,7 +843,12 @@ constructor(
         if (!battle.facilityBattle) awardXp(battle, foe)
       }
     }
+    val drew =
+        battle.facility?.bothDownIsLoss == true &&
+            battle.opponent.all { it.fainted } &&
+            battle.party.all { it.fainted || it.source.isEgg }
     when {
+      drew -> endDefeat(battle)
       battle.opponent.all { it.fainted } -> endVictory(battle)
       battle.party.all { it.fainted || it.source.isEgg } -> endDefeat(battle)
       else -> {
