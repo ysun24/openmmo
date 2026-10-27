@@ -16,13 +16,19 @@ import kotlinx.serialization.json.putJsonArray
  *   FireRed `new_menu_helpers.c` over `menu_message.png`);
  * - the standard menu frame (`DrawStdFrame...`: tiles 0..8 in a 3x3 grid) for every user frame
  *   style the options menu offers (Emerald `text_window/1..20.png`, FireRed `type1..10.png`).
- * Each PNG keeps the frame's own palette; window-fill pixels use palette colour 1 like
- * `FillWindowPixelBuffer(PIXEL_FILL(1))`.
+ * Each PNG keeps the frame's own palette for the frame tiles; the window inside is filled with
+ * the standard text window's background (`FillWindowPixelBuffer(PIXEL_FILL(1))` in the window's own
+ * palette, which is white in both games), not with the frame palette's colour 1.
  */
 class UiExport(private val decompRoot: File, private val out: Output) {
   val failures: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
 
-  /** tile (index, vflip, hflip) at cell; -1 = window fill (colour 1); null = transparent */
+  private companion object {
+    /** TEXT_COLOR_WHITE of gStandardMenuPalette / the std text window palette. */
+    const val WINDOW_FILL = 0xFFFFFFFF.toInt()
+  }
+
+  /** tile (index, vflip) at cell; -1 = window fill; null = transparent */
   private class Placed(val tile: Int, val vflip: Boolean = false)
 
   private class Sheet(val img: BufferedImage) {
@@ -42,8 +48,11 @@ class UiExport(private val decompRoot: File, private val out: Output) {
     for (r in 0 until h) for (c in 0 until w) {
       val p = grid[r][c] ?: continue
       for (y in 0 until 8) for (x in 0 until 8) {
-        val i =
-            if (p.tile < 0) 1 else sheet.index(p.tile, x, if (p.vflip) 7 - y else y)
+        if (p.tile < 0) {
+          img.setRGB(c * 8 + x, r * 8 + y, WINDOW_FILL)
+          continue
+        }
+        val i = sheet.index(p.tile, x, if (p.vflip) 7 - y else y)
         if (i != 0) img.setRGB(c * 8 + x, r * 8 + y, sheet.rgb(i))
       }
     }

@@ -562,11 +562,17 @@ body.touch #help.onboard { background: #000c; place-items: start center; padding
 #login-form label.check { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 #login-form label.check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-#screen:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#screen:focus, #screen:focus-visible { outline: none; }
 #dialog.typing .more, #dialog.typing .choices { visibility: hidden; }
 html.frames-ready .panel .chip { font-size: inherit; padding: 0 calc(var(--pu) * 3); }
 /* toasts below the panels' headers, near the bottom of the game */
-html.frames-ready #toast { top: auto; bottom: calc(var(--pu) * 40); z-index: 41; }
-body.touch.portrait #toast { bottom: auto; top: calc(var(--topbar) + 8px); }
+html.frames-ready #toast { z-index: 41; }
+/* while a panel is open its header sits under the topbar: show toasts at the bottom instead */
+html.frames-ready body:has(#panels .panel):not(.portrait) #toast { top: auto; bottom: calc(var(--pu) * 40); }
+#dialog .speaker.dup { display: none; }
 .panel .setrow .row { flex-wrap: nowrap; gap: 4px; }
 .panel .setrow .row button { min-width: 0; padding-left: 8px; padding-right: 8px; }
+/* battle action menu: GBA geometry (120 px window), FONT_NARROW for move names like the GBA */
+html.frames-ready #battle .menu { width: calc(var(--u) * 120); }
+html.fonts-ready #battle .menu button { padding-left: calc(var(--u) * 8); }
+html.fonts-ready #battle .menu.wide button { font-family: "OpenMMO Narrow", var(--font-ui); }

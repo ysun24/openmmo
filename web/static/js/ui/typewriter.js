@@ -20,6 +20,9 @@ function check() {
     return;
   }
   lines = [...box.children].filter((e) => e.tagName === 'DIV');
+  // the GBA prints the speaker in the text ("MOM: ..."); drop the extra tag when it does
+  const sp = box.querySelector('.speaker');
+  if (sp && lines[0]) sp.classList.toggle('dup', lines[0].textContent.toUpperCase().startsWith(sp.textContent.trim().toUpperCase()));
   const texts = lines.map((l) => l.textContent);
   const k = texts.join('\n');
   if (k === key) return apply(); // same page re-rendered (cursor move, state echo): keep progress

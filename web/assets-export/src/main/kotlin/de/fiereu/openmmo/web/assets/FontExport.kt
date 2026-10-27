@@ -59,6 +59,15 @@ class FontExport(private val decompRoot: File, private val out: Output) {
                 16,
                 "OpenMMO RSE"),
             Spec(
+                "narrow",
+                "pokeemerald",
+                "graphics/fonts/latin_narrow.png",
+                "src/fonts.c",
+                "gFontNarrowLatinGlyphWidths",
+                13,
+                16,
+                "OpenMMO Narrow"),
+            Spec(
                 "small",
                 "pokeemerald",
                 "graphics/fonts/latin_small.png",
