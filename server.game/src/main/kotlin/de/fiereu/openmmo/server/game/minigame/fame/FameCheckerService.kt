@@ -21,8 +21,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * FireRed's FAME CHECKER (fame_checker.c): per person a pick state (0 not shown, 1 silhouette,
- * 2 colored) and six flavor-text flags, kept in save section "fame" as {p: [16], f: [16]}.
+ * FireRed's FAME CHECKER (fame_checker.c): per person a pick state (0 not shown, 1 silhouette, 2
+ * colored) and six flavor-text flags, kept in save section "fame" as {p: [16], f: [16]}.
  * ResetFameChecker starts with only PROF. OAK colored. The map scripts' `famechecker` macro calls
  * SetFlavorTextFlagFromSpecialVars / UpdatePickStateFromSpecialVar8005 with VAR_0x8004 / 8005.
  * Until every map script runs, the decomp's defeat flags of the gym leaders, the ELITE FOUR and
@@ -39,7 +39,10 @@ constructor(private val save: MinigameSave, private val story: StoryService) : M
   suspend fun load(charId: Long): Fame {
     val s = save.section(charId, "fame")
     fun arr(k: String) =
-        (s[k] as? JsonArray)?.map { it.jsonPrimitive.intOrNull ?: 0 }?.toIntArray()?.takeIf { it.size == N }
+        (s[k] as? JsonArray)
+            ?.map { it.jsonPrimitive.intOrNull ?: 0 }
+            ?.toIntArray()
+            ?.takeIf { it.size == N }
     return Fame(arr("p") ?: IntArray(N).also { it[OAK] = COLORED }, arr("f") ?: IntArray(N))
   }
 
@@ -47,7 +50,10 @@ constructor(private val save: MinigameSave, private val story: StoryService) : M
       save.setSection(
           charId,
           "fame",
-          JsonObject(mapOf("p" to JsonArray(f.pick.map { JsonPrimitive(it) }), "f" to JsonArray(f.flags.map { JsonPrimitive(it) }))))
+          JsonObject(
+              mapOf(
+                  "p" to JsonArray(f.pick.map { JsonPrimitive(it) }),
+                  "f" to JsonArray(f.flags.map { JsonPrimitive(it) }))))
 
   /** SetFlavorTextFlagFromSpecialVars. */
   suspend fun setFlavorText(charId: Long, person: Int, index: Int) {
@@ -73,7 +79,8 @@ constructor(private val save: MinigameSave, private val story: StoryService) : M
   }
 
   /** FullyUnlockFameChecker (dev). */
-  suspend fun unlockAll(charId: Long) = store(charId, Fame(IntArray(N) { COLORED }, IntArray(N) { 0x3F }))
+  suspend fun unlockAll(charId: Long) =
+      store(charId, Fame(IntArray(N) { COLORED }, IntArray(N) { 0x3F }))
 
   /** The pick states with the defeat flags applied (see the class comment). */
   private suspend fun view(charId: Long): Fame {
@@ -89,14 +96,21 @@ constructor(private val save: MinigameSave, private val story: StoryService) : M
 
   suspend fun open(session: SessionContext, charId: Long) {
     if (!story.isFlagSet(charId, KantoFlags.FLAG_GOT_FAME_CHECKER)) {
-      MinigameChannel.send(session, "fame", jsonOf("error" to "You don't have the FAME CHECKER yet."))
+      MinigameChannel.send(
+          session, "fame", jsonOf("error" to "You don't have the FAME CHECKER yet."))
       return
     }
     val f = view(charId)
-    MinigameChannel.send(session, "fame", jsonOf("pick" to f.pick.toList(), "flags" to f.flags.toList()))
+    MinigameChannel.send(
+        session, "fame", jsonOf("pick" to f.pick.toList(), "flags" to f.flags.toList()))
   }
 
-  override suspend fun onAction(session: SessionContext, state: PlayerState, topic: String, body: JsonObject) {
+  override suspend fun onAction(
+      session: SessionContext,
+      state: PlayerState,
+      topic: String,
+      body: JsonObject
+  ) {
     val charId = state.characterId ?: return
     when (body.action()) {
       "open" -> open(session, charId)
@@ -113,27 +127,38 @@ constructor(private val save: MinigameSave, private val story: StoryService) : M
 
     val DEFEAT_FLAGS =
         listOf(
-            KantoFlags.FLAG_DEFEATED_BROCK to 2, KantoFlags.FLAG_DEFEATED_MISTY to 3,
-            KantoFlags.FLAG_DEFEATED_LT_SURGE to 4, KantoFlags.FLAG_DEFEATED_ERIKA to 5,
-            KantoFlags.FLAG_DEFEATED_KOGA to 6, KantoFlags.FLAG_DEFEATED_SABRINA to 7,
-            KantoFlags.FLAG_DEFEATED_BLAINE to 8, KantoFlags.FLAG_DEFEATED_LORELEI to 9,
-            KantoFlags.FLAG_DEFEATED_BRUNO to 10, KantoFlags.FLAG_DEFEATED_AGATHA to 11,
-            KantoFlags.FLAG_DEFEATED_LANCE to 12, KantoFlags.FLAG_DEFEATED_LEADER_GIOVANNI to 15)
+            KantoFlags.FLAG_DEFEATED_BROCK to 2,
+            KantoFlags.FLAG_DEFEATED_MISTY to 3,
+            KantoFlags.FLAG_DEFEATED_LT_SURGE to 4,
+            KantoFlags.FLAG_DEFEATED_ERIKA to 5,
+            KantoFlags.FLAG_DEFEATED_KOGA to 6,
+            KantoFlags.FLAG_DEFEATED_SABRINA to 7,
+            KantoFlags.FLAG_DEFEATED_BLAINE to 8,
+            KantoFlags.FLAG_DEFEATED_LORELEI to 9,
+            KantoFlags.FLAG_DEFEATED_BRUNO to 10,
+            KantoFlags.FLAG_DEFEATED_AGATHA to 11,
+            KantoFlags.FLAG_DEFEATED_LANCE to 12,
+            KantoFlags.FLAG_DEFEATED_LEADER_GIOVANNI to 15)
   }
 }
 
 /** The Fame Checker's specials. */
 @Singleton
-class FameCheckerSpecials @Inject constructor(private val fame: FameCheckerService) : SpecialTable() {
+class FameCheckerSpecials @Inject constructor(private val fame: FameCheckerService) :
+    SpecialTable() {
   override val table: Map<String, SpecialFn> =
       mapOf(
-          "SetFlavorTextFlagFromSpecialVars" to { ctx ->
-            fame.setFlavorText(ctx.playerEntityId, ctx.specialVar(0x8004), ctx.specialVar(0x8005))
-            0
-          },
-          "UpdatePickStateFromSpecialVar8005" to { ctx ->
-            fame.setPickState(ctx.playerEntityId, ctx.specialVar(0x8004), ctx.specialVar(0x8005))
-            0
-          },
+          "SetFlavorTextFlagFromSpecialVars" to
+              { ctx ->
+                fame.setFlavorText(
+                    ctx.playerEntityId, ctx.specialVar(0x8004), ctx.specialVar(0x8005))
+                0
+              },
+          "UpdatePickStateFromSpecialVar8005" to
+              { ctx ->
+                fame.setPickState(
+                    ctx.playerEntityId, ctx.specialVar(0x8004), ctx.specialVar(0x8005))
+                0
+              },
       )
 }

@@ -149,6 +149,7 @@ class StateJsonTest {
             "trade",
             "market",
             "social",
+            "minigames",
             "dex",
             "trainer",
             "daycare",

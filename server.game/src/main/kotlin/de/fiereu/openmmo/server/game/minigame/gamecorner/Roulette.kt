@@ -2,11 +2,11 @@ package de.fiereu.openmmo.server.game.minigame.gamecorner
 
 /**
  * Emerald's ROULETTE (pokeemerald src/roulette.c). A round is six balls (BALLS_PER_ROUND). Before
- * each ball the player picks one grid selection: a single square (x12), a Pokémon column or a
- * color row, whose multiplier (GetMultiplier) falls as squares of it are hit. Each ball costs the
- * table's minimum bet (sTableMinBets: left table 1, right 3; the special-rate tables 1 and 6) and
- * a hit pays minBet x multiplier (Task_PrintPayout). A square is taken once a ball lands in it,
- * for the rest of the round (RecordHit).
+ * each ball the player picks one grid selection: a single square (x12), a Pokémon column or a color
+ * row, whose multiplier (GetMultiplier) falls as squares of it are hit. Each ball costs the table's
+ * minimum bet (sTableMinBets: left table 1, right 3; the special-rate tables 1 and 6) and a hit
+ * pays minBet x multiplier (Task_PrintPayout). A square is taken once a ball lands in it, for the
+ * rest of the round (RecordHit).
  *
  * The decomp simulates the ball's flight around a rotating wheel; here the wheel angle comes from
  * the time the player pressed A and the travel distance from sRouletteTables' randDistanceLow ..
@@ -65,7 +65,13 @@ class Roulette(val table: Int, val specialRate: Boolean, private val rng: () -> 
     }
   }
 
-  data class Throw(val slot: Int, val square: Int, val won: Boolean, val multiplier: Int, val payout: Int)
+  data class Throw(
+      val slot: Int,
+      val square: Int,
+      val won: Boolean,
+      val multiplier: Int,
+      val payout: Int
+  )
 
   /**
    * Throws the next ball for bet [selection] with the wheel at [wheelAngle] degrees. Returns the

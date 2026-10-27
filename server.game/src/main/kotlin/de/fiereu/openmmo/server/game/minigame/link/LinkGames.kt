@@ -11,11 +11,49 @@ data class LinkPlayer(val name: String, val charId: Long?, val dex: Int) {
 /** The berry index order of gBerryCrush_BerryData (CHERI .. ENIGMA). */
 val BERRY_NAMES =
     listOf(
-        "CHERI", "CHESTO", "PECHA", "RAWST", "ASPEAR", "LEPPA", "ORAN", "PERSIM", "LUM", "SITRUS",
-        "FIGY", "WIKI", "MAGO", "AGUAV", "IAPAPA", "RAZZ", "BLUK", "NANAB", "WEPEAR", "PINAP",
-        "POMEG", "KELPSY", "QUALOT", "HONDEW", "GREPA", "TAMATO", "CORNN", "MAGOST", "RABUTA", "NOMEL",
-        "SPELON", "PAMTRE", "WATMEL", "DURIN", "BELUE", "LIECHI", "GANLON", "SALAC", "PETAYA", "APICOT",
-        "LANSAT", "STARF", "ENIGMA")
+        "CHERI",
+        "CHESTO",
+        "PECHA",
+        "RAWST",
+        "ASPEAR",
+        "LEPPA",
+        "ORAN",
+        "PERSIM",
+        "LUM",
+        "SITRUS",
+        "FIGY",
+        "WIKI",
+        "MAGO",
+        "AGUAV",
+        "IAPAPA",
+        "RAZZ",
+        "BLUK",
+        "NANAB",
+        "WEPEAR",
+        "PINAP",
+        "POMEG",
+        "KELPSY",
+        "QUALOT",
+        "HONDEW",
+        "GREPA",
+        "TAMATO",
+        "CORNN",
+        "MAGOST",
+        "RABUTA",
+        "NOMEL",
+        "SPELON",
+        "PAMTRE",
+        "WATMEL",
+        "DURIN",
+        "BELUE",
+        "LIECHI",
+        "GANLON",
+        "SALAC",
+        "PETAYA",
+        "APICOT",
+        "LANSAT",
+        "STARF",
+        "ENIGMA")
 
 /**
  * FireRed's BERRY CRUSH (berry_crush.c). Every player drops a berry: the crusher needs the sum of
@@ -24,7 +62,11 @@ val BERRY_NAMES =
  * presses of that half second decide a big sparkle (sBigSparkleThresholds), and the results'
  * silkiness = bigSparkles * 50 / checks + 50 scales the powder: powder * players * silkiness / 100.
  */
-class BerryCrush(val players: List<LinkPlayer>, val berries: List<Int>, private val rnd: Random = Random.Default) {
+class BerryCrush(
+    val players: List<LinkPlayer>,
+    val berries: List<Int>,
+    private val rnd: Random = Random.Default
+) {
   val target = berries.sumOf { DIFFICULTY[it.coerceIn(0, DIFFICULTY.size - 1)] }
   private val basePowder = berries.sumOf { POWDER[it.coerceIn(0, POWDER.size - 1)] }
   var frame = 0
@@ -104,13 +146,95 @@ class BerryCrush(val players: List<LinkPlayer>, val berries: List<Int>, private 
 
   companion object {
     val DIFFICULTY =
-        intArrayOf(50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 60, 60, 60, 60, 60, 80, 80, 80, 80, 80,
-            100, 100, 100, 100, 100, 130, 130, 130, 130, 130, 160, 160, 160, 160, 160, 180, 180, 180,
-            180, 180, 200, 200, 150)
+        intArrayOf(
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            60,
+            60,
+            60,
+            60,
+            60,
+            80,
+            80,
+            80,
+            80,
+            80,
+            100,
+            100,
+            100,
+            100,
+            100,
+            130,
+            130,
+            130,
+            130,
+            130,
+            160,
+            160,
+            160,
+            160,
+            160,
+            180,
+            180,
+            180,
+            180,
+            180,
+            200,
+            200,
+            150)
     val POWDER =
-        intArrayOf(20, 20, 20, 20, 20, 30, 30, 30, 30, 30, 50, 50, 50, 50, 50, 70, 70, 70, 70, 70,
-            100, 100, 100, 100, 100, 150, 150, 150, 150, 150, 250, 250, 250, 250, 250, 500, 500, 500,
-            500, 500, 750, 750, 200)
+        intArrayOf(
+            20,
+            20,
+            20,
+            20,
+            20,
+            30,
+            30,
+            30,
+            30,
+            30,
+            50,
+            50,
+            50,
+            50,
+            50,
+            70,
+            70,
+            70,
+            70,
+            70,
+            100,
+            100,
+            100,
+            100,
+            100,
+            150,
+            150,
+            150,
+            150,
+            150,
+            250,
+            250,
+            250,
+            250,
+            250,
+            500,
+            500,
+            500,
+            500,
+            500,
+            750,
+            750,
+            200)
     val SYNC_BONUS = intArrayOf(0, 1, 2, 3, 5)
     val BIG_SPARKLE = intArrayOf(5, 7, 9, 12)
   }
@@ -120,10 +244,10 @@ class BerryCrush(val players: List<LinkPlayer>, val berries: List<Int>, private 
  * FireRed's DODRIO BERRY PICKING (dodrio_berry_picking.c). Each player's Dodrio reaches three
  * columns with its heads (left, middle, right; neighbours share the outer ones). Berries fall in
  * MAX_FALL_DIST steps whose delay is sBerryFallDelays (faster as the player's berriesEaten passes
- * sDifficultyThresholds); one can be picked from EAT_FALL_DIST on. Blue / green / gold score
- * 10 / 30 / 50 (sBerryScoreMultipliers), a missed berry costs its column's player 50 and greys a
- * status square; ten grey squares end the game. A best score of PRIZE_SCORE (3000) or more wins a
- * berry from sPrizeBerryIds for the number of players.
+ * sDifficultyThresholds); one can be picked from EAT_FALL_DIST on. Blue / green / gold score 10 /
+ * 30 / 50 (sBerryScoreMultipliers), a missed berry costs its column's player 50 and greys a status
+ * square; ten grey squares end the game. A best score of PRIZE_SCORE (3000) or more wins a berry
+ * from sPrizeBerryIds for the number of players.
  */
 class DodrioBerryPicking(val players: List<LinkPlayer>, private val rnd: Random = Random.Default) {
   val columns = players.size * 2 + 1
@@ -219,7 +343,12 @@ class DodrioBerryPicking(val players: List<LinkPlayer>, private val rnd: Random 
   /** SetRandomPrize: one prize for everyone, when the best score reached PRIZE_SCORE. */
   fun prize(): String? {
     if (players.indices.maxOfOrNull { score(it) } ?: 0 < PRIZE_SCORE) return null
-    val set = when (players.size) { 4 -> 1; 5 -> 2; else -> 0 }
+    val set =
+        when (players.size) {
+          4 -> 1
+          5 -> 2
+          else -> 0
+        }
     return PRIZE_BERRIES[set][rnd.nextInt(PRIZE_BERRIES[set].size)]
   }
 
@@ -235,21 +364,55 @@ class DodrioBerryPicking(val players: List<LinkPlayer>, private val rnd: Random 
     val FALL_DELAYS = arrayOf(intArrayOf(40, 24, 13), intArrayOf(32, 19, 10), intArrayOf(22, 13, 7))
     val PRIZE_BERRIES =
         listOf(
-            listOf("RAZZ", "BLUK", "NANAB", "WEPEAR", "PINAP", "PINAP", "WEPEAR", "NANAB", "BLUK", "RAZZ"),
-            listOf("POMEG", "KELPSY", "QUALOT", "HONDEW", "GREPA", "TAMATO", "CORNN", "MAGOST", "RABUTA", "NOMEL"),
-            listOf("SPELON", "PAMTRE", "WATMEL", "DURIN", "BELUE", "BELUE", "DURIN", "WATMEL", "PAMTRE", "SPELON"))
+            listOf(
+                "RAZZ",
+                "BLUK",
+                "NANAB",
+                "WEPEAR",
+                "PINAP",
+                "PINAP",
+                "WEPEAR",
+                "NANAB",
+                "BLUK",
+                "RAZZ"),
+            listOf(
+                "POMEG",
+                "KELPSY",
+                "QUALOT",
+                "HONDEW",
+                "GREPA",
+                "TAMATO",
+                "CORNN",
+                "MAGOST",
+                "RABUTA",
+                "NOMEL"),
+            listOf(
+                "SPELON",
+                "PAMTRE",
+                "WATMEL",
+                "DURIN",
+                "BELUE",
+                "BELUE",
+                "DURIN",
+                "WATMEL",
+                "PAMTRE",
+                "SPELON"))
   }
 }
 
 /**
  * FireRed's POKéMON JUMP (pokemon_jump.c). The vine swings round faster and faster
  * (sVineBaseSpeeds + 7 per speed stage); everyone's Pokémon must be in the air when it passes
- * underneath. Each clear scores 10, plus sScoreBonuses[n] when n players jumped together; a
- * Pokémon caught by the vine ends the game. Air time depends on the species' jump type
- * (sPokeJumpMons: slow / normal / fast). The prize is a random sPrizeItems berry, one more for
- * each sPrizeQuantityData score reached.
+ * underneath. Each clear scores 10, plus sScoreBonuses[n] when n players jumped together; a Pokémon
+ * caught by the vine ends the game. Air time depends on the species' jump type (sPokeJumpMons: slow
+ * / normal / fast). The prize is a random sPrizeItems berry, one more for each sPrizeQuantityData
+ * score reached.
  */
-class PokemonJump(val players: List<LinkPlayer>, val jumpTypes: List<Int>, private val rnd: Random = Random.Default) {
+class PokemonJump(
+    val players: List<LinkPlayer>,
+    val jumpTypes: List<Int>,
+    private val rnd: Random = Random.Default
+) {
   var frame = 0
     private set
 
@@ -371,12 +534,68 @@ class PokemonJump(val players: List<LinkPlayer>, val jumpTypes: List<Int>, priva
     /** sPokeJumpMons: national dex -> jump type. */
     val SPECIES: Map<Int, Int> =
         mapOf(
-            1 to 0, 4 to 2, 7 to 1, 10 to 2, 11 to 2, 13 to 2, 14 to 2, 19 to 2, 20 to 2, 25 to 1,
-            27 to 1, 29 to 1, 32 to 1, 35 to 1, 37 to 1, 39 to 0, 43 to 0, 46 to 2, 52 to 1, 54 to 0,
-            56 to 2, 58 to 2, 60 to 0, 69 to 0, 90 to 2, 98 to 2, 102 to 0, 104 to 1, 132 to 0,
-            133 to 1, 138 to 2, 140 to 2, 152 to 0, 155 to 2, 158 to 1, 167 to 2, 172 to 1, 173 to 1,
-            174 to 0, 175 to 0, 179 to 1, 182 to 0, 183 to 0, 191 to 0, 194 to 0, 204 to 0, 209 to 1,
-            213 to 0, 216 to 1, 218 to 0, 220 to 1, 228 to 2, 231 to 1, 137 to 1, 236 to 2, 238 to 0,
-            239 to 2, 240 to 2, 246 to 2, 252 to 2, 255 to 0, 258 to 1, 259 to 1)
+            1 to 0,
+            4 to 2,
+            7 to 1,
+            10 to 2,
+            11 to 2,
+            13 to 2,
+            14 to 2,
+            19 to 2,
+            20 to 2,
+            25 to 1,
+            27 to 1,
+            29 to 1,
+            32 to 1,
+            35 to 1,
+            37 to 1,
+            39 to 0,
+            43 to 0,
+            46 to 2,
+            52 to 1,
+            54 to 0,
+            56 to 2,
+            58 to 2,
+            60 to 0,
+            69 to 0,
+            90 to 2,
+            98 to 2,
+            102 to 0,
+            104 to 1,
+            132 to 0,
+            133 to 1,
+            138 to 2,
+            140 to 2,
+            152 to 0,
+            155 to 2,
+            158 to 1,
+            167 to 2,
+            172 to 1,
+            173 to 1,
+            174 to 0,
+            175 to 0,
+            179 to 1,
+            182 to 0,
+            183 to 0,
+            191 to 0,
+            194 to 0,
+            204 to 0,
+            209 to 1,
+            213 to 0,
+            216 to 1,
+            218 to 0,
+            220 to 1,
+            228 to 2,
+            231 to 1,
+            137 to 1,
+            236 to 2,
+            238 to 0,
+            239 to 2,
+            240 to 2,
+            246 to 2,
+            252 to 2,
+            255 to 0,
+            258 to 1,
+            259 to 1)
   }
 }

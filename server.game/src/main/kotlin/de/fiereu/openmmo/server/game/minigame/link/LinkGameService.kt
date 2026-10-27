@@ -30,10 +30,10 @@ import kotlinx.serialization.json.buildJsonObject
 private val log = KotlinLogging.logger {}
 
 /**
- * The wireless minigames for online players (topics "lobby", "berrycrush", "dodrio", "pokejump"):
- * a player hosts a group (TryBecomeLinkLeader), others join it (TryJoinLinkGroup), the leader
- * starts it; empty slots up to the game's minimum are filled with NPC players, so one player can
- * play alone. The games run on the server at 60 frames a second.
+ * The wireless minigames for online players (topics "lobby", "berrycrush", "dodrio", "pokejump"): a
+ * player hosts a group (TryBecomeLinkLeader), others join it (TryJoinLinkGroup), the leader starts
+ * it; empty slots up to the game's minimum are filled with NPC players, so one player can play
+ * alone. The games run on the server at 60 frames a second.
  */
 @Singleton
 class LinkGameService
@@ -78,17 +78,34 @@ constructor(
     val mine = groupOf[charId]?.let { groups[it] }
     return jsonOf(
         "groups" to
-            groups.values.filter { !it.running }.map { g ->
-              jsonOf("id" to g.id, "game" to g.game.id, "title" to g.game.title, "leader" to name(g.leader),
-                  "players" to g.members.map(::name), "max" to g.game.max)
-            },
+            groups.values
+                .filter { !it.running }
+                .map { g ->
+                  jsonOf(
+                      "id" to g.id,
+                      "game" to g.game.id,
+                      "title" to g.game.title,
+                      "leader" to name(g.leader),
+                      "players" to g.members.map(::name),
+                      "max" to g.game.max)
+                },
         "mine" to
             mine?.let { g ->
-              jsonOf("id" to g.id, "game" to g.game.id, "title" to g.game.title, "leader" to (g.leader == charId),
-                  "players" to g.members.map(::name), "min" to g.game.min, "max" to g.game.max,
-                  "running" to g.running, "results" to g.results)
+              jsonOf(
+                  "id" to g.id,
+                  "game" to g.game.id,
+                  "title" to g.game.title,
+                  "leader" to (g.leader == charId),
+                  "players" to g.members.map(::name),
+                  "min" to g.game.min,
+                  "max" to g.game.max,
+                  "running" to g.running,
+                  "results" to g.results)
             },
-        "games" to Game.entries.map { jsonOf("id" to it.id, "title" to it.title, "min" to it.min, "max" to it.max) },
+        "games" to
+            Game.entries.map {
+              jsonOf("id" to it.id, "title" to it.title, "min" to it.min, "max" to it.max)
+            },
         "berries" to ownedBerries(charId),
     )
   }
@@ -107,14 +124,19 @@ constructor(
 
   fun berryItemId(name: String): Int? =
       berryIds[name]
-          ?: items.all().firstOrNull { it.name.equals("$name Berry", true) }?.let { items.idOrNull(it) }
+          ?: items
+              .all()
+              .firstOrNull { it.name.equals("$name Berry", true) }
+              ?.let { items.idOrNull(it) }
               ?.also { berryIds[name] = it }
 
-  private fun pushLobby(charId: Long) = sessions.getByCharacterId(charId)?.let {
-    MinigameChannel.send(it, "lobby", lobbyJson(charId))
-  }
+  private fun pushLobby(charId: Long) =
+      sessions.getByCharacterId(charId)?.let {
+        MinigameChannel.send(it, "lobby", lobbyJson(charId))
+      }
 
-  private fun pushAllLobbies() = sessions.onlineCharacterIds().forEach { if (watchers.contains(it)) pushLobby(it) }
+  private fun pushAllLobbies() =
+      sessions.onlineCharacterIds().forEach { if (watchers.contains(it)) pushLobby(it) }
 
   private val watchers = ConcurrentHashMap.newKeySet<Long>()
 
@@ -126,17 +148,26 @@ constructor(
     if (g.members.isEmpty() || (g.leader == charId && !g.running)) {
       groups.remove(gid)
       g.job?.cancel()
-      g.members.forEach { groupOf.remove(it); pushLobby(it) }
+      g.members.forEach {
+        groupOf.remove(it)
+        pushLobby(it)
+      }
     }
   }
 
   /** Opens the lobby for [game] (the Wireless Club / Joyful Game Corner attendants). */
   fun openLobby(session: SessionContext, charId: Long, game: String? = null) {
     watchers += charId
-    MinigameChannel.send(session, "lobby", JsonObject(lobbyJson(charId) + ("focus" to JsonPrimitive(game ?: ""))))
+    MinigameChannel.send(
+        session, "lobby", JsonObject(lobbyJson(charId) + ("focus" to JsonPrimitive(game ?: ""))))
   }
 
-  override suspend fun onAction(session: SessionContext, state: PlayerState, topic: String, body: JsonObject) {
+  override suspend fun onAction(
+      session: SessionContext,
+      state: PlayerState,
+      topic: String,
+      body: JsonObject
+  ) {
     val charId = state.characterId ?: return
     if (topic != "lobby") {
       inputs[charId]?.invoke(body)
@@ -195,7 +226,9 @@ constructor(
     return when (g.game) {
       Game.BERRY_CRUSH -> dexes.firstOrNull() ?: 25
       Game.DODRIO -> if (85 in dexes) 85 else null // IsDodrioInParty
-      Game.JUMP -> picked?.takeIf { it in PokemonJump.SPECIES } ?: dexes.firstOrNull { it in PokemonJump.SPECIES }
+      Game.JUMP ->
+          picked?.takeIf { it in PokemonJump.SPECIES }
+              ?: dexes.firstOrNull { it in PokemonJump.SPECIES }
     }
   }
 
@@ -203,24 +236,36 @@ constructor(
     val humans = g.members.toList()
     val players = ArrayList<LinkPlayer>()
     for (c in humans) {
-      val dex = monFor(g, c)
-          ?: return when (g.game) {
-            Game.DODRIO -> "${name(c)} needs a DODRIO in the party."
-            else -> "${name(c)} has no POKéMON that can play POKéMON JUMP."
-          }
+      val dex =
+          monFor(g, c)
+              ?: return when (g.game) {
+                Game.DODRIO -> "${name(c)} needs a DODRIO in the party."
+                else -> "${name(c)} has no POKéMON that can play POKéMON JUMP."
+              }
       players += LinkPlayer(name(c), c, dex)
     }
     if (g.game == Game.BERRY_CRUSH) {
       for (c in humans) {
         val b = g.picks[c] ?: return "${name(c)} must choose a berry."
         val id = berryItemId(BERRY_NAMES.getOrNull(b) ?: return "bad berry") ?: return "bad berry"
-        if ((characters.getCharacter(c)?.items?.get(id) ?: 0) <= 0) return "${name(c)} has no ${BERRY_NAMES[b]} BERRY."
+        if ((characters.getCharacter(c)?.items?.get(id) ?: 0) <= 0)
+            return "${name(c)} has no ${BERRY_NAMES[b]} BERRY."
       }
     }
     var n = 0
-    val npcDex = when (g.game) { Game.DODRIO -> 85; Game.JUMP -> 25; else -> 25 }
-    while (players.size < g.game.min.coerceAtLeast(if (g.game == Game.JUMP && humans.size == 1) 3 else 0)) {
-      players += LinkPlayer(NPC_NAMES[n++ % NPC_NAMES.size], null, if (g.game == Game.JUMP) listOf(25, 4, 7, 1)[n % 4] else npcDex)
+    val npcDex =
+        when (g.game) {
+          Game.DODRIO -> 85
+          Game.JUMP -> 25
+          else -> 25
+        }
+    while (players.size <
+        g.game.min.coerceAtLeast(if (g.game == Game.JUMP && humans.size == 1) 3 else 0)) {
+      players +=
+          LinkPlayer(
+              NPC_NAMES[n++ % NPC_NAMES.size],
+              null,
+              if (g.game == Game.JUMP) listOf(25, 4, 7, 1)[n % 4] else npcDex)
     }
     g.running = true
     g.results = null
@@ -236,7 +281,8 @@ constructor(
         Game.JUMP -> runJump(g, players)
       }
     } catch (e: Exception) {
-      if (e !is kotlinx.coroutines.CancellationException) log.warn(e) { "link game ${g.game} failed" }
+      if (e !is kotlinx.coroutines.CancellationException)
+          log.warn(e) { "link game ${g.game} failed" }
     } finally {
       g.running = false
       players.mapNotNull { it.charId }.forEach { inputs.remove(it) }
@@ -246,7 +292,11 @@ constructor(
   }
 
   private fun broadcast(players: List<LinkPlayer>, topic: String, body: JsonObject) =
-      players.forEach { p -> p.charId?.let { c -> sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, topic, body) } } }
+      players.forEach { p ->
+        p.charId?.let { c ->
+          sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, topic, body) }
+        }
+      }
 
   /** Runs [tick] at 60 frames a second, sending [state] every third frame, until [done]. */
   private suspend fun frames(done: () -> Boolean, tick: () -> Unit, push: () -> Unit) {
@@ -282,55 +332,135 @@ constructor(
     val berries = players.map { p -> p.charId?.let { g.picks[it] } ?: rnd.nextInt(0, 20) }
     // The berries are used up (the GBA takes them from the bag when they are dropped in).
     for ((i, p) in players.withIndex()) p.charId?.let { c ->
-      sessions.getByCharacterId(c)?.let { s -> rewards.addItem(s, c, berryItemId(BERRY_NAMES[berries[i]])!!, -1) }
+      sessions.getByCharacterId(c)?.let { s ->
+        rewards.addItem(s, c, berryItemId(BERRY_NAMES[berries[i]])!!, -1)
+      }
     }
     val game = BerryCrush(players, berries)
-    players.forEachIndexed { i, p -> p.charId?.let { inputs[it] = { b -> if (b.str("action") == "press") game.press(i) } } }
-    val base = jsonOf("players" to playersJson(players), "berries" to berries.map { "${BERRY_NAMES[it]} BERRY" }, "target" to game.target)
+    players.forEachIndexed { i, p ->
+      p.charId?.let { inputs[it] = { b -> if (b.str("action") == "press") game.press(i) } }
+    }
+    val base =
+        jsonOf(
+            "players" to playersJson(players),
+            "berries" to berries.map { "${BERRY_NAMES[it]} BERRY" },
+            "target" to game.target)
     countdown(players, "berrycrush", base)
     val t0 = System.currentTimeMillis()
     frames({ game.done || System.currentTimeMillis() - t0 > 120_000 }, game::tick) {
-      broadcast(players, "berrycrush", JsonObject(base + jsonOf("depth" to game.depth, "total" to game.total,
-          "presses" to game.presses.toList(), "frame" to game.frame)))
+      broadcast(
+          players,
+          "berrycrush",
+          JsonObject(
+              base +
+                  jsonOf(
+                      "depth" to game.depth,
+                      "total" to game.total,
+                      "presses" to game.presses.toList(),
+                      "frame" to game.frame)))
     }
     val powder = game.powder
-    val results = jsonOf(
-        "game" to "berrycrush", "time" to game.frame, "powder" to powder, "silkiness" to game.silkiness,
-        "speed" to game.pressingSpeed / 256.0,
-        "rows" to players.mapIndexed { i, p -> jsonOf("name" to p.name, "presses" to game.presses[i], "sync" to game.syncPresses[i], "neat" to game.maxNeat[i]) })
+    val results =
+        jsonOf(
+            "game" to "berrycrush",
+            "time" to game.frame,
+            "powder" to powder,
+            "silkiness" to game.silkiness,
+            "speed" to game.pressingSpeed / 256.0,
+            "rows" to
+                players.mapIndexed { i, p ->
+                  jsonOf(
+                      "name" to p.name,
+                      "presses" to game.presses[i],
+                      "sync" to game.syncPresses[i],
+                      "neat" to game.maxNeat[i])
+                })
     g.results = results
     for (p in players) p.charId?.let { c ->
       record(c, "berrycrush") { r ->
-        r + mapOf("powder" to JsonPrimitive((r["powder"]?.toString()?.toIntOrNull() ?: 0) + powder),
-            "best${players.size}" to JsonPrimitive(maxOf(r["best${players.size}"]?.toString()?.toIntOrNull() ?: 0, game.pressingSpeed)))
+        r +
+            mapOf(
+                "powder" to JsonPrimitive((r["powder"]?.toString()?.toIntOrNull() ?: 0) + powder),
+                "best${players.size}" to
+                    JsonPrimitive(
+                        maxOf(
+                            r["best${players.size}"]?.toString()?.toIntOrNull() ?: 0,
+                            game.pressingSpeed)))
       }
     }
-    broadcast(players, "berrycrush", JsonObject(base + jsonOf("depth" to 32, "total" to game.total, "presses" to game.presses.toList(), "results" to results)))
+    broadcast(
+        players,
+        "berrycrush",
+        JsonObject(
+            base +
+                jsonOf(
+                    "depth" to 32,
+                    "total" to game.total,
+                    "presses" to game.presses.toList(),
+                    "results" to results)))
   }
 
   private suspend fun runDodrio(g: Group, players: List<LinkPlayer>) {
     val game = DodrioBerryPicking(players)
     val dirs = mapOf("left" to 0, "up" to 1, "right" to 2)
     players.forEachIndexed { i, p ->
-      p.charId?.let { inputs[it] = { b -> if (b.str("action") == "pick") dirs[b.str("dir")]?.let { d -> game.pickHead(i, d) } } }
+      p.charId?.let {
+        inputs[it] = { b ->
+          if (b.str("action") == "pick") dirs[b.str("dir")]?.let { d -> game.pickHead(i, d) }
+        }
+      }
     }
     val base = jsonOf("players" to playersJson(players), "columns" to game.columns)
     countdown(players, "dodrio", base)
     val t0 = System.currentTimeMillis()
     frames({ game.over || System.currentTimeMillis() - t0 > 300_000 }, game::tick) {
-      broadcast(players, "dodrio", JsonObject(base + jsonOf(
-          "berries" to (0 until game.columns).map { c -> if (game.berryType[c] < 0) null else jsonOf("t" to game.berryType[c], "d" to game.fallDist[c]) },
-          "picks" to game.pick.toList(), "scores" to players.indices.map(game::score), "gray" to game.graySquares)))
+      broadcast(
+          players,
+          "dodrio",
+          JsonObject(
+              base +
+                  jsonOf(
+                      "berries" to
+                          (0 until game.columns).map { c ->
+                            if (game.berryType[c] < 0) null
+                            else jsonOf("t" to game.berryType[c], "d" to game.fallDist[c])
+                          },
+                      "picks" to game.pick.toList(),
+                      "scores" to players.indices.map(game::score),
+                      "gray" to game.graySquares)))
     }
     val prize = game.prize()
-    val results = jsonOf("game" to "dodrio", "prize" to prize?.let { "$it BERRY" },
-        "rows" to players.mapIndexed { i, p -> jsonOf("name" to p.name, "score" to game.score(i), "blue" to game.picked[i][0], "green" to game.picked[i][1], "gold" to game.picked[i][2], "missed" to game.picked[i][3]) })
+    val results =
+        jsonOf(
+            "game" to "dodrio",
+            "prize" to prize?.let { "$it BERRY" },
+            "rows" to
+                players.mapIndexed { i, p ->
+                  jsonOf(
+                      "name" to p.name,
+                      "score" to game.score(i),
+                      "blue" to game.picked[i][0],
+                      "green" to game.picked[i][1],
+                      "gold" to game.picked[i][2],
+                      "missed" to game.picked[i][3])
+                })
     g.results = results
     for ((i, p) in players.withIndex()) p.charId?.let { c ->
-      if (prize != null) sessions.getByCharacterId(c)?.let { s -> berryItemId(prize)?.let { rewards.addItem(s, c, it, 1) } }
+      if (prize != null)
+          sessions.getByCharacterId(c)?.let { s ->
+            berryItemId(prize)?.let { rewards.addItem(s, c, it, 1) }
+          }
       record(c, "dodrio") { r ->
-        r + mapOf("bestScore" to JsonPrimitive(maxOf(r["bestScore"]?.toString()?.toIntOrNull() ?: 0, game.score(i))),
-            "berriesPicked" to JsonPrimitive(maxOf(r["berriesPicked"]?.toString()?.toIntOrNull() ?: 0, game.berriesPicked(i))))
+        r +
+            mapOf(
+                "bestScore" to
+                    JsonPrimitive(
+                        maxOf(r["bestScore"]?.toString()?.toIntOrNull() ?: 0, game.score(i))),
+                "berriesPicked" to
+                    JsonPrimitive(
+                        maxOf(
+                            r["berriesPicked"]?.toString()?.toIntOrNull() ?: 0,
+                            game.berriesPicked(i))))
       }
     }
     broadcast(players, "dodrio", JsonObject(base + jsonOf("results" to results)))
@@ -338,33 +468,67 @@ constructor(
 
   private suspend fun runJump(g: Group, players: List<LinkPlayer>) {
     val game = PokemonJump(players, players.map { PokemonJump.SPECIES[it.dex] ?: 1 })
-    players.forEachIndexed { i, p -> p.charId?.let { inputs[it] = { b -> if (b.str("action") == "jump") game.jump(i) } } }
+    players.forEachIndexed { i, p ->
+      p.charId?.let { inputs[it] = { b -> if (b.str("action") == "jump") game.jump(i) } }
+    }
     val base = jsonOf("players" to playersJson(players))
     countdown(players, "pokejump", base)
     frames({ game.over }, game::tick) {
-      broadcast(players, "pokejump", JsonObject(base + jsonOf(
-          "phase" to game.phase, "period" to game.period, "score" to game.score, "jumps" to game.jumpsInRow,
-          "air" to players.indices.map { if (game.inAir(it)) 1 else 0 }, "excellents" to game.excellentsInRow)))
+      broadcast(
+          players,
+          "pokejump",
+          JsonObject(
+              base +
+                  jsonOf(
+                      "phase" to game.phase,
+                      "period" to game.period,
+                      "score" to game.score,
+                      "jumps" to game.jumpsInRow,
+                      "air" to players.indices.map { if (game.inAir(it)) 1 else 0 },
+                      "excellents" to game.excellentsInRow)))
     }
     val qty = game.prizeQuantity()
     val prize = if (qty > 0) game.prizeItem() else null
-    val results = jsonOf("game" to "pokejump", "score" to game.score, "jumps" to game.jumpsInRow,
-        "excellents" to game.bestExcellents, "tripped" to players.getOrNull(game.trippedBy)?.name,
-        "prize" to prize?.let { "$it BERRY" }, "qty" to qty)
+    val results =
+        jsonOf(
+            "game" to "pokejump",
+            "score" to game.score,
+            "jumps" to game.jumpsInRow,
+            "excellents" to game.bestExcellents,
+            "tripped" to players.getOrNull(game.trippedBy)?.name,
+            "prize" to prize?.let { "$it BERRY" },
+            "qty" to qty)
     g.results = results
     for (p in players) p.charId?.let { c ->
-      if (prize != null) sessions.getByCharacterId(c)?.let { s -> berryItemId(prize)?.let { rewards.addItem(s, c, it, qty) } }
+      if (prize != null)
+          sessions.getByCharacterId(c)?.let { s ->
+            berryItemId(prize)?.let { rewards.addItem(s, c, it, qty) }
+          }
       record(c, "pokejump") { r ->
-        r + mapOf("bestScore" to JsonPrimitive(maxOf(r["bestScore"]?.toString()?.toIntOrNull() ?: 0, game.score)),
-            "jumpsInRow" to JsonPrimitive(maxOf(r["jumpsInRow"]?.toString()?.toIntOrNull() ?: 0, game.jumpsInRow)),
-            "excellentsInRow" to JsonPrimitive(maxOf(r["excellentsInRow"]?.toString()?.toIntOrNull() ?: 0, game.bestExcellents)))
+        r +
+            mapOf(
+                "bestScore" to
+                    JsonPrimitive(
+                        maxOf(r["bestScore"]?.toString()?.toIntOrNull() ?: 0, game.score)),
+                "jumpsInRow" to
+                    JsonPrimitive(
+                        maxOf(r["jumpsInRow"]?.toString()?.toIntOrNull() ?: 0, game.jumpsInRow)),
+                "excellentsInRow" to
+                    JsonPrimitive(
+                        maxOf(
+                            r["excellentsInRow"]?.toString()?.toIntOrNull() ?: 0,
+                            game.bestExcellents)))
       }
     }
     broadcast(players, "pokejump", JsonObject(base + jsonOf("results" to results)))
   }
 
   /** The minigame records (save section "records"), kept per game. */
-  private suspend fun record(charId: Long, key: String, change: (JsonObject) -> Map<String, kotlinx.serialization.json.JsonElement>) {
+  private suspend fun record(
+      charId: Long,
+      key: String,
+      change: (JsonObject) -> Map<String, kotlinx.serialization.json.JsonElement>
+  ) {
     val all = save.section(charId, "records")
     val mine = all[key] as? JsonObject ?: JsonObject(emptyMap())
     save.setSection(charId, "records", JsonObject(all + (key to JsonObject(change(mine)))))

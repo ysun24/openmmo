@@ -3,9 +3,9 @@ package de.fiereu.openmmo.server.game.minigame.gamecorner
 /**
  * Emerald slot machine (pokeemerald src/slot_machine.c): the lucky game, the machine biases drawn
  * per round (DrawMachineBias with sSpecialDrawOdds / sBiasProbabilities_*), the reel stop
- * manipulation (ReelTask_DecideStop: DecideStop_Bias_* / DecideStop_NoBias_*, at most 4 extra
- * turns except when the third reel must lose), CheckMatch / sSlotPayouts, the Pika Power bolts,
- * and REEL TIME (GetReelTimeDraw, ReelTimeSpeed). Pure: [rng] is Random() (a u16).
+ * manipulation (ReelTask_DecideStop: DecideStop_Bias_* / DecideStop_NoBias_*, at most 4 extra turns
+ * except when the third reel must lose), CheckMatch / sSlotPayouts, the Pika Power bolts, and REEL
+ * TIME (GetReelTimeDraw, ReelTimeSpeed). Pure: [rng] is Random() (a u16).
  *
  * Positions are the decomp's reelPositions: row r (1 top, 2 middle, 3 bottom) shows
  * sReelSymbols[reel][(pos + r) % 21], and each turn of a reel decrements its position.
@@ -682,7 +682,14 @@ class EmeraldSlotMachine(
 
     /** sSymbolToMatch. */
     private val SYMBOL_TO_MATCH =
-        intArrayOf(MATCH_RED_7, MATCH_BLUE_7, MATCH_AZURILL, MATCH_LOTAD, MATCH_CHERRY, MATCH_POWER, MATCH_REPLAY)
+        intArrayOf(
+            MATCH_RED_7,
+            MATCH_BLUE_7,
+            MATCH_AZURILL,
+            MATCH_LOTAD,
+            MATCH_CHERRY,
+            MATCH_POWER,
+            MATCH_REPLAY)
 
     /** GetMatchFromSymbols. */
     fun matchOf(a: Int, b: Int, c: Int): Int =
@@ -707,8 +714,12 @@ class EmeraldSlotMachine(
 
     val SPECIAL_DRAW_ODDS =
         arrayOf(
-            intArrayOf(1, 1, 12), intArrayOf(1, 1, 14), intArrayOf(2, 2, 14),
-            intArrayOf(2, 2, 14), intArrayOf(2, 3, 16), intArrayOf(3, 3, 16))
+            intArrayOf(1, 1, 12),
+            intArrayOf(1, 1, 14),
+            intArrayOf(2, 2, 14),
+            intArrayOf(2, 2, 14),
+            intArrayOf(2, 3, 16),
+            intArrayOf(3, 3, 16))
 
     val BIAS_PROB_SPECIAL =
         arrayOf(
@@ -730,8 +741,14 @@ class EmeraldSlotMachine(
     /** sBiasSymbols, by bias bit. */
     val BIAS_SYMBOLS =
         intArrayOf(
-            SYMBOL_REPLAY, SYMBOL_CHERRY, SYMBOL_LOTAD, SYMBOL_AZURILL, SYMBOL_POWER,
-            SYMBOL_7_RED, SYMBOL_7_RED, SYMBOL_7_RED)
+            SYMBOL_REPLAY,
+            SYMBOL_CHERRY,
+            SYMBOL_LOTAD,
+            SYMBOL_AZURILL,
+            SYMBOL_POWER,
+            SYMBOL_7_RED,
+            SYMBOL_7_RED,
+            SYMBOL_7_RED)
 
     val RT_PROB_NORMAL =
         arrayOf(
@@ -744,7 +761,8 @@ class EmeraldSlotMachine(
 
     val RT_PROB_LUCKY =
         arrayOf(
-            intArrayOf(243, 243, 243, 200, 200, 200, 200, 160, 160, 160, 160, 160, 160, 70, 70, 70, 5),
+            intArrayOf(
+                243, 243, 243, 200, 200, 200, 200, 160, 160, 160, 160, 160, 160, 70, 70, 70, 5),
             intArrayOf(5, 5, 5, 25, 25, 25, 25, 5, 5, 5, 5, 5, 5, 2, 2, 2, 6),
             intArrayOf(4, 4, 4, 25, 25, 25, 25, 30, 30, 30, 30, 30, 30, 40, 40, 40, 35),
             intArrayOf(2, 2, 2, 3, 3, 3, 3, 30, 30, 30, 30, 30, 30, 100, 100, 100, 50),
@@ -752,7 +770,12 @@ class EmeraldSlotMachine(
             intArrayOf(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 60))
 
     val RT_SPEED_PROB =
-        arrayOf(intArrayOf(10, 5), intArrayOf(10, 10), intArrayOf(10, 15), intArrayOf(10, 25), intArrayOf(10, 35))
+        arrayOf(
+            intArrayOf(10, 5),
+            intArrayOf(10, 10),
+            intArrayOf(10, 15),
+            intArrayOf(10, 25),
+            intArrayOf(10, 35))
 
     val QUARTER_BOOST = intArrayOf(0, 5, 10, 15, 20)
 

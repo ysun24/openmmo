@@ -78,8 +78,7 @@ constructor(
       session.send(MinigameStatePacket(topic, text))
     }
 
-    fun close(session: SessionContext, topic: String) =
-        send(session, topic, JsonObject(emptyMap()))
+    fun close(session: SessionContext, topic: String) = send(session, topic, JsonObject(emptyMap()))
   }
 
   /** Sends to a character if it is online. */
@@ -98,7 +97,9 @@ fun JsonObject.int(k: String): Int? =
     (this[k] as? JsonPrimitive)?.takeIf { !it.isString && it !is JsonNull }?.intOrNull
 
 fun JsonObject.long(k: String): Long? =
-    (this[k] as? JsonPrimitive)?.let { if (it.isString) it.content.toLongOrNull() else it.longOrNull }
+    (this[k] as? JsonPrimitive)?.let {
+      if (it.isString) it.content.toLongOrNull() else it.longOrNull
+    }
 
 fun JsonObject.bool(k: String): Boolean? =
     (this[k] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull

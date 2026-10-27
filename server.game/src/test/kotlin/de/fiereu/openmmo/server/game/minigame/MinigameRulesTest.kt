@@ -149,7 +149,8 @@ class MinigameRulesTest :
         g.over shouldBe true
         g.graySquares shouldBe 10
         for (p in players.indices) {
-          val s = g.picked[p][0] * 10 + g.picked[p][1] * 30 + g.picked[p][2] * 50 - g.picked[p][3] * 50
+          val s =
+              g.picked[p][0] * 10 + g.picked[p][1] * 30 + g.picked[p][2] * 50 - g.picked[p][3] * 50
           g.score(p) shouldBe s.coerceAtLeast(0)
         }
         g.columns shouldBe 7
@@ -158,7 +159,8 @@ class MinigameRulesTest :
 
       test("Pokemon Jump: 10 a clear, bonus for jumping together, a trip ends it") {
         val players = listOf(LinkPlayer("A", 1, 4), LinkPlayer("B", 2, 4))
-        val g = PokemonJump(players, listOf(PokemonJump.JUMP_FAST, PokemonJump.JUMP_FAST), Random(7))
+        val g =
+            PokemonJump(players, listOf(PokemonJump.JUMP_FAST, PokemonJump.JUMP_FAST), Random(7))
         // both jump together for two swings, then nobody jumps
         repeat(2) {
           val start = g.frame

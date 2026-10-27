@@ -1,10 +1,5 @@
 package de.fiereu.openmmo.server.game.minigame
 
-
-
-
-
-
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.IntoSet
@@ -30,27 +25,53 @@ interface MinigameModule {
 
   @Binds @IntoSet fun gameCornerTopic(h: GameCornerService): MinigameTopic
 
-  @Binds @IntoSet fun linkTopic(h: de.fiereu.openmmo.server.game.minigame.link.LinkGameService): MinigameTopic
+  @Binds
+  @IntoSet
+  fun linkTopic(h: de.fiereu.openmmo.server.game.minigame.link.LinkGameService): MinigameTopic
 
-  @Binds @IntoSet fun unionTopic(h: de.fiereu.openmmo.server.game.minigame.link.UnionRoomService): MinigameTopic
+  @Binds
+  @IntoSet
+  fun unionTopic(h: de.fiereu.openmmo.server.game.minigame.link.UnionRoomService): MinigameTopic
 
-  @Binds @IntoSet fun fameTopic(h: de.fiereu.openmmo.server.game.minigame.fame.FameCheckerService): MinigameTopic
+  @Binds
+  @IntoSet
+  fun fameTopic(h: de.fiereu.openmmo.server.game.minigame.fame.FameCheckerService): MinigameTopic
 
-  @Binds @IntoSet fun giftTopic(h: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftService): MinigameTopic
+  @Binds
+  @IntoSet
+  fun giftTopic(h: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftService): MinigameTopic
 
-  @Binds @IntoSet fun recordsTopic(h: de.fiereu.openmmo.server.game.minigame.records.RecordsService): MinigameTopic
+  @Binds
+  @IntoSet
+  fun recordsTopic(h: de.fiereu.openmmo.server.game.minigame.records.RecordsService): MinigameTopic
 
   @Binds @IntoSet fun specials(h: MinigameSpecials): ScriptSpecial
 
-  @Binds @IntoSet fun linkSpecials(h: de.fiereu.openmmo.server.game.minigame.link.LinkSpecials): ScriptSpecial
+  @Binds
+  @IntoSet
+  fun linkSpecials(h: de.fiereu.openmmo.server.game.minigame.link.LinkSpecials): ScriptSpecial
 
-  @Binds @IntoSet fun fameSpecials(h: de.fiereu.openmmo.server.game.minigame.fame.FameCheckerSpecials): ScriptSpecial
+  @Binds
+  @IntoSet
+  fun fameSpecials(
+      h: de.fiereu.openmmo.server.game.minigame.fame.FameCheckerSpecials
+  ): ScriptSpecial
 
-  @Binds @IntoSet fun giftSpecials(h: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftSpecials): ScriptSpecial
+  @Binds
+  @IntoSet
+  fun giftSpecials(
+      h: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftSpecials
+  ): ScriptSpecial
 
-  @Binds @IntoSet fun recordsSpecials(h: de.fiereu.openmmo.server.game.minigame.records.RecordsSpecials): ScriptSpecial
+  @Binds
+  @IntoSet
+  fun recordsSpecials(
+      h: de.fiereu.openmmo.server.game.minigame.records.RecordsSpecials
+  ): ScriptSpecial
 
-  @Binds @IntoSet fun giftCommand(c: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftCommand): ChatCommand
+  @Binds
+  @IntoSet
+  fun giftCommand(c: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftCommand): ChatCommand
 
   @Binds @IntoSet fun fameCommand(c: MinigameCommands.Fame): ChatCommand
 

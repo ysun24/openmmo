@@ -13,9 +13,9 @@ import kotlinx.serialization.json.JsonObject
 const val MAX_COINS = 9999
 
 /**
- * This lane's per-character save data (minigame_players): the coin case and a JSON object of
- * named sections ("fame", "easychat", "records", "tickets", ...). Cached per character, written
- * through on every change.
+ * This lane's per-character save data (minigame_players): the coin case and a JSON object of named
+ * sections ("fame", "easychat", "records", "tickets", ...). Cached per character, written through
+ * on every change.
  */
 @Singleton
 class MinigameSave @Inject constructor(private val repo: MinigameRepository) {
@@ -25,7 +25,8 @@ class MinigameSave @Inject constructor(private val repo: MinigameRepository) {
   private fun lock(charId: Long) = locks.computeIfAbsent(charId) { Mutex() }
 
   suspend fun get(charId: Long): MinigamePlayerRow =
-      cache[charId] ?: (repo.player(charId) ?: MinigamePlayerRow(charId)).also { cache[charId] = it }
+      cache[charId]
+          ?: (repo.player(charId) ?: MinigamePlayerRow(charId)).also { cache[charId] = it }
 
   /** Atomically changes [charId]'s row; [change] returns the new row or null to leave it. */
   suspend fun update(

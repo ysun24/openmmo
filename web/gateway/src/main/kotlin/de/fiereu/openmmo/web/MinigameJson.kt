@@ -8,10 +8,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
 /**
- * r5-minigames (PROTOCOL.md section "r5-minigames"). The server sends each minigame topic as a
- * JSON object (s2c 0xDD) and the gateway passes it through as `state.minigames.<topic>`; the
- * browser's `minigame` message `{topic, ...}` goes to the server as the rest of the object
- * (c2s 0xDC). The server validates every field.
+ * r5-minigames (PROTOCOL.md section "r5-minigames"). The server sends each minigame topic as a JSON
+ * object (s2c 0xDD) and the gateway passes it through as `state.minigames.<topic>`; the browser's
+ * `minigame` message `{topic, ...}` goes to the server as the rest of the object (c2s 0xDC). The
+ * server validates every field.
  */
 object MinigameJson {
   private val TOPIC = Regex("^[a-z][a-z0-9]{0,23}$")

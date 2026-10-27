@@ -33,17 +33,24 @@ class MinigameExport(private val decomp: File, private val out: Output) {
               "emeraldSymbols",
               buildJsonArray {
                 for (i in 1..7) {
-                  copy("pokeemerald", "graphics/slot_machine/reel_symbols/$i.png", "em_symbol_$i.png")
+                  copy(
+                          "pokeemerald",
+                          "graphics/slot_machine/reel_symbols/$i.png",
+                          "em_symbol_$i.png")
                       ?.let { add(JsonPrimitive(it)) }
                 }
               })
-          copy("pokeemerald", "graphics/slot_machine/reel_time_pikachu.png", "em_reeltime_pikachu.png")
+          copy(
+                  "pokeemerald",
+                  "graphics/slot_machine/reel_time_pikachu.png",
+                  "em_reeltime_pikachu.png")
               ?.let { put("reelTimePikachu", it) }
         })
     put(
         "roulette",
         buildJsonObject {
-          for (n in listOf("wynaut", "azurill", "skitty", "makuhita", "ball", "shroomish", "tailow")) {
+          for (n in
+              listOf("wynaut", "azurill", "skitty", "makuhita", "ball", "shroomish", "tailow")) {
             copy("pokeemerald", "graphics/roulette/$n.png", "roulette_$n.png")?.let { put(n, it) }
           }
         })
@@ -94,8 +101,9 @@ class MinigameExport(private val decomp: File, private val out: Output) {
 
   /** A C pointer table `static const u8 *const name[...] = { a, b, ... };` as its entries. */
   private fun table(src: String, name: String): List<String> {
-    val m = Regex("""$name\s*\[[^\]]*\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL).find(src)
-        ?: return emptyList()
+    val m =
+        Regex("""$name\s*\[[^\]]*\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL).find(src)
+            ?: return emptyList()
     return m.groupValues[1]
         .replace(Regex("//[^\n]*"), "")
         .split(',')
@@ -113,7 +121,11 @@ class MinigameExport(private val decomp: File, private val out: Output) {
     val strings = File(decomp, "pokefirered/src/strings.c").takeIf { it.isFile }?.readText() ?: ""
     fun cString(label: String): String =
         texts[label]
-            ?: Regex("""$label\[\]\s*=\s*_\("(.*?)"\);""").find(strings + src)?.groupValues?.get(1)?.let(::clean)
+            ?: Regex("""$label\[\]\s*=\s*_\("(.*?)"\);""")
+                .find(strings + src)
+                ?.groupValues
+                ?.get(1)
+                ?.let(::clean)
             ?: label
     val names = table(src, "sFameCheckerNameAndQuotesPointers")
     val flavor = table(src, "sFameCheckerFlavorTextPointers")
@@ -121,8 +133,22 @@ class MinigameExport(private val decomp: File, private val out: Output) {
     val objects = table(src, "sFlavorTextOriginObjectNameTexts")
     val persons =
         listOf(
-            "OAK", "DAISY", "BROCK", "MISTY", "LT. SURGE", "ERIKA", "KOGA", "SABRINA",
-            "BLAINE", "LORELEI", "BRUNO", "AGATHA", "LANCE", "BILL", "MR. FUJI", "GIOVANNI")
+            "OAK",
+            "DAISY",
+            "BROCK",
+            "MISTY",
+            "LT. SURGE",
+            "ERIKA",
+            "KOGA",
+            "SABRINA",
+            "BLAINE",
+            "LORELEI",
+            "BRUNO",
+            "AGATHA",
+            "LANCE",
+            "BILL",
+            "MR. FUJI",
+            "GIOVANNI")
     return buildJsonObject {
       put(
           "people",
@@ -136,13 +162,22 @@ class MinigameExport(private val decomp: File, private val out: Output) {
                     names.getOrNull(persons.size + i)?.let { put("quote", cString(it)) }
                     put(
                         "texts",
-                        JsonArray((0 until 6).map { j -> JsonPrimitive(flavor.getOrNull(i * 6 + j)?.let(::cString) ?: "") }))
+                        JsonArray(
+                            (0 until 6).map { j ->
+                              JsonPrimitive(flavor.getOrNull(i * 6 + j)?.let(::cString) ?: "")
+                            }))
                     put(
                         "origins",
-                        JsonArray((0 until 6).map { j -> JsonPrimitive(origins.getOrNull(i * 6 + j)?.let(::cString) ?: "") }))
+                        JsonArray(
+                            (0 until 6).map { j ->
+                              JsonPrimitive(origins.getOrNull(i * 6 + j)?.let(::cString) ?: "")
+                            }))
                     put(
                         "objects",
-                        JsonArray((0 until 6).map { j -> JsonPrimitive(objects.getOrNull(i * 6 + j)?.let(::cString) ?: "") }))
+                        JsonArray(
+                            (0 until 6).map { j ->
+                              JsonPrimitive(objects.getOrNull(i * 6 + j)?.let(::cString) ?: "")
+                            }))
                   })
             }
           })
@@ -173,7 +208,10 @@ class MinigameExport(private val decomp: File, private val out: Output) {
               val f = File(dir, "easy_chat_group_${name.lowercase()}.h")
               val words =
                   if (f.isFile)
-                      Regex("""_\("(.*?)"\)""").findAll(f.readText()).map { it.groupValues[1] }.toList()
+                      Regex("""_\("(.*?)"\)""")
+                          .findAll(f.readText())
+                          .map { it.groupValues[1] }
+                          .toList()
                   else emptyList()
               add(
                   buildJsonObject {

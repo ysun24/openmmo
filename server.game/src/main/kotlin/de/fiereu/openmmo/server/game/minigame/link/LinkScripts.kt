@@ -50,9 +50,13 @@ constructor(
   private suspend fun directCorner(ctx: ScriptContext) {
     val id = ctx.playerEntityId
     val kanto = ctx.state.regionId == 0
-    val opts = listOf("TRADE CENTER", "COLOSSEUM") + (if (kanto) emptyList() else listOf("RECORD CORNER")) + "CANCEL"
+    val opts =
+        listOf("TRADE CENTER", "COLOSSEUM") +
+            (if (kanto) emptyList() else listOf("RECORD CORNER")) +
+            "CANCEL"
     when (opts.getOrNull(menus.choose(ctx.session, id, "DIRECT CORNER", opts))) {
-      "TRADE CENTER", "COLOSSEUM" -> openUnion(ctx)
+      "TRADE CENTER",
+      "COLOSSEUM" -> openUnion(ctx)
       "RECORD CORNER" -> {
         ctx.dialog.close(ctx.session, ctx.state)
         val mixed = records.mix(ctx.session, id)
@@ -78,7 +82,8 @@ constructor(
 
   private suspend fun showRecords(ctx: ScriptContext, game: String): Int {
     val r = links.records(ctx.playerEntityId)[game]
-    MinigameChannel.send(ctx.session, "lobby", jsonOf("records" to jsonOf("game" to game, "values" to r)))
+    MinigameChannel.send(
+        ctx.session, "lobby", jsonOf("records" to jsonOf("game" to game, "values" to r)))
     rewards.tell(ctx.session, "$game records: ${r ?: "none yet"}")
     return 0
   }
@@ -86,37 +91,47 @@ constructor(
   override val table: Map<String, SpecialFn> =
       mapOf(
           "IsWirelessAdapterConnected" to { _ -> 1 },
-          "IsPokemonJumpSpeciesInParty" to { ctx -> if (party(ctx).any { it in PokemonJump.SPECIES }) 1 else 0 },
+          "IsPokemonJumpSpeciesInParty" to
+              { ctx ->
+                if (party(ctx).any { it in PokemonJump.SPECIES }) 1 else 0
+              },
           "IsDodrioInParty" to { ctx -> if (85 in party(ctx)) 1 else 0 },
           "ChooseMonForWirelessMinigame" to { _ -> 0 },
           "ShowPokemonJumpRecords" to { ctx -> showRecords(ctx, "pokejump") },
           "ShowDodrioBerryPickingRecords" to { ctx -> showRecords(ctx, "dodrio") },
           "ShowBerryCrushRankings" to { ctx -> showRecords(ctx, "berrycrush") },
-          "TryBecomeLinkLeader" to { ctx ->
-            links.openLobby(ctx.session, ctx.playerEntityId)
-            0
-          },
-          "TryJoinLinkGroup" to { ctx ->
-            links.openLobby(ctx.session, ctx.playerEntityId)
-            0
-          },
-          "InitUnionRoom" to { ctx ->
-            union.enter(ctx.playerEntityId)
-            0
-          },
-          "RunUnionRoom" to { ctx ->
-            union.enter(ctx.playerEntityId)
-            0
-          },
-          "ShowWirelessCommunicationScreen" to { ctx ->
-            union.push(ctx.playerEntityId)
-            0
-          },
-          "BufferUnionRoomPlayerName" to { ctx ->
-            val others = union.visible().filter { it != ctx.playerEntityId }
-            ctx.bufferString(1, others.firstOrNull()?.let { characters.getCharacter(it)?.info?.name } ?: "")
-            others.size
-          },
+          "TryBecomeLinkLeader" to
+              { ctx ->
+                links.openLobby(ctx.session, ctx.playerEntityId)
+                0
+              },
+          "TryJoinLinkGroup" to
+              { ctx ->
+                links.openLobby(ctx.session, ctx.playerEntityId)
+                0
+              },
+          "InitUnionRoom" to
+              { ctx ->
+                union.enter(ctx.playerEntityId)
+                0
+              },
+          "RunUnionRoom" to
+              { ctx ->
+                union.enter(ctx.playerEntityId)
+                0
+              },
+          "ShowWirelessCommunicationScreen" to
+              { ctx ->
+                union.push(ctx.playerEntityId)
+                0
+              },
+          "BufferUnionRoomPlayerName" to
+              { ctx ->
+                val others = union.visible().filter { it != ctx.playerEntityId }
+                ctx.bufferString(
+                    1, others.firstOrNull()?.let { characters.getCharacter(it)?.info?.name } ?: "")
+                others.size
+              },
           "Script_ResetUnionRoomTrade" to { _ -> 0 },
       )
 }

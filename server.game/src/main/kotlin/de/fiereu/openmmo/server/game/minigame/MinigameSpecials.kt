@@ -40,18 +40,24 @@ constructor(
   override val table: Map<String, SpecialFn> =
       mapOf(
           "GetRandomSlotMachineId" to { _ -> cornerScripts.get().randomFrlgMachine() },
-          "GetSlotMachineId" to { ctx -> cornerScripts.get().hoennMachine(ctx, ctx.specialVar(0x8004)) },
-          "PlaySlotMachine" to { ctx ->
-            corner.get().playSlots(ctx.session, ctx.state, ctx.getVar("VAR_RESULT"))
-            0
-          },
-          "PlayRoulette" to { ctx ->
-            corner.get().playRoulette(ctx.session, ctx.state, ctx.specialVar(0x8004))
-            0
-          },
+          "GetSlotMachineId" to
+              { ctx ->
+                cornerScripts.get().hoennMachine(ctx, ctx.specialVar(0x8004))
+              },
+          "PlaySlotMachine" to
+              { ctx ->
+                corner.get().playSlots(ctx.session, ctx.state, ctx.getVar("VAR_RESULT"))
+                0
+              },
+          "PlayRoulette" to
+              { ctx ->
+                corner.get().playRoulette(ctx.session, ctx.state, ctx.specialVar(0x8004))
+                0
+              },
           // FireRed's CheckAddCoins: can VAR_0x8006 more coins fit? (coins.c)
-          "CheckAddCoins" to { ctx ->
-            if (save.coins(ctx.playerEntityId) + ctx.specialVar(0x8006) <= MAX_COINS) 1 else 0
-          },
+          "CheckAddCoins" to
+              { ctx ->
+                if (save.coins(ctx.playerEntityId) + ctx.specialVar(0x8006) <= MAX_COINS) 1 else 0
+              },
       )
 }

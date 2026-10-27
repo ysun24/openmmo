@@ -24,7 +24,8 @@ object MinigameCommands {
     override val permission = CharacterPermissions.DEVELOPER
 
     override suspend fun run(ctx: CommandContext) {
-      story.setFlag(ctx.characterId, de.fiereu.openmmo.story.generated.kanto.KantoFlags.FLAG_GOT_FAME_CHECKER)
+      story.setFlag(
+          ctx.characterId, de.fiereu.openmmo.story.generated.kanto.KantoFlags.FLAG_GOT_FAME_CHECKER)
       if (ctx.args.getOrNull(0) == "all") fame.unlockAll(ctx.characterId)
       else {
         val p = ctx.args.getOrNull(0)?.toIntOrNull() ?: return ctx.reply("Usage: $usage")
@@ -81,7 +82,11 @@ object MinigameCommands {
             ctx.session,
             ctx.state,
             de.fiereu.openmmo.common.DynamicWarp(
-                map.regionId, map.bankId, map.mapId, (p[2] as Int).toShort(), (p[3] as Int).toShort(),
+                map.regionId,
+                map.bankId,
+                map.mapId,
+                (p[2] as Int).toShort(),
+                (p[3] as Int).toShort(),
                 when (p[4] as Int) {
                   1 -> de.fiereu.openmmo.common.enums.Direction.DOWN
                   2 -> de.fiereu.openmmo.common.enums.Direction.LEFT
@@ -103,8 +108,9 @@ object MinigameCommands {
     override val permission = CharacterPermissions.DEVELOPER
 
     override suspend fun run(ctx: CommandContext) {
-      val n = ctx.args.getOrNull(0)?.toIntOrNull()?.takeIf { it in 0..MAX_COINS }
-          ?: return ctx.reply("Usage: $usage")
+      val n =
+          ctx.args.getOrNull(0)?.toIntOrNull()?.takeIf { it in 0..MAX_COINS }
+              ?: return ctx.reply("Usage: $usage")
       save.setCoins(ctx.characterId, n)
       ctx.state.characterId?.let {
         // The coin case itself: FireRed's flag (the bag item needs /giveitem).

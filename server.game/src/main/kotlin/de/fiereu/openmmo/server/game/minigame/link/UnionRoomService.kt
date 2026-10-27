@@ -45,7 +45,8 @@ constructor(
 
   private fun name(c: Long) = characters.getCharacter(c)?.info?.name ?: "?"
 
-  private fun stateOf(c: Long): PlayerState? = sessions.getByCharacterId(c)?.attributes?.get(PLAYER_STATE)
+  private fun stateOf(c: Long): PlayerState? =
+      sessions.getByCharacterId(c)?.attributes?.get(PLAYER_STATE)
 
   /** The Pokémon Center 2F maps (and the Union Room itself) count as being in the room. */
   private fun inPc2f(s: PlayerState): Boolean {
@@ -60,21 +61,29 @@ constructor(
       jsonOf(
           "inRoom" to (me in inRoom),
           "players" to
-              visible().filter { it != me }.map { c ->
-                val s = stateOf(c)
-                jsonOf(
-                    "name" to name(c),
-                    "where" to (s?.let { maps.getMap(it.regionId, it.bankId, it.mapId)?.name } ?: ""),
-                    "region" to (s?.regionId ?: 0),
-                    "busy" to (invites.containsKey(c)))
-              },
+              visible()
+                  .filter { it != me }
+                  .map { c ->
+                    val s = stateOf(c)
+                    jsonOf(
+                        "name" to name(c),
+                        "where" to
+                            (s?.let { maps.getMap(it.regionId, it.bankId, it.mapId)?.name } ?: ""),
+                        "region" to (s?.regionId ?: 0),
+                        "busy" to (invites.containsKey(c)))
+                  },
           "chat" to chat.takeLast(30),
-          "invite" to invites[me]?.let { (from, what) -> jsonOf("from" to name(from), "what" to what) },
+          "invite" to
+              invites[me]?.let { (from, what) -> jsonOf("from" to name(from), "what" to what) },
           // kept (with a seq the browser acts on once), so a coalesced state push cannot lose it
-          "accepted" to accepted[me]?.let { (who, what, n) -> jsonOf("name" to who, "what" to what, "seq" to n) },
+          "accepted" to
+              accepted[me]?.let { (who, what, n) ->
+                jsonOf("name" to who, "what" to what, "seq" to n)
+              },
       )
 
-  fun push(c: Long) = sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, "union", json(c)) }
+  fun push(c: Long) =
+      sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, "union", json(c)) }
 
   /** Only players with the Union Room open get its updates. */
   private fun pushAll() = inRoom.forEach(::push)
@@ -85,9 +94,15 @@ constructor(
     pushAll()
   }
 
-  private fun byName(n: String): Long? = sessions.onlineCharacterIds().firstOrNull { name(it).equals(n, true) }
+  private fun byName(n: String): Long? =
+      sessions.onlineCharacterIds().firstOrNull { name(it).equals(n, true) }
 
-  override suspend fun onAction(session: SessionContext, state: PlayerState, topic: String, body: JsonObject) {
+  override suspend fun onAction(
+      session: SessionContext,
+      state: PlayerState,
+      topic: String,
+      body: JsonObject
+  ) {
     val me = state.characterId ?: return
     when (body.action()) {
       "enter" -> inRoom += me
@@ -117,9 +132,16 @@ constructor(
           accepted[from] = Triple(name(me), what, seq.incrementAndGet())
           when {
             what.startsWith("game:") -> links.inviteTogether(from, me, what.removePrefix("game:"))
-            what == "chat" -> chat += jsonOf("name" to "UNION ROOM", "text" to "${name(from)} and ${name(me)} started chatting.")
+            what == "chat" ->
+                chat +=
+                    jsonOf(
+                        "name" to "UNION ROOM",
+                        "text" to "${name(from)} and ${name(me)} started chatting.")
           }
-        } else chat += jsonOf("name" to "UNION ROOM", "text" to "${name(me)} declined ${name(from)}'s offer.")
+        } else
+            chat +=
+                jsonOf(
+                    "name" to "UNION ROOM", "text" to "${name(me)} declined ${name(from)}'s offer.")
         push(from)
       }
       "get" -> {}

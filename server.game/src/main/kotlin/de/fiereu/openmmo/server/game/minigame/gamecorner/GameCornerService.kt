@@ -25,8 +25,8 @@ import kotlinx.serialization.json.JsonObject
 
 /**
  * The Game Corner: both slot machines, Mauville's roulette, and the coin case. Topics "slots",
- * "roulette", "coins". A game is opened by its script special (PlaySlotMachine / PlayRoulette)
- * and the script waits until the player leaves it, like the decomp's waitstate.
+ * "roulette", "coins". A game is opened by its script special (PlaySlotMachine / PlayRoulette) and
+ * the script waits until the player leaves it, like the decomp's waitstate.
  */
 @Singleton
 class GameCornerService
@@ -158,7 +158,9 @@ constructor(
           g.message = "You don't have three COINS."
           n = 0
         }
-        if (coins == 0) g.message = if (g.kanto) "You've run out of COINS." else "You've run out of COINS. Game over!"
+        if (coins == 0)
+            g.message =
+                if (g.kanto) "You've run out of COINS." else "You've run out of COINS. Game over!"
         if (n > 0 && save.addCoins(charId, -n)) {
           g.frlg?.addBet(n)
           g.emerald?.addBet(n)
@@ -210,7 +212,8 @@ constructor(
       g.emerald?.let { m ->
         if (m.lastReelTimeDraw >= 0)
             g.message =
-                if (m.lastReelTimeDraw > 0) "REEL TIME! ${m.lastReelTimeDraw} free spins at a slower speed!"
+                if (m.lastReelTimeDraw > 0)
+                    "REEL TIME! ${m.lastReelTimeDraw} free spins at a slower speed!"
                 else "REEL TIME... The machine broke down. Too bad!"
       }
     }
@@ -235,8 +238,7 @@ constructor(
   /** PlayRoulette: VAR_0x8004 & 1 is the table, & ROULETTE_SPECIAL_RATE the special rate. */
   suspend fun playRoulette(session: SessionContext, state: PlayerState, var8004: Int) {
     val charId = state.characterId ?: return
-    val game =
-        RouletteGame(Roulette(var8004 and 1, var8004 and ROULETTE_SPECIAL_RATE != 0, rng))
+    val game = RouletteGame(Roulette(var8004 and 1, var8004 and ROULETTE_SPECIAL_RATE != 0, rng))
     roulettes.put(charId, game)?.done?.complete(Unit)
     pushRoulette(session, charId, game)
     pushCoins(session, charId)
@@ -301,7 +303,8 @@ constructor(
             val coins = save.coins(charId)
             save.setCoins(charId, (coins + t.payout).coerceAtMost(MAX_COINS))
             g.message =
-                if (t.multiplier == Roulette.MAX_MULTIPLIER) "Jackpot! You've won ${t.payout} COINS!"
+                if (t.multiplier == Roulette.MAX_MULTIPLIER)
+                    "Jackpot! You've won ${t.payout} COINS!"
                 else "It's a hit! You've won ${t.payout} COINS!"
           } else g.message = "Nothing doing!"
           if (r.roundOver) g.message += " The round is over."

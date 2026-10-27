@@ -7,8 +7,8 @@ package de.fiereu.openmmo.server.game.minigame.gamecorner
  * bet lights. Pure: [rng] is the decomp's Random() (a u16).
  *
  * Reel positions follow the decomp: a reel spins by decrementing its position, one icon per three
- * frames (Task_SpinReels), and the visible column of reel r at position p is icons
- * p+1, p+2, p+3 (top, middle, bottom).
+ * frames (Task_SpinReels), and the visible column of reel r at position p is icons p+1, p+2, p+3
+ * (top, middle, bottom).
  */
 class FrlgSlotMachine(machineIdx: Int, private val rng: () -> Int) {
   val machineIdx: Int = if (machineIdx in BIAS_CHANCES.indices) machineIdx else 0
@@ -100,7 +100,8 @@ class FrlgSlotMachine(machineIdx: Int, private val rng: () -> Int) {
     }
     if (machineBias < PAYOUT_ROCKET) {
       if (biasCooldown == 0) {
-        if ((random() and 0x3FFF) < chances[PAYOUT_7]) biasCooldown = if (random() and 1 != 0) 5 else 60
+        if ((random() and 0x3FFF) < chances[PAYOUT_7])
+            biasCooldown = if (random() and 1 != 0) 5 else 60
       }
       if (biasCooldown != 0) {
         if (i == 0 && (random() and 0x3FFF) < (0.7 * 0x3FFF).toInt())
@@ -276,8 +277,7 @@ class FrlgSlotMachine(machineIdx: Int, private val rng: () -> Int) {
   }
 
   /** The 3x3 visible icons, [reel * 3 + row] (row 0 top). */
-  fun visibleIcons(): IntArray =
-      IntArray(9) { k -> icon(k / 3, reelPositions[k / 3] + 1 + k % 3) }
+  fun visibleIcons(): IntArray = IntArray(9) { k -> icon(k / 3, reelPositions[k / 3] + 1 + k % 3) }
 
   /** CalcPayout: sets [payout] and [winFlags], returns the best match class. */
   internal fun calcPayout(): Int {
@@ -364,27 +364,42 @@ class FrlgSlotMachine(machineIdx: Int, private val rng: () -> Int) {
 
     val SECOND_REEL_CHECK =
         arrayOf(
-            intArrayOf(0, 3), intArrayOf(0, 6), intArrayOf(3, 6),
-            intArrayOf(1, 4), intArrayOf(1, 7), intArrayOf(4, 7),
-            intArrayOf(2, 5), intArrayOf(2, 8), intArrayOf(5, 8),
-            intArrayOf(0, 4), intArrayOf(0, 8), intArrayOf(4, 8),
-            intArrayOf(2, 4), intArrayOf(2, 6), intArrayOf(4, 6),
+            intArrayOf(0, 3),
+            intArrayOf(0, 6),
+            intArrayOf(3, 6),
+            intArrayOf(1, 4),
+            intArrayOf(1, 7),
+            intArrayOf(4, 7),
+            intArrayOf(2, 5),
+            intArrayOf(2, 8),
+            intArrayOf(5, 8),
+            intArrayOf(0, 4),
+            intArrayOf(0, 8),
+            intArrayOf(4, 8),
+            intArrayOf(2, 4),
+            intArrayOf(2, 6),
+            intArrayOf(4, 6),
         )
 
     val THIRD_REEL_CHECK =
         arrayOf(
-            intArrayOf(0, 3, 6), intArrayOf(1, 4, 7), intArrayOf(2, 5, 8),
-            intArrayOf(0, 4, 8), intArrayOf(2, 4, 6),
+            intArrayOf(0, 3, 6),
+            intArrayOf(1, 4, 7),
+            intArrayOf(2, 5, 8),
+            intArrayOf(0, 4, 8),
+            intArrayOf(2, 4, 6),
         )
 
     /** sSlotMachineIndices (field_specials.c GetRandomSlotMachineId). */
-    val MACHINE_INDICES = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5)
+    val MACHINE_INDICES =
+        intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5)
 
     /** TestReelIconAttribute. */
     fun testAttr(attr: Int, icon: Int): Boolean =
         when (attr) {
           PAYOUT_NONE -> icon != ICON_CHERRIES
-          PAYOUT_CHERRIES2, PAYOUT_CHERRIES3 -> icon == ICON_CHERRIES
+          PAYOUT_CHERRIES2,
+          PAYOUT_CHERRIES3 -> icon == ICON_CHERRIES
           PAYOUT_MAGSHELL -> icon == ICON_MAGNEMITE || icon == ICON_SHELLDER
           PAYOUT_PIKAPSY -> icon == ICON_PIKACHU || icon == ICON_PSYDUCK
           PAYOUT_ROCKET -> icon == ICON_ROCKET
@@ -395,8 +410,10 @@ class FrlgSlotMachine(machineIdx: Int, private val rng: () -> Int) {
     /** ReelIconToPayoutRank. */
     fun payoutRank(icon: Int): Int =
         when (icon) {
-          ICON_MAGNEMITE, ICON_SHELLDER -> PAYOUT_MAGSHELL
-          ICON_PIKACHU, ICON_PSYDUCK -> PAYOUT_PIKAPSY
+          ICON_MAGNEMITE,
+          ICON_SHELLDER -> PAYOUT_MAGSHELL
+          ICON_PIKACHU,
+          ICON_PSYDUCK -> PAYOUT_PIKAPSY
           ICON_ROCKET -> PAYOUT_ROCKET
           ICON_7 -> PAYOUT_7
           else -> PAYOUT_CHERRIES2

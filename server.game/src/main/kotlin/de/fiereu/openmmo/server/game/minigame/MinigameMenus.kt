@@ -3,9 +3,9 @@ package de.fiereu.openmmo.server.game.minigame
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.PokemonContainer
+import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
 import de.fiereu.openmmo.net.game.packets.LocalCharacterDeltaPacket
 import de.fiereu.openmmo.net.game.packets.PokemonContainerPacket
-import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.Shininess
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
@@ -113,7 +113,12 @@ constructor(
    * The decomp's givemon: a level [level] [dexId] with its level-up moves, into the party or, when
    * full, the PC. Returns where it went (PARTY / PC) or null.
    */
-  suspend fun giveMon(session: SessionContext, charId: Long, dexId: Int, level: Int): PokemonContainer? {
+  suspend fun giveMon(
+      session: SessionContext,
+      charId: Long,
+      dexId: Int,
+      level: Int
+  ): PokemonContainer? {
     val stored = characters.getCharacter(charId) ?: return null
     val rolled = wildMons.create(dexId, level, BattleRng()) ?: return null
     val otId = Shininess.otId(charId)

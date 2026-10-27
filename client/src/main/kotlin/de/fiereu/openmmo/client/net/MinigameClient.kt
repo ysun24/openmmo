@@ -7,8 +7,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * r5-minigames: the Game Corner, link minigames, Union Room, Mystery Gift, Fame Checker, records
- * and Easy Chat. The server pushes one JSON object per topic ([MinigameStatePacket], s2c 0xDD);
- * the client keeps the last one of each and sends actions as [MinigameActionPacket] (c2s 0xDC).
+ * and Easy Chat. The server pushes one JSON object per topic ([MinigameStatePacket], s2c 0xDD); the
+ * client keeps the last one of each and sends actions as [MinigameActionPacket] (c2s 0xDC).
  */
 class MinigameClient(
     private val send: (Any) -> Unit,
