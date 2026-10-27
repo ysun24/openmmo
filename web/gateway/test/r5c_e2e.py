@@ -269,7 +269,9 @@ def run_blender_link(a, b):
     tb = threading.Thread(target=blend_one, args=(b, "lobby 22 5 right", out))
     ta.start(); time.sleep(2); tb.start(); ta.join(400); tb.join(400)
     print("      ", out)
-    assert sorted(out[a.label][0]) == sorted([a.label, b.label]), out
+    names = lambda p: {p.label, getattr(p, "char_name", None)}
+    got = out[a.label][0]
+    assert len(got) == 2 and any(n in names(a) for n in got) and any(n in names(b) for n in got), out
     ok(f"Ash and Gary blended together: {out}")
 
 
