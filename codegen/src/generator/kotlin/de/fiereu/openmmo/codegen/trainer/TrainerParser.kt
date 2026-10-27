@@ -40,6 +40,10 @@ class TrainerParser(private val rootDir: File) {
               doubleBattle = entry.doubleBattle,
               prizeRate = prizeRates[entry.trainerClass] ?: defaultPrizeRate,
               party = party,
+              pic = entry.pic,
+              className = entry.trainerClass.removePrefix("TRAINER_CLASS_"),
+              items = entry.items,
+              music = entry.music,
           )
         }
         .sortedBy { it.id }
@@ -63,6 +67,7 @@ class TrainerParser(private val rootDir: File) {
         iv = difficulty * MAX_IV / 255,
         heldItem = itemIds[fields["heldItem"]] ?: 0,
         moveIds = moves,
+        heldItemName = fields["heldItem"]?.removePrefix("ITEM_")?.takeIf { it != "NONE" }.orEmpty(),
     )
   }
 
@@ -72,6 +77,9 @@ class TrainerParser(private val rootDir: File) {
       val trainerClass: String,
       val doubleBattle: Boolean,
       val partySymbol: String,
+      val pic: String = "",
+      val items: List<String> = emptyList(),
+      val music: String = "",
   )
 
   // [TRAINER_X] = { .trainerClass = ..., .trainerName = _("NAME"), .party = MACRO(sParty_X), }
@@ -86,6 +94,17 @@ class TrainerParser(private val rootDir: File) {
                 trainerClass = CLASS.find(body)?.groupValues?.get(1).orEmpty(),
                 doubleBattle = body.contains(".doubleBattle = TRUE"),
                 partySymbol = party,
+                pic = PIC.find(body)?.groupValues?.get(1).orEmpty(),
+                items =
+                    ITEMS.find(body)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.let { list ->
+                          ITEM.findAll(list).map { it.groupValues[1] }.filter { it != "NONE" }
+                        }
+                        ?.toList()
+                        .orEmpty(),
+                music = MUSIC.find(body)?.groupValues?.get(1).orEmpty(),
             )
           }
           .toList()
@@ -147,6 +166,10 @@ class TrainerParser(private val rootDir: File) {
     val MEMBER = Regex("""\{((?:[^{}]|\{[^{}]*})*)}""", RegexOption.DOT_MATCHES_ALL)
     val FIELD = Regex("""\.(\w+)\s*=\s*(\{[^}]*}|[^,}]+)""")
     val MOVE = Regex("""MOVE_\w+""")
+    val PIC = Regex("""\.trainerPic\s*=\s*TRAINER_PIC_(\w+)""")
+    val ITEMS = Regex("""\.items\s*=\s*\{([^}]*)}""")
+    val ITEM = Regex("""ITEM_(\w+)""")
+    val MUSIC = Regex("""TRAINER_ENCOUNTER_MUSIC_(\w+)""")
     val MONEY_TABLE =
         Regex("""gTrainerMoneyTable\[]\s*=\s*\{(.*?)};""", RegexOption.DOT_MATCHES_ALL)
     val MONEY_ENTRY = Regex("""\{\s*(TRAINER_CLASS_\w+)\s*,\s*(\d+)\s*}""")

@@ -117,6 +117,7 @@ constructor(
     private val guildService: GuildService,
     private val battleService: BattleService,
     private val pvpBattleService: PvpBattleService,
+    private val evolutionService: de.fiereu.openmmo.server.game.services.EvolutionService,
     private val chatCommandService: ChatCommandService,
     private val shopService: ShopService,
     private val fieldItemService: FieldItemService,
@@ -181,6 +182,13 @@ constructor(
     on<BattlePartySwitchPacket> { event -> battleService.onBattlePacket(event) }
     on<BattleActionPacket> { event -> battleService.onBattlePacket(event) }
     onSuspend<BattleActionSelectPacket> { event -> battleService.onBattleAction(event) }
+    // r3-battle: positional/targeted actions and the evolution scene answer.
+    onSuspend<de.fiereu.openmmo.net.game.packets.battle.BattleExtActionPacket> { event ->
+      battleService.onExtAction(event)
+    }
+    onSuspend<de.fiereu.openmmo.net.game.packets.battle.EvolutionReplyPacket> { event ->
+      evolutionService.onReply(event)
+    }
     on<BattleLeavePacket> { event -> battleService.onBattlePacket(event) }
     on<BattleSequencePacket> { event -> battleService.onBattlePacket(event) }
     on<BattleSlotActionPacket> { event -> battleService.onBattlePacket(event) }

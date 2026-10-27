@@ -93,6 +93,18 @@ class DispatcherTest {
                 ("duelRules" to listOf("Gary", 50, 3, 30)),
             """{"t":"duel","name":"Gary","timer":0}""" to ("duelRules" to listOf("Gary", 0, 6, 0)),
             """{"t":"duel.answer","accept":false}""" to ("duelAnswer" to listOf(false)),
+            // r3-battle
+            """{"t":"battle.fight","move":1,"pos":1,"target":{"side":"foe","pos":0}}""" to
+                ("battleFightAt" to listOf<Any?>(1, 1, "foe", 0)),
+            """{"t":"battle.item","item":5017,"mon":"2412313315698249729"}""" to
+                ("battleItem" to listOf<Any?>(5017, 2412313315698249729L, null, null)),
+            """{"t":"battle.item","item":5038,"mon":"5","moveSlot":2,"pos":1}""" to
+                ("battleItem" to listOf<Any?>(5038, 5L, 2, 1)),
+            """{"t":"battle.ball","item":5003}""" to ("battleBallItem" to listOf(5003)),
+            """{"t":"evolution.answer","proceed":false}""" to ("evolutionAnswer" to listOf(false)),
+            """{"t":"evolution.close"}""" to ("evolutionClose" to emptyList()),
+            """{"t":"duel","name":"Gary","party":2,"doubles":true}""" to
+                ("duelRulesDoubles" to listOf<Any?>("Gary", 0, 2, 0, true)),
             """{"t":"trade.request","name":"Gary"}""" to ("tradeRequest" to listOf("Gary")),
             """{"t":"trade.accept"}""" to ("tradeAction" to listOf("accept")),
             """{"t":"trade.decline"}""" to ("tradeAction" to listOf("decline")),

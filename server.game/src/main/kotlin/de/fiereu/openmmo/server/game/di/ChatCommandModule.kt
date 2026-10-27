@@ -37,4 +37,11 @@ interface ChatCommandModule {
   @Binds @IntoSet fun giveItemCommand(command: GiveItemCommand): ChatCommand
 
   @Binds @IntoSet fun giveMoneyCommand(command: GiveMoneyCommand): ChatCommand
+
+  // r3-battle
+  @Binds
+  @IntoSet
+  fun monSetCommand(
+      command: de.fiereu.openmmo.server.game.services.command.MonSetCommand
+  ): ChatCommand
 }

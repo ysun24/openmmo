@@ -125,6 +125,37 @@ class GameSession(val client: GameClient) : GameActions {
 
   override fun battleFight(move: Int) = client.battle.fight(move)
 
+  override fun battleFightAt(move: Int, pos: Int?, targetSide: String?, targetPos: Int?) =
+      client.battle.fightAt(pos, move, targetSide, targetPos)
+
+  override fun battleItem(item: Int, mon: Long?, moveSlot: Int?, pos: Int?): String? {
+    if (!inBattle()) return "not in a battle"
+    return client.battle.useItem(item, mon ?: 0, moveSlot ?: -1, pos)
+  }
+
+  override fun battleBallItem(item: Int) = client.battle.throwBall(item)
+
+  override fun evolutionAnswer(proceed: Boolean) = client.battle.answerEvolution(proceed)
+
+  override fun evolutionClose(): String? {
+    client.battle.dismissEvolution()
+    return null
+  }
+
+  override fun duelRulesDoubles(
+      name: String,
+      levelCap: Int,
+      maxParty: Int,
+      turnSeconds: Int,
+      doubles: Boolean,
+  ): String? {
+    client.battle.challenge(
+        name,
+        de.fiereu.openmmo.net.game.packets.battle.DuelRules(
+            levelCap, maxParty, turnSeconds, doubles))
+    return null
+  }
+
   override fun battleSwitch(slot: Int) = client.battle.switchTo(slot)
 
   override fun battleRun() = client.battle.run()

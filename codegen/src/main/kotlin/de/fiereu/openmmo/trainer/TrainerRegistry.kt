@@ -14,6 +14,8 @@ data class TrainerMon(
     val iv: Int,
     val heldItem: Int,
     val moveIds: List<Int>,
+    /** The held item's decomp constant without `ITEM_`, "" for none. */
+    val heldItemName: String = "",
 )
 
 data class TrainerDef(
@@ -24,6 +26,14 @@ data class TrainerDef(
     /** What the class pays per level of its last monster. */
     val prizeRate: Int,
     val party: List<TrainerMon>,
+    /** `TRAINER_PIC_` suffix (e.g. LEADER_ROXANNE), the front sprite to show. */
+    val pic: String = "",
+    /** `TRAINER_CLASS_` suffix (e.g. LEADER, ELITE_FOUR, CHAMPION). */
+    val className: String = "",
+    /** Items the trainer may use in battle, `ITEM_` suffixes. */
+    val items: List<String> = emptyList(),
+    /** `TRAINER_ENCOUNTER_MUSIC_` suffix. */
+    val music: String = "",
 )
 
 private data class TrainerKey(val region: Region, val id: Int)

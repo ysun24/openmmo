@@ -622,5 +622,10 @@ object GameProtocol : Protocol() {
     c2s<DuelRulesChallengePacket>(0xEEu, DuelRulesChallengePacketCodec)
     s2c<DuelRulesPacket>(0xEEu, DuelRulesPacketCodec)
     s2c<BattleTurnTimerPacket>(0xEFu, BattleTurnTimerPacketCodec)
+    // r3-battle: battle extension channel (see packets/battle/BattleExtPackets). The reserved
+    // s2c 0xF0-0xF3 were already taken, so s2c uses 0xE6; c2s 0xF0 and 0xF2 were free.
+    s2c<BattleExtPacket>(0xE6u, BattleExtPacketCodec)
+    c2s<BattleExtActionPacket>(0xF0u, BattleExtActionPacketCodec)
+    c2s<EvolutionReplyPacket>(0xF2u, EvolutionReplyPacketCodec)
   }
 }

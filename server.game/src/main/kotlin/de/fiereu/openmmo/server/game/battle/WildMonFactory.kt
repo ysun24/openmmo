@@ -14,7 +14,6 @@ import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TACKLE_ID = 33
 private const val FALLBACK_PP = 35
 
 /** Rolls a wild monster: random nature seed, random IVs, computed stats, full hp. */

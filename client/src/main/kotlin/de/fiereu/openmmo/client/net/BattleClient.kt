@@ -19,6 +19,9 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleBulkStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityDeltaPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityMoveEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEventBody
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtActionPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtKind
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleListEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleQueuedEventPacket
@@ -30,11 +33,22 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleTurnTimerPacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesChallengePacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesPacket
+import de.fiereu.openmmo.net.game.packets.battle.EvolutionReplyPacket
 import de.fiereu.openmmo.net.game.packets.battle.OpposingSide
 import de.fiereu.openmmo.net.game.packets.battle.moves.MoveLearnPromptPacket
 import de.fiereu.openmmo.net.game.packets.battle.moves.MoveLearnReplyPacket
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 private val log = KotlinLogging.logger {}
 
@@ -64,6 +78,9 @@ object BattleNames {
   fun power(id: Int): Int = moves.get(id)?.power ?: 0
 
   fun accuracy(id: Int): Int = moves.get(id)?.accuracy ?: 0
+
+  /** r3-battle: the move's target kind (SELECTED, BOTH, USER...) for the doubles target picker. */
+  fun target(id: Int): String? = moves.get(id)?.target?.name
 
   fun growth(species: Int): GrowthRate? = this.species.get(species)?.growthRate
 
@@ -148,6 +165,13 @@ data class BattleMon(
     val revealed: Boolean = true,
     /** Total experience points, when the server told us (own monsters only). */
     val xp: Int? = null,
+    /** r3-battle: major status code (slp, psn, tox, brn, frz, par) or null. */
+    val status: String? = null,
+    val confused: Boolean = false,
+    /** Own monsters only: ability and held item names. */
+    val ability: String? = null,
+    val item: String? = null,
+    val substitute: Boolean = false,
 ) {
   val name: String
     get() = BattleNames.species(species)
@@ -190,6 +214,29 @@ data class TurnTimer(
     val startedAtMs: Long,
 )
 
+/** One bag item usable in battle: [target] is foe, party, active or none. */
+data class BattleBagItem(
+    val id: Int,
+    val name: String,
+    val count: Int,
+    val target: String,
+    val pocket: String,
+    val perMove: Boolean = false,
+)
+
+/** An evolution about to play: the browser shows the scene and answers proceed / stop (B). */
+data class EvolutionScene(
+    val id: Long,
+    val fromDex: Int,
+    val toDex: Int,
+    val name: String,
+    val toName: String,
+    /** start, done or cancelled. */
+    val phase: String,
+    val learned: List<String> = emptyList(),
+    val seq: Int = 0,
+)
+
 data class BattleState(
     val active: Boolean = false,
     val wild: Boolean = true,
@@ -213,7 +260,42 @@ data class BattleState(
     val timer: TurnTimer? = null,
     /** The newest effects, oldest first (bounded). */
     val fx: List<BattleFx> = emptyList(),
+    // --- r3-battle extension state ---
+    /** Monsters out per side: 1 (single) or 2 (double). */
+    val format: Int = 1,
+    /** Party slot per battle position, -1 for an empty position. */
+    val actives: List<Int> = listOf(0),
+    val foeActives: List<Int> = listOf(0),
+    /** Battle background key (graphics/battle_environment name). */
+    val terrain: String = "tall_grass",
+    /** Music key: wild, trainer, gym, elite, champion, rival, team, pvp. */
+    val music: String? = null,
+    val weather: String = "none",
+    /** The opposing trainer's front sprite key (TRAINER_PIC_ suffix, lower case) and class. */
+    val trainerPic: String? = null,
+    val trainerClass: String? = null,
+    /** Positions that owe a replacement for a fainted monster. */
+    val owedSwitches: List<Int> = emptyList(),
+    /** Positions that already picked this turn (doubles). */
+    val chosen: List<Int> = emptyList(),
+    /** An evolution scene waiting for the player's answer (also outside battles). */
+    val evolution: EvolutionScene? = null,
+    /** Bag items usable in this battle, from the server. */
+    val bag: List<BattleBagItem> = emptyList(),
 ) {
+  /** The position whose action the player picks next, or null when all picked. */
+  val choosingPos: Int?
+    get() =
+        actives.indices.firstOrNull { pos ->
+          pos !in chosen && party.getOrNull(actives[pos])?.let { !it.fainted } == true
+        }
+
+  /** The monster out at [pos] on our side. */
+  fun mine(pos: Int): BattleMon? = actives.getOrNull(pos)?.let { party.getOrNull(it) }
+
+  fun foeAt(pos: Int): BattleMon? =
+      foeActives.getOrNull(pos)?.let { s -> opponent.firstOrNull { it.slot == s } }
+
   val me: BattleMon?
     get() = party.getOrNull(activeSlot)
 
@@ -242,6 +324,20 @@ class BattleClient(
   private var pendingDuelRules: DuelRules? = null
   private var fxSeq = 0
   private var timerSeq = 0
+
+  /** r3-battle: set when an extension ball event played the throw. */
+  private var ballShown = false
+
+  /** r3-battle: the last ball held, so the battle end reads CAUGHT whatever the ball. */
+  private var caughtSeen = false
+
+  /** r3-battle: the trainer name from the extended state sent just before the battle opens. */
+  private var extTrainerName: String? = null
+
+  /** r3-battle: the position the next retail switch-in fills. */
+  private var pendingSwitchPos: Int? = null
+
+  private var evoSeq = 0
 
   /** Experience change waiting for its "gained N EXP" line: entity, before and after. */
   private var pendingExp: Triple<Long, BattleMon, BattleMon>? = null
@@ -284,7 +380,7 @@ class BattleClient(
       is BattleFieldStatePacket -> onStart(p)
       is BattleQueuedEventPacket ->
           if (p.flag) {
-            update { it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1) }
+            update { it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1, chosen = emptyList()) }
             snapshot().me?.let { say("What will ${it.name} do?", animate = false) }
           }
       is BattleSlotFlagEventPacket ->
@@ -319,10 +415,15 @@ class BattleClient(
       }
       is BattleSlotEventEnumPacket -> if (p.eventType.toInt() == 0) say("Got away safely!")
       is BattleListEventPacket -> {
-        say("You threw a POKé BALL!")
-        // The server catches every time so far, so the ball always shakes three times and holds.
-        fx("ball", "foe", "shakes" to BALL_SHAKES, "caught" to true)
+        // r3-battle: the extension ball event already played the throw with its real shakes.
+        // The retail throw event only follows a catch.
+        synchronized(lock) { caughtSeen = true }
+        if (!synchronized(lock) { ballShown.also { ballShown = false } }) {
+          say("You threw a POKé BALL!")
+          fx("ball", "foe", "shakes" to BALL_SHAKES, "caught" to true)
+        }
       }
+      is BattleExtPacket -> onExt(p.json)
       is BattleBulkStatePacket -> onBulk(p)
       is MoveLearnPromptPacket -> {
         val offered = p.offered.map { it.toInt() }
@@ -414,7 +515,9 @@ class BattleClient(
               when {
                 wild -> ""
                 p.trainerId.toInt() != 0 ->
-                    BattleNames.trainer(regionId(), p.trainerId.toInt()) ?: "Trainer"
+                    synchronized(lock) { extTrainerName }
+                        ?: BattleNames.trainer(regionId(), p.trainerId.toInt())
+                        ?: "Trainer"
                 else -> invitedBy ?: it.opponentName
               },
           party = party,
@@ -431,7 +534,10 @@ class BattleClient(
           timer = null,
       )
     }
-    synchronized(lock) { pendingExp = null }
+    synchronized(lock) {
+      pendingExp = null
+      caughtSeen = false
+    }
     val s = snapshot()
     fx(
         "start",
@@ -485,11 +591,14 @@ class BattleClient(
         "type" to BattleNames.moveType(moveId),
         "power" to BattleNames.power(moveId),
         "target" to firstTarget?.let { sideOf(it.entityId) },
-        "hits" to hits)
+        "hits" to hits,
+        "id" to p.sourceEntity,
+        "targetId" to firstTarget?.entityId,
+        "targets" to p.targets.map { it.entityId })
     for (t in p.targets) {
       val outcome = t.targetMove.toInt()
       if (t.subEvents.isEmpty() && outcome == OUTCOME_MISSED) {
-        fx("miss", sideOf(t.entityId))
+        fx("miss", sideOf(t.entityId), "id" to t.entityId)
         say("$attacker's attack missed!")
       }
       if (t.subEvents.isEmpty() && outcome == OUTCOME_FAILED) say("But it failed!")
@@ -512,6 +621,7 @@ class BattleClient(
                 "from" to before?.hp?.coerceAtLeast(0),
                 "hp" to body.currentHp.toInt().coerceAtLeast(0),
                 "maxHp" to before?.maxHp,
+                "id" to t.entityId,
                 "effect" to
                     when {
                       outcome and SUPER_EFFECTIVE_BIT != 0 -> "super"
@@ -520,7 +630,7 @@ class BattleClient(
                     })
             effectiveness()
             if (body.currentHp <= 0) {
-              fx("faint", sideOf(t.entityId))
+              fx("faint", sideOf(t.entityId), "id" to t.entityId)
               say("$target fainted!")
             }
           }
@@ -537,11 +647,12 @@ class BattleClient(
                 "stat",
                 sideOf(t.entityId),
                 "stat" to BattleNames.stat(body.stat.toInt()),
-                "delta" to d)
+                "delta" to d,
+                "id" to t.entityId)
             say("$target's ${BattleNames.stat(body.stat.toInt())} $how!")
           }
           is BattleEventBody.Faint -> {
-            fx("faint", sideOf(t.entityId))
+            fx("faint", sideOf(t.entityId), "id" to t.entityId)
             say("$target fainted!")
           }
           is BattleEventBody.MoveFailed -> say("But it failed!")
@@ -550,7 +661,11 @@ class BattleClient(
       }
       effectiveness()
     }
-    update { if (it.phase == BattlePhase.ACTION) it.copy(phase = BattlePhase.WAITING) else it }
+    update {
+      if (it.phase == BattlePhase.ACTION && it.choosingPos == null)
+          it.copy(phase = BattlePhase.WAITING)
+      else it
+    }
   }
 
   private fun onPp(p: EntityMovePpPacket) =
@@ -564,7 +679,14 @@ class BattleClient(
 
   private fun onSwitchIn(p: BattleSwitchInPacket) {
     val b = p.mon
+    val pos = synchronized(lock) { pendingSwitchPos.also { pendingSwitchPos = null } } ?: 0
     if (p.side.toInt() == 0) {
+      update { s ->
+        val list = s.actives.toMutableList()
+        while (list.size <= pos) list += -1
+        list[pos] = p.newSlot
+        s.copy(actives = list)
+      }
       update { s ->
         val party =
             s.party.map { m ->
@@ -572,10 +694,14 @@ class BattleClient(
                   m.copy(hp = b.currentHp.toInt(), maxHp = b.maxHp.toInt(), level = b.level.toInt())
               else m
             }
-        s.copy(party = party, activeSlot = p.newSlot, phase = BattlePhase.WAITING)
+        s.copy(
+            party = party,
+            activeSlot = if (pos == 0) p.newSlot else s.activeSlot,
+            phase = BattlePhase.WAITING)
       }
-      fx("switch", "me", "mon" to snapshot().me?.let(::monFx))
-      say("Go! ${snapshot().me?.name}!")
+      val out = snapshot().party.firstOrNull { it.slot == p.newSlot }
+      fx("switch", "me", "mon" to out?.let(::monFx), "pos" to pos)
+      say("Go! ${out?.name}!")
     } else {
       update { s ->
         val existing = s.opponent.firstOrNull { it.slot == p.newSlot }
@@ -592,11 +718,18 @@ class BattleClient(
         val list = s.opponent.toMutableList()
         val i = list.indexOfFirst { it.slot == p.newSlot }
         if (i >= 0) list[i] = mon else list += mon
-        s.copy(opponent = list, opponentSlot = p.newSlot)
+        val fa = s.foeActives.toMutableList()
+        while (fa.size <= pos) fa += -1
+        fa[pos] = p.newSlot
+        s.copy(
+            opponent = list,
+            opponentSlot = if (pos == 0) p.newSlot else s.opponentSlot,
+            foeActives = fa)
       }
       val who = snapshot().opponentName.ifEmpty { "The foe" }
-      fx("switch", "foe", "mon" to snapshot().foe?.let(::monFx))
-      say("$who sent out ${snapshot().foe?.name}!")
+      val out = snapshot().opponent.firstOrNull { it.slot == p.newSlot }
+      fx("switch", "foe", "mon" to out?.let(::monFx), "pos" to pos)
+      say("$who sent out ${out?.name}!")
     }
   }
 
@@ -663,7 +796,8 @@ class BattleClient(
           "name" to m.name,
           "level" to m.level,
           "hp" to m.hp.coerceAtLeast(0),
-          "maxHp" to m.maxHp)
+          "maxHp" to m.maxHp,
+          "status" to m.status)
 
   private fun onBulk(p: BattleBulkStatePacket) {
     if (p.flag != BATTLE_END_FLAG) return
@@ -673,7 +807,7 @@ class BattleClient(
           p.phase == FLED_PHASE -> "FLED"
           s.party.isNotEmpty() && s.party.all { it.fainted } -> "DEFEAT"
           s.opponent.isNotEmpty() && s.opponent.all { it.fainted } -> "VICTORY"
-          s.log.any { it.contains("POKé BALL") } -> "CAUGHT"
+          synchronized(lock) { caughtSeen } -> "CAUGHT"
           s.log.any { it.contains("won the battle") } ->
               if (s.log.last { it.contains("won the battle") }.startsWith("${myName()} ")) "VICTORY"
               else "DEFEAT"
@@ -705,24 +839,81 @@ class BattleClient(
 
   // --- actions -----------------------------------------------------------------------------
 
-  fun fight(moveIndex: Int): String? {
+  fun fight(moveIndex: Int): String? = fightAt(null, moveIndex, null, null)
+
+  /**
+   * r3-battle: the move in slot [moveIndex] for position [pos] (null = the next one to pick), aimed
+   * at [targetSide] ("foe" / "me") [targetPos]; null lets the server pick.
+   */
+  fun fightAt(pos: Int?, moveIndex: Int, targetSide: String?, targetPos: Int?): String? {
     val s = snapshot()
     if (s.phase != BattlePhase.ACTION) return "not your turn"
-    val move = s.me?.moves?.getOrNull(moveIndex) ?: return "no move ${moveIndex + 1}"
-    if (move.pp <= 0 && s.me!!.moves.any { it.pp > 0 }) return "${move.name} has no PP left"
-    update { it.copy(phase = BattlePhase.WAITING) }
-    send(BattleActionSelectPacket(0, BattleAction.MOVE, move.id.toShort(), 0, 0))
+    val at = pos ?: s.choosingPos ?: return "nothing to pick"
+    val mon = s.mine(at) ?: return "no monster at position ${at + 1}"
+    val move = mon.moves.getOrNull(moveIndex) ?: return "no move ${moveIndex + 1}"
+    if (move.pp <= 0 && mon.moves.any { it.pp > 0 }) return "${move.name} has no PP left"
+    picked(at)
+    if (s.format <= 1 && targetSide == null) {
+      send(BattleActionSelectPacket(0, BattleAction.MOVE, move.id.toShort(), 0, 0))
+    } else {
+      val side =
+          when (targetSide) {
+            "me" -> 0
+            "foe" -> 1
+            else -> -1
+          }
+      send(BattleExtActionPacket(at, BattleExtKind.MOVE, move.id.toShort(), side, targetPos ?: -1))
+    }
     return null
   }
+
+  /** Marks [pos] picked; the phase leaves ACTION once every position has picked. */
+  private fun picked(pos: Int) = update { s ->
+    val chosen = (s.chosen + pos).distinct()
+    val next = s.copy(chosen = chosen)
+    if (next.choosingPos == null) next.copy(phase = BattlePhase.WAITING) else next
+  }
+
+  /**
+   * r3-battle: uses bag item [itemId] from position [pos] on party monster [targetEntity] (0 = the
+   * active one / balls), with [moveSlot] for one-move PP items.
+   */
+  fun useItem(itemId: Int, targetEntity: Long = 0, moveSlot: Int = -1, pos: Int? = null): String? {
+    val s = snapshot()
+    if (s.phase != BattlePhase.ACTION) return "not your turn"
+    val at = pos ?: s.choosingPos ?: 0
+    picked(at)
+    send(
+        BattleExtActionPacket(at, BattleExtKind.ITEM, itemId.toShort(), -1, moveSlot, targetEntity))
+    return null
+  }
+
+  /** r3-battle: answers an evolution scene: [proceed] false = B pressed. */
+  fun answerEvolution(proceed: Boolean): String? {
+    val evo = snapshot().evolution ?: return "nothing is evolving"
+    if (evo.phase != "start") return "nothing is evolving"
+    send(EvolutionReplyPacket(evo.id, proceed))
+    update { it.copy(evolution = evo.copy(phase = if (proceed) "evolving" else "stopping")) }
+    return null
+  }
+
+  fun dismissEvolution() = update { it.copy(evolution = null) }
 
   fun switchTo(partyIndex: Int): String? {
     val s = snapshot()
     if (s.phase != BattlePhase.ACTION && s.phase != BattlePhase.FORCED_SWITCH) return "not now"
     val mon = s.party.getOrNull(partyIndex) ?: return "no monster ${partyIndex + 1}"
     if (mon.fainted) return "${mon.name} has fainted"
-    if (partyIndex == s.activeSlot) return "${mon.name} is already out"
-    update { it.copy(phase = BattlePhase.WAITING) }
-    send(BattleActionSelectPacket(0, BattleAction.SWITCH, partyIndex.toShort(), 0, 0))
+    if (partyIndex in s.actives) return "${mon.name} is already out"
+    val pos =
+        if (s.phase == BattlePhase.FORCED_SWITCH) s.owedSwitches.firstOrNull() ?: 0
+        else s.choosingPos ?: 0
+    if (s.phase == BattlePhase.FORCED_SWITCH) {
+      update { it.copy(phase = BattlePhase.WAITING) }
+    } else picked(pos)
+    if (s.format <= 1)
+        send(BattleActionSelectPacket(0, BattleAction.SWITCH, partyIndex.toShort(), 0, 0))
+    else send(BattleExtActionPacket(pos, BattleExtKind.SWITCH, partyIndex.toShort()))
     return null
   }
 
@@ -734,13 +925,201 @@ class BattleClient(
   }
 
   /** BAG: the only battle item so far is a Poke Ball thrown at the wild monster. */
-  fun throwBall(): String? {
+  fun throwBall(itemId: Int = BattleNames.pokeBall.toInt()): String? {
     val s = snapshot()
     if (s.phase != BattlePhase.ACTION) return "not your turn"
     val target = s.foe?.entityId ?: 0
     update { it.copy(phase = BattlePhase.WAITING) }
-    send(BattleActionSelectPacket(0, BattleAction.ITEM, BattleNames.pokeBall, target, 0))
+    send(BattleActionSelectPacket(0, BattleAction.ITEM, itemId.toShort(), target, 0))
     return null
+  }
+
+  // --- r3-battle extension channel -----------------------------------------------------------
+
+  private fun sideOfIdOrNull(id: Long): String? = sideOf(id)
+
+  private fun onExt(json: String) {
+    val root = runCatching { Json.parseToJsonElement(json).jsonObject }.getOrNull() ?: return
+    when (root["t"]?.jsonPrimitive?.contentOrNull) {
+      "state" -> onExtState(root)
+      "events" -> root["e"]?.jsonArray?.forEach { onExtEvent(it.jsonObject) }
+      "evo" -> onEvo(root)
+    }
+  }
+
+  private fun JsonObject.str(k: String): String? = this[k]?.jsonPrimitive?.contentOrNull
+
+  private fun JsonObject.int(k: String): Int? = this[k]?.jsonPrimitive?.intOrNull
+
+  private fun JsonObject.long(k: String): Long? = this[k]?.jsonPrimitive?.longOrNull
+
+  private fun JsonObject.bool(k: String): Boolean = this[k]?.jsonPrimitive?.booleanOrNull ?: false
+
+  private fun onExtState(o: JsonObject) {
+    val me = o["me"]?.jsonObject
+    val foe = o["foe"]?.jsonObject
+    fun actives(side: JsonObject?) = side?.get("actives")?.jsonArray?.map { it.jsonPrimitive.int }
+    val monInfo =
+        (me?.get("mons")?.jsonArray.orEmpty() + foe?.get("mons")?.jsonArray.orEmpty()).associate {
+          val m = it.jsonObject
+          m.long("id")!! to m
+        }
+    val trainer = o["trainer"]?.jsonObject
+    synchronized(lock) { extTrainerName = trainer?.str("name")?.takeIf { it.isNotBlank() } }
+    update { s ->
+      fun merge(list: List<BattleMon>) =
+          list.map { b ->
+            val m = monInfo[b.entityId] ?: return@map b
+            b.copy(
+                status = m.str("status"),
+                confused = m.bool("confused"),
+                ability = m.str("ability") ?: b.ability,
+                item = if (m.containsKey("item")) m.str("item") else b.item,
+                substitute = m.bool("substitute"),
+                hp = m.int("hp") ?: b.hp,
+                maxHp = m.int("maxHp") ?: b.maxHp)
+          }
+      val owed = o["owedSwitches"]?.jsonArray?.map { it.jsonPrimitive.int }.orEmpty()
+      val chosen = o["chosen"]?.jsonArray?.map { it.jsonPrimitive.int }.orEmpty()
+      val acts = actives(me) ?: s.actives
+      s.copy(
+          format = o.int("format") ?: s.format,
+          terrain = o.str("terrain") ?: s.terrain,
+          music = o.str("music") ?: s.music,
+          weather = o.str("weather") ?: s.weather,
+          trainerPic = trainer?.str("pic") ?: s.trainerPic,
+          opponentName = trainer?.str("name")?.takeIf { it.isNotBlank() } ?: s.opponentName,
+          trainerClass = trainer?.str("class") ?: s.trainerClass,
+          actives = acts,
+          foeActives = actives(foe) ?: s.foeActives,
+          activeSlot = acts.firstOrNull { it >= 0 } ?: s.activeSlot,
+          opponentSlot = actives(foe)?.firstOrNull { it >= 0 } ?: s.opponentSlot,
+          owedSwitches = owed,
+          chosen = if (s.phase == BattlePhase.ACTION) (s.chosen + chosen).distinct() else chosen,
+          party = merge(s.party),
+          opponent = merge(s.opponent),
+          bag =
+              o["bag"]?.jsonArray?.mapNotNull {
+                val b = it.jsonObject
+                BattleBagItem(
+                    b.int("id") ?: return@mapNotNull null,
+                    b.str("name") ?: "",
+                    b.int("count") ?: 0,
+                    b.str("target") ?: "none",
+                    b.str("pocket") ?: "medicine",
+                    b.bool("perMove"))
+              } ?: s.bag,
+      )
+    }
+  }
+
+  private fun onExtEvent(e: JsonObject) {
+    val id = e.long("id") ?: 0L
+    val side = if (id != 0L) sideOfIdOrNull(id) else null
+    when (e.str("k")) {
+      "text" -> say(e.str("text") ?: return)
+      "hp" -> {
+        val before = monOf(id) ?: return
+        val hp = e.int("hp") ?: return
+        mapMon(id) { it.copy(hp = hp) }
+        fx(
+            "hp",
+            side,
+            "from" to before.hp.coerceAtLeast(0),
+            "hp" to hp.coerceAtLeast(0),
+            "maxHp" to before.maxHp,
+            "effect" to if (hp > before.hp) "heal" else "normal",
+            "reason" to e.str("reason"),
+            "id" to id)
+        if (hp <= 0 && before.hp > 0) {
+          fx("faint", side, "id" to id)
+          say("${nameOf(id)} fainted!")
+        }
+        if (hp > 0 && before.hp <= 0) fx("revive", side, "id" to id)
+      }
+      "status" -> {
+        val code = e.str("status")
+        mapMon(id) { it.copy(status = code) }
+        fx("status", side, "status" to code, "id" to id)
+      }
+      "volatile" -> {
+        val kind = e.str("kind")
+        val on = e.bool("on")
+        when (kind) {
+          "confused" -> mapMon(id) { it.copy(confused = on) }
+          "substitute" -> mapMon(id) { it.copy(substitute = on) }
+        }
+        fx("volatile", side, "kind" to kind, "on" to on, "id" to id)
+      }
+      "ability" ->
+          fx("ability", side, "ability" to e.str("ability"), "name" to nameOf(id), "id" to id)
+      "item" -> {
+        if (e.bool("consumed")) mapMon(id) { it.copy(item = null) }
+        fx(
+            "item",
+            side,
+            "item" to e.str("item"),
+            "consumed" to e.bool("consumed"),
+            "id" to id,
+            "name" to nameOf(id))
+      }
+      "weather" -> {
+        val w = e.str("weather") ?: "none"
+        update { it.copy(weather = w) }
+        fx("weather", null, "weather" to w)
+      }
+      "stat" -> {
+        val d = e.int("delta") ?: 0
+        val stat = BattleNames.stat(e.int("stat") ?: 0)
+        val how =
+            when {
+              d >= 2 -> "rose sharply"
+              d > 0 -> "rose"
+              d <= -2 -> "harshly fell"
+              else -> "fell"
+            }
+        fx("stat", side, "stat" to stat, "delta" to d, "id" to id)
+        say("${nameOf(id)}'s $stat $how!")
+      }
+      "miss" -> fx("miss", side, "id" to id)
+      "switch" -> synchronized(lock) { pendingSwitchPos = e.int("pos") }
+      "ball" -> {
+        val ball = e.str("ball") ?: "POKé BALL"
+        val shakes = e.int("shakes") ?: 0
+        val caught = e.bool("caught")
+        synchronized(lock) {
+          ballShown = true
+          if (caught) caughtSeen = true
+        }
+        say("You threw a ${ball.uppercase()}!")
+        fx("ball", "foe", "shakes" to shakes, "caught" to caught, "ball" to ball)
+        if (!caught) synchronized(lock) { ballShown = false }
+      }
+      "fled" -> say(if (e.int("side") == 1) "The wild monster fled!" else "Got away safely!")
+    }
+  }
+
+  private fun onEvo(o: JsonObject) {
+    val phase = o.str("phase") ?: return
+    val id = o.long("id") ?: return
+    update { s ->
+      val prev = s.evolution
+      val scene =
+          if (phase == "start")
+              EvolutionScene(
+                  id,
+                  o.int("fromDex") ?: 0,
+                  o.int("toDex") ?: 0,
+                  o.str("name") ?: "",
+                  o.str("toName") ?: "",
+                  "start",
+                  seq = ++evoSeq)
+          else
+              (prev ?: EvolutionScene(id, 0, o.int("toDex") ?: 0, "", "", phase)).copy(
+                  phase = phase,
+                  learned = o["learned"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty())
+      s.copy(evolution = scene)
+    }
   }
 
   /** Puts the offered move in [slot], or keeps the moveset when [slot] is null. */

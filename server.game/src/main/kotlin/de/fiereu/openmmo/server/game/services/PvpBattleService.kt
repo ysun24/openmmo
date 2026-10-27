@@ -9,12 +9,16 @@ import de.fiereu.openmmo.net.game.packets.DuelInviteOutcomePacket
 import de.fiereu.openmmo.net.game.packets.DuelInvitePacket
 import de.fiereu.openmmo.net.game.packets.InGameChallengeResponsePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtActionPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtKind
 import de.fiereu.openmmo.net.game.packets.battle.BattleTurnTimerPacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesChallengePacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesPacket
 import de.fiereu.openmmo.pokemon.SpeciesDef
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
+import de.fiereu.openmmo.server.game.battle.BattleChoice
+import de.fiereu.openmmo.server.game.battle.BattleField
 import de.fiereu.openmmo.server.game.battle.BattleInstance
 import de.fiereu.openmmo.server.game.battle.BattleMonState
 import de.fiereu.openmmo.server.game.battle.BattlePacketEmitter
@@ -22,6 +26,9 @@ import de.fiereu.openmmo.server.game.battle.BattleRegistry
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.BattleRules
+import de.fiereu.openmmo.server.game.battle.BattleSideState
+import de.fiereu.openmmo.server.game.battle.BattleTerrain
+import de.fiereu.openmmo.server.game.battle.BattlerRef
 import de.fiereu.openmmo.server.game.battle.DuelTimer
 import de.fiereu.openmmo.server.game.battle.PvpDuel
 import de.fiereu.openmmo.server.game.battle.StatCalculator
@@ -65,6 +72,7 @@ internal fun DuelRules.sanitized(): DuelRules =
         levelCap = if (levelCap <= 0) 0 else levelCap.coerceIn(1, 100),
         maxParty = if (maxParty <= 0) 6 else maxParty.coerceIn(1, 6),
         turnSeconds = if (turnSeconds <= 0) 0 else turnSeconds.coerceIn(5, 240),
+        doubles = doubles,
     )
 
 internal fun DuelRules.describe(): String =
@@ -73,6 +81,7 @@ internal fun DuelRules.describe(): String =
             "$maxParty vs $maxParty",
             if (turnSeconds > 0) "${turnSeconds}s turns" else "no timer",
         )
+        .let { if (doubles) listOf("2v2 double") + it else it }
         .joinToString(", ")
 
 /**
@@ -245,117 +254,184 @@ constructor(
     val bStored = characterStore.getCharacter(bId) ?: return
     val aParty = buildParty(aStored.pokemon, rules) ?: return
     val bParty = buildParty(bStored.pokemon, rules) ?: return
-    val battleRules = BattleRules(catchable = false, escapable = false, trainer = null)
-    val a = battles.create(aId, challengerSession, aParty, bParty, BattleRng(), battleRules)
-    val b = battles.create(bId, targetSession, bParty, aParty, BattleRng(), battleRules)
+    // 2v2 needs two monsters that can fight on both sides; otherwise it is fought 1v1.
+    val format =
+        if (rules.doubles && aParty.count { !it.fainted } >= 2 && bParty.count { !it.fainted } >= 2)
+            2
+        else 1
+    val battleRules =
+        BattleRules(
+            catchable = false,
+            escapable = false,
+            trainer = null,
+            format = format,
+            terrain = BattleTerrain.STADIUM,
+            musicKey = "pvp")
+    val aSide =
+        BattleSideState(aParty.indices.filter { !aParty[it].fainted }.take(format).toMutableList())
+    val bSide =
+        BattleSideState(bParty.indices.filter { !bParty[it].fainted }.take(format).toMutableList())
+    val field = BattleField()
+    val a =
+        battles.create(
+            aId, challengerSession, aParty, bParty, BattleRng(), battleRules, aSide, bSide, field)
+    val b =
+        battles.create(
+            bId, targetSession, bParty, aParty, BattleRng(), battleRules, bSide, aSide, field)
     val duel = PvpDuel(a, b, rules)
     a.pvp = duel
     b.pvp = duel
     for (side in duel.sides()) {
-      val rival = duel.rival(side)
-      side.activeSlot = side.party.indexOfFirst { !it.fainted }
-      side.opponentSlot = rival.party.indexOfFirst { !it.fainted }
       side.seenActive.clear()
-      side.seenActive.add(side.activeSlot)
+      side.seenActive.addAll(side.own.actives)
       side.opponentSeen.clear()
-      side.opponentSeen.add(side.opponentSlot)
+      side.opponentSeen.addAll(side.foe.actives)
     }
-    log.info { "Starting duel ${aStored.info.name} vs ${bStored.info.name} $rules" }
+    log.info {
+      "Starting duel ${aStored.info.name} vs ${bStored.info.name} $rules (format $format)"
+    }
     for ((side, name, rivalName) in
         listOf(
             Triple(a, aStored.info.name, bStored.info.name),
             Triple(b, bStored.info.name, aStored.info.name))) {
       interestManager.join(side.session, side.key)
       side.session.send(DuelRulesPacket(rivalName, rules))
-      emitter.sendStart(side, name)
+      emitter.sendStart(side, name, prompt = false)
       emitter.sendNotice(side, "You are battling $rivalName! (${rules.describe()})")
+    }
+    val entry = engine.startOfBattle(a)
+    for (side in duel.sides()) {
+      emitter.sendEvents(side, entry)
+      emitter.sendPrompt(side)
     }
     armTimer(duel, duel.sides())
   }
 
-  /** One player's pick. The turn resolves once both players have picked. */
+  /** One player's retail-shaped pick, for the first position still open. */
   suspend fun onAction(battle: BattleInstance, action: BattleActionSelectPacket) {
+    val duel = battle.pvp ?: return
+    duel.mutex.withLock {
+      val pos =
+          duel.owed[battle.charId]?.firstOrNull()
+              ?: battle.own.actives.indices.firstOrNull {
+                it !in duel.choices[battle.charId].orEmpty()
+              }
+              ?: 0
+      act(duel, battle, toExt(pos, action))
+    }
+  }
+
+  /** One player's pick with an explicit position and target. */
+  suspend fun onExtAction(battle: BattleInstance, action: BattleExtActionPacket) {
     val duel = battle.pvp ?: return
     duel.mutex.withLock { act(duel, battle, action) }
   }
 
+  private fun toExt(pos: Int, a: BattleActionSelectPacket): BattleExtActionPacket =
+      when (a.action) {
+        BattleAction.MOVE -> BattleExtActionPacket(pos, BattleExtKind.MOVE, a.moveOrItemId)
+        BattleAction.ITEM -> BattleExtActionPacket(pos, BattleExtKind.ITEM, a.moveOrItemId)
+        BattleAction.SWITCH -> BattleExtActionPacket(pos, BattleExtKind.SWITCH, a.moveOrItemId)
+        BattleAction.RUN -> BattleExtActionPacket(pos, BattleExtKind.RUN, 0)
+      }
+
   /** Handles one pick with the duel's lock held. */
-  private fun act(duel: PvpDuel, battle: BattleInstance, action: BattleActionSelectPacket) {
+  private fun act(duel: PvpDuel, battle: BattleInstance, action: BattleExtActionPacket) {
     if (duel.finished) return
     val rival = duel.rival(battle)
-    when (action.action) {
-      BattleAction.RUN -> {
+    when (action.kind) {
+      BattleExtKind.RUN -> {
         emitter.sendNotice(battle, "You forfeited the battle.")
         emitter.sendNotice(rival, "${nameOf(battle)} forfeited the battle.")
         end(duel, winner = rival)
         return
       }
-      BattleAction.ITEM -> {
+      BattleExtKind.ITEM -> {
         emitter.sendNotice(battle, "Items can't be used in a battle against a player.")
         emitter.sendPrompt(battle)
         return
       }
       else -> Unit
     }
-    if (battle.charId in duel.forced) {
-      forcedSwitch(duel, battle, action)
+    val pos = action.position.coerceIn(0, battle.format - 1)
+    if (duel.forced.isNotEmpty()) {
+      if (battle.charId in duel.forced) forcedSwitch(duel, battle, pos, action)
       return
     }
-    if (duel.forced.isNotEmpty() || battle.charId in duel.actions) return
-    if (!valid(battle, action)) {
+    val mine = duel.choices.getOrPut(battle.charId) { mutableMapOf() }
+    if (pos in mine) return
+    val choice = choiceOf(battle, pos, action)
+    if (choice == null) {
       emitter.sendNotice(battle, "You can't do that now.")
       emitter.sendPrompt(battle)
       return
     }
-    duel.actions[battle.charId] = action
-    val other = duel.actions[rival.charId]
-    if (other == null) {
+    mine[pos] = choice
+    if (!duel.complete(battle)) {
+      emitter.sendState(battle)
+      return
+    }
+    if (!duel.complete(rival)) {
       emitter.sendNotice(battle, "Waiting for ${nameOf(rival)}...")
       return
     }
-    duel.actions.clear()
-    resolve(duel, battle, action, rival, other)
+    resolve(duel)
   }
 
-  private fun valid(battle: BattleInstance, action: BattleActionSelectPacket): Boolean =
-      when (action.action) {
-        BattleAction.MOVE -> {
-          val moves = battle.activeMon().moves
-          val usable = moves.filter { it.id.toInt() != 0 && it.pp > 0 }
-          // With no pp left anywhere the engine falls back on whatever was sent.
-          usable.isEmpty() || usable.any { it.id == action.moveOrItemId }
-        }
-        BattleAction.SWITCH -> {
-          val target = action.moveOrItemId.toInt()
-          val mon = battle.party.getOrNull(target)
-          mon != null && !mon.fainted && target != battle.activeSlot
-        }
-        else -> false
+  /** The engine choice for a pick, or null when it is not allowed. */
+  private fun choiceOf(battle: BattleInstance, pos: Int, a: BattleExtActionPacket): BattleChoice? {
+    val mon = battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1) ?: return null
+    if (mon.fainted) return null
+    return when (a.kind) {
+      BattleExtKind.MOVE -> {
+        val usable = mon.moves.filter { it.id.toInt() != 0 && it.pp > 0 }
+        // With no pp left anywhere the engine falls back on Struggle.
+        if (usable.isNotEmpty() &&
+            usable.none { it.id == a.id } &&
+            mon.volatile.chargingMove == 0 &&
+            mon.volatile.rampageMove == 0)
+            return null
+        val target =
+            if (a.targetSide in 0..1 && a.targetPos >= 0) BattlerRef(a.targetSide, a.targetPos)
+            else null
+        BattleChoice.UseMove(0, pos, a.id.toInt(), target)
       }
+      BattleExtKind.SWITCH -> {
+        val target = a.id.toInt()
+        val next = battle.party.getOrNull(target)
+        val taken =
+            battle.pvp?.choices?.get(battle.charId)?.values?.any {
+              it is BattleChoice.Switch && it.partyIndex == target
+            } == true
+        if (next == null || next.fainted || target in battle.own.actives || taken) null
+        else if (engine.switchBlock(battle, mon) != null) null
+        else BattleChoice.Switch(0, pos, target)
+      }
+      else -> null
+    }
+  }
 
-  private fun resolve(
-      duel: PvpDuel,
-      x: BattleInstance,
-      xAction: BattleActionSelectPacket,
-      y: BattleInstance,
-      yAction: BattleActionSelectPacket,
-  ) {
-    // Switches go first, the way they do in the games.
-    if (xAction.action == BattleAction.SWITCH) switchSide(duel, x, xAction.moveOrItemId.toInt())
-    if (yAction.action == BattleAction.SWITCH) switchSide(duel, y, yAction.moveOrItemId.toInt())
-    val xMoves = xAction.action == BattleAction.MOVE
-    val yMoves = yAction.action == BattleAction.MOVE
-    val events =
-        when {
-          xMoves && yMoves -> engine.resolveTurn(x, xAction.moveOrItemId, yAction.moveOrItemId)
-          // The switcher's view has the mover as its opponent, so the mover hits the new monster.
-          xMoves -> engine.resolveSwitchTurn(y, xAction.moveOrItemId)
-          yMoves -> engine.resolveSwitchTurn(x, yAction.moveOrItemId)
-          else -> emptyList()
-        }
+  /** Both sides picked: resolve the turn in the first player's view and show it to both. */
+  private fun resolve(duel: PvpDuel) {
+    val view = duel.first
+    val other = duel.second
+    val choices =
+        duel.choices[view.charId].orEmpty().values.toList() +
+            duel.choices[other.charId].orEmpty().values.map { flip(it) }
+    duel.choices.clear()
+    val events = engine.resolve(view, choices)
     for (side in duel.sides()) emitter.sendEvents(side, events)
     afterTurn(duel)
   }
+
+  /** A choice made in the rival's view, seen from the first player's (sides swap). */
+  private fun flip(c: BattleChoice): BattleChoice =
+      when (c) {
+        is BattleChoice.UseMove ->
+            c.copy(side = 1, target = c.target?.let { BattlerRef(1 - it.side, it.pos) })
+        is BattleChoice.Switch -> c.copy(side = 1)
+        is BattleChoice.Pass -> c.copy(side = 1)
+      }
 
   private fun afterTurn(duel: PvpDuel) {
     val (a, b) = duel.first to duel.second
@@ -364,8 +440,22 @@ constructor(
       b.party.all { it.fainted } -> end(duel, winner = a)
       else -> {
         for (side in duel.sides()) {
-          if (side.activeMon().fainted) {
-            duel.forced += side.charId
+          val owed = mutableSetOf<Int>()
+          var bench =
+              side.party.indices.count { it !in side.own.actives && !side.party[it].fainted }
+          for (pos in side.own.actives.indices) {
+            val m = side.party.getOrNull(side.own.actives[pos])
+            if (m != null && !m.fainted) continue
+            if (bench > 0) {
+              owed += pos
+              bench--
+            } else side.own.actives[pos] = -1
+          }
+          duel.owed[side.charId] = owed
+          side.owedSwitches.clear()
+          side.owedSwitches.addAll(owed)
+          if (owed.isNotEmpty()) {
+            emitter.sendState(side)
             emitter.sendSwitchPrompt(side)
             emitter.sendNotice(
                 duel.rival(side), "Waiting for ${nameOf(side)} to send out a monster...")
@@ -380,21 +470,38 @@ constructor(
   private fun forcedSwitch(
       duel: PvpDuel,
       battle: BattleInstance,
-      action: BattleActionSelectPacket,
+      pos: Int,
+      action: BattleExtActionPacket,
   ) {
-    if (action.action != BattleAction.SWITCH || !valid(battle, action)) {
+    val owed = duel.owed[battle.charId] ?: return
+    val at = if (pos in owed) pos else owed.firstOrNull() ?: return
+    val target = action.id.toInt()
+    val next = battle.party.getOrNull(target)
+    if (action.kind != BattleExtKind.SWITCH ||
+        next == null ||
+        next.fainted ||
+        target in battle.own.actives) {
       emitter.sendSwitchPrompt(battle)
       return
     }
     emitter.sendSwitchConfirm(battle)
-    switchSide(duel, battle, action.moveOrItemId.toInt())
-    duel.forced -= battle.charId
+    owed.remove(at)
+    battle.owedSwitches.remove(at)
+    // The engine runs in the switcher's own view; both views see the events.
+    val events = engine.switchIn(battle, 0, at, target)
+    for (side in duel.sides()) emitter.sendEvents(side, events)
+    if (owed.isNotEmpty()) {
+      emitter.sendSwitchPrompt(battle)
+      return
+    }
     if (duel.forced.isEmpty()) promptBoth(duel)
   }
 
   private fun promptBoth(duel: PvpDuel) {
     for (side in duel.sides()) {
       side.turn += 1
+      side.owedSwitches.clear()
+      emitter.sendState(side)
       emitter.sendPrompt(side)
     }
     armTimer(duel, duel.sides())
@@ -441,7 +548,7 @@ constructor(
         if (duel.finished || generation != duel.timerGeneration) return@withLock
         val owing =
             if (duel.forced.isNotEmpty()) duel.sides().filter { it.charId in duel.forced }
-            else duel.sides().filter { it.charId !in duel.actions }
+            else duel.sides().filter { !duel.complete(it) }
         for (side in owing) {
           if (duel.finished) return@withLock
           val count = (duel.timeouts[side.charId] ?: 0) + 1
@@ -458,38 +565,35 @@ constructor(
               side, "Time's up! The server picked for you. ($count/${DuelRules.MAX_TIMEOUTS})")
           emitter.sendNotice(rival, "${nameOf(side)} ran out of time.")
           side.session.send(timerPacket(duel, side, 0, mustAct = false, autoPicked = true))
-          act(duel, side, autoAction(duel, side))
+          for (action in autoActions(duel, side)) {
+            if (duel.finished) return@withLock
+            act(duel, side, action)
+          }
         }
       }
     }
   }
 
-  private fun autoAction(duel: PvpDuel, side: BattleInstance): BattleActionSelectPacket {
-    if (side.charId in duel.forced) {
-      val slot = side.party.indexOfFirst { !it.fainted }
-      return BattleActionSelectPacket(0, BattleAction.SWITCH, slot.toShort(), 0, 0)
+  private fun autoActions(duel: PvpDuel, side: BattleInstance): List<BattleExtActionPacket> {
+    val owed = duel.owed[side.charId].orEmpty()
+    if (owed.isNotEmpty()) {
+      val bench = side.party.indices.filter { it !in side.own.actives && !side.party[it].fainted }
+      return owed.zip(bench).map { (pos, slot) ->
+        BattleExtActionPacket(pos, BattleExtKind.SWITCH, slot.toShort())
+      }
     }
-    val moves = side.activeMon().moves.filter { it.id.toInt() != 0 }
-    val move = moves.firstOrNull { it.pp > 0 } ?: moves.firstOrNull()
-    return BattleActionSelectPacket(0, BattleAction.MOVE, move?.id ?: 0, 0, 0)
+    val picked = duel.choices[side.charId].orEmpty()
+    return side.own.actives.indices.mapNotNull { pos ->
+      if (pos in picked) return@mapNotNull null
+      val mon = side.party.getOrNull(side.own.actives[pos]) ?: return@mapNotNull null
+      if (mon.fainted) return@mapNotNull null
+      val moves = mon.moves.filter { it.id.toInt() != 0 }
+      val move = moves.firstOrNull { it.pp > 0 } ?: moves.firstOrNull()
+      BattleExtActionPacket(pos, BattleExtKind.MOVE, move?.id ?: 0)
+    }
   }
 
   // --- endings -------------------------------------------------------------------------------
-
-  /** Brings [target] out for [side] and shows it to both players. */
-  private fun switchSide(duel: PvpDuel, side: BattleInstance, target: Int) {
-    val rival = duel.rival(side)
-    val oldSlot = side.activeSlot
-    val ownFull = target !in side.seenActive
-    val rivalFull = target !in rival.opponentSeen
-    side.activeSlot = target
-    side.seenActive.add(target)
-    rival.opponentSlot = target
-    rival.opponentSeen.add(target)
-    log.info { "Duel switch char=${side.charId} slot $oldSlot -> $target" }
-    emitter.sendSwitchIn(side, oldSlot, ownFull)
-    emitter.sendOpponentSwitchIn(rival, oldSlot, rivalFull)
-  }
 
   private fun end(duel: PvpDuel, winner: BattleInstance) {
     if (duel.finished) return

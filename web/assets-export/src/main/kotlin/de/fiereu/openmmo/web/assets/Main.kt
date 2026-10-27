@@ -72,6 +72,7 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
     val pool = Executors.newFixedThreadPool(threads)
     try {
       val maps = MapExport(decomp, out)
+      val battleAssets = BattleAssetsExport(decomp, out)
       val entries =
           REGIONS.map { (r, g) -> pool.submit(Callable { maps.collect(r, g) }) }.map { it.get() }
 
@@ -183,6 +184,14 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
               }
             })
         put("ui", buildJsonObject { put("font", kotlinx.serialization.json.JsonNull) })
+        // r3-battle: trainer / player-back sprites, battle backgrounds, animation sprites, and the
+        // extra battle music keys (elite / champion / rival / team / pvp).
+        put("battle", battleAssets.export())
+        put(
+            "battleMusicExtra",
+            buildJsonObject {
+              REGIONS.keys.forEach { r -> put("$r", battleAssets.battleMusic(r)) }
+            })
       }
       out.write(
           "manifest.json", Json.encodeToString(JsonObject.serializer(), manifest).toByteArray())
@@ -191,7 +200,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
           maps.failures +
               maps.animFailures +
               objects.flatMap { it.second.failures } +
-              pokemon.flatMap { it.failures }
+              pokemon.flatMap { it.failures } +
+              battleAssets.failures
       return Result(
           entries.sumOf { it.size },
           layoutFiles.values.count { it != null },

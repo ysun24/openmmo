@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.battle
 
 import de.fiereu.openmmo.common.Pokemon
+import de.fiereu.openmmo.common.StatusCondition
 import de.fiereu.openmmo.common.enums.EVs
 import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.common.utils.hexToBytes
@@ -13,6 +14,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleEffectTarget
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityDeltaPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityMoveEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEventBody
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleOpponentBlock
 import de.fiereu.openmmo.net.game.packets.battle.BattleQueuedEventPacket
@@ -30,6 +32,11 @@ import de.fiereu.openmmo.server.game.world.interest.InterestManager
 import de.fiereu.openmmo.typechart.TypeChart
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 private const val ACTION_PROMPT: Byte = -128 // 0x80
 private const val MOVE_EVENT_KIND: Byte = 1
@@ -67,12 +74,15 @@ private const val NOT_VERY_EFFECTIVE_BIT = 0x10
 @Singleton
 class BattlePacketEmitter @Inject constructor(private val interestManager: InterestManager) {
 
-  fun sendStart(battle: BattleInstance, playerName: String) {
+  fun sendStart(battle: BattleInstance, playerName: String, prompt: Boolean = true) {
     battle.session.send(EntityPresencePacket(entityId = battle.charId, status = PRESENCE_IN_BATTLE))
     // Tell the client which side is local so the battle bag knows which monster an item targets.
     // Without it, opening the bag crashes. Opcode 0x40 is left alone here, since re-sending it
     // would wipe the balls out of the battle bag.
     battle.session.send(BattleSidePacket(side = PLAYER_SIDE))
+    // r3-battle: the extended state goes first too, so the client knows the format, trainer and
+    // background when it opens the battle.
+    sendState(battle)
     broadcast(
         battle,
         BattleFieldStatePacket(
@@ -97,81 +107,318 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
             opponentActiveSlot = battle.opponentSlot,
         ),
     )
-    sendPrompt(battle)
+    sendState(battle)
+    if (prompt) sendPrompt(battle)
   }
 
+  /**
+   * Sends a turn's events in order. A move and the target outcomes right behind it become one
+   * retail move packet; everything the retail packets cannot carry (status, messages, residual hp,
+   * abilities, items, weather, switches by position) goes out on the extension channel, batched
+   * between the retail packets so the client sees one ordered stream.
+   */
   fun sendEvents(battle: BattleInstance, events: List<BattleEvent>) {
+    if (events.isEmpty()) return
+    val ext = mutableListOf<JsonObject>()
+    fun flush() {
+      if (ext.isEmpty()) return
+      broadcast(
+          battle,
+          BattleExtPacket(
+              buildJsonObject {
+                    put("t", "events")
+                    put("e", JsonArray(ext.toList()))
+                  }
+                  .toString()))
+      ext.clear()
+    }
     var i = 0
     while (i < events.size) {
-      val event = events[i]
-      when (event) {
+      when (val event = events[i]) {
         is BattleEvent.MoveUsed -> {
+          flush()
           if (battle.isPlayerSide(event.attackerId)) {
             battle.session.send(
                 EntityMovePpPacket(
                     event.attackerId, event.moveSlot.toByte(), event.ppLeft.toByte()))
           }
-          // The move's outcome rides inside the move event so the client animates it. A hit carries
-          // the target's resulting hp, a stat change carries the affected stat and its signed stage
-          // delta. A capped change reports no delta, so it stays unanimated.
+          val byTarget = LinkedHashMap<Long, Pair<Int, MutableList<BattleActionEvent>>>()
+          var j = i + 1
+          group@ while (j < events.size) {
+            when (val next = events[j]) {
+              is BattleEvent.Animation -> Unit
+              is BattleEvent.DamageDealt -> {
+                val prev = byTarget[next.targetId]
+                val outcome = HP_TARGET_MOVE.toInt() or effectivenessBit(next.effectiveness)
+                val list = prev?.second ?: mutableListOf()
+                list +=
+                    BattleActionEvent(null, null, BattleEventBody.HpUpdate(next.newHp.toShort()))
+                byTarget[next.targetId] = (prev?.first?.let { it or outcome } ?: outcome) to list
+              }
+              is BattleEvent.StageChanged -> {
+                if (!next.failed) {
+                  val prev = byTarget[next.targetId]
+                  val list = prev?.second ?: mutableListOf()
+                  list +=
+                      BattleActionEvent(
+                          null,
+                          null,
+                          BattleEventBody.StatChange(statIndex(next.stat), next.delta.toShort()))
+                  byTarget[next.targetId] = (prev?.first ?: DEFAULT_TARGET_MOVE.toInt()) to list
+                }
+              }
+              is BattleEvent.MoveWithoutTarget -> {
+                val defender = defenderOf(battle, event.attackerId, next)
+                val word =
+                    if (next is BattleEvent.MoveMissed) MISSED_TARGET_MOVE else FAILED_TARGET_MOVE
+                if (defender !in byTarget) byTarget[defender] = word.toInt() to mutableListOf()
+              }
+              else -> break@group
+            }
+            j++
+          }
+          i = j - 1
           val targets =
-              when (val next = events.getOrNull(i + 1)) {
-                is BattleEvent.DamageDealt -> {
-                  i++
-                  // The client faints the target on hp reaching 0, as the real server does, so no
-                  // faint sub-event is sent here.
-                  val subEvents =
-                      mutableListOf(
-                          BattleActionEvent(
-                              null, null, BattleEventBody.HpUpdate(next.newHp.toShort())))
-                  // A secondary stage change rides under the same target as the damage, the way
-                  // the captured Rock Tomb does. One aimed elsewhere gets a target of its own.
-                  var elsewhere = emptyList<BattleEffectTarget>()
-                  val secondary = events.getOrNull(i + 1)
-                  if (secondary is BattleEvent.StageChanged && !secondary.failed) {
-                    i++
-                    val body =
-                        BattleEventBody.StatChange(
-                            statIndex(secondary.stat), secondary.delta.toShort())
-                    if (secondary.targetId == next.targetId) {
-                      subEvents += BattleActionEvent(null, null, body)
-                    } else {
-                      elsewhere = listOf(target(secondary.targetId, DEFAULT_TARGET_MOVE, body))
-                    }
-                  }
-                  val outcome = HP_TARGET_MOVE.toInt() or effectivenessBit(next.effectiveness)
-                  listOf(BattleEffectTarget(next.targetId, outcome.toShort(), subEvents)) +
-                      elsewhere
-                }
-                is BattleEvent.StageChanged ->
-                    if (!next.failed) {
-                      i++
-                      listOf(
-                          target(
-                              next.targetId,
-                              DEFAULT_TARGET_MOVE,
-                              BattleEventBody.StatChange(
-                                  statIndex(next.stat), next.delta.toShort())))
-                    } else {
-                      emptyList()
-                    }
-                is BattleEvent.MoveWithoutTarget -> {
-                  i++
-                  listOf(failTarget(battle, event.attackerId, next))
-                }
-                else -> emptyList()
+              byTarget.map { (id, v) ->
+                BattleEffectTarget(id, v.first.toShort(), v.second.toList())
               }
           broadcast(
               battle,
               BattleEntityMoveEventPacket(event.attackerId, event.moveId, MOVE_EVENT_KIND, targets))
         }
-        is BattleEvent.DamageDealt -> Unit
-        is BattleEvent.StageChanged -> Unit
+        is BattleEvent.Switched -> {
+          flush()
+          sendSwitched(battle, event)
+        }
+        is BattleEvent.Animation -> Unit
         is BattleEvent.Fainted -> Unit
-        is BattleEvent.MoveWithoutTarget -> Unit
+        else -> extEvent(battle, event)?.let { ext += it }
       }
       i++
     }
+    flush()
+    sendState(battle)
+  }
+
+  private fun defenderOf(
+      battle: BattleInstance,
+      attackerId: Long,
+      event: BattleEvent.MoveWithoutTarget,
+  ): Long {
+    val explicit =
+        when (event) {
+          is BattleEvent.MoveMissed -> event.targetId
+          is BattleEvent.MoveFailed -> event.targetId
+        }
+    if (explicit != 0L) return explicit
+    return if (battle.isPlayerSide(attackerId)) battle.opponentMon().entityId
+    else battle.activeMon().entityId
+  }
+
+  /** One extension event as JSON, or null when the retail packets already said it. */
+  private fun extEvent(battle: BattleInstance, event: BattleEvent): JsonObject? =
+      when (event) {
+        is BattleEvent.Message ->
+            buildJsonObject {
+              put("k", "text")
+              put("text", BattleNames.localize(battle, event.text))
+              if (event.targetId != 0L) put("id", event.targetId)
+            }
+        is BattleEvent.HpChanged ->
+            buildJsonObject {
+              put("k", "hp")
+              put("id", event.targetId)
+              put("hp", event.newHp)
+              put("reason", event.reason)
+            }
+        is BattleEvent.DamageDealt ->
+            buildJsonObject {
+              put("k", "hp")
+              put("id", event.targetId)
+              put("hp", event.newHp)
+              put("reason", "move")
+              put("eff", event.effectiveness)
+            }
+        is BattleEvent.StatusChanged ->
+            buildJsonObject {
+              put("k", "status")
+              put("id", event.targetId)
+              put("status", event.code)
+              put("raw", event.status)
+            }
+        is BattleEvent.VolatileChanged ->
+            buildJsonObject {
+              put("k", "volatile")
+              put("id", event.targetId)
+              put("kind", event.kind)
+              put("on", event.on)
+            }
+        is BattleEvent.AbilityShown ->
+            buildJsonObject {
+              put("k", "ability")
+              put("id", event.holderId)
+              put("ability", event.ability)
+            }
+        is BattleEvent.ItemActivated ->
+            buildJsonObject {
+              put("k", "item")
+              put("id", event.holderId)
+              put("item", itemName(event.itemId))
+              put("consumed", event.consumed)
+            }
+        is BattleEvent.WeatherChanged ->
+            buildJsonObject {
+              put("k", "weather")
+              put("weather", event.weather.code)
+            }
+        is BattleEvent.StageChanged ->
+            if (event.failed) null
+            else
+                buildJsonObject {
+                  put("k", "stat")
+                  put("id", event.targetId)
+                  put("stat", statIndex(event.stat).toInt())
+                  put("delta", event.delta)
+                }
+        is BattleEvent.MoveMissed ->
+            buildJsonObject {
+              put("k", "miss")
+              put(
+                  "id",
+                  if (event.targetId != 0L) event.targetId
+                  else defenderOf(battle, event.attackerId, event))
+            }
+        is BattleEvent.MoveFailed ->
+            buildJsonObject {
+              put("k", "text")
+              put("text", "But it failed!")
+            }
+        is BattleEvent.Fled ->
+            buildJsonObject {
+              put("k", "fled")
+              put("side", event.side)
+            }
+        else -> null
+      }
+
+  private fun itemName(itemId: Int): String = itemNames(itemId)
+
+  /** The usable battle bag for the viewer (r3-battle), set by the service that owns the bag. */
+  var bagOf: (BattleInstance) -> JsonArray = { JsonArray(emptyList()) }
+
+  /** Wire item id to a display name; set by the service that owns the item catalogue. */
+  var itemNames: (Int) -> String = { "item" }
+
+  /** A switch the engine made, shown with the viewer's own numbering. */
+  private fun sendSwitched(battle: BattleInstance, event: BattleEvent.Switched) {
+    val own =
+        battle.party.getOrNull(event.newSlot)?.entityId == event.entityId &&
+            battle.isPlayerSide(event.entityId)
+    val pos = event.pos
+    broadcast(
+        battle,
+        BattleExtPacket(
+            buildJsonObject {
+                  put("t", "events")
+                  put(
+                      "e",
+                      JsonArray(
+                          listOf(
+                              buildJsonObject {
+                                put("k", "switch")
+                                put("side", if (own) "me" else "foe")
+                                put("pos", pos)
+                                put("slot", event.newSlot)
+                              })))
+                }
+                .toString()))
+    if (own) {
+      val full = event.newSlot !in battle.seenActive
+      battle.seenActive.add(event.newSlot)
+      broadcast(
+          battle,
+          BattleSwitchInPacket(
+              newSlot = event.newSlot,
+              oldSlot = event.oldSlot.coerceAtLeast(0),
+              mon = battle.party[event.newSlot].toBlock(event.newSlot, movesPresent = true),
+              fullBlock = full))
+    } else {
+      val full = event.newSlot !in battle.opponentSeen
+      battle.opponentSeen.add(event.newSlot)
+      broadcast(
+          battle,
+          BattleSwitchInPacket(
+              newSlot = event.newSlot,
+              oldSlot = event.oldSlot.coerceAtLeast(0),
+              mon = battle.opponent[event.newSlot].toBlock(event.newSlot, movesPresent = false),
+              fullBlock = full,
+              side = OPPONENT_SIDE))
+    }
+  }
+
+  /**
+   * The extended battle state: format, which party slot holds each position on both sides, every
+   * monster's status/confusion/held item, the weather, the background and music key, and which
+   * positions owe an action or a replacement. Sent at the start and after every step.
+   */
+  fun sendState(battle: BattleInstance) {
+    broadcast(battle, BattleExtPacket(stateJson(battle).toString()))
+  }
+
+  fun stateJson(battle: BattleInstance): JsonObject = buildJsonObject {
+    put("t", "state")
+    put("format", battle.format)
+    put("terrain", battle.terrain)
+    battle.musicKey?.let { put("music", it) }
+    put("weather", battle.field.weather.code)
+    put("turn", battle.turn)
+    battle.trainer?.let { tr ->
+      put(
+          "trainer",
+          buildJsonObject {
+            put("name", tr.name)
+            put("pic", tr.pic.lowercase())
+            put("class", tr.className)
+            put("double", tr.doubleBattle)
+          })
+    }
+    put("me", sideJson(battle, battle.party, battle.own, own = true))
+    put("foe", sideJson(battle, battle.opponent, battle.foe, own = false))
+    put("owedSwitches", JsonArray(battle.owedSwitches.map { JsonPrimitive(it) }))
+    put("chosen", JsonArray(battle.pendingChoices.keys.map { JsonPrimitive(it) }))
+    put("bag", bagOf(battle))
+  }
+
+  private fun sideJson(
+      battle: BattleInstance,
+      party: List<BattleMonState>,
+      side: BattleSideState,
+      own: Boolean,
+  ): JsonObject = buildJsonObject {
+    put("actives", JsonArray(side.actives.map { JsonPrimitive(it) }))
+    put("reflect", side.reflectTurns)
+    put("lightScreen", side.lightScreenTurns)
+    put("spikes", side.spikes)
+    put(
+        "mons",
+        JsonArray(
+            party.map { m ->
+              buildJsonObject {
+                put("id", m.entityId)
+                put("status", StatusCondition.code(m.status))
+                if (m.asleep) put("sleep", m.status and StatusCondition.SLEEP_MASK)
+                put("confused", m.confused)
+                put("hp", m.currentHp)
+                put("maxHp", m.maxHp)
+                put("dex", m.species.id)
+                if (own) {
+                  put("ability", m.ability.name.replace('_', ' '))
+                  put("item", if (m.heldItem != 0) itemName(m.heldItem) else null)
+                }
+                if (m.volatile.substituteHp > 0) put("substitute", true)
+                if (m.volatile.seededBy != 0L) put("seeded", true)
+              }
+            }))
   }
 
   fun sendSwitchIn(battle: BattleInstance, oldSlot: Int, fullBlock: Boolean) {
@@ -271,26 +518,6 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
 
   fun sendNotice(battle: BattleInstance, message: String) {
     battle.session.send(notice(message))
-  }
-
-  private fun target(entityId: Long, targetMove: Short, body: BattleEventBody): BattleEffectTarget =
-      BattleEffectTarget(entityId, targetMove, listOf(BattleActionEvent(null, null, body)))
-
-  // A missed or failed move carries no target of its own, so it lands on the attacker's opponent.
-  // A miss is the target move word on its own with no events under it. The client writes the miss
-  // line from that, so sending an event as well makes it print an unrelated message.
-  private fun failTarget(
-      battle: BattleInstance,
-      attackerId: Long,
-      event: BattleEvent.MoveWithoutTarget,
-  ): BattleEffectTarget {
-    val defender =
-        if (battle.isPlayerSide(attackerId)) battle.opponentMon().entityId
-        else battle.activeMon().entityId
-    return when (event) {
-      is BattleEvent.MoveMissed -> BattleEffectTarget(defender, MISSED_TARGET_MOVE, emptyList())
-      is BattleEvent.MoveFailed -> BattleEffectTarget(defender, FAILED_TARGET_MOVE, emptyList())
-    }
   }
 
   /** The effectiveness line rides in the outcome word rather than in an event of its own. */

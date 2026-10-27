@@ -79,6 +79,8 @@ constructor(
           val definition = species.get(pokemon.dexId) ?: return@map pokemon
           pokemon.copy(
               hp = StatCalculator.computeAll(definition, pokemon).hp.toShort(),
+              // r3-battle: a Poke Center also cures the major status the battle left behind.
+              status = 0,
               moves =
                   pokemon.moves.map { move ->
                     val maxPp = moves.get(move.id.toInt())?.pp ?: move.pp.toInt()

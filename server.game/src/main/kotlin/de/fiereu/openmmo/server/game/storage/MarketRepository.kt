@@ -518,6 +518,9 @@ constructor(
           isFatefulEncounter = isFatefulEncounter ?: false,
           isRaidEncounter = isRaidEncounter ?: false,
           isEgg = isEgg ?: false,
+          status = status ?: 0,
+          friendship = (friendship ?: 70).toInt(),
+          heldItem = heldItem ?: 0,
           caughtAt = caughtAt,
       )
 }

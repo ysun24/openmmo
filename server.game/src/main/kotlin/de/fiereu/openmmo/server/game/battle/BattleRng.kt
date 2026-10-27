@@ -20,4 +20,13 @@ class BattleRng(seed: Long = Random.nextLong()) {
   fun coinFlip(): Boolean = random.nextBoolean()
 
   fun pick(bound: Int): Int = random.nextInt(bound)
+
+  /** True with [chance] percent. */
+  fun percent(chance: Int): Boolean = chance > 0 && random.nextInt(100) < chance
+
+  /** Inclusive range. */
+  fun range(from: Int, to: Int): Int = random.nextInt(from, to + 1)
+
+  /** The GBA's 16-bit Random(). */
+  fun random16(): Int = random.nextInt(0x10000)
 }

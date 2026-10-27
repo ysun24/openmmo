@@ -34,12 +34,22 @@ constructor(
     private val species: SpeciesRegistry,
     private val moves: MoveRegistry,
     private val battles: BattleService,
+    // r3-battle hook: evolution stones start the evolution scene.
+    private val evolution: EvolutionService? = null,
 ) {
 
   suspend fun onUse(event: PacketEvent<FieldItemUsePacket>) {
     val session = event.session
     val state = session.attributes[PLAYER_STATE] ?: return
     val charId = state.characterId ?: return
+    val evo = evolution
+    if (evo != null &&
+        evo.isEvolutionItem(event.packet.itemId.toInt()) &&
+        !battles.inBattle(charId)) {
+      evo.useEvolutionItem(session, charId, event.packet.pokemonId, event.packet.itemId.toInt())
+          ?.let { session.send(notice(it)) }
+      return
+    }
     val message = use(charId, event.packet.itemId.toInt(), event.packet.pokemonId, state.inDialog)
     session.send(notice(message.text))
     if (message.changed) syncAfterUse(session, charId, event.packet.itemId.toInt())
@@ -101,8 +111,9 @@ constructor(
             }
         if (restored == mon.moves) null else mon.copy(moves = restored)
       }
-      // Battle status is not stored on the monster, so out here there is nothing to cure.
-      FieldItemEffect.CureStatus -> null
+      // r3-battle: the major status now outlasts a battle (Pokemon.status).
+      FieldItemEffect.CureStatus ->
+          if (mon.status == 0 || mon.hp <= 0) null else mon.copy(status = 0)
       is FieldItemEffect.Repel -> null
     }
   }

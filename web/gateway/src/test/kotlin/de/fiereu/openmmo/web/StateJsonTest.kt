@@ -34,6 +34,9 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 
 private object FakeNames : Names {
   override fun species(dex: Int) =
@@ -134,7 +137,17 @@ class StateJsonTest {
         out["world"])
     assertEquals(parse("""[{"sender":"*","text":"Welcome to OpenMMO!"}]"""), out["chat"])
     assertEquals(
-        listOf("world", "chat", "ui", "party", "pc", "battle", "invite", "trade", "market"),
+        listOf(
+            "world",
+            "chat",
+            "ui",
+            "party",
+            "pc",
+            "battle",
+            "invite",
+            "evolution",
+            "trade",
+            "market"),
         out.keys.toList())
   }
 
@@ -266,8 +279,15 @@ class StateJsonTest {
                         "offer":{"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":35,"maxPp":35},
                         "moves":[{"name":"SCRATCH","type":"NORMAL","power":40,"accuracy":100,"pp":33,"maxPp":35},
                                  {"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":25,"maxPp":25}]}}"""),
-        out["battle"])
+        withoutR3(out["battle"]!!))
     assertEquals(parse("""{"from":"Gary","rules":null}"""), out["invite"])
+    // r3-battle fields: positions, background, bag and per-monster status.
+    val b = out["battle"]!!.jsonObject
+    assertEquals(JsonPrimitive(1), b["format"])
+    assertEquals(parse("[0]"), b["actives"])
+    assertEquals(JsonPrimitive("tall_grass"), b["terrain"])
+    assertEquals(JsonPrimitive("100"), b["me"]!!.jsonObject["id"])
+    assertEquals(JsonNull, b["me"]!!.jsonObject["status"])
   }
 
   @Test
@@ -395,4 +415,35 @@ class StateJsonTest {
         parse("""{"seq":1,"text":"CHARMANDER's HP was restored by 9 point(s)."}"""),
         (out["ui"] as kotlinx.serialization.json.JsonObject)["notice"])
   }
+
+  /** The battle section without the keys r3-battle added, for the older exact comparisons. */
+  private fun withoutR3(e: JsonElement): JsonElement =
+      when (e) {
+        is JsonObject ->
+            JsonObject(e.filterKeys { it !in R3_KEYS }.mapValues { withoutR3(it.value) })
+        is kotlinx.serialization.json.JsonArray ->
+            kotlinx.serialization.json.JsonArray(e.map { withoutR3(it) })
+        else -> e
+      }
+
+  private val R3_KEYS =
+      setOf(
+          "format",
+          "actives",
+          "choosingPos",
+          "owedSwitches",
+          "mine",
+          "foes",
+          "terrain",
+          "music",
+          "weather",
+          "trainer",
+          "bag",
+          "id",
+          "slot",
+          "status",
+          "confused",
+          "target",
+          "ability",
+          "item")
 }

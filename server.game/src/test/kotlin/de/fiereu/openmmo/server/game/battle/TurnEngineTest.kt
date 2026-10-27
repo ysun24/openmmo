@@ -26,6 +26,7 @@ private const val SWIFT: Short = 129
 private const val QUICK_ATTACK: Short = 98
 private const val SPLASH: Short = 150
 private const val PECK: Short = 64
+private const val SKETCH: Short = 166
 
 private val speciesRegistry = SpeciesRegistry()
 
@@ -156,14 +157,17 @@ class TurnEngineTest :
         maxDealt(TACKLE) shouldBeGreaterThan maxDealt(PECK)
       }
 
-      test("an immune target takes no damage and the move fails") {
+      test("an immune target takes no damage and says so") {
         // Tackle into Gastly (Ghost/Poison) is a Normal immunity.
         val player = state(1, 20, listOf(TACKLE), PLAYER_ID)
         val wild = state(92, 5, listOf(SPLASH), WILD_ID)
         val before = wild.currentHp
         val events = engine.resolveTurn(battle(player, wild, seed = 3), TACKLE)
 
-        events.filterIsInstance<BattleEvent.MoveFailed>().first { it.attackerId == PLAYER_ID }
+        // Gen 3 prints "It doesn't affect X..." rather than "But it failed!".
+        events.filterIsInstance<BattleEvent.Message>().first {
+          it.text.startsWith("It doesn't affect")
+        }
         events
             .filterIsInstance<BattleEvent.DamageDealt>()
             .none { it.targetId == WILD_ID }
@@ -237,13 +241,25 @@ class TurnEngineTest :
             .shouldBeTrue()
       }
 
-      test("an effect outside the core fails gracefully") {
+      test("splash does nothing, as in Gen 3") {
         val player = state(1, 5, listOf(SPLASH), PLAYER_ID)
-        val wild = state(19, 3, listOf(TACKLE), WILD_ID)
+        val wild = state(19, 3, listOf(SPLASH), WILD_ID)
         val before = wild.currentHp
         val events = engine.resolveTurn(battle(player, wild, seed = 9), SPLASH)
+        events.filterIsInstance<BattleEvent.Message>().any {
+          it.text == "But nothing happened!"
+        } shouldBe true
+        wild.currentHp shouldBe before
+      }
+
+      test("an effect outside the engine fails gracefully") {
+        val player = state(1, 5, listOf(SKETCH), PLAYER_ID)
+        val wild = state(19, 3, listOf(TACKLE), WILD_ID)
+        val before = wild.currentHp
+        val events = engine.resolveTurn(battle(player, wild, seed = 9), SKETCH)
 
         events.filterIsInstance<BattleEvent.MoveFailed>().shouldNotBeEmpty()
+        // The wild Tackle may land on the player, never on itself.
         wild.currentHp shouldBe before
         wild.stage(BattleStat.ATTACK) shouldBe 0
       }
