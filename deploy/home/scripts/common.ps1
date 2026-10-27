@@ -34,8 +34,10 @@ function Wait-Docker([int]$Seconds = 600) {
 }
 
 # Runs docker compose for this install. Returns the exit code; output goes to the console.
+# Deliberately a simple function using $args: with a param() block PowerShell would treat
+# compose's own flags as its common parameters (-d would become -Debug).
 function Invoke-Compose {
-  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$ComposeArgs)
+  $ComposeArgs = @($args)
   if (-not (Test-Path $EnvFile)) { throw ".env not found in $Here - run setup.ps1 first." }
   & docker compose --project-name $Project --env-file $EnvFile -f $ComposeFile @ComposeArgs | Out-Host
   return $LASTEXITCODE
@@ -92,6 +94,7 @@ function New-Secret([int]$Length = 32) {
 # Only the current user (and SYSTEM / Administrators) may read a secrets file or folder.
 function Protect-Path([string]$Path) {
   $who = "$env:USERDOMAIN\$env:USERNAME"
+  if (-not (Get-Command icacls -ErrorAction SilentlyContinue)) { Write-Warn2 "icacls not found; $Path keeps its default permissions"; return }
   & icacls $Path /inheritance:r /grant:r "${who}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' *> $null
   if ($LASTEXITCODE -ne 0) {
     # Files do not take (OI)(CI).

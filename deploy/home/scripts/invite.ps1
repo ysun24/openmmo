@@ -28,7 +28,7 @@ $url = Get-TunnelUrl
 foreach ($line in @($out)) {
   $s = "$line"
   # Skip the JVM / logback chatter, keep what the CLI printed.
-  if ($s -match '^\d\d:\d\d:\d\d\.\d{3} \[' -or $s -match '^Picked up JAVA_TOOL_OPTIONS' -or $s -match '^\s*$') { continue }
+  if ($s -match '^\d\d:\d\d:\d\d\.\d{3} \[' -or $s -match '^(Picked up JAVA_TOOL_OPTIONS|kotlin-logging|jOOQ tip|\s*@@)' -or $s -match '^\s*$') { continue }
   Write-Host $s
   if (-not $List -and -not $Revoke -and $url -and $s -match '^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$') {
     Write-Host ("    link: " + $url.TrimEnd('/') + "/#invite=$s") -ForegroundColor Green

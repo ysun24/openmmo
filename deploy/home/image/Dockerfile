@@ -29,7 +29,7 @@ COPY --chmod=755 gateway/bin/ gateway/bin/
 COPY --chmod=755 entrypoint.sh tunnel.sh ./
 COPY VERSION ./
 
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75" \
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Dorg.jooq.no-logo=true -Dorg.jooq.no-tips=true" \
     OPENMMO_KEYS_DIR=/keys
 
 USER 10001:10001
