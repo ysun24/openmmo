@@ -62,8 +62,7 @@ internal object Route104_PrettyPetalFlowerShop_EventScript_WailmerPailGirl : Scr
   override suspend fun run(ctx: ScriptContext) {
     if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_WAILMER_PAIL)) {
       ctx.say(Route104_PrettyPetalFlowerShop.YouCanHaveThis)
-      // Gen 5 has no WAILMER PAIL; its watering can is the SPRAYDUCK.
-      if (!ctx.giveItem(Items.SPRAYDUCK)) return
+      if (!ctx.giveItem(Items.WAILMER_PAIL)) return
       ctx.say(Route104_PrettyPetalFlowerShop.WailmerPailExplanation)
       ctx.setFlag(HoennFlags.FLAG_RECEIVED_WAILMER_PAIL)
       return

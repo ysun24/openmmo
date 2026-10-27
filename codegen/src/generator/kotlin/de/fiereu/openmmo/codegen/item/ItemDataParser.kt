@@ -27,7 +27,10 @@ class ItemDataParser(private val dataDir: File) {
     }
 
     val names =
-        json.parseToJsonElement(namesFile.readText()).jsonArray.map { it.jsonPrimitive.content }
+        de.fiereu.openmmo.common.ExtraItems.overlay(
+            json.parseToJsonElement(namesFile.readText()).jsonArray.map {
+              it.jsonPrimitive.content
+            })
     val prices =
         json.parseToJsonElement(itemsFile.readText()).jsonArray.associate { entry ->
           val obj = entry.jsonObject

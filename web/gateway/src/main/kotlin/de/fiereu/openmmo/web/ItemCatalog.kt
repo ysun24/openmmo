@@ -48,7 +48,8 @@ class ItemCatalog(private val decomp: File) {
     val data = File(decomp, "pokeblack/items.json")
     if (!names.isFile || !data.isFile) return@lazy emptyList()
     val nameList =
-        Json.parseToJsonElement(names.readText()).jsonArray.map { it.jsonPrimitive.content }
+        de.fiereu.openmmo.common.ExtraItems.overlay(
+            Json.parseToJsonElement(names.readText()).jsonArray.map { it.jsonPrimitive.content })
     val rows =
         Json.parseToJsonElement(data.readText()).jsonArray.associate {
           val o = it.jsonObject

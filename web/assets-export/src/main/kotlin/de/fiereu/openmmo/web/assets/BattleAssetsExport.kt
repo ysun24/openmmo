@@ -304,9 +304,9 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
                 "pvp" to "MUS_VS_TRAINER",
                 "victoryElite" to "MUS_VICTORY_LEAGUE")
         else
-            // FireRed GetBattleBGM: leaders and the Elite Four share the gym theme, link battles
-            // play the RS trainer theme, everything else the trainer theme.
-            linkedMapOf(
+        // FireRed GetBattleBGM: leaders and the Elite Four share the gym theme, link battles
+        // play the RS trainer theme, everything else the trainer theme.
+        linkedMapOf(
                 "elite" to "MUS_VS_GYM_LEADER",
                 "champion" to "MUS_VS_CHAMPION",
                 "rival" to "MUS_VS_TRAINER",
