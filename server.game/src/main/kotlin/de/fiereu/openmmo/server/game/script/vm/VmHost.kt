@@ -99,8 +99,13 @@ internal fun ScriptContext.vmCurrentMap() = maps?.getMap(state.regionId, state.b
 internal fun ScriptContext.vmMapNpc(localId: Int): NpcDef? =
     vmCurrentMap()?.npcs?.firstOrNull { it.entityIdx == localId }
 
+/** The server's bank of decomp map group [group] (Hoenn's groups are numbered from 50). */
+internal fun ScriptContext.vmBank(group: Int): Int = group + if (state.regionId == 1) HOENN_BANK_OFFSET else 0
+
+const val HOENN_BANK_OFFSET = 50
+
 internal fun ScriptContext.vmOnMap(group: Int, num: Int) =
-    state.bankId == group && state.mapId == num
+    state.bankId == vmBank(group) && state.mapId == num
 
 internal suspend fun ScriptContext.vmMoveNpc(localId: Int, from: ObjPose, steps: List<MovementStep>) {
   moveNpc(localId, *steps.toTypedArray())
@@ -137,7 +142,7 @@ internal fun ScriptContext.vmRemoveObject(localId: Int, immediate: Boolean) {
 }
 
 internal fun ScriptContext.vmSetObjectFlag(group: Int, num: Int, localId: Int) {
-  val map = maps?.getMap(state.regionId, group, num) ?: return
+  val map = maps?.getMap(state.regionId, vmBank(group), num) ?: return
   val npc = map.npcs.firstOrNull { it.entityIdx == localId } ?: return
   if (npc.hideFlag.isNotBlank()) setFlag(npc.hideFlag)
 }
@@ -158,7 +163,7 @@ internal fun ScriptContext.vmWarpDestination(
     x: Int,
     y: Int
 ): Pair<Int, Int>? {
-  val map = maps?.getMap(state.regionId, group, num) ?: return null
+  val map = maps?.getMap(state.regionId, vmBank(group), num) ?: return null
   if (warpId != 0xFF && warpId != 0x7F) {
     map.warps.getOrNull(warpId)?.let {
       return it.x to it.y
@@ -183,6 +188,7 @@ internal suspend fun ScriptContext.vmWarp(group: Int, num: Int, warpId: Int, x: 
     val dest = vmWarpDestination(g, n, warpId, x, y) ?: return
     tx = dest.first
     ty = dest.second
+    g = vmBank(g)
   }
   log.info { "script $kind to ${state.regionId}:$g:$n ($tx,$ty)" }
   warp(state.regionId, g, n, tx, ty, state.facingDirection)
@@ -403,7 +409,7 @@ internal fun ScriptContext.vmSetRespawn(healLocation: Int) {
   val img = vm?.img ?: return
   val c = charId ?: return
   val mapConst = img.constOrNull("OPENMMO_HEAL_$healLocation") ?: return
-  val bank = mapConst shr 8
+  val bank = vmBank(mapConst shr 8)
   val num = mapConst and 0xFF
   val map = maps?.getMap(state.regionId, bank, num) ?: return
   val town = services?.heal?.townOf(vmRegion(), map.name)

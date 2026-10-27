@@ -1,0 +1,31 @@
+/* r5-scripts: the script interpreter's menus and screen effects (js/ui/scripts.js). */
+#script-overlay { position: absolute; inset: 0; pointer-events: none; }
+#script-fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 0.3s; }
+#script-fade.white { background: #fff; }
+#script-fade.on { opacity: 1; }
+#script-monpic { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
+#script-monpic.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#script-monpic .frame { background: #f8f8f8; border: 3px solid #384850; border-radius: 6px; padding: 6px; box-shadow: 0 2px 0 #0004; }
+#script-monpic .pic { width: 96px; height: 96px; image-rendering: pixelated; display: block; }
+#script-money, #script-coins { position: absolute; right: 2%; top: 2%; background: #f8f8f8; color: #303030; border: 3px solid #384850; border-radius: 6px; padding: 4px 10px; font: 600 14px/1.2 system-ui, sans-serif; }
+#script-coins { top: 14%; }
+#script-money.hidden, #script-coins.hidden { display: none; }
+#screen.shake { animation: script-shake 0.12s linear infinite; }
+@keyframes script-shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(var(--shake-x, 2px), var(--shake-y, 2px)); }
+  50% { transform: translate(0, 0); }
+  75% { transform: translate(calc(-1 * var(--shake-x, 2px)), calc(-1 * var(--shake-y, 2px))); }
+}
+.panel.script-menu .choices { display: grid; gap: 6px; }
+.panel.script-menu .choices button { text-align: left; }
+.panel.script-menu .trade-scene { display: flex; align-items: center; justify-content: space-around; gap: 12px; min-height: 140px; }
+.panel.script-menu .trade-mon { display: flex; flex-direction: column; align-items: center; transition: transform 0.9s, opacity 0.9s; }
+.panel.script-menu .trade-mon .pic { width: 96px; height: 96px; image-rendering: pixelated; }
+.panel.script-menu .trade-mon.give.away { transform: translateY(-60px); opacity: 0.15; }
+.panel.script-menu .trade-mon.get { opacity: 0.15; transform: translateY(60px); }
+.panel.script-menu .trade-mon.get.here { opacity: 1; transform: none; }
+.panel.script-menu .arrow { font-size: 28px; }
+.panel.script-menu .name { display: flex; gap: 8px; align-items: center; }
+#mapname.pop { animation: script-pop 1.5s; }
+@keyframes script-pop { 0% { opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 1; } }

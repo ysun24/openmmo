@@ -159,6 +159,15 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
             })
         // r4: Emerald secret bases (decoration / entrance atlases, spots, decorations).
         put("secretBases", SecretBaseExport(out).export(1, GbaGame.EMERALD, entries[1]))
+        // r5-scripts: metatiles the map scripts set at run time (setmetatile), per map.
+        put(
+            "scriptTiles",
+            buildJsonObject {
+              val st = ScriptMetatileExport(decomp, out)
+              REGIONS.forEach { (r, g) ->
+                st.export(r, g, entries[r]).forEach { (k, v) -> put(k, v) }
+              }
+            })
         put(
             "players",
             buildJsonObject {

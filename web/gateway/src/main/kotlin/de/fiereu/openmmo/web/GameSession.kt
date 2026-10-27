@@ -121,6 +121,9 @@ class GameSession(val client: GameClient) : GameActions {
     return null
   }
 
+  override fun scriptReply(seq: Int, value: Int, text: String): String? =
+      if (client.overworld.scriptReply(seq, value, text)) null else "no script menu is open"
+
   override fun choose(index: Int): String? =
       if (client.overworld.choose(index)) null else "no choice is open"
 

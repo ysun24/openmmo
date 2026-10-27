@@ -203,7 +203,7 @@ constructor(
     // The Gen 3 step rules: collision, elevation, ledges, surfing, boulders, bike terrain.
     val outcome =
         FieldRules.step(
-            currentMap,
+            de.fiereu.openmmo.server.game.script.vm.VmState.of(ctx).collisionMap(currentMap),
             fromX,
             fromY,
             msg.direction,

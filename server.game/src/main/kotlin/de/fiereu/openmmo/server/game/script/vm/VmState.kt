@@ -88,6 +88,29 @@ class VmState {
   /** Floors addelevmenuitem queued for showelevmenu. */
   val elevatorItems = mutableListOf<IntArray>()
 
+  private var collisionCache: Pair<Int, de.fiereu.openmmo.maps.MapDef>? = null
+
+  /**
+   * [map] with the collision of the metatiles this player's scripts changed (setmetatile's
+   * impassable flag): opened barriers and doors become walkable, closed ones block.
+   */
+  fun collisionMap(map: de.fiereu.openmmo.maps.MapDef): de.fiereu.openmmo.maps.MapDef {
+    if (metatiles.isEmpty()) return map
+    val sig = metatiles.hashCode() * 31 + System.identityHashCode(map)
+    collisionCache?.let { (k, m) -> if (k == sig) return m }
+    val overrides = HashMap<Int, de.fiereu.openmmo.common.Tile2D>()
+    for ((k, v) in metatiles) {
+      val x = k and 0xFFFF
+      val y = k shr 16
+      val t = map.tileAt(x, y) ?: continue
+      val c = (t.collision.toInt() and 3.inv()) or (if (v.second) 1 else 0)
+      overrides[y * map.width + x] = t.copy(collision = c.toByte())
+    }
+    val out = map.withTileOverrides(overrides)
+    collisionCache = sig to out
+    return out
+  }
+
   /** Reset when the player arrives on another map (ClearTempFieldEventData + object templates). */
   fun enterMap(key: Int) {
     if (mapKey == key) return

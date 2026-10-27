@@ -36,6 +36,12 @@ data class DialogView(
 
 data class ShopOffer(val itemId: Int, val name: String, val price: Int)
 
+/**
+ * r5-scripts: one ScriptUiPacket: a menu the server waits on, or an effect. [json] is the
+ * packet's argument object as sent; [n] numbers effects for the whole session.
+ */
+data class ScriptUiView(val seq: Int, val kind: String, val json: String, val n: Int = 0)
+
 data class ShopView(
     val npcEntityId: Long,
     val offers: List<ShopOffer>,
@@ -62,6 +68,12 @@ class OverworldState {
       val knownMaps: Map<MapKey, KnownMap>,
       /** The last server notice (an item used, a refusal), numbered so a repeat still shows. */
       val notice: Notice? = null,
+      /** r5-scripts: the script menu waiting for an answer (multichoice, party, trade, name). */
+      val scriptMenu: ScriptUiView? = null,
+      /** r5-scripts: the newest script effects (sound, fade, fx, monpic, ...), oldest first. */
+      val scriptFx: List<ScriptUiView> = emptyList(),
+      /** r5-scripts: metatiles scripts changed on the current map, (x, y) -> (id, impassable). */
+      val metatiles: Map<Pair<Int, Int>, Pair<Int, Boolean>> = emptyMap(),
   )
 
   /** [kind] is a [de.fiereu.openmmo.client.net.NoticeKind] wire name (presence, reward, …). */
@@ -77,6 +89,25 @@ class OverworldState {
   private var inScript = false
   private val knownMaps = mutableMapOf<MapKey, KnownMap>()
   private var notice: Notice? = null
+  private var scriptMenu: ScriptUiView? = null
+  private val scriptFx = ArrayDeque<ScriptUiView>()
+  private var fxCounter = 0
+  private val metatiles = LinkedHashMap<Pair<Int, Int>, Pair<Int, Boolean>>()
+
+  fun setScriptMenu(v: ScriptUiView?) = synchronized(lock) { scriptMenu = v }
+
+  fun scriptMenu(): ScriptUiView? = synchronized(lock) { scriptMenu }
+
+  fun addScriptFx(v: ScriptUiView) =
+      synchronized(lock) {
+        scriptFx.addLast(v.copy(n = ++fxCounter))
+        while (scriptFx.size > MAX_FX) scriptFx.removeFirst()
+      }
+
+  fun setMetatile(x: Int, y: Int, id: Int, impassable: Boolean) =
+      synchronized(lock) { metatiles[x to y] = id to impassable }
+
+  fun clearMetatiles() = synchronized(lock) { metatiles.clear() }
 
   fun view(): View =
       synchronized(lock) {
@@ -89,8 +120,15 @@ class OverworldState {
             scriptLocked,
             inScript,
             knownMaps.toMap(),
-            notice)
+            notice,
+            scriptMenu,
+            scriptFx.toList(),
+            metatiles.toMap())
       }
+
+  private companion object {
+    const val MAX_FX = 40
+  }
 
   fun rememberMap(map: KnownMap) = synchronized(lock) { knownMaps[map.key] = map }
 

@@ -1250,7 +1250,8 @@ class ScriptVm(
 
   private fun setDynamicWarp(g: Int, n: Int, w: Int, x: Int, y: Int) {
     val dest = ctx.vmWarpDestination(g, n, w, x, y) ?: return
-    ctx.setDynamicWarp(region.wireValue.toInt(), g, n, dest.first, dest.second, ctx.state.facingDirection)
+    ctx.setDynamicWarp(
+        region.wireValue.toInt(), ctx.vmBank(g), n, dest.first, dest.second, ctx.state.facingDirection)
   }
 
   fun outcome(r: BattleResult): Int =

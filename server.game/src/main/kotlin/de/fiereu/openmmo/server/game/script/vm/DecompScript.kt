@@ -29,6 +29,44 @@ class DecompScript(val label: String) : Script {
             (ScriptImage.of("kanto")?.labels?.containsKey(label) == true ||
                 ScriptImage.of("hoenn")?.labels?.containsKey(label) == true)
 
+    private val CONTINUE_MODES =
+        setOf(
+            ScriptVm.MODE_CONTINUE_SCRIPT,
+            ScriptVm.MODE_CONTINUE_SCRIPT_NO_MUSIC,
+            ScriptVm.MODE_DOUBLE,
+            ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE,
+            ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC,
+            ScriptVm.MODE_REMATCH_DOUBLE,
+        )
+
+    /**
+     * True when the trainer npc's script needs the interpreter rather than the field service's
+     * plain intro / battle / defeat flow: its trainerbattle continues into an event script, is a
+     * double battle, or (FRLG) the early rival battle.
+     */
+    fun interpretsTrainer(region: String, label: String): Boolean {
+      val img = imageFor(region, label) ?: return false
+      val a = img.labels[label] ?: return false
+      if (img.commands.getOrNull(img.u8(a)) != "trainerbattle") return false
+      val mode = img.u8(a + 1)
+      return mode in CONTINUE_MODES ||
+          (img.region == "kanto" && mode == ScriptVm.MODE_EARLY_RIVAL_OR_PYRAMID)
+    }
+
+    /**
+     * A trainer that saw the player and walked up (the field service did the approach): the
+     * decomp's EventScript_StartTrainerApproach from the intro speech on, configured from the
+     * trainer's own script.
+     */
+    suspend fun runTrainerApproach(ctx: ScriptContext, label: String, localId: Int) {
+      val img = imageFor(ctx.regionName, label) ?: return
+      val a = img.labels[label] ?: return
+      val vm = ScriptVm(ctx, img)
+      vm.lastTalked = localId
+      vm.configureTrainerBattle(a + 1, approaching = true)
+      vm.runLabel("EventScript_ShowTrainerIntroMsg")
+    }
+
     /** gSpecialVar_LastTalked: the local id of the npc the player talked to, or 0. */
     fun localIdOf(ctx: ScriptContext): Int {
       if (ctx.entityId < 0) return 0
