@@ -47,6 +47,11 @@ class TilesetAnims(private val decompRoot: File, private val game: GbaGame) {
       val frameAt: IntArray,
       /** Change points (tick, frame), for the browser. */
       val events: List<Pair<Int, Int>>,
+      /**
+       * r4: a palette animation instead of tiles: the BG palette slot [frames] (palette symbols)
+       * are copied into (BlendAnimPalette_*: the Battle Dome's floor lights). -1 for tile channels.
+       */
+      val palette: Int = -1,
   )
 
   private class Init(val max: String?, val callback: String?)
@@ -164,7 +169,71 @@ class TilesetAnims(private val decompRoot: File, private val game: GbaGame) {
             }
         val pMax = maxOf(pInit, 0)
         val sMax = maxOf(sInit, pMax)
-        run(c, pInit?.callback, pMax) + run(c, sInit?.callback, sMax)
+        run(c, pInit?.callback, pMax) +
+            run(c, sInit?.callback, sMax) +
+            paletteRun(pInit?.callback, pMax) +
+            paletteRun(sInit?.callback, sMax)
+      }
+
+  private val animText: String by lazy {
+    MiniC.stripComments(File(base, "src/tileset_anims.c").takeIf { it.isFile }?.readText() ?: "")
+  }
+
+  private fun body(fn: String): String? =
+      Regex("""void\s+$fn\s*\(\s*u16\s+\w+\s*\)\s*\{(.*?)\n}""", RegexOption.DOT_MATCHES_ALL)
+          .find(animText)
+          ?.groupValues
+          ?.get(1)
+
+  /**
+   * The palette animations a callback runs: `if (timer % K == 0) BlendAnimPalette_X(timer / K)`
+   * where BlendAnimPalette_X does `CpuCopy16(ARR[timer % ARRAY_COUNT(ARR)],
+   * &gPlttBufferUnfaded[BG_PLTT_ID(N)], ...)`. [MiniC] does not model the palette buffer, so this
+   * reads that one decomp pattern.
+   */
+  private fun paletteRun(callback: String?, max: Int): List<Channel> {
+    callback ?: return emptyList()
+    val cb = body(callback) ?: return emptyList()
+    val out = mutableListOf<Channel>()
+    for (m in
+        Regex(
+                """timer\s*%\s*(\d+)\s*==\s*0\s*\)\s*(BlendAnimPalette_\w+)\s*\(\s*timer\s*/\s*(\d+)""")
+            .findAll(cb)) {
+      val every = m.groupValues[1].toInt()
+      val fn = body(m.groupValues[2]) ?: continue
+      val copy =
+          Regex(
+                  """CpuCopy16\(\s*(\w+)\[timer\s*%\s*ARRAY_COUNT\(\w+\)\]\s*,\s*&gPlttBufferUnfaded\[BG_PLTT_ID\((\d+)\)\]""")
+              .find(fn) ?: continue
+      val arr = copy.groupValues[1]
+      val slot = copy.groupValues[2].toInt()
+      val items =
+          Regex("""\b$arr\[\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
+              .find(animText)
+              ?.groupValues
+              ?.get(1)
+              ?.split(',')
+              ?.map { it.trim() }
+              ?.filter { it.isNotEmpty() } ?: continue
+      val cycle = max.coerceAtLeast(1)
+      val at = IntArray(cycle) { t -> (t / every) % items.size }
+      val events = mutableListOf<Pair<Int, Int>>()
+      for (t in 0 until cycle) if (t == 0 || at[t] != at[t - 1]) events += t to at[t]
+      out += Channel(0x10000 + slot, 0, cycle, items, at, events, palette = slot)
+    }
+    return out
+  }
+
+  private val paletteCache = ConcurrentHashMap<String, IntArray?>()
+
+  /** The colours of a palette symbol (graphics.c INCGFX of a .pal), colour 0 transparent. */
+  private fun paletteOf(sym: String): IntArray? =
+      paletteCache.getOrPut(sym) {
+        val text = File(base, "src/graphics.c").takeIf { it.isFile }?.readText() ?: ""
+        val path =
+            Regex("""\b$sym\[\]\s*=\s*INC\w+\(\s*"([^"]+)\.pal"""").find(text)?.groupValues?.get(1)
+                ?: return@getOrPut null
+        Decomp.readPalette(File(base, "$path.pal"))
       }
 
   private fun run(c: MiniC, callback: String?, max: Int): List<Channel> {
@@ -246,6 +315,13 @@ class TilesetAnims(private val decompRoot: File, private val game: GbaGame) {
               if (c >= 0) {
                 chs += c
                 if (i >= 4 && !covered) top = true
+              }
+              // a palette channel: every tile drawn in its palette slot
+              channels.forEachIndexed { ci, ch ->
+                if (ch.palette >= 0 && r.palette == ch.palette) {
+                  chs += ci
+                  if (i >= 4 && !covered) top = true
+                }
               }
             }
             chs.toList() to top
@@ -342,7 +418,15 @@ class TilesetAnims(private val decompRoot: File, private val game: GbaGame) {
   private fun patch(layout: LayoutData, frames: List<Pair<Channel, Int>>): LayoutData {
     val p = layout.primary.tiles.toMutableList()
     val s = layout.secondary.tiles.toMutableList()
+    val pPal = layout.primary.palettes.copyOf()
+    val sPal = layout.secondary.palettes.copyOf()
     for ((ch, f) in frames) {
+      if (ch.palette >= 0) {
+        val pal = ch.frames.getOrNull(f)?.let(::paletteOf) ?: continue
+        if (ch.palette < pPal.size && pPal[ch.palette] != null) pPal[ch.palette] = pal
+        if (ch.palette < sPal.size) sPal[ch.palette] = pal
+        continue
+      }
       val tiles = frameTiles(ch.frames.getOrNull(f) ?: continue)
       for (k in 0 until minOf(ch.size, tiles.size)) {
         val t = ch.dest + k
@@ -350,15 +434,15 @@ class TilesetAnims(private val decompRoot: File, private val game: GbaGame) {
         else put(s, t - game.tilesInPrimary, tiles[k])
       }
     }
-    fun ts(o: Tileset, tiles: List<IntArray>) =
-        Tileset(tiles, o.palettes, o.metatiles, o.attributes)
+    fun ts(o: Tileset, tiles: List<IntArray>, pals: Array<IntArray?>) =
+        Tileset(tiles, pals, o.metatiles, o.attributes)
     return LayoutData(
         layout.name,
         layout.width,
         layout.height,
         layout.blocks,
-        ts(layout.primary, p),
-        ts(layout.secondary, s),
+        ts(layout.primary, p, pPal),
+        ts(layout.secondary, s, sPal),
         layout.border,
         layout.borderWidth,
         layout.borderHeight,

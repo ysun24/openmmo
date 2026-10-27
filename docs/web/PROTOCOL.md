@@ -544,3 +544,9 @@ Static assets (manifest):
   open entrance metatiles) + `spots` (`"r:b:m"` → `[{x, y, id, cell}]`), `decorations`
   (`id` → `{name, category, perm, w, h, tiles|gfx}`).
 - Dev: `/givedecor <id|all> [qty]`; `/fielddev` in Hoenn also teaches SECRET POWER.
+
+### Palette animations
+- `.anim.json` channels may be palette channels: `dest` = 0x10000 + BG palette slot, `size` 0 (the
+  Battle Dome's floor lights: BlendAnimPalette_BattleDome_FloorLights copies one of four palettes
+  into slot 8 every 4 frames). Their metatiles are pre-rendered per palette in the same atlas and
+  `combos`, so the browser animates them like tile channels with no change.
