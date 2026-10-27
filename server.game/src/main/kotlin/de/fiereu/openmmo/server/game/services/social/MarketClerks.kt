@@ -89,20 +89,31 @@ class MarketClerks @Inject constructor(private val maps: MapManager) : ExtraNpcS
      * front of the nurse. Null on maps without a nurse.
      */
     fun findSpot(map: MapDef): Pair<Int, Int>? {
-      if (map.npcs.none { it.script.endsWith("_EventScript_Nurse") }) return null
+      val nurse = map.npcs.firstOrNull { it.script.endsWith("_EventScript_Nurse") } ?: return null
       val taken =
           map.npcs.flatMap { npc ->
             // A wandering npc may step next to its home tile, so keep a margin around it.
             (-1..1).flatMap { dx -> (-1..1).map { dy -> (npc.x + dx) to (npc.y + dy) } }
           } + map.warps.map { it.x to it.y } + map.bgEvents.map { it.x to it.y }
-      return CANDIDATES.firstOrNull { (x, y) ->
-        x in 0 until map.width &&
-            y in 0 until map.height &&
-            map.tileAt(x, y)?.blocksMovement() == false &&
-            (x to y) !in taken &&
-            // Something has to be walkable below, where the player stands to talk.
-            map.tileAt(x, y + 1)?.blocksMovement() == false
-      }
+      // The way to the nurse's counter stays clear.
+      val counter = (0..3).map { nurse.x to (nurse.y + it) }
+      fun free(x: Int, y: Int) =
+          x in 0 until map.width &&
+              y in 0 until map.height &&
+              map.tileAt(x, y)?.blocksMovement() == false &&
+              (x to y) !in taken &&
+              (x to y) !in counter &&
+              // Something has to be walkable below, where the player stands to talk.
+              map.tileAt(x, y + 1)?.blocksMovement() == false
+      CANDIDATES.firstOrNull { (x, y) -> free(x, y) }
+          ?.let {
+            return it
+          }
+      // Other layouts (Trainer Tower, Battle Frontier): the free tile nearest the nurse.
+      return (0 until map.height)
+          .flatMap { y -> (0 until map.width).map { x -> x to y } }
+          .filter { (x, y) -> free(x, y) }
+          .minByOrNull { (x, y) -> kotlin.math.abs(x - nurse.x) + kotlin.math.abs(y - nurse.y) * 2 }
     }
   }
 }
