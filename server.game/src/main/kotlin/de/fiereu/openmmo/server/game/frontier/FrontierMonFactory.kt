@@ -172,11 +172,11 @@ constructor(
           spAtk = ivs[4].coerceIn(0, 31)
           spDef = ivs[5].coerceIn(0, 31)
         }
-    // Gen 3 allows 255 per stat; our EVs cap one stat at 252 (and all at 510).
+    // Gen 3's CreateMonWithEVSpreadNatureOTID: up to 255 in one stat, 510 in all.
     val ev =
         EVs().apply {
           var left = 510
-          fun take(v: Int): Int = v.coerceIn(0, 252).coerceAtMost(left).also { left -= it }
+          fun take(v: Int): Int = v.coerceIn(0, 255).coerceAtMost(left).also { left -= it }
           hp = take(evs[0])
           atk = take(evs[1])
           this.def = take(evs[2])

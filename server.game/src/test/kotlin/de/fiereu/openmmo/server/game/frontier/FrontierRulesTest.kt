@@ -229,7 +229,7 @@ class FrontierRulesTest :
         m.nature.ordinal shouldBe set.nature
         m.iVs.hp shouldBe 9
         m.iVs.spAtk shouldBe 9
-        m.eVs.hp shouldBe 252 // 255 capped by our EV model
+        m.eVs.hp shouldBe 255 // Gen 3 per-stat cap
         m.friendship shouldBe 255
         m.heldItem shouldNotBe 0
         // Factory sets lose Return for Frustration and have friendship 0.

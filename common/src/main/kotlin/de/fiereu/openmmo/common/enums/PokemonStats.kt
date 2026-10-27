@@ -50,7 +50,11 @@ open class PokemonStats(private val individualCap: Int, private val totalCap: In
     set(value) = checkedSet(PokemonStat.SPEED, value)
 }
 
-class EVs : PokemonStats(252, 510)
+/**
+ * Effort values: Gen 3's MAX_PER_STAT_EVS 255 / MAX_TOTAL_EVS 510 (r5 merge: the Battle Frontier's
+ * sets carry 255 in one stat). EV gain from battles and vitamins keeps its own, lower caps.
+ */
+class EVs : PokemonStats(255, 510)
 
 const val MAX_IV = 31
 

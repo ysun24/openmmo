@@ -587,6 +587,57 @@ def scene_regirock(s):
     check(s.flag("FLAG_DEFEATED_REGIROCK"), f"REGIROCK fought and defeated: {texts[-1:]}")
 
 
+@scene(1, "sootopolis")
+def scene_sootopolis(s):
+    """Sootopolis Gym: Juan (trainerbattle_single with a defeat script): the RAIN BADGE, the gym
+    trainers set, TM WATER PULSE (giveitem), VAR_SOOTOPOLIS_CITY_STATE 6."""
+    for f in ("FLAG_DEFEATED_SOOTOPOLIS_GYM", "FLAG_BADGE08_GET", "FLAG_RECEIVED_TM_WATER_PULSE"):
+        s.flag(f, False)
+    s.trainer("TRAINER_JUAN_1", False)
+    give_team(s)
+    jx, jy = npc_by_script(1, "SootopolisCity_Gym_1F", "SootopolisCity_Gym_1F_EventScript_Juan")
+    s.stand_by("SootopolisCity_Gym_1F", jx, jy, "down")
+    texts = s.talk(timeout=150)
+    check(s.flag("FLAG_DEFEATED_SOOTOPOLIS_GYM") and s.flag("FLAG_BADGE08_GET"),
+          f"Juan beaten, RAIN BADGE: {texts[-1:]}")
+    check(s.flag("FLAG_RECEIVED_TM_WATER_PULSE"), "TM WATER PULSE given")
+    check(s.var("VAR_SOOTOPOLIS_CITY_STATE") == 6, "Sootopolis state 6")
+
+
+@scene(1, "eon")
+def scene_eon(s):
+    """The EON TICKET (a key item since the r5 merge): the Lilycove ferry's decomp script finds it
+    (checkitem + FLAG_ENABLE_SHIP_SOUTHERN_ISLAND), sails to Southern Island, and the interior's
+    sign starts the Lati@s event (camera pan, addobject, BattleSetup_StartLatiBattle)."""
+    s.flag("FLAG_SYS_GAME_CLEAR", True)
+    s.flag("FLAG_ENABLE_SHIP_SOUTHERN_ISLAND", True)
+    for f in ("FLAG_DEFEATED_LATIAS_OR_LATIOS", "FLAG_CAUGHT_LATIAS_OR_LATIOS",
+              "FLAG_ENCOUNTERED_LATIAS_OR_LATIOS"):
+        s.flag(f, False)
+    s.cmd("/script item EON_TICKET", 2)
+    check(has_item(s, "EON TICKET"), f"EON TICKET in the bag: {sorted(s.bag())[:8]}")
+    ax, ay = npc_by_script(1, "LilycoveCity_Harbor", "LilycoveCity_Harbor_EventScript_FerryAttendant")
+    s.stand_by("LilycoveCity_Harbor", ax, ay, "down")
+    menus = []
+
+    def pick(m):
+        menus.append(m)
+        items = [str(i).upper() for i in (m.get("args") or {}).get("items") or []]
+        return next((i for i, n in enumerate(items) if "SOUTHERN" in n), 0)
+
+    s.talk(choices=[True], menu=pick, timeout=60)
+    check(menus, f"destination menu: {[(m.get('args') or {}).get('items') for m in menus][:1]}")
+    s.p.wait(lambda q: (q.world.get("map") or {}).get("name") == "SouthernIsland_Exterior", 25,
+             "arrive on Southern Island")
+    check(s.map_name() == "SouthernIsland_Exterior", f"sailed: {s.map_name()}")
+    give_team(s)
+    s.tp("SouthernIsland_Interior", 13, 12, "up")
+    texts = s.talk(timeout=150)
+    check(s.flag("FLAG_ENCOUNTERED_LATIAS_OR_LATIOS"), f"the Lati@s appeared: {texts[:2]}")
+    check(s.flag("FLAG_DEFEATED_LATIAS_OR_LATIOS") or s.flag("FLAG_CAUGHT_LATIAS_OR_LATIOS"),
+          f"Lati@s battle over: {texts[-1:]}")
+
+
 def dev():
     """DEVELOPER permission for the slash commands (as e2e.py's setup does)."""
     db = os.environ.get("OPENMMO_GAME_DB_CONTAINER", "openmmo-game-db")

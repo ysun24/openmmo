@@ -28,6 +28,9 @@ let sk = null; // skeleton elements
 
 // presentation
 let lastSeq = 0;
+// r5 merge: the intro sprites a side has already stepped away (so a rebuild mid-battle never
+// brings the player's back sprite back during fast turns).
+let introGone = { foe: false, me: false };
 let queue = [];
 let playing = false;
 let view = null; // {me, me1, foe, foe1, meVis, me1Vis, foeVis, foe1Vis}
@@ -117,8 +120,8 @@ export function update(state, changed) {
     }
     if (busy() || queue.length) {
       // The intro is still playing: show the trainer and the player again.
-      if (sk.trainer.dataset.has && !b.wild && !keysInUse().some((k) => sideOfKey(k) === 'foe' && view[k + 'Vis'])) sk.trainer.classList.remove('hidden');
-      if (sk.back.dataset.has && !keysInUse().some((k) => sideOfKey(k) === 'me' && view[k + 'Vis'])) sk.back.classList.remove('hidden');
+      if (!introGone.foe && sk.trainer.dataset.has && !b.wild && !keysInUse().some((k) => sideOfKey(k) === 'foe' && view[k + 'Vis'])) sk.trainer.classList.remove('hidden');
+      if (!introGone.me && sk.back.dataset.has && !keysInUse().some((k) => sideOfKey(k) === 'me' && view[k + 'Vis'])) sk.back.classList.remove('hidden');
     }
     paintView();
   }
@@ -279,6 +282,7 @@ function keyOf(f) {
 }
 
 function startPresentation(nb) {
+  introGone = { foe: false, me: false };
   const fx = nb.fx || [];
   let start = -1;
   for (let i = fx.length - 1; i >= 0; i--) if (fx[i].k === 'start') { start = i; break; }
@@ -352,6 +356,7 @@ function syncToState() {
 }
 
 function hideIntro() {
+  introGone = { foe: true, me: true };
   if (!sk) return;
   sk.trainer.classList.add('hidden');
   sk.back.classList.add('hidden');
@@ -558,6 +563,7 @@ async function sendOut(k) {
 /** The trainer (or the player) steps out of the way before the first send-out. */
 async function introExit(side) {
   const el = side === 'foe' ? sk.trainer : sk.back;
+  introGone[side] = true;
   if (el.classList.contains('hidden')) return;
   if (side === 'me' && el.dataset.frames > 1) {
     // The throw: step through the back sprite's frames.
