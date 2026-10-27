@@ -35,6 +35,8 @@ private constructor(
     val menus: Map<Int, List<String>>,
     val stdStrings: List<String>,
     val cStrings: Map<String, String>,
+    /** field_specials.c string tables: name -> row -> texts (one-dimensional ones are row 0). */
+    val stringTables: Map<String, Map<Int, List<String>>> = emptyMap(),
 ) {
   val end: Int
     get() = base + bytes.size
@@ -141,6 +143,13 @@ private constructor(
           val std = readTable(i)
           val cStrings = HashMap<String, String>()
           repeat(i.readInt()) { cStrings[i.readUTF()] = readLong(i) }
+          val tables = LinkedHashMap<String, Map<Int, List<String>>>()
+          repeat(i.readInt()) {
+            val name = i.readUTF()
+            val rows = LinkedHashMap<Int, List<String>>()
+            repeat(i.readInt()) { rows[i.readInt()] = readTable(i) }
+            tables[name] = rows
+          }
           ScriptImage(
               region,
               base,
@@ -156,7 +165,8 @@ private constructor(
               species,
               menus,
               std,
-              cStrings)
+              cStrings,
+              tables)
         }
   }
 }

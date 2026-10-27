@@ -1263,8 +1263,12 @@ class ScriptVm(
 
   // ------------------------------------------------------------------ specials and natives
 
+  /** The special running now (for handlers that serve several names). */
+  var currentSpecial: String = ""
+
   /** A decomp special by name; one nobody claimed is logged and returns 0. */
   suspend fun special(name: String, at: Int): Int {
+    currentSpecial = name
     val handler = ctx.services?.specials?.forName(name)
     if (handler == null) {
       log.warn { "${img.region}: special $name at ${img.where(at)} has no handler" }

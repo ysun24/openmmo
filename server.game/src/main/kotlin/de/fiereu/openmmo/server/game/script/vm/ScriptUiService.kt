@@ -13,6 +13,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 
@@ -25,7 +26,9 @@ import kotlinx.serialization.json.buildJsonObject
 class ScriptUiService @Inject constructor() {
   private val seq = AtomicInteger()
 
-  private class Pending(val seq: Int, val reply: CompletableDeferred<Int>)
+  private class Pending(val seq: Int, val reply: CompletableDeferred<Int>) {
+    @Volatile var text: String = ""
+  }
 
   /** Show-and-forget. */
   fun send(session: SessionContext, kind: String, body: JsonObjectBuilder.() -> Unit = {}) {
@@ -57,8 +60,32 @@ class ScriptUiService @Inject constructor() {
     }
   }
 
+  /** A text prompt (`name`, the naming screen): the entered text, or null when cancelled. */
+  suspend fun askText(session: SessionContext, kind: String, current: String, maxLength: Int): String? {
+    val s = seq.incrementAndGet()
+    val p = Pending(s, CompletableDeferred())
+    pending(session)[s] = p
+    try {
+      session.send(
+          ScriptUiPacket(
+              s,
+              kind,
+              buildJsonObject {
+                    put("current", JsonPrimitive(current))
+                    put("max", JsonPrimitive(maxLength))
+                  }
+                  .toString()))
+      val v = withTimeoutOrNull(TIMEOUT) { p.reply.await() } ?: return null
+      return if (v < 0) null else p.text.take(maxLength)
+    } finally {
+      pending(session).remove(s)
+    }
+  }
+
   fun onReply(event: PacketEvent<ScriptUiReplyPacket>) {
-    pending(event.session).remove(event.packet.seq)?.reply?.complete(event.packet.value)
+    val p = pending(event.session).remove(event.packet.seq) ?: return
+    p.text = event.packet.text
+    p.reply.complete(event.packet.value)
   }
 
   private fun pending(session: SessionContext): ConcurrentHashMap<Int, Pending> =

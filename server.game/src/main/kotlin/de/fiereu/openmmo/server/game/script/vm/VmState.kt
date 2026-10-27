@@ -82,6 +82,9 @@ class VmState {
   /** setfieldeffectargument (gFieldEffectArguments). */
   val fieldEffectArgs = IntArray(8)
 
+  /** CreateInGameTradePokemon's trade (INGAME_TRADE_*) for DoInGameTradeScene. */
+  @Volatile var pendingTrade: Int? = null
+
   /** Floors addelevmenuitem queued for showelevmenu. */
   val elevatorItems = mutableListOf<IntArray>()
 

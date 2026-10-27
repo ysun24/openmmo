@@ -1061,6 +1061,11 @@
       "label": "gFameCheckerFlavorTextOriginLocation_ProfOak0",
       "id": 234881236,
       "text": "PALLET TOWN$"
+    },
+    {
+      "label": "OpenMMO_Text_Dynamic",
+      "id": 251658239,
+      "text": "{STR_VAR_9}$"
     }
   ]
 }

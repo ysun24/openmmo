@@ -83,6 +83,8 @@ private fun assignTextIds(
     out[addr] = id to label
     synthetic += Triple(label, id, text.content.toString())
   }
+  // The interpreter's dynamic line: C strings and gStringVar4 text, sent as {STR_VAR_9}.
+  synthetic += Triple("OpenMMO_Text_Dynamic", prefix or 0xFFFFFF, "{STR_VAR_9}$")
   val doc = buildJsonObject {
     put("region", region)
     put(
@@ -165,6 +167,15 @@ private fun write(
       o.writeUTF(name)
       writeLong(o, text)
     }
+    o.writeInt(t.stringTables.size)
+    for ((name, rows) in t.stringTables) {
+      o.writeUTF(name)
+      o.writeInt(rows.size)
+      for ((row, items) in rows) {
+        o.writeInt(row)
+        writeTable(o, items)
+      }
+    }
   }
 }
 
@@ -246,6 +257,12 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
             "include/constants/vars.h" to "(?:VARS_|SPECIAL_VARS_|TEMP_VARS_)",
             "include/constants/decorations.h" to "DECOR_",
             "include/constants/weather.h" to "WEATHER_",
+            "include/constants/trade.h" to "INGAME_TRADE_",
+            "include/constants/script_menu.h" to "(?:MULTI_|SCROLL_MULTI_|DEPT_STORE_FLOORNUM_)",
+            "include/constants/menu.h" to "LISTMENU_",
+            "include/constants/field_specials.h" to "(?:ELEVATOR_|SCROLL_MULTI_|DEPT_STORE_)",
+            "include/constants/battle_frontier.h" to "SPECIAL_BATTLE_",
+            "include/constants/pokemon.h" to "(?:TYPE_|EGG_GROUP_)",
         )) names += defines(file, prefix).map { it.first }
     // Every map, and the trainers by id.
     names += GeneratedConstants.all(decomp).keys.filter { it.startsWith("MAP_") }
@@ -256,6 +273,18 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
     names += trainers.map { it.first }.filter { !it.startsWith("TRAINER_CLASS") && !it.startsWith("TRAINER_PIC") }
     val out = LinkedHashMap<String, Long>()
     for (n in names.distinct()) out[n] = value(n) ?: continue
+    // setrespawn's heal locations -> their map (src/data/heal_locations.json, 1-based).
+    val heal = File(decomp, "src/data/heal_locations.json")
+    if (heal.isFile) {
+      val arr = Json.parseToJsonElement(heal.readText()).jsonObject.values.first().jsonArray
+      for ((i, l) in arr.withIndex()) {
+        val map = l.jsonObject["map"]?.jsonPrimitive?.content ?: continue
+        value(map)?.let { out["OPENMMO_HEAL_${i + 1}"] = it }
+      }
+    }
+    for (n in listOf("TRAINER_FLAGS_START", "VARS_START", "VARS_END", "SPECIAL_VARS_START",
+        "SPECIAL_FLAGS_START", "MOVEMENT_ACTION_STEP_END", "VAR_TEXT_COLOR", "ITEM_SILPH_SCOPE",
+        "TRAINER_STEVEN", "SPECIAL_BATTLE_STEVEN", "SPECIES_NONE", "NUM_SPECIES")) value(n)?.let { out[n] = it }
     out
   }
 
@@ -320,6 +349,52 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
         val items = menuArrays[m.groupValues[2]] ?: continue
         out[id] = items.map { cStrings[it] ?: it }
       }
+    }
+    out
+  }
+
+  /**
+   * The string pointer tables of field_specials.c (FRLG sListMenuLabels / sFloorNamePointers,
+   * Emerald sScrollableMultichoiceOptions / sDeptStoreFloorNames ...): name -> row -> texts. A
+   * one-dimensional table is row 0.
+   */
+  val stringTables: Map<String, Map<Int, List<String>>> by lazy {
+    val out = LinkedHashMap<String, Map<Int, List<String>>>()
+    val f = File(decomp, "src/field_specials.c")
+    if (!f.isFile) return@lazy out
+    val text = f.readText()
+    val re = Regex("""static const u8 \*const (\w+)\[[^\]]*\](\[[^\]]*\])?\s*=\s*\{(.*?)\n\s*\};""", RegexOption.DOT_MATCHES_ALL)
+    for (m in re.findAll(text)) {
+      val body = m.groupValues[3]
+      val rows = LinkedHashMap<Int, List<String>>()
+      if (m.groupValues[2].isEmpty()) {
+        rows[0] = Regex("""(?:\[\w+\]\s*=\s*)?(g\w+)""").findAll(body).map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }.toList()
+      } else {
+        for (row in Regex("""\[(\w+)\]\s*=\s*\{(.*?)\}""", RegexOption.DOT_MATCHES_ALL).findAll(body)) {
+          val id = value(row.groupValues[1])?.toInt() ?: continue
+          rows[id] = Regex("""\b(g\w+)""").findAll(row.groupValues[2]).map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }.toList()
+        }
+      }
+      out[m.groupValues[1]] = rows
+    }
+    // In-game trades (src/data/trade.h / ingame_trades.h): row = INGAME_TRADE_* id, texts =
+    // nickname, OT name, then the numbers as text: species, requested species, held item, OT id,
+    // personality, ivs (6).
+    for (rel in listOf("src/data/trade.h", "src/data/ingame_trades.h")) {
+      val tf = File(decomp, rel)
+      if (!tf.isFile) continue
+      val rows = LinkedHashMap<Int, List<String>>()
+      val tb = tf.readText()
+      for (m in Regex("""\[(INGAME_TRADE_\w+)\]\s*=\s*\{(.*?)\n\s*\}""", RegexOption.DOT_MATCHES_ALL).findAll(tb)) {
+        val id = value(m.groupValues[1])?.toInt() ?: continue
+        val b = m.groupValues[2]
+        fun str(f: String) = Regex("""\.$f\s*=\s*_\("([^"]*)"\)""").find(b)?.groupValues?.get(1).orEmpty()
+        fun num(f: String) = Regex("""\.$f\s*=\s*([\w+ ]+)""").find(b)?.groupValues?.get(1)?.trim()?.let { value(it) ?: (r.resolve(it) as? Num)?.v ?: it.toLongOrNull() } ?: 0L
+        val ivs = Regex("""\.ivs\s*=\s*\{([^}]*)\}""").find(b)?.groupValues?.get(1)?.split(',')?.map { it.trim() }.orEmpty()
+        rows[id] = listOf(str("nickname"), str("otName"), num("species").toString(), num("requestedSpecies").toString(),
+            num("heldItem").toString(), num("otId").toString(), num("personality").toString()) + ivs
+      }
+      out["sIngameTrades"] = rows
     }
     out
   }

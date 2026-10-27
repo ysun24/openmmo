@@ -32,13 +32,17 @@ object ScriptUiPacketCodec : PacketCodec<ScriptUiPacket>() {
   }
 }
 
-/** c2s: the player's answer to the [ScriptUiPacket] [seq]; [value] -1 / 127 means cancelled. */
-data class ScriptUiReplyPacket(val seq: Int, val value: Int)
+/**
+ * c2s: the player's answer to the [ScriptUiPacket] [seq]; [value] -1 / 127 means cancelled.
+ * [text] answers a `name` prompt (the naming screen).
+ */
+data class ScriptUiReplyPacket(val seq: Int, val value: Int, val text: String = "")
 
 object ScriptUiReplyPacketCodec : PacketCodec<ScriptUiReplyPacket>() {
   override fun CodecScope<ScriptUiReplyPacket>.body(): ScriptUiReplyPacket {
     val seq = field(S32LE) { it.seq }
     val value = field(S32LE) { it.value }
-    return ScriptUiReplyPacket(seq, value)
+    val text = field(Utf16LeNullTerminated) { it.text }
+    return ScriptUiReplyPacket(seq, value, text)
   }
 }

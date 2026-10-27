@@ -496,6 +496,11 @@
       "label": "LilycoveCity_DepartmentStore_1F_Text_PleasePickTicket",
       "id": 503316579,
       "text": "Please pick a LOTO TICKET.\\n…{PAUSE 15}{PAUSE 15}{PAUSE 15}{PAUSE 15}…{PAUSE 15}{PAUSE 15}{PAUSE 15}{PAUSE 15}…{PAUSE 15}{PAUSE 15}{PAUSE 15}{PAUSE 15}$"
+    },
+    {
+      "label": "OpenMMO_Text_Dynamic",
+      "id": 520093695,
+      "text": "{STR_VAR_9}$"
     }
   ]
 }

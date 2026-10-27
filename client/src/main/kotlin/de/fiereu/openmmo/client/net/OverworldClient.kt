@@ -219,9 +219,16 @@ class OverworldClient(
         else -> 120
       }
 
+  private val CLOSE_BOX = 0x64
+
   // --- dialog -----------------------------------------------------------------------------------
 
   private fun onDialog(p: DialogActionPacket) {
+    // r5-scripts: closemessage hides the box but the script (and its lock) goes on.
+    if ((p.actionType.toInt() and 0xFF) == CLOSE_BOX) {
+      world.overworld.setDialog(null)
+      return
+    }
     val snap = world.snapshot()
     val region = snap.map?.regionId?.let(GbaGame::forRegion)?.dialogRegion
     val raw =
@@ -236,7 +243,8 @@ class OverworldClient(
                 speciesName(it.speciesId.toInt())
         is TextStringArg ->
             if (it.stringVariable == TextStringArg.RIVAL) vars["RIVAL"] = it.text
-            else if (it.stringVariable in 1..3) vars["STR_VAR_${it.stringVariable}"] = it.text
+            // 1..3 are the GBA's buffers; 9 is r5-scripts' dynamic line (C strings).
+            else if (it.stringVariable in 1..9) vars["STR_VAR_${it.stringVariable}"] = it.text
         else -> {}
       }
     }
