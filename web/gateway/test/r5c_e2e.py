@@ -22,6 +22,9 @@ import e2e  # noqa: E402
 from e2e import Player, login, command, ok  # noqa: E402
 
 
+B_LABEL = "Gary"  # the --b player (picks the second berry at the link blender)
+
+
 def docs(p):
     return ((p.state.get("contests") or {}).get("docs")) or {}
 
@@ -219,7 +222,7 @@ def blend_one(p, where, out):
     goto(p, where)
     p.send(t="a")
     answer_dialogs(p, lambda q: (docs(q).get("blender") or {}).get("phase") == "choose", 40)
-    p.send(t="blender.berry", berry=docs(p)["blender"]["berries"][1 if p.label == "Gary" else 0]["berry"])
+    p.send(t="blender.berry", berry=docs(p)["blender"]["berries"][1 if p.label == B_LABEL else 0]["berry"])
     p.wait(lambda q: (docs(q).get("blender") or {}).get("phase") == "play", 60, "play")
     press_loop(p)
     d = p.wait(lambda q: (docs(q).get("blender") or {}).get("phase") == "result" and docs(q)["blender"], 60, "result")
@@ -235,7 +238,7 @@ def run_blender_link(a, b):
     tb = threading.Thread(target=blend_one, args=(b, "lobby 22 5 right", out))
     ta.start(); time.sleep(2); tb.start(); ta.join(400); tb.join(400)
     print("      ", out)
-    assert sorted(out[a.label][0]) == ["Ash", "Gary"], out
+    assert sorted(out[a.label][0]) == sorted([a.label, b.label]), out
     ok(f"Ash and Gary blended together: {out}")
 
 
@@ -327,6 +330,8 @@ def main():
     args = ap.parse_args()
     ua, pa, na = args.a.split(":")
     ub, pb, nb = args.b.split(":")
+    global B_LABEL
+    B_LABEL = nb
     a = Player(args.ws, na)
     b = Player(args.ws, nb)
     login(a, ua, pa, na)
