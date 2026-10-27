@@ -169,6 +169,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
                 st.export(r, g, entries[r]).forEach { (k, v) -> put(k, v) }
               }
             })
+        // r5-minigames: slot / roulette graphics, Fame Checker texts, Easy Chat words.
+        put("minigames", MinigameExport(decomp, out).export())
         put(
             "players",
             buildJsonObject {

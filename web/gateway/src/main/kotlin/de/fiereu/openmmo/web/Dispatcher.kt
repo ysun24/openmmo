@@ -27,6 +27,9 @@ interface GameActions : SocialActions {
   /** r4: the Pokénav Match Call: [id] -1 asks for the list, a trainer id calls them. */
   fun matchCall(id: Int): String? = "match call is not supported"
 
+  /** r5-minigames: an action for minigame [topic]; [body] is the JSON object's text. */
+  fun minigame(topic: String, body: String): String? = "minigames are not supported"
+
   /** r4: a secret base PC action (place / putaway / packup / close). */
   /** r5-frontier: a battle facility action, passed through as JSON (PROTOCOL.md "r5-frontier"). */
   fun frontier(json: String): String? = "battle facilities are not supported"
@@ -383,6 +386,8 @@ object Dispatcher {
             else g.frontier(body.toString())
           }
         }
+        // r5-minigames: every Game Corner / link / Union Room / Mystery Gift action.
+        "minigame" -> MinigameJson.action(m, g)
         "secretbase" -> {
           val action = m.string("action")
           if (action !in SECRET_BASE_ACTIONS) "unknown secret base action: $action"

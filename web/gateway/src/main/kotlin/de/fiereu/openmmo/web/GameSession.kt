@@ -31,6 +31,7 @@ class GameSession(val client: GameClient) : GameActions {
           social = client.social.state,
           tradeExpiresAt = client.trade.expiresAtMs,
           contests = client.contests.state,
+          minigames = client.minigames.snapshot(),
       )
 
   private fun battleOver(): Boolean {
@@ -92,6 +93,9 @@ class GameSession(val client: GameClient) : GameActions {
     client.send(de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket(json))
     return null
   }
+
+  override fun minigame(topic: String, body: String): String? =
+      if (client.minigames.act(topic, body)) null else "minigame message too long"
 
   override fun secretBase(action: String, decor: Int, x: Int, y: Int): String? {
     if (inBattle()) return "not in a battle"

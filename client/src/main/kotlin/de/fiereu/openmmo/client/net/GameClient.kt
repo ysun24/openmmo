@@ -97,6 +97,8 @@ class GameClient(
 
   /** r5-contests: contests, blender, Pokéblock case, berry trees, paintings. */
   val contests = ContestClient({ session?.send(it) }, { onChange() })
+  /** r5-minigames: Game Corner, link minigames, Union Room, Mystery Gift (MinigameClient.kt). */
+  val minigames = MinigameClient({ session?.send(it) }, { onChange() })
 
   /** Npcs, dialog, shop and scripted movement. */
   val overworld = OverworldClient(world, { session?.send(it) }, onChange)
@@ -401,6 +403,9 @@ class GameClient(
       }
       on<MarketInventoryPacket> { event -> market.onInventory(event.packet) }
       on<ProgressStatePacket> { event -> progress.onState(event.packet) }
+      on<de.fiereu.openmmo.net.game.packets.minigame.MinigameStatePacket> { event ->
+        minigames.onState(event.packet)
+      }
       on<MarketResultPacket> { event -> market.onResult(event.packet) }
       on<GtlSearchPagePacket> { event -> market.onPage(event.packet) }
       on<CurrencyBalancePacket> { event ->

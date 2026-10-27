@@ -25,6 +25,7 @@ import javax.inject.Singleton
             // r5-contests
             de.fiereu.openmmo.server.game.contest.ContestModule::class,
             de.fiereu.openmmo.server.game.frontier.FrontierModule::class,
+            de.fiereu.openmmo.server.game.minigame.MinigameModule::class,
         ])
 interface GameServerComponent {
 

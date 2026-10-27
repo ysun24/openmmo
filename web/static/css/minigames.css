@@ -1,0 +1,64 @@
+/* r5-minigames: Game Corner, link minigames, Union Room, Fame Checker, Mystery Gift, records. */
+#coins { font-weight: 700; margin-right: .5em; color: #f8d030; text-shadow: 1px 1px 0 #604800; }
+.panel.mg-menu .body button.mg-opt { display: flex; justify-content: space-between; gap: 1em; width: 100%; }
+.mg-price { opacity: .75; font-variant-numeric: tabular-nums; }
+.mg-row { display: flex; gap: .6em; align-items: center; flex-wrap: wrap; margin: .2em 0; }
+.mg-num { font-variant-numeric: tabular-nums; background: #202020; color: #f8d030; padding: 0 .4em; border-radius: 3px; min-width: 2.5em; text-align: right; font-family: monospace; }
+.mg-msg { min-height: 1.4em; margin: .3em 0; font-weight: 600; }
+.mg-rt { color: #f05050; animation: mg-blink 0.6s steps(2) infinite; }
+@keyframes mg-blink { 50% { opacity: .35; } }
+
+/* slots */
+.panel.mg-slots .body { display: flex; flex-direction: column; align-items: center; }
+canvas.mg-reels { width: min(78vw, 336px); image-rendering: pixelated; border: 4px solid #a03030; border-radius: 6px; background: #f8f0d8; }
+.panel.mg-slots.emerald canvas.mg-reels { border-color: #3060b0; }
+.mg-slot-btns { display: flex; gap: .4em; flex-wrap: wrap; justify-content: center; margin-top: .3em; }
+
+/* roulette */
+.mg-grid { display: grid; grid-template-columns: repeat(5, minmax(2.6em, 1fr)); gap: 3px; margin: .3em 0; }
+.mg-grid .mg-corner { font-size: .7em; align-self: center; opacity: .8; }
+.mg-cell { display: flex; flex-direction: column; align-items: center; padding: 2px !important; min-height: 2.6em; position: relative; }
+.mg-cell small { font-size: .7em; }
+.mg-cell.hit::after { content: '●'; position: absolute; right: 2px; top: 0; color: #f8f8f8; text-shadow: 0 0 2px #000; }
+.mg-cell.sel { outline: 2px solid #f8d030; }
+.mg-sq { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center; }
+i.mg-ricon { display: inline-block; width: 16px; height: 16px; background-size: 16px auto; background-position: 0 0; image-rendering: pixelated; font-style: normal; }
+.mg-wheel { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.mg-wslot { width: 1.6em; height: 1.6em; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .7em; color: #fff; text-shadow: 1px 1px 0 #000; }
+.mg-wslot.taken { opacity: .35; }
+.mg-wslot.land { outline: 3px solid #fff; opacity: 1; box-shadow: 0 0 6px #ff0; }
+
+/* link minigames */
+.mg-lobby li, .mg-players li { list-style: none; margin: .15em 0; display: flex; gap: .5em; align-items: center; }
+.mg-players, .mg-lobby { padding: 0; margin: .3em 0; }
+.mg-field { position: relative; width: 100%; max-width: 360px; aspect-ratio: 3 / 2; background: linear-gradient(#78c8f8, #c8f0a0); border-radius: 6px; overflow: hidden; margin: .3em auto; }
+.mg-field .mg-mon { position: absolute; bottom: 12%; transform: translateX(-50%); text-align: center; font-size: .65em; }
+.mg-field .mg-mon img { width: 32px; height: 32px; image-rendering: pixelated; }
+.mg-field .mg-rope { position: absolute; left: 4%; right: 4%; height: 3px; background: #804020; border-radius: 2px; }
+.mg-field .mg-berry { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #d03050; transform: translate(-50%, -50%); box-shadow: inset -2px -2px 0 rgba(0,0,0,.25); }
+.mg-field .mg-berry.gold { background: #f0c020; }
+.mg-field .mg-col { position: absolute; top: 0; bottom: 0; border-left: 1px dashed rgba(0,0,0,.15); }
+.mg-crush { display: flex; flex-direction: column; align-items: center; }
+.mg-crush .mg-bowl { width: 160px; height: 80px; border-radius: 0 0 80px 80px; background: #c08040; position: relative; overflow: hidden; margin: .4em; }
+.mg-crush .mg-fill { position: absolute; left: 0; right: 0; bottom: 0; background: #a03070; transition: height .1s; }
+.mg-results td, .mg-results th { padding: 0 .4em; text-align: left; }
+.mg-big { font-size: 1.3em; padding: .4em 1.2em !important; }
+
+/* fame checker */
+.mg-fame { display: grid; grid-template-columns: 9em 1fr; gap: .5em; }
+.mg-fame ul { padding: 0; margin: 0; }
+.mg-fame li { list-style: none; }
+.mg-fame .mg-text { white-space: pre-wrap; background: #f8f8f8; color: #303030; padding: .4em; border-radius: 4px; min-height: 6em; }
+.mg-fame .mg-dots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.mg-fame .mg-dots button { font-size: .7em; }
+.mg-fame .mg-locked { opacity: .45; }
+body.portrait .mg-fame { grid-template-columns: 1fr; }
+
+/* union room / gift */
+.mg-card { border: 3px solid #4878c8; border-radius: 8px; padding: .5em; background: linear-gradient(#f8f8ff, #d8e0f8); color: #203050; margin: .3em 0; }
+.mg-card h3 { margin: 0 0 .2em; }
+.mg-chat { max-height: 9em; overflow: auto; background: rgba(0,0,0,.25); padding: .3em; border-radius: 4px; font-size: .85em; }
+.mg-words { display: flex; flex-wrap: wrap; gap: 3px; max-height: 10em; overflow: auto; }
+.mg-words button { font-size: .75em; padding: 1px 4px !important; }
+body.portrait #btn-link .lbl, body.portrait #coins .lbl { display: none; }
+body.portrait #coins { display: none; } /* the windows show the coins; the bar has no room */

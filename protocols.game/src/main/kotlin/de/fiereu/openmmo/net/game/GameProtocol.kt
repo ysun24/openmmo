@@ -675,5 +675,11 @@ object GameProtocol : Protocol() {
         0xD5u, de.fiereu.openmmo.net.game.packets.contest.ContestActionPacketCodec)
     s2c<de.fiereu.openmmo.net.game.packets.contest.ContestStatePacket>(
         0xC6u, de.fiereu.openmmo.net.game.packets.contest.ContestStatePacketCodec)
+    // r5-minigames: Game Corner, link minigames, Union Room, Mystery Gift (packets/minigame).
+    // c2s 0xDC was free; s2c 0xDC is the retail CategoryFlagsPacket, so s2c uses 0xDD.
+    c2s<de.fiereu.openmmo.net.game.packets.minigame.MinigameActionPacket>(
+        0xDCu, de.fiereu.openmmo.net.game.packets.minigame.MinigameActionPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.minigame.MinigameStatePacket>(
+        0xDDu, de.fiereu.openmmo.net.game.packets.minigame.MinigameStatePacketCodec)
   }
 }

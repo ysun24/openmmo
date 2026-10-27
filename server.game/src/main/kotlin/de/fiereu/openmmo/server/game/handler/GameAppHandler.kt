@@ -136,6 +136,8 @@ constructor(
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
     private val secretBaseService: de.fiereu.openmmo.server.game.services.SecretBaseService,
     private val frontierService: de.fiereu.openmmo.server.game.frontier.FrontierService,
+    // r5-minigames: Game Corner, link minigames, Union Room, Mystery Gift.
+    private val minigameChannel: de.fiereu.openmmo.server.game.minigame.MinigameChannel,
     private val marketClerks: MarketClerks,
     private val scriptUi: de.fiereu.openmmo.server.game.script.vm.ScriptUiService,
     private val contestActions: de.fiereu.openmmo.server.game.contest.ContestActionService,
@@ -180,6 +182,10 @@ constructor(
     // r5-frontier: battle facility screens.
     onSuspend<de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket> { event ->
       frontierService.onAction(event)
+    }
+    // r5-minigames
+    onSuspend<de.fiereu.openmmo.net.game.packets.minigame.MinigameActionPacket> { event ->
+      minigameChannel.onAction(event)
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
@@ -294,6 +300,7 @@ constructor(
       tradeService.onDisconnect(charId)
       progressActions.onLeave(charId)
       contestActions.onDisconnect(session, charId)
+      minigameChannel.onDisconnect(charId)
       socialService.onDisconnect(charId, state.userId)
       // Undo the interrupted script here rather than leaving it to the coroutine's own cleanup,
       // which runs on another thread and would race the flush below.

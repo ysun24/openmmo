@@ -61,6 +61,8 @@ data class Sources(
     /** r5-contests: the last document per kind. */
     val contests: de.fiereu.openmmo.client.net.ContestClient.State =
         de.fiereu.openmmo.client.net.ContestClient.State(),
+    /** r5-minigames: topic -> the server's last JSON body for it (MinigameClient). */
+    val minigames: Map<String, String> = emptyMap(),
 )
 
 /** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
@@ -85,6 +87,8 @@ class StateJson(private val names: Names) {
           "social" to socialJson.social(s.social),
           // r5-contests: {seq, docs: {kind: document}} (PROTOCOL.md "r5-contests")
           "contests" to contests(s.contests),
+          // r5-minigames: PROTOCOL.md section "r5-minigames".
+          "minigames" to MinigameJson.section(s.minigames),
       ) + progressJson.sections(s)
 
   /** r5-contests: the documents are the server's JSON, passed through. */
