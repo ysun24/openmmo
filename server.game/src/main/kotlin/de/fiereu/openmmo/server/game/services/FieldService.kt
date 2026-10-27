@@ -359,8 +359,11 @@ constructor(
     if (facing == TileBehavior.PC) {
       // EventScript_PC: Pokemon Centers open the storage system, the bedroom PC the item storage.
       val kind = if (map.npcs.any { it.script.contains("Nurse") }) UI_PC_MONS else UI_PC_ITEMS
-      run(session, state, -1) { ctx -> ctx.sign(text.bootedPc) }
-      sendInfo(session, state, kind)
+      run(session, state, -1) { ctx ->
+        ctx.sign(text.bootedPc)
+        // The storage menu comes after the box, as on the GBA.
+        sendInfo(session, state, kind)
+      }
       return true
     }
     val x = state.x.toInt()

@@ -267,6 +267,44 @@ Top level gains:
 `web/static/app.webmanifest` + `icons/` make the client installable (fullscreen). The gateway
 serves `.mid` as `audio/midi`.
 
+
+### r3-field (round 3: field moves, travel modes, field effects; all additive)
+
+Browser → gateway:
+
+| `t` | fields | notes |
+|---|---|---|
+| `field` | `action` (lower case, no underscores: `cut` `flash` `rocksmash` `strength` `surf` `fly` `dive` `waterfall` `teleport` `dig` `sweetscent` `escaperope` `bike` `dismount` `itemfinder`), `arg` (bike: 0 Bicycle/Mach, 1 Acro), `bank`+`map` (FLY target, the player's region) | c2s 0xF4 `FieldActionPacket`. The server checks badge + party move + place; refusals come back as `ui.notice`. `fly` without a valid visited target makes the server send `ui.open` `fly`. |
+| `step` | optional `jump: true` | the browser predicted a ledge hop (two tiles); the headless client predicts the same. The server decides either way and sends the landing tile back. |
+
+Gateway → browser:
+- `world.entities[]` gain, only when not default: `mode` (`mach_bike` `acro_bike` `surf` `underwater`; Kanto's Bicycle is `mach_bike`), `run` (true), `jump` (counter, +1 per ledge hop the server reported: animate a 2-tile hop), `exclaim` (counter, +1 when a trainer spots the player: draw "!" for ~1 s). From s2c 0xE8 `FieldAvatarPacket` and `GbaEntityMovePacket.movementMode` 6 (= ledge hop).
+- `world.field` (s2c 0xE9 `FieldInfoPacket`, sent on every map entry and change):
+  `{"dark","flash","canRun","canBike","hasBike","strength","canEscape","moves":["surf",...],"fly":[{"bank","map","name"}]}`.
+  `dark` = the map needs FLASH (header `requires_flash`), `flash` = FLASH lit this visit; `canRun` = running
+  shoes (FLAG_SYS_B_DASH) on a map that allows running; `moves` = field actions the party can use now
+  (knows the move, has the badge); `fly` = visited FLY towns.
+- `ui.open` `{"seq","kind":"pc"|"pcItems"|"fly"}`: the server asks for a UI (the PC tile: Pokémon storage
+  in Pokémon Centers, item storage elsewhere; the FLY map). Act once per new `seq`. The PC panel itself
+  belongs to the items branch.
+
+Static assets, map entries gain `"behavior": "maps/<r>/<layout>.beh.bin"` (one byte per tile, a
+`TileBehavior` ordinal; names in the new top-level `"behaviors": [...]`), `"allowCycling"`,
+`"allowRunning"`, `"requiresFlash"`, and `"borderAnim": [slot...]` (per border cell, the `.anim.json`
+metatile slot that animates it, -1 = static). Top level gains `"fieldEffects": {"surfBlob": {"sheet",
+"frameW","frameH","count"}, "tallGrass", "longGrass", "shadow", "footprints", "deepFootprints",
+"tireTracks", "splash", "ripple", "jumpSplash", "jumpGrass", "dust", "ashPuff", "exclamation"}` (Emerald's
+`graphics/field_effects` art, one strip each).
+
+Prediction rules (server `FieldRules`, mirrored in `world.js`): `col.bin` bits 4-7 elevation; a step onto a
+tile of another elevation is refused unless either is 0 (or the target 15, a bridge); water is 1, land 3,
+so land walkers stop at the shore and surfers hop off onto elevation-3 land; elevation after a step = the
+new tile's (15 keeps it). Ledges (`JUMP_*` behaviour ahead, matching direction) hop two tiles; directional
+walls (`IMPASSABLE_*`); muddy slopes uphill only on the Mach Bike, bumpy slopes / rails only on the Acro
+Bike; `NO_RUNNING` tiles and maps without `allowRunning` walk. A STRENGTH boulder (active) is pushed by
+stepping into it (the player stays). Step times: walk 250 ms, run/surf/acro 125, Mach 70, Kanto bike 95,
+ledge hop 520.
+
 ## 5. Smoothness requirements (browser)
 
 - Render at display refresh with `requestAnimationFrame`, integer-scaled GBA viewport (240×160
