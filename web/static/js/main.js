@@ -256,7 +256,7 @@ async function doLogin(viaToken) {
     send({ t: 'login', user: s.user, token: s.token, name: s.name, region: s.region });
   } else {
     pendingLogin = { viaToken: false, remember: !!creds.remember };
-    send({ t: 'login', user: creds.user, pass: creds.pass, name: creds.name, region: creds.region, remember: !!creds.remember });
+    send({ t: 'login', user: creds.user, pass: creds.pass, name: creds.name, region: creds.region, gender: creds.gender || 0, remember: !!creds.remember });
   }
 }
 
@@ -383,7 +383,8 @@ $('#login-form').addEventListener('submit', async (e) => {
   const name = $('#cname').value.trim() || user;
   const region = +$('#region').value;
   const remember = $('#remember').checked;
-  creds = { user, pass, name, region, remember };
+  const gender = +$('#gender').value;
+  creds = { user, pass, name, region, remember, gender };
   saveSession(null);
   localStorage.setItem('openmmo.login', JSON.stringify({ user, name, region }));
   $('#login-btn').disabled = true;
@@ -426,6 +427,7 @@ net.on('state', (state, changed) => {
   if (changed.includes('world')) {
     const prevKey = world.mapKey, prevInfo = world.res && world.res.info;
     world.onServer(state.world, now);
+    if (state.world) world.self.female = !!state.world.female;
     // warp sounds: into a building through a door (SE_DOOR), back out over the mat (SE_EXIT)
     if (prevKey && world.mapKey !== prevKey && world.fade === 1 && prevInfo) {
       const info = assets.manifest && assets.manifest.maps[world.mapKey];

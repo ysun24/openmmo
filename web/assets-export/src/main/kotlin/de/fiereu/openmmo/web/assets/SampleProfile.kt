@@ -157,7 +157,9 @@ object SampleProfile {
         env[k] = rms(x, a, min(end, a + seg))
       }
       val peak = env.max().takeIf { it > 1e-6 } ?: 1.0
-      putJsonArray("env") { env.forEach { add(kotlinx.serialization.json.JsonPrimitive(round3(it / peak))) } }
+      putJsonArray("env") {
+        env.forEach { add(kotlinx.serialization.json.JsonPrimitive(round3(it / peak))) }
+      }
       put("envDur", round4(end / playRate))
       val level = rms(x, wa, wb)
       if (tonal) {
@@ -182,9 +184,17 @@ object SampleProfile {
         // loudness of the reconstruction vs the sample
         var synth = 0.0
         for (k in 1..HARMONICS) synth += (re[k] * re[k] + im[k] * im[k]) / 2
-        val norm = (1..HARMONICS).maxOf { sqrt(re[it] * re[it] + im[it] * im[it]) }.takeIf { it > 1e-9 } ?: 1.0
-        putJsonArray("re") { for (k in 1..HARMONICS) add(kotlinx.serialization.json.JsonPrimitive(round3(re[k] / norm))) }
-        putJsonArray("im") { for (k in 1..HARMONICS) add(kotlinx.serialization.json.JsonPrimitive(round3(im[k] / norm))) }
+        val norm =
+            (1..HARMONICS).maxOf { sqrt(re[it] * re[it] + im[it] * im[it]) }.takeIf { it > 1e-9 }
+                ?: 1.0
+        putJsonArray("re") {
+          for (k in 1..HARMONICS) add(
+              kotlinx.serialization.json.JsonPrimitive(round3(re[k] / norm)))
+        }
+        putJsonArray("im") {
+          for (k in 1..HARMONICS) add(
+              kotlinx.serialization.json.JsonPrimitive(round3(im[k] / norm)))
+        }
         put("gain", round3(level / max(1e-6, sqrt(synth) / norm)))
         put("level", round3(level))
       } else {
@@ -207,7 +217,9 @@ object SampleProfile {
               }
             }
         val bmax = bands.max().takeIf { it > 1e-9 } ?: 1.0
-        putJsonArray("bands") { bands.forEach { add(kotlinx.serialization.json.JsonPrimitive(round3(it / bmax))) } }
+        putJsonArray("bands") {
+          bands.forEach { add(kotlinx.serialization.json.JsonPrimitive(round3(it / bmax))) }
+        }
         if (fNative > 0 && clarity > 0.3) put("pitch60", round3(fNative * playRate / w.rate))
         put("level", round3(rms(x, 0, min(x.size, n))))
       }

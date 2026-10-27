@@ -127,14 +127,15 @@ export const assets = {
   sheetFor(ent, region = 0) {
     const man = this.manifest;
     if (!man || !man.objects) return null;
-    let d = man.objects[`${region}:${ent.gfx}`] || null;
+    let d = ent.kind === 'player' && ent.female ? null : man.objects[`${region}:${ent.gfx}`] || null;
     if (!d && ent.kind === 'player') {
       const p = man.players && man.players[String(region)];
-      const gfx = p ? (ent.gfx === p.femaleGfx ? p.femaleGfx : p.maleGfx) : 0;
+      const fem = ent.female || (p && ent.gfx === p.femaleGfx);
+      const gfx = p ? (fem ? p.femaleGfx : p.maleGfx) : 0;
       d = man.objects[`${region}:${gfx}`] || null;
       if (!d && p) {
         // players entry without an objects entry: same frame layout as a standard 16x32 sheet
-        d = man.objects[`_p${region}:${gfx}`] = { sheet: ent.gfx === p.femaleGfx ? p.female : p.male, frameW: 16, frameH: 32, frames: DEFAULT_FRAMES, mirrorRight: true };
+        d = man.objects[`_p${region}:${gfx}`] = { sheet: fem ? p.female : p.male, frameW: 16, frameH: 32, frames: DEFAULT_FRAMES, mirrorRight: true };
       }
     }
     if (!d) return null;

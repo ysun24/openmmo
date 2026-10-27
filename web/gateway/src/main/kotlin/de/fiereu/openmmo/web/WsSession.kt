@@ -164,13 +164,19 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     // r3-present: remember-me resume. `token` (base64, from an earlier login reply) replaces the
     // password; `remember: true` asks for one on a password login.
     val token =
-        (msg["token"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotEmpty() }
+        (msg["token"] as? JsonPrimitive)
+            ?.takeIf { it.isString }
+            ?.content
+            ?.takeIf { it.isNotEmpty() }
     val remember = (msg["remember"] as? JsonPrimitive)?.booleanOrNull ?: false
     val name = field("name")?.takeIf { it.isNotEmpty() } ?: user
     val region = (msg["region"] as? JsonPrimitive)?.intOrNull ?: 0
+    // r3-present: the new character's gender (0 boy, 1 girl); ignored for existing characters
+    val gender = ((msg["gender"] as? JsonPrimitive)?.intOrNull ?: 0).coerceIn(0, 1)
     if (user.isNullOrEmpty() || user.length > 32) return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
     if (token != null) {
-      if (token.length > 512 || runCatching { java.util.Base64.getDecoder().decode(token) }.isFailure)
+      if (token.length > 512 ||
+          runCatching { java.util.Base64.getDecoder().decode(token) }.isFailure)
           return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
     } else if (pass.isNullOrEmpty() || pass.length > 128) {
       return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
@@ -181,7 +187,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     if (!loginBusy.compareAndSet(false, true)) return sendError("login already in progress")
     shared.blocking.execute {
       try {
-        doLogin(user, pass, token, remember, name, region)
+        doLogin(user, pass, token, remember, name, region, gender)
       } finally {
         loginBusy.set(false)
       }
@@ -195,6 +201,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
       remember: Boolean,
       name: String,
       region: Int,
+      gender: Int = 0,
   ) {
     val cfg = shared.config
     val ticket =
@@ -220,7 +227,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
         GameClient(
             shared.gameGroup,
             shared.rootPublic,
-            NewCharacter(name, startingRegion = region.toByte()),
+            NewCharacter(name, gender = gender.toByte(), startingRegion = region.toByte()),
             onChange = ::requestFlush,
         )
     client.overworld.dataRoot = cfg.decomp

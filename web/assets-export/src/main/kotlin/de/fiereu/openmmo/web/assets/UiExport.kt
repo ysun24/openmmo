@@ -15,10 +15,10 @@ import kotlinx.serialization.json.putJsonArray
  * - the dialogue box (`WindowFunc_DrawDialogueFrame`: Emerald `menu.c` over `message_box.png`,
  *   FireRed `new_menu_helpers.c` over `menu_message.png`);
  * - the standard menu frame (`DrawStdFrame...`: tiles 0..8 in a 3x3 grid) for every user frame
- *   style the options menu offers (Emerald `text_window/1..20.png`, FireRed `type1..10.png`).
- * Each PNG keeps the frame's own palette for the frame tiles; the window inside is filled with
- * the standard text window's background (`FillWindowPixelBuffer(PIXEL_FILL(1))` in the window's own
- * palette, which is white in both games), not with the frame palette's colour 1.
+ *   style the options menu offers (Emerald `text_window/1..20.png`, FireRed `type1..10.png`). Each
+ *   PNG keeps the frame's own palette for the frame tiles; the window inside is filled with the
+ *   standard text window's background (`FillWindowPixelBuffer(PIXEL_FILL(1))` in the window's own
+ *   palette, which is white in both games), not with the frame palette's colour 1.
  */
 class UiExport(private val decompRoot: File, private val out: Output) {
   val failures: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
@@ -120,7 +120,8 @@ class UiExport(private val decompRoot: File, private val out: Output) {
                     put("dialog", out.writePng("ui/$short-dialog.png", it))
                     // border-image-slice (top right bottom left) in source pixels
                     putJsonArray("dialogSlice") {
-                      val v = if (dir == "pokeemerald") listOf(8, 16, 8, 16) else listOf(16, 16, 16, 16)
+                      val v =
+                          if (dir == "pokeemerald") listOf(8, 16, 8, 16) else listOf(16, 16, 16, 16)
                       v.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
                     }
                   }

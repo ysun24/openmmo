@@ -283,9 +283,8 @@ class FontExport(private val decompRoot: File, private val out: Output) {
         d.writeShort(0) // no instructions
         repeat(boxes.size * 4) { d.writeByte(1) } // on-curve, long coordinates
         // clockwise: (x0,y0) -> (x0,y1) -> (x1,y1) -> (x1,y0)
-        val pts = boxes.flatMap {
-          listOf(it[0] to it[1], it[0] to it[3], it[2] to it[3], it[2] to it[1])
-        }
+        val pts =
+            boxes.flatMap { listOf(it[0] to it[1], it[0] to it[3], it[2] to it[3], it[2] to it[1]) }
         var px = 0
         for ((x, _) in pts) {
           d.writeShort(x - px)
@@ -520,7 +519,8 @@ class FontExport(private val decompRoot: File, private val out: Output) {
       var i = 0
       while (i < b.size) {
         var v = 0L
-        for (k in 0 until 4) v = (v shl 8) or ((if (i + k < b.size) b[i + k].toLong() else 0L) and 0xFF)
+        for (k in 0 until 4) v =
+            (v shl 8) or ((if (i + k < b.size) b[i + k].toLong() else 0L) and 0xFF)
         sum = (sum + v) and 0xFFFFFFFFL
         i += 4
       }

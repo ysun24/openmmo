@@ -67,6 +67,8 @@ class StateJson(private val names: Names) {
     return buildJsonObject {
       put("map", w.map?.let { mapJson(it, w.mapWidth, w.mapHeight) } ?: JsonNull)
       put("self", w.selfId?.toString())
+      // r3-present: own player sprite (male / female sheet of the region)
+      put("female", w.characterGender == 1)
       put("inWorld", w.inWorld)
       putJsonArray("entities") {
         w.entities.values

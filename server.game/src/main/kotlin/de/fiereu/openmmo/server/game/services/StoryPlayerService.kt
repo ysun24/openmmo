@@ -16,8 +16,8 @@ import de.fiereu.openmmo.net.game.packets.battle.ItemStack
 import de.fiereu.openmmo.net.game.packets.battle.itemStacksPacket
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.battle.BattleRng
-import de.fiereu.openmmo.server.game.battle.StatCalculator
 import de.fiereu.openmmo.server.game.battle.Shininess
+import de.fiereu.openmmo.server.game.battle.StatCalculator
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.battle.acquiredMonsterDelta
 import de.fiereu.openmmo.server.game.session.PlayerState

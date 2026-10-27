@@ -576,3 +576,10 @@ html.frames-ready body:has(#panels .panel):not(.portrait) #toast { top: auto; bo
 html.frames-ready #battle .menu { width: calc(var(--u) * 120); }
 html.fonts-ready #battle .menu button { padding-left: calc(var(--u) * 8); }
 html.fonts-ready #battle .menu.wide button { font-family: "OpenMMO Narrow", var(--font-ui); }
+/* GBA text window: 216 px wide from x = 16 (27 tiles), the "more" arrow right after the text */
+html.frames-ready #dialog .box { padding-right: 0; }
+html.frames-ready #dialog .box > div:last-of-type { display: inline; }
+html.frames-ready #dialog .more {
+  position: relative; display: inline-block; right: auto; bottom: auto; vertical-align: top;
+  width: calc(var(--u) * 8); height: calc(var(--u) * 16); margin-left: 0;
+}
