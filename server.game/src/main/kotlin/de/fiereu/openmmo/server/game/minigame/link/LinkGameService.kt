@@ -305,7 +305,7 @@ constructor(
             "best${players.size}" to JsonPrimitive(maxOf(r["best${players.size}"]?.toString()?.toIntOrNull() ?: 0, game.pressingSpeed)))
       }
     }
-    broadcast(players, "berrycrush", JsonObject(base + jsonOf("depth" to 32, "results" to results)))
+    broadcast(players, "berrycrush", JsonObject(base + jsonOf("depth" to 32, "total" to game.total, "presses" to game.presses.toList(), "results" to results)))
   }
 
   private suspend fun runDodrio(g: Group, players: List<LinkPlayer>) {

@@ -74,7 +74,8 @@ constructor(
 
   fun push(c: Long) = sessions.getByCharacterId(c)?.let { MinigameChannel.send(it, "union", json(c)) }
 
-  private fun pushAll() = visible().forEach(::push)
+  /** Only players with the Union Room open get its updates. */
+  private fun pushAll() = inRoom.forEach(::push)
 
   /** InitUnionRoom / RunUnionRoom: [charId] enters the room. */
   fun enter(charId: Long) {
