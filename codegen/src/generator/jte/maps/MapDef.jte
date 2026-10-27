@@ -15,6 +15,8 @@ import de.fiereu.openmmo.common.enums.MapType
 import de.fiereu.openmmo.common.enums.MovementType
 import de.fiereu.openmmo.common.enums.Weather
 import de.fiereu.openmmo.maps.BgEventDef
+import de.fiereu.openmmo.maps.HiddenItemDef
+import de.fiereu.openmmo.maps.TrainerSpot
 import de.fiereu.openmmo.maps.MapCoordScript
 import de.fiereu.openmmo.maps.MapDef
 import de.fiereu.openmmo.maps.MapFrameScript
@@ -50,4 +52,12 @@ internal val ${objectName}: MapDef =
         onTransitionScript = "${map.getOnTransitionScript()}",
         onFrameScripts = ${RenderUtil.INSTANCE.frameScripts(map.getOnFrameScripts())},
         coordScripts = ${RenderUtil.INSTANCE.coordScripts(map.getCoordScripts())},
+        name = ${RenderUtil.INSTANCE.str(map.getSourceName())},
+        mapsec = ${RenderUtil.INSTANCE.str(map.getMapsec())},
+        mapTypeName = ${RenderUtil.INSTANCE.str(map.getMapTypeName())},
+        requiresFlash = ${map.getRequiresFlash()},
+        allowCycling = ${map.getAllowCycling()},
+        allowRunning = ${map.getAllowRunning()},
+        allowEscaping = ${map.getAllowEscaping()},
+        hiddenItems = ${RenderUtil.INSTANCE.hiddenItems(map.getHiddenItems())},
     )

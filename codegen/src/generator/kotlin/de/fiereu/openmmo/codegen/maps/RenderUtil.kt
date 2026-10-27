@@ -44,9 +44,28 @@ object RenderUtil {
           " movementType = ${it.movementType}, movementRangeX = ${it.movementRangeX}," +
           " movementRangeY = ${it.movementRangeY}, trainerType = ${it.trainerType}," +
           " facing = ${it.facing}, script = ${escapeString(it.script)}," +
-          " hideFlag = ${escapeString(it.hideFlag)})"
+          " hideFlag = ${escapeString(it.hideFlag)}" +
+          (if (it.item.isNotEmpty()) ", item = ${escapeString(it.item)}" else "") +
+          (if (it.flag.isNotEmpty()) ", flag = ${escapeString(it.flag)}" else "") +
+          (it.trainer?.let { t ->
+            ", trainer = TrainerSpot(trainerId = ${t.trainerId}," +
+                " constant = ${escapeString(t.constant)}, sight = ${t.sight}," +
+                " introText = ${t.introText}, defeatText = ${t.defeatText}," +
+                " postText = ${t.postText})"
+          } ?: "") +
+          ")"
     }
   }
+
+  fun hiddenItems(items: List<ParsedHiddenItem>): String {
+    if (items.isEmpty()) return EMPTY_LIST
+    return items.joinToString(LIST_SEP, LIST_OPEN, LIST_CLOSE) {
+      "HiddenItemDef(x = ${it.x}, y = ${it.y}, item = ${escapeString(it.item)}," +
+          " flag = ${escapeString(it.flag)}, quantity = ${it.quantity})"
+    }
+  }
+
+  fun str(s: String): String = escapeString(s)
 
   fun frameScripts(scripts: List<ParsedFrameScript>): String {
     if (scripts.isEmpty()) return EMPTY_LIST

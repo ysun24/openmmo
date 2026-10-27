@@ -29,27 +29,68 @@ constructor(
 
   private val random: Random = Random.Default
 
-  /** Called after a completed step. Starts a wild battle if the tile and roll call for one. */
-  fun onStep(session: SessionContext, charId: Long, map: MapDef, x: Int, y: Int) {
+  /**
+   * Called after a completed step. Starts a wild battle if the tile and roll call for one: land
+   * tables on grass and encounter ground, the water table while [surfing] over water.
+   */
+  fun onStep(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      x: Int,
+      y: Int,
+      surfing: Boolean = false,
+  ) {
     if (battleService.inBattle(charId)) return
     val repelled = tickRepel(session, charId)
     val tile = map.tileAt(x, y) ?: return
-    if (!isLandEncounterTile(tile.behavior)) return
-    // TODO: Add water and fishing wild encounters
-    //  Water encounters should fire while surfing over water tiles and fishing when a rod is used.
-    //  Both need the surf and rod features to exist first. Once they do, branch here on the tile
-    //  behavior and roll the WATER or FISHING table the same way land is rolled below.
-    val table = map.encounterTable(EncounterMethod.LAND) ?: return
-    if (!hasUsablePartyMon(charId)) return
-    if (!rollsEncounter(table)) return
-    val slot = pickSlot(table) ?: return
+    val method =
+        when {
+          surfing && tile.behavior.isSurfable -> EncounterMethod.WATER
+          !surfing && isLandEncounterTile(tile.behavior) -> EncounterMethod.LAND
+          else -> return
+        }
+    encounter(session, charId, map, method, repelled, force = false, x, y)
+  }
+
+  /**
+   * An encounter that is not a step: ROCK SMASH (rock_smash_mons, special RockSmashWildEncounter)
+   * and SWEET SCENT ([force]: always meets a monster when the tile has a table). True when a
+   * battle started.
+   */
+  fun encounterNow(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      method: EncounterMethod,
+      force: Boolean,
+  ): Boolean {
+    if (battleService.inBattle(charId)) return false
+    return encounter(session, charId, map, method, repelled = false, force = force, -1, -1)
+  }
+
+  private fun encounter(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      method: EncounterMethod,
+      repelled: Boolean,
+      force: Boolean,
+      x: Int,
+      y: Int,
+  ): Boolean {
+    val table = map.encounterTable(method) ?: return false
+    if (!hasUsablePartyMon(charId)) return false
+    if (!force && !rollsEncounter(table)) return false
+    val slot = pickSlot(table) ?: return false
     val level = random.nextInt(slot.minLevel, slot.maxLevel + 1)
     // The GBA repel: a wild monster below the lead's level does not appear.
-    if (repelled && level < leadLevel(charId)) return
+    if (repelled && level < leadLevel(charId)) return false
     log.info {
-      "Wild encounter for char=$charId at ($x, $y): species ${slot.speciesId} level $level"
+      "Wild $method encounter for char=$charId at ($x, $y): species ${slot.speciesId} level $level"
     }
     battleService.startWildBattle(session, slot.speciesId, level)
+    return true
   }
 
   /** Counts a repel down by one step; true while one is active. Tells the player when it ends. */
@@ -71,8 +112,7 @@ constructor(
           ?.level
           ?.toInt() ?: 0
 
-  private fun isLandEncounterTile(behavior: TileBehavior): Boolean =
-      behavior == TileBehavior.TALL_GRASS || behavior == TileBehavior.LONG_GRASS
+  private fun isLandEncounterTile(behavior: TileBehavior): Boolean = behavior.isLandEncounter
 
   private fun hasUsablePartyMon(charId: Long): Boolean =
       characterStore.getCharacter(charId)?.pokemon?.any { it.hp > 0 } ?: false

@@ -32,6 +32,32 @@ data class ParsedMap(
     val onFrameScripts: List<ParsedFrameScript>,
     // Tile triggers from map.json coord_events.
     val coordScripts: List<ParsedCoordScript>,
+    // Map header field rules (map.json).
+    val mapsec: String = "",
+    val requiresFlash: Boolean = false,
+    val allowCycling: Boolean = true,
+    val allowRunning: Boolean = true,
+    val allowEscaping: Boolean = false,
+    val mapTypeName: String = "",
+    // bg_events of type hidden_item.
+    val hiddenItems: List<ParsedHiddenItem> = emptyList(),
+)
+
+data class ParsedHiddenItem(
+    val x: Int,
+    val y: Int,
+    val item: String,
+    val flag: String,
+    val quantity: Int,
+)
+
+data class ParsedTrainerSpot(
+    val trainerId: Int,
+    val constant: String,
+    val sight: Int,
+    val introText: Int,
+    val defeatText: Int,
+    val postText: Int,
 )
 
 data class ParsedFrameScript(
@@ -83,6 +109,12 @@ data class ParsedNpc(
     val script: String,
     // Namespaced story flag that hides this npc by default, or "" when it is always shown.
     val hideFlag: String,
+    // ITEM_* an item ball's script finds, or "".
+    val item: String = "",
+    // The decomp object's own flag, namespaced (item balls hide on it once taken), or "".
+    val flag: String = "",
+    // trainerbattle data for trainer npcs, null otherwise.
+    val trainer: ParsedTrainerSpot? = null,
 )
 
 data class ParsedBgEvent(

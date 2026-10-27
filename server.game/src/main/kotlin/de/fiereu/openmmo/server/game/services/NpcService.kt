@@ -45,9 +45,15 @@ constructor(
 
       // Only set hide flags suppress NPCs.
       if (shouldHideNpc(bankId, mapId, npc, storyFlags)) continue
+      // Trees cut, rocks smashed and balls taken this visit (the decomp's temporary flags).
+      if (ctx.attributes[PLAYER_STATE]?.removedObjects?.contains(npc.entityIdx) == true) continue
+      // A boulder the player pushed with STRENGTH stays where they left it.
+      val pushed = storyVars["field/boulder/$regionId:$bankId:$mapId:${npc.entityIdx}"] ?: 0
+      val placed =
+          if (pushed > 0) npc.copy(x = (pushed - 1) shr 8, y = (pushed - 1) and 0xFF) else npc
       val resolved =
           resolveDynamicGraphics(
-              ctx, applyStoryPlacement(bankId, mapId, npc, storyFlags, storyVars))
+              ctx, applyStoryPlacement(bankId, mapId, placed, storyFlags, storyVars))
       ctx.send(
           buildSpawnPacket(
               resolved,

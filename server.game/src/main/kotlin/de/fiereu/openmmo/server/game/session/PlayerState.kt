@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.session
 
 import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -31,6 +32,21 @@ data class PlayerState(
     @field:Volatile var scriptOwnsMapEntry: Boolean = false,
     /** Maps the client already holds. A warp sends deleteCache, which empties this. */
     val loadedMaps: MutableSet<Int> = ConcurrentHashMap.newKeySet(),
+    /** How the avatar travels (walk, bike, surf, underwater). Kept across seamless connections. */
+    @field:Volatile var travel: TravelMode = TravelMode.WALK,
+    /** The last step's running flag, for observers' animation. */
+    @field:Volatile var running: Boolean = false,
+    /** FLASH lit this map (FLAG_SYS_USE_FLASH, cleared on map change). */
+    @field:Volatile var flash: Boolean = false,
+    /** STRENGTH is active (FLAG_SYS_USE_STRENGTH, cleared on map change). */
+    @field:Volatile var strength: Boolean = false,
+    /**
+     * Local ids of field objects cut, smashed or taken on the current map this visit (the decomp's
+     * temporary flags, cleared on every map change).
+     */
+    val removedObjects: MutableSet<Int> = ConcurrentHashMap.newKeySet(),
+    /** Counts server requests to open a client UI (FieldInfoPacket.uiSeq). */
+    @field:Volatile var uiSeq: Int = 0,
 )
 
 /** Packs a map address into one key for [PlayerState.loadedMaps]. */

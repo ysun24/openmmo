@@ -45,9 +45,13 @@ jteCodegen {
     mainClass.set("de.fiereu.openmmo.codegen.maps.Main")
     inputDirs.from(
         regionSources.values.map { rootProject.layout.projectDirectory.dir("decomp/$it") })
+    // Trainer npcs carry their text ids, resolved from the committed dialog tables.
+    inputDirs.from(dialogDataDir)
     extraArgs.set(
         regionSources.map { (region, decomp) ->
-          "$region|${rootProject.layout.projectDirectory.dir("decomp/$decomp").asFile.absolutePath}"
+          val dir = rootProject.layout.projectDirectory.dir("decomp/$decomp").asFile.absolutePath
+          val dialog = dialogDataDir.file("$region.json").asFile.absolutePath
+          listOf(region, dir, dialog).joinToString("|")
         })
   }
   register("item") {

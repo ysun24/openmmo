@@ -11,6 +11,7 @@ import javax.inject.Singleton
 class MapManager @Inject constructor() {
 
   private val maps = ConcurrentHashMap<Long, MapDef>()
+  private val byName = ConcurrentHashMap<String, MapDef>()
 
   init {
     GeneratedMaps.loadInto(this)
@@ -18,7 +19,11 @@ class MapManager @Inject constructor() {
 
   fun register(map: MapDef) {
     maps[key(map.regionId, map.bankId, map.mapId)] = map
+    if (map.name.isNotEmpty()) byName["${map.regionId}:${map.name}"] = map
   }
+
+  /** A map by its decomp directory name ("PalletTown") in a region. */
+  fun getMapByName(regionId: Int, name: String): MapDef? = byName["${regionId.toByte()}:$name"]
 
   fun getMap(regionId: Byte, bankId: Byte, mapId: Byte): MapDef? =
       maps[key(regionId, bankId, mapId)]

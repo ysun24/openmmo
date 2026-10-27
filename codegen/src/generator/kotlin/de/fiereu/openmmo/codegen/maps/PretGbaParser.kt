@@ -20,6 +20,8 @@ class PretGbaParser(
     private val region: RegionConstants,
     private val movementTypes: MovementTypes,
     private val metatileBehaviors: MetatileBehaviors,
+    /** codegen/dialog/<region>.json, for trainer text ids; null leaves them 0. */
+    private val dialogFile: File? = null,
 ) {
 
   private val json = Json { ignoreUnknownKeys = true }
@@ -195,6 +197,83 @@ class PretGbaParser(
         onTransitionScript = parseOnTransitionScript(mapDirName),
         onFrameScripts = parseOnFrameScripts(mapDirName),
         coordScripts = parseCoordScripts(mapJson),
+        mapsec = mapsecName,
+        requiresFlash = mapJson.bool("requires_flash", false),
+        allowCycling = mapJson.bool("allow_cycling", true),
+        allowRunning = mapJson.bool("allow_running", true),
+        allowEscaping = mapJson.bool("allow_escaping", false),
+        mapTypeName = mapType,
+        hiddenItems = parseHiddenItems(mapJson),
+    )
+  }
+
+  private fun JsonObject.bool(key: String, default: Boolean): Boolean =
+      this[key]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: default
+
+  private fun parseHiddenItems(mapJson: JsonObject): List<ParsedHiddenItem> =
+      mapJson["bg_events"]?.jsonArrayOrNull().orEmpty().mapNotNull { be ->
+        val obj = be.jsonObject
+        if (obj["type"]?.jsonPrimitive?.contentOrNull != "hidden_item") return@mapNotNull null
+        ParsedHiddenItem(
+            x = obj["x"]?.jsonPrimitive?.intOrNull ?: 0,
+            y = obj["y"]?.jsonPrimitive?.intOrNull ?: 0,
+            item = obj["item"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
+            flag = "${region.name}/" + (obj["flag"]?.jsonPrimitive?.contentOrNull ?: ""),
+            quantity = obj["quantity"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 1,
+        )
+      }
+
+  // Each map's scripts.inc, read once.
+  private val scriptTexts = HashMap<String, String>()
+
+  private fun scriptsText(mapDirName: String): String =
+      scriptTexts.getOrPut(mapDirName) {
+        File(rootDir, "data/maps/$mapDirName/scripts.inc").takeIf { it.exists() }?.readText()
+            ?: ""
+      }
+
+  /** The body of `label::` up to the next label, or "" when the label is not in [text]. */
+  private fun labelBody(text: String, label: String): String {
+    if (label.isEmpty()) return ""
+    val start = Regex("(?m)^" + Regex.escape(label) + ":+[ \\t]*$").find(text) ?: return ""
+    val rest = text.substring(start.range.last + 1)
+    val next = LABEL_LINE.find(rest)
+    return if (next == null) rest else rest.substring(0, next.range.first)
+  }
+
+  private val trainerIds: Map<String, Int> by lazy {
+    readDefineTable(File(rootDir, "include/constants/opponents.h"), "TRAINER_")
+  }
+
+  // Decomp text label -> the dialog id the client resolves (codegen/dialog/<region>.json).
+  private val dialogIds: Map<String, Int> by lazy {
+    val file = dialogFile ?: return@lazy emptyMap()
+    if (!file.exists()) return@lazy emptyMap()
+    readJson(file).jsonObject["lines"]?.jsonArrayOrNull().orEmpty().mapNotNull {
+      val o = it.jsonObject
+      val label = o["label"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+      val id = o["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+      label to id
+    }.toMap()
+  }
+
+  private fun parseItemBall(mapDirName: String, script: String): String {
+    val body = labelBody(scriptsText(mapDirName), script)
+    return FIND_ITEM.find(body)?.groupValues?.get(1) ?: ""
+  }
+
+  private fun parseTrainer(mapDirName: String, script: String, sight: Int): ParsedTrainerSpot? {
+    val body = labelBody(scriptsText(mapDirName), script)
+    val m = TRAINER_BATTLE.find(body) ?: return null
+    val id = trainerIds[m.groupValues[1]] ?: return null
+    val post = MSGBOX.find(body.substring(m.range.last))?.groupValues?.get(1)
+    return ParsedTrainerSpot(
+        trainerId = id,
+        constant = m.groupValues[1],
+        sight = sight,
+        introText = dialogIds[m.groupValues[2]] ?: 0,
+        defeatText = m.groupValues[3].takeIf { it.isNotEmpty() }?.let { dialogIds[it] } ?: 0,
+        postText = post?.let { dialogIds[it] } ?: 0,
     )
   }
 
@@ -277,6 +356,10 @@ class PretGbaParser(
       val shownByDefault = if (visibleOverride != null) idx in visibleOverride else flag == "0"
       val gfxName = npc["graphics_id"]?.jsonPrimitive?.contentOrNull ?: "OBJ_EVENT_GFX_BOY_1"
       val movementName = npc["movement_type"]?.jsonPrimitive?.contentOrNull ?: "MOVEMENT_TYPE_NONE"
+      val scriptLabel = npc["script"]?.jsonPrimitive?.contentOrNull ?: ""
+      val trainerType = npc["trainer_type"]?.jsonPrimitive?.contentOrNull
+      val sight =
+          npc["trainer_sight_or_berry_tree_id"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
       ParsedNpc(
           entityIdx = idx,
           graphicsId = ctx.gfxIds[gfxName] ?: 0,
@@ -292,6 +375,14 @@ class PretGbaParser(
           facing = movementTypes.facingRef(movementName),
           script = npc["script"]?.jsonPrimitive?.contentOrNull ?: "0x0",
           hideFlag = if (shownByDefault) "" else "${region.name}/$flag",
+          item =
+              if (gfxName == "OBJ_EVENT_GFX_ITEM_BALL") parseItemBall(mapDirName, scriptLabel)
+              else "",
+          flag = if (flag == "0") "" else "${region.name}/$flag",
+          trainer =
+              if (trainerType != null && trainerType != "TRAINER_TYPE_NONE")
+                  parseTrainer(mapDirName, scriptLabel, sight)
+              else null,
       )
     }
   }
@@ -478,4 +569,13 @@ class PretGbaParser(
   private fun wireBank(groupIndex: Int): Int = groupIndex + region.gbaBankOffset
 
   private fun JsonElement.jsonArrayOrNull() = (this as? JsonArray)
+
+  private companion object {
+    val LABEL_LINE = Regex("(?m)^\\w+:+[ \\t]*$")
+    val FIND_ITEM = Regex("finditem\\s+(ITEM_\\w+)")
+    val TRAINER_BATTLE =
+        Regex(
+            "trainerbattle_(?:single|double|no_intro)\\s+(TRAINER_\\w+)\\s*,\\s*(\\w+)(?:\\s*,\\s*(\\w+))?")
+    val MSGBOX = Regex("msgbox\\s+(\\w+)")
+  }
 }

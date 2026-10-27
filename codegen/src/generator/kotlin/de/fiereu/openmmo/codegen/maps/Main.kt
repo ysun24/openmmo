@@ -4,13 +4,16 @@ package de.fiereu.openmmo.codegen.maps
 
 import java.io.File
 
-private data class RegionSource(val region: RegionConstants, val dir: File)
+private data class RegionSource(val region: RegionConstants, val dir: File, val dialog: File?)
 
+// <region>|<decomp dir>[|<dialog json>]; the dialog table resolves trainer npcs' text ids.
 private fun parseRegionSource(spec: String): RegionSource {
   val parts = spec.split("|")
-  require(parts.size == 2) { "Invalid region spec '$spec', expected <region>|<dir>" }
+  require(parts.size in 2..3) {
+    "Invalid region spec '$spec', expected <region>|<dir>[|<dialog.json>]"
+  }
   val region = REGIONS[parts[0]] ?: error("Unknown region '${parts[0]}', known: ${REGIONS.keys}")
-  return RegionSource(region = region, dir = File(parts[1]))
+  return RegionSource(region = region, dir = File(parts[1]), dialog = parts.getOrNull(2)?.let(::File))
 }
 
 fun main(args: Array<String>) {
@@ -23,9 +26,10 @@ fun main(args: Array<String>) {
   val sources = args.drop(3).map(::parseRegionSource)
 
   val maps =
-      sources.flatMap { (region, dir) ->
+      sources.flatMap { (region, dir, dialog) ->
         println("[maps] parsing ${region.name} (region ${region.regionId}) from $dir")
-        PretGbaParser(dir, region, MovementTypes.read(dir), MetatileBehaviors.read(dir)).parseAll()
+        PretGbaParser(dir, region, MovementTypes.read(dir), MetatileBehaviors.read(dir), dialog)
+            .parseAll()
       }
   println("[maps] parsed ${maps.size} maps. writing to $outputDir")
   MapsRenderer(templatesDir, outputDir, classCacheDir).render(maps)

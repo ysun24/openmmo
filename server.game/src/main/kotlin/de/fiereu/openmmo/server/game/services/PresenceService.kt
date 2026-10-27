@@ -3,6 +3,8 @@ package de.fiereu.openmmo.server.game.services
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
 import de.fiereu.openmmo.net.game.packets.LoadEntityPacket
+import de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.world.interest.InterestManager
@@ -67,11 +69,22 @@ constructor(
   private fun spawnInto(ctx: SessionContext, key: MapInterestKey) {
     val observers = observers(ctx, key)
     val self = loadEntityFor(ctx)
+    val selfAvatar = avatarFor(ctx)
     for (other in observers) {
       if (self != null) other.send(self)
+      selfAvatar?.let(other::send)
       loadEntityFor(other)?.let { ctx.send(it) }
+      avatarFor(other)?.let(ctx::send)
     }
     interestManager.join(ctx, key)
+  }
+
+  /** A surfing or cycling player's travel mode, for an observer that just met it. */
+  private fun avatarFor(ctx: SessionContext): FieldAvatarPacket? {
+    val state = ctx.attributes[PLAYER_STATE] ?: return null
+    val id = state.characterId ?: return null
+    if (state.travel == TravelMode.WALK && !state.running) return null
+    return FieldAvatarPacket(id, state.travel, state.running)
   }
 
   private fun observers(ctx: SessionContext, key: MapInterestKey): List<SessionContext> =
