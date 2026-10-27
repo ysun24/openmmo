@@ -38,9 +38,13 @@ constructor(
   fun resolve(battle: BattleInstance, choices: List<BattleChoice>): List<BattleEvent> {
     val ctx = ctx(battle)
     val all = choices.toMutableList()
+    val taken = mutableSetOf<Int>()
     for (pos in battle.foe.actives.indices) {
       if (all.none { it.side == 1 && it.pos == pos } && ctx.live(BattlerRef(1, pos)) != null) {
-        all += BattleAi.choose(ctx, BattlerRef(1, pos))
+        val ref = BattlerRef(1, pos)
+        val switch = BattleAi.switchChoice(ctx, ref, { trappedBy(ctx, it) != null }, taken)
+        if (switch is BattleChoice.Switch) taken += switch.partyIndex
+        all += switch ?: BattleAi.choose(ctx, ref)
       }
     }
     MoveRunner(ctx).runTurn(all)

@@ -37,6 +37,7 @@ internal class MoveRunner(private val ctx: BattleCtx) {
         v.enduring = false
         v.helpingHand = false
         v.magicCoat = false
+        v.snatching = false
         v.movedThisTurn = false
         v.physicalDamageTaken = 0
         v.specialDamageTaken = 0
@@ -323,6 +324,34 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       return
     }
     val effects = MoveEffects(ctx, this)
+    // SNATCH: a waiting snatcher takes a self-targeting status move (Swords Dance, Recover...).
+    if (!called && move.hasFlag(MoveFlag.SNATCH_AFFECTED)) {
+      val thief =
+          ctx.allRefs().firstOrNull { r ->
+            r != userRef && ctx.live(r)?.volatile?.snatching == true
+          }
+      val thiefMon = thief?.let { ctx.live(it) }
+      if (thief != null && thiefMon != null) {
+        thiefMon.volatile.snatching = false
+        ctx.say("${ctx.name(thiefMon)} snatched ${ctx.name(user)}'s move!", thiefMon.entityId)
+        useMove(thief, thiefMon, move.id, thief, called = true)
+        return
+      }
+    }
+    // MAGIC COAT: a status move aimed at a shrouded monster is bounced back at its user.
+    if (!called && move.hasFlag(MoveFlag.MAGIC_COAT_AFFECTED) && move.power == 0) {
+      val coated =
+          targetsFor(userRef, user, move, chosenTarget).firstOrNull { r ->
+            r.side != userRef.side && ctx.live(r)?.volatile?.magicCoat == true
+          }
+      val coatMon = coated?.let { ctx.live(it) }
+      if (coated != null && coatMon != null) {
+        coatMon.volatile.magicCoat = false
+        ctx.say("${ctx.name(user)}'s ${move.name} was bounced back by MAGIC COAT!", user.entityId)
+        useMove(coated, coatMon, move.id, userRef, called = true)
+        return
+      }
+    }
     if (effects.runSpecial(userRef, user, move, chosenTarget)) return
     val targets = targetsFor(userRef, user, move, chosenTarget)
     if (targets.isEmpty()) {
@@ -346,7 +375,6 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     if (user.volatile.charged && move.type == PokemonType.ELECTRIC) user.volatile.charged = false
   }
 
-  /** Gen 3 confusion damage: a 40 power typeless physical hit on itself, no crit, no random. */
   /**
    * battle_util.c IsMonDisobedient for the player's own side (never in a player-vs-player duel, as
    * in a link battle). Only monsters with another trainer as OT ([BattleInstance.trainerName]) and
@@ -425,6 +453,7 @@ internal class MoveRunner(private val ctx: BattleCtx) {
         else -> "$who pretended not to notice!"
       }
 
+  /** Gen 3 confusion damage: a 40 power typeless physical hit on itself, no crit, no random. */
   private fun confusionDamage(user: BattleMonState): Int {
     val atk = user.effective(BattleStat.ATTACK)
     val def = user.effective(BattleStat.DEFENSE).coerceAtLeast(1)

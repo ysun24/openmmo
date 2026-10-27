@@ -1,11 +1,13 @@
 package de.fiereu.openmmo.server.game.battle
 
+import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.StatusCondition
 import de.fiereu.openmmo.common.enums.Ability
 import de.fiereu.openmmo.common.enums.MoveEffect
 import de.fiereu.openmmo.common.enums.MoveFlag
 import de.fiereu.openmmo.common.enums.PokemonType
 import de.fiereu.openmmo.moves.MoveDef
+import de.fiereu.openmmo.progression.SpeciesWeights
 import de.fiereu.openmmo.typechart.TypeChart
 
 /**
@@ -559,7 +561,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       MoveEffect.TWISTER -> if (tv.semiInvulnerable == "FLY") move.power * 2 else move.power
       MoveEffect.EARTHQUAKE -> if (tv.semiInvulnerable == "DIG") move.power * 2 else move.power
       MoveEffect.FLINCH_MINIMIZE_HIT -> if (tv.minimized) move.power * 2 else move.power
-      MoveEffect.LOW_KICK -> move.power.coerceAtLeast(60)
+      // Cmd_weightdamagecalculation: the target's pokedex weight against sWeightToDamageTable.
+      MoveEffect.LOW_KICK -> lowKickPower(SpeciesWeights.hectograms(target.species.id))
       MoveEffect.TRIPLE_KICK -> move.power
       else ->
           if ((move.id == 57 || move.id == 250) && tv.semiInvulnerable == "DIVE") move.power * 2
@@ -1291,6 +1294,37 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         ctx.say("${ctx.name(user)} transformed into the ${t.name} type!", user.entityId)
         true
       }
+      MoveEffect.SKETCH -> {
+        // Cmd_copymovepermanently: the target's last move replaces SKETCH for good.
+        val learned = tv.lastMove
+        val sketchSlot = user.moves.indexOfFirst { it.id.toInt() == move.id }
+        val def = ctx.move(learned)
+        if (user.volatile.transformed ||
+            learned == 0 ||
+            learned == STRUGGLE_ID ||
+            learned == move.id ||
+            sketchSlot < 0 ||
+            def == null ||
+            user.moves.any { it.id.toInt() == learned }) {
+          return failed(user, move).let { false }
+        }
+        anim(user, move, target)
+        user.moves[sketchSlot] = PokemonMove(learned.toShort(), def.pp.toByte())
+        ctx.say("${ctx.name(user)} sketched ${def.name}!", user.entityId)
+        true
+      }
+      MoveEffect.MAGIC_COAT -> {
+        anim(user, move)
+        user.volatile.magicCoat = true
+        ctx.say("${ctx.name(user)} shrouded itself with MAGIC COAT!", user.entityId)
+        true
+      }
+      MoveEffect.SNATCH -> {
+        anim(user, move)
+        user.volatile.snatching = true
+        ctx.say("${ctx.name(user)} waits for a target to make a move!", user.entityId)
+        true
+      }
       MoveEffect.DESTINY_BOND -> {
         anim(user, move)
         user.volatile.destinyBond = true
@@ -1316,6 +1350,7 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     /** Moves that ignore a substitute in Gen 3. */
     val SUBSTITUTE_PASSES =
         setOf(
+            MoveEffect.SKETCH,
             MoveEffect.ROAR,
             MoveEffect.ATTRACT,
             MoveEffect.DISABLE,
@@ -1353,3 +1388,14 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         setOf(13, 19, 76, 91, 117, 118, 119, 130, 143, 214, 253, 264, 274, 291, 340)
   }
 }
+
+/** sWeightToDamageTable: below 10/25/50/100/200 kg 20/40/60/80/100 power, else 120. */
+internal fun lowKickPower(hectograms: Int): Int =
+    when {
+      hectograms < 100 -> 20
+      hectograms < 250 -> 40
+      hectograms < 500 -> 60
+      hectograms < 1000 -> 80
+      hectograms < 2000 -> 100
+      else -> 120
+    }

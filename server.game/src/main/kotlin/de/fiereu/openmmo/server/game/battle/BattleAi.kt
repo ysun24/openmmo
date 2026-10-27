@@ -17,6 +17,68 @@ import de.fiereu.openmmo.typechart.TypeChart
  */
 internal object BattleAi {
 
+  /**
+   * battle_ai_switch_items.c ShouldSwitch, for trainers: a monster that cannot be trapped switches
+   * out when Perish Song is about to take it, when the foe has Wonder Guard and it has no
+   * super-effective move, when none of its moves can affect the foe, or (Natural Cure, asleep, at
+   * least half HP) half the time. The replacement is GetMostSuitableMonToSwitchInto's pick: the
+   * bench monster whose best move hits the foe hardest by type. Null keeps it in.
+   */
+  fun switchChoice(
+      ctx: BattleCtx,
+      ref: BattlerRef,
+      trapped: (BattleMonState) -> Boolean,
+      taken: Set<Int> = emptySet(),
+  ): BattleChoice? {
+    if (ref.side != 1 || ctx.battle.trainer == null || ctx.battle.pvp != null) return null
+    val mon = ctx.live(ref) ?: return null
+    if (trapped(mon)) return null
+    val foe = ctx.foesOf(ref).mapNotNull { ctx.live(it) }.firstOrNull() ?: return null
+    val party = ctx.party(1)
+    val actives = ctx.sideState(1).actives
+    val bench =
+        party.indices.filter {
+          it !in actives && it !in taken && !party[it].fainted && !party[it].source.isEgg
+        }
+    if (bench.isEmpty()) return null
+    val mine = bestMultiplier(ctx, mon, foe)
+    val reason =
+        when {
+          mon.volatile.perishCount == 1 -> true
+          foe.ability == Ability.WONDER_GUARD && mine <= TypeChart.NEUTRAL -> true
+          mine == 0 -> true
+          mon.ability == Ability.NATURAL_CURE &&
+              mon.asleep &&
+              mon.currentHp * 2 >= mon.maxHp &&
+              ctx.rng.coinFlip() -> true
+          else -> false
+        }
+    if (!reason) return null
+    val pick =
+        bench.maxByOrNull { i -> bestMultiplier(ctx, party[i], foe) * 1000 + party[i].currentHp }
+            ?: return null
+    // With Wonder Guard (or nothing that affects the foe), only a monster that does better helps.
+    if ((foe.ability == Ability.WONDER_GUARD || mine == 0) &&
+        bestMultiplier(ctx, party[pick], foe) <= mine) {
+      return null
+    }
+    return BattleChoice.Switch(ref.side, ref.pos, pick)
+  }
+
+  /** The best type multiplier of [mon]'s damaging moves against [foe] (0 when none affects it). */
+  private fun bestMultiplier(ctx: BattleCtx, mon: BattleMonState, foe: BattleMonState): Int {
+    var best = 0
+    for (m in mon.moves) {
+      val def = ctx.move(m.id.toInt()) ?: continue
+      if (def.power <= 0 || m.pp <= 0) continue
+      var mult = typeMultiplier(ctx, def.type, foe)
+      if (foe.ability == Ability.WONDER_GUARD && mult <= TypeChart.NEUTRAL) mult = 0
+      if (foe.ability == Ability.LEVITATE && def.type == PokemonType.GROUND) mult = 0
+      best = maxOf(best, mult)
+    }
+    return best
+  }
+
   fun choose(ctx: BattleCtx, ref: BattlerRef): BattleChoice {
     val mon = ctx.live(ref) ?: return BattleChoice.Pass(ref.side, ref.pos)
     val usable =

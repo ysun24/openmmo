@@ -73,6 +73,8 @@ class Volatiles {
   var actedSinceSwitchIn = false
   var movedThisTurn = false
   var magicCoat = false
+  /** SNATCH is waiting for a self-targeting status move this turn. */
+  var snatching = false
   var transformed = false
   var toxicCounter = 0
 }
