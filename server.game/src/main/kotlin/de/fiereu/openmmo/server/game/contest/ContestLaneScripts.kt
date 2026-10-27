@@ -359,9 +359,20 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     special(ctx, "ShowContestPainting")
   }
 
+  /**
+   * r5 merge: only the receptionists stay hand-ported (the entry screen, matchmaking with other
+   * online players and the live contest screen are UI flows the decomp's hall cutscene and
+   * `startcontest` cannot express). Berry trees, the blenders, the blender records, the hall
+   * winners and the museum frames now run the decomp scripts in the interpreter, which calls the
+   * same [ContestSpecials]. The other hand ports below are kept for the dev command / tests.
+   */
   val byLabel: Map<String, Script> = buildMap {
     put("LilycoveCity_ContestLobby_EventScript_ContestReceptionist", receptionist)
     put("LilycoveCity_ContestLobby_EventScript_LinkContestReceptionist", receptionist)
+  }
+
+  /** The hand ports the interpreter replaced (r5 merge), still reachable for comparison. */
+  val replaced: Map<String, Script> = buildMap {
     for (n in 1..6) put("LilycoveCity_ContestLobby_EventScript_ContestWinner$n", hallWinner(n))
     put("LilycoveCity_ContestLobby_EventScript_BerryBlenderSpeedRecords", blenderRecords)
     put("BerryTreeScript", berryTree)

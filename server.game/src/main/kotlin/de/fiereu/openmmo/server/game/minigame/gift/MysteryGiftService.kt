@@ -56,6 +56,17 @@ enum class Ticket(
       "OLD SEA MAP",
       listOf(HoennFlags.FLAG_ENABLE_SHIP_FARAWAY_ISLAND, HoennFlags.FLAG_RECEIVED_OLD_SEA_MAP),
       emptyList()),
+  ;
+
+  /** The decomp item (ITEM_EON_TICKET ...), a key item since the r5 merge. */
+  val itemName: String
+    get() =
+        when (this) {
+          EON -> "EON_TICKET"
+          MYSTIC -> "MYSTIC_TICKET"
+          AURORA -> "AURORA_TICKET"
+          OLD_SEA_MAP -> "OLD_SEA_MAP"
+        }
 }
 
 /**
@@ -174,6 +185,11 @@ constructor(
               val t = Ticket.entries.firstOrNull { it.id == p["ticket"]?.jsonPrimitive?.content }
               if (t != null) {
                 addTicket(charId, t)
+                // r5 merge: the ticket is a real key item now (ExtraItems), so the decomp's
+                // `checkitem ITEM_EON_TICKET` in the harbor / ferry scripts finds it.
+                de.fiereu.openmmo.server.game.battle.ItemNames.byDecompName(t.itemName)
+                    ?.let { items.idOrNull(it) }
+                    ?.let { id -> rewards.addItem(session, charId, id, 1) }
                 given += "the ${t.title}"
               }
               t != null
@@ -209,7 +225,9 @@ constructor(
   val scripts: Map<String, Script> by lazy {
     mapOf(
         "CableClub_EventScript_MysteryGiftMan" to Script { deliveryman(it) },
-        "LilycoveCity_Harbor_EventScript_FerryAttendant" to Script { ferry(it) },
+        // r5 merge: the ferry hand port is retired. The tickets are real key items now, so the
+        // decomp's LilycoveCity_Harbor_EventScript_FerryAttendant (checkitem ITEM_EON_TICKET +
+        // FLAG_ENABLE_SHIP_SOUTHERN_ISLAND) runs in the interpreter.
     )
   }
 

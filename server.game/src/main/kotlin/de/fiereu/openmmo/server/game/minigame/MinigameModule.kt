@@ -97,5 +97,15 @@ constructor(
     link: de.fiereu.openmmo.server.game.minigame.link.LinkScripts,
     gift: de.fiereu.openmmo.server.game.minigame.gift.MysteryGiftScripts,
 ) {
-  val byLabel: Map<String, Script> = gameCorner.scripts + link.scripts + gift.scripts
+  /**
+   * r5 merge: the Game Corner hand ports are retired; the interpreter runs the decomp's Celadon /
+   * Mauville scripts, whose `playslotmachine`, coin commands and specials (PlaySlotMachine,
+   * PlayRoulette, CheckAddCoins, ...) reach this lane. The PC 2F attendants (Union Room / Wireless
+   * Club / Direct Corner replace link-cable features) and the Mystery Gift deliveryman stay hand
+   * ported: those are UI flows the decomp's link code does not have.
+   */
+  val byLabel: Map<String, Script> = link.scripts + gift.scripts
+
+  /** The retired Game Corner hand ports, for comparison. */
+  val replaced: Map<String, Script> = gameCorner.scripts
 }
