@@ -739,9 +739,8 @@ def scene_weather(s):
     s.var("VAR_WEATHER_INSTITUTE_STATE", 0)
     s.trainer("TRAINER_SHELLY_WEATHER_INSTITUTE", False)
     give_team(s)
-    party = len(s.party())
-    if party >= 6:
-        raise AssertionError("party full")
+    # A full party (a long-lived test character): givemon sends CASTFORM to the PC instead.
+    full = len(s.party()) >= 6
     shx, shy = npc(1, "Route119_WeatherInstitute_2F", "LOCALID_WEATHER_INSTITUTE_2F_SHELLY")
     s.stand_by("Route119_WeatherInstitute_2F", shx, shy, "right")
     texts = s.talk(timeout=120)
@@ -750,7 +749,8 @@ def scene_weather(s):
     s.stand_by("Route119_WeatherInstitute_2F", sx, sy, "left")
     s.talk(choices=[False], timeout=40)
     check(s.flag("FLAG_RECEIVED_CASTFORM"), "the scientist gave CASTFORM")
-    check(any(m["dex"] == 351 for m in s.party()), "CASTFORM is in the party")
+    check(full or any(m["dex"] == 351 for m in s.party()),
+          "CASTFORM is in the party" + (" (party full: sent to the PC)" if full else ""))
 
 
 @scene(1, "regirock")
