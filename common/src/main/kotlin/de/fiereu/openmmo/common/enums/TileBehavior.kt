@@ -48,8 +48,13 @@ enum class TileBehavior {
   /** True where the GBA rolls the LAND table on a step. */
   val hasLandEncounters: Boolean
     get() =
-        this == TALL_GRASS || this == LONG_GRASS || this == CAVE || this == INDOOR_ENCOUNTER ||
-            this == DEEP_SAND || this == ASH_GRASS || this == LAND_ENCOUNTER
+        this == TALL_GRASS ||
+            this == LONG_GRASS ||
+            this == CAVE ||
+            this == INDOOR_ENCOUNTER ||
+            this == DEEP_SAND ||
+            this == ASH_GRASS ||
+            this == LAND_ENCOUNTER
 
   /** Surfable water, where the GBA rolls the WATER table while surfing. */
   val isSurfableWater: Boolean

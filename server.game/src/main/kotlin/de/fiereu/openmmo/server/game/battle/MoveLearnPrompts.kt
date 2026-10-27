@@ -6,8 +6,8 @@ import javax.inject.Singleton
 
 /**
  * A move-learn prompt waiting for its answer, kept after the battle ends. A trainer battle can
- * raise one monster past a level more than once, and an evolution can offer moves too, so these
- * are held per monster rather than per player.
+ * raise one monster past a level more than once, and an evolution can offer moves too, so these are
+ * held per monster rather than per player.
  */
 data class PendingMoveLearn(
     val charId: Long,

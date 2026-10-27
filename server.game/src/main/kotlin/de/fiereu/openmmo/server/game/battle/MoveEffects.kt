@@ -38,10 +38,13 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     val mySide = ctx.sideState(userRef.side)
     when (move.effect) {
       MoveEffect.EXPLOSION -> {
-        val damp = ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.ability == Ability.DAMP }
-            ?: return false
+        val damp =
+            ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.ability == Ability.DAMP }
+                ?: return false
         ctx.emit(BattleEvent.AbilityShown(damp.entityId, "DAMP"))
-        ctx.say("${ctx.name(damp)}'s DAMP prevents ${ctx.name(user)} from using ${move.name}!", damp.entityId)
+        ctx.say(
+            "${ctx.name(damp)}'s DAMP prevents ${ctx.name(user)} from using ${move.name}!",
+            damp.entityId)
       }
       MoveEffect.SPLASH -> {
         anim(user, move)
@@ -81,7 +84,9 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         if (foeSide.spikes >= 3) return failed(user, move).let { true }
         anim(user, move)
         foeSide.spikes += 1
-        ctx.say(if (userRef.foeSide == 1) "SPIKES were scattered all around the foe's team!" else "SPIKES were scattered all around your team!")
+        ctx.say(
+            if (userRef.foeSide == 1) "SPIKES were scattered all around the foe's team!"
+            else "SPIKES were scattered all around your team!")
       }
       MoveEffect.RAIN_DANCE -> moveWeather(user, move, Weather.RAIN, "It started to rain!")
       MoveEffect.SUNNY_DAY -> moveWeather(user, move, Weather.SUN, "The sunlight got bright!")
@@ -100,14 +105,16 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       MoveEffect.PROTECT,
       MoveEffect.ENDURE -> {
         // Each successful use in a row halves the chance (Gen 3 sProtectSuccessRates).
-        val odds = when (v.protectChain) {
-          0 -> 0x10000
-          1 -> 0x8000
-          2 -> 0x4000
-          else -> 0x2000
-        }
+        val odds =
+            when (v.protectChain) {
+              0 -> 0x10000
+              1 -> 0x8000
+              2 -> 0x4000
+              else -> 0x2000
+            }
         val last = ctx.events.lastOrNull()
-        val movesLeft = ctx.allRefs().any { r -> ctx.live(r)?.let { !it.volatile.movedThisTurn } == true }
+        val movesLeft =
+            ctx.allRefs().any { r -> ctx.live(r)?.let { !it.volatile.movedThisTurn } == true }
         if (!movesLeft || rng.random16() >= odds) {
           v.protectChain = 0
           return failed(user, move).let { true }
@@ -158,7 +165,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.REST -> {
         if (user.currentHp >= user.maxHp || user.asleep) return failed(user, move).let { true }
-        if (user.ability in setOf(Ability.INSOMNIA, Ability.VITAL_SPIRIT)) return failed(user, move).let { true }
+        if (user.ability in setOf(Ability.INSOMNIA, Ability.VITAL_SPIRIT))
+            return failed(user, move).let { true }
         anim(user, move)
         user.status = 0
         ctx.trySetStatus(user, REST_SLEEP, null, announceFail = false)
@@ -182,7 +190,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.BELLY_DRUM -> {
         val cost = user.maxHp / 2
-        if (user.currentHp <= cost || user.stage(BattleStat.ATTACK) >= StatStages.MAX) return failed(user, move).let { true }
+        if (user.currentHp <= cost || user.stage(BattleStat.ATTACK) >= StatStages.MAX)
+            return failed(user, move).let { true }
         anim(user, move)
         ctx.hurt(user, cost, "bellydrum")
         user.setStage(BattleStat.ATTACK, StatStages.MAX - 1)
@@ -225,11 +234,12 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
           return true
         }
         anim(user, move)
-        val amount = when (v.stockpile) {
-          1 -> user.maxHp / 4
-          2 -> user.maxHp / 2
-          else -> user.maxHp
-        }
+        val amount =
+            when (v.stockpile) {
+              1 -> user.maxHp / 4
+              2 -> user.maxHp / 2
+              else -> user.maxHp
+            }
         v.stockpile = 0
         ctx.heal(user, amount, "move")
         ctx.say("$who regained health!", user.entityId)
@@ -242,7 +252,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.HEAL_BELL -> {
         anim(user, move)
-        ctx.say(if (move.id == 215) "A bell chimed!" else "A soothing aroma wafted through the area!")
+        ctx.say(
+            if (move.id == 215) "A bell chimed!" else "A soothing aroma wafted through the area!")
         for (m in ctx.party(userRef.side)) {
           if (m.fainted || !m.hasStatus) continue
           if (move.id == 215 && m.ability == Ability.SOUNDPROOF && ctx.refOf(m) != null) continue
@@ -270,15 +281,28 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         ctx.emit(BattleEvent.Fled(userRef.side))
       }
       MoveEffect.FUTURE_SIGHT -> {
-        val target = runner.targetsFor(userRef, user, move, chosen).firstOrNull() ?: return failed(user, move).let { true }
+        val target =
+            runner.targetsFor(userRef, user, move, chosen).firstOrNull()
+                ?: return failed(user, move).let { true }
         val side = ctx.sideState(target.side)
         if (side.futureSight.containsKey(target.pos)) return failed(user, move).let { true }
         anim(user, move)
         val defender = ctx.mon(target) ?: return true
         // Gen 3 Future Sight is typeless at the time it hits: no STAB, no type matchup.
-        val hit = runner.damage(user, defender, move, move.power, PokemonType.QUESTIONQUESTIONQUESTION, false, false)
+        val hit =
+            runner.damage(
+                user,
+                defender,
+                move,
+                move.power,
+                PokemonType.QUESTIONQUESTIONQUESTION,
+                false,
+                false)
         side.futureSight[target.pos] = 3 to hit.damage
-        ctx.say(if (move.id == 353) "$who chose DOOM DESIRE as its destiny!" else "$who foresaw an attack!", user.entityId)
+        ctx.say(
+            if (move.id == 353) "$who chose DOOM DESIRE as its destiny!"
+            else "$who foresaw an attack!",
+            user.entityId)
       }
       MoveEffect.HELPING_HAND -> {
         val ally = ctx.allyOf(userRef)?.let { ctx.live(it) }
@@ -320,7 +344,10 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.SLEEP_TALK -> {
         if (!user.asleep) return failed(user, move).let { true }
-        val known = user.moves.map { it.id.toInt() }.filter { it != 0 && it != move.id && it !in SLEEP_TALK_BANNED }
+        val known =
+            user.moves
+                .map { it.id.toInt() }
+                .filter { it != 0 && it != move.id && it !in SLEEP_TALK_BANNED }
         if (known.isEmpty()) return failed(user, move).let { true }
         runner.useMove(userRef, user, known[rng.pick(known.size)], null, called = true)
       }
@@ -334,19 +361,26 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         runner.useMove(userRef, user, pool[rng.pick(pool.size)], null, called = true)
       }
       MoveEffect.MIRROR_MOVE -> {
-        val target = runner.targetsFor(userRef, user, move, chosen).firstOrNull()?.let { ctx.mon(it) }
-        val copied = target?.volatile?.lastMove?.takeIf { it != 0 && ctx.move(it)?.hasFlag(MoveFlag.MIRROR_MOVE_AFFECTED) == true }
+        val target =
+            runner.targetsFor(userRef, user, move, chosen).firstOrNull()?.let { ctx.mon(it) }
+        val copied =
+            target?.volatile?.lastMove?.takeIf {
+              it != 0 && ctx.move(it)?.hasFlag(MoveFlag.MIRROR_MOVE_AFFECTED) == true
+            }
         if (copied == null) return failed(user, move).let { true }
         runner.useMove(userRef, user, copied, chosen, called = true)
       }
       MoveEffect.NATURE_POWER -> {
         val called =
             when (battle.terrain) {
-              BattleTerrain.GRASS, BattleTerrain.LONG_GRASS -> 78 // STUN SPORE
+              BattleTerrain.GRASS,
+              BattleTerrain.LONG_GRASS -> 78 // STUN SPORE
               BattleTerrain.SAND -> 89 // EARTHQUAKE
-              BattleTerrain.WATER, BattleTerrain.POND -> 57 // SURF
+              BattleTerrain.WATER,
+              BattleTerrain.POND -> 57 // SURF
               BattleTerrain.UNDERWATER -> 56 // HYDRO PUMP
-              BattleTerrain.ROCK, BattleTerrain.CAVE -> 157 // ROCK SLIDE (Gen 3: shadow ball in caves)
+              BattleTerrain.ROCK,
+              BattleTerrain.CAVE -> 157 // ROCK SLIDE (Gen 3: shadow ball in caves)
               else -> 129 // SWIFT
             }
         ctx.say("NATURE POWER turned into ${ctx.move(called)?.name}!")
@@ -366,27 +400,43 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
           v.rampageMove = 0
           v.rampageTurns = 0
           ctx.say("$who unleashed energy!", user.entityId)
-          val target = ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.entityId == v.damagedBy }
-              ?: runner.targetsFor(userRef, user, move, chosen).firstOrNull()?.let { ctx.live(it) }
+          val target =
+              ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.entityId == v.damagedBy }
+                  ?: runner.targetsFor(userRef, user, move, chosen).firstOrNull()?.let {
+                    ctx.live(it)
+                  }
           if (target == null || v.bideDamage == 0) return failed(user, move).let { true }
-          runner.applyDamage(user, target, move, v.bideDamage * 2, MoveRunner.Hit(v.bideDamage * 2, false, TypeChart.NEUTRAL))
+          runner.applyDamage(
+              user,
+              target,
+              move,
+              v.bideDamage * 2,
+              MoveRunner.Hit(v.bideDamage * 2, false, TypeChart.NEUTRAL))
         }
       }
       MoveEffect.CAMOUFLAGE -> {
         anim(user, move)
-        val type = when (battle.terrain) {
-          BattleTerrain.GRASS, BattleTerrain.LONG_GRASS -> PokemonType.GRASS
-          BattleTerrain.WATER, BattleTerrain.POND, BattleTerrain.UNDERWATER -> PokemonType.WATER
-          BattleTerrain.SAND -> PokemonType.GROUND
-          BattleTerrain.ROCK, BattleTerrain.CAVE -> PokemonType.ROCK
-          else -> PokemonType.NORMAL
-        }
+        val type =
+            when (battle.terrain) {
+              BattleTerrain.GRASS,
+              BattleTerrain.LONG_GRASS -> PokemonType.GRASS
+              BattleTerrain.WATER,
+              BattleTerrain.POND,
+              BattleTerrain.UNDERWATER -> PokemonType.WATER
+              BattleTerrain.SAND -> PokemonType.GROUND
+              BattleTerrain.ROCK,
+              BattleTerrain.CAVE -> PokemonType.ROCK
+              else -> PokemonType.NORMAL
+            }
         user.types = mutableListOf(type, type)
         ctx.say("$who transformed into the ${type.name} type!", user.entityId)
       }
       MoveEffect.CONVERSION -> {
-        val type = user.moves.mapNotNull { ctx.move(it.id.toInt())?.type }.firstOrNull { !user.hasType(it) && it != PokemonType.QUESTIONQUESTIONQUESTION }
-            ?: return failed(user, move).let { true }
+        val type =
+            user.moves
+                .mapNotNull { ctx.move(it.id.toInt())?.type }
+                .firstOrNull { !user.hasType(it) && it != PokemonType.QUESTIONQUESTIONQUESTION }
+                ?: return failed(user, move).let { true }
         anim(user, move)
         user.types = mutableListOf(type, type)
         ctx.say("$who transformed into the ${type.name} type!", user.entityId)
@@ -397,7 +447,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
   }
 
   private fun String.teamText(ref: BattlerRef): String =
-      if (ref.side == 0) this else replace("your team", "the foe's team").replace("Your team", "The foe's team")
+      if (ref.side == 0) this
+      else replace("your team", "the foe's team").replace("Your team", "The foe's team")
 
   private fun moveWeather(user: BattleMonState, move: MoveDef, weather: Weather, text: String) {
     if (ctx.field.weather == weather) {
@@ -430,10 +481,17 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
   }
 
   private fun fixedDamage(effect: MoveEffect): Boolean =
-      effect in setOf(
-          MoveEffect.SONICBOOM, MoveEffect.DRAGON_RAGE, MoveEffect.LEVEL_DAMAGE, MoveEffect.PSYWAVE,
-          MoveEffect.SUPER_FANG, MoveEffect.ENDEAVOR, MoveEffect.OHKO, MoveEffect.COUNTER,
-          MoveEffect.MIRROR_COAT)
+      effect in
+          setOf(
+              MoveEffect.SONICBOOM,
+              MoveEffect.DRAGON_RAGE,
+              MoveEffect.LEVEL_DAMAGE,
+              MoveEffect.PSYWAVE,
+              MoveEffect.SUPER_FANG,
+              MoveEffect.ENDEAVOR,
+              MoveEffect.OHKO,
+              MoveEffect.COUNTER,
+              MoveEffect.MIRROR_COAT)
 
   /** The move's power for this use (Flail, Return, Eruption, Magnitude, Weather Ball...). */
   private fun basePower(user: BattleMonState, target: BattleMonState, move: MoveDef): Int {
@@ -456,15 +514,16 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       MoveEffect.ERUPTION -> (move.power * user.currentHp / user.maxHp).coerceAtLeast(1)
       MoveEffect.MAGNITUDE -> {
         val roll = rng.pick(100)
-        val (mag, pow) = when {
-          roll < 5 -> 4 to 10
-          roll < 15 -> 5 to 30
-          roll < 35 -> 6 to 50
-          roll < 65 -> 7 to 70
-          roll < 85 -> 8 to 90
-          roll < 95 -> 9 to 110
-          else -> 10 to 150
-        }
+        val (mag, pow) =
+            when {
+              roll < 5 -> 4 to 10
+              roll < 15 -> 5 to 30
+              roll < 35 -> 6 to 50
+              roll < 65 -> 7 to 70
+              roll < 85 -> 8 to 90
+              roll < 95 -> 9 to 110
+              else -> 10 to 150
+            }
         ctx.say("MAGNITUDE $mag!")
         if (tv.semiInvulnerable == "DIG") pow * 2 else pow
       }
@@ -479,7 +538,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.HIDDEN_POWER -> hiddenPower(user).second
       MoveEffect.WEATHER_BALL -> if (ctx.weather() != Weather.NONE) move.power * 2 else move.power
-      MoveEffect.FACADE -> if (user.poisoned || user.burned || user.paralyzed) move.power * 2 else move.power
+      MoveEffect.FACADE ->
+          if (user.poisoned || user.burned || user.paralyzed) move.power * 2 else move.power
       MoveEffect.SMELLINGSALT -> if (target.paralyzed) move.power * 2 else move.power
       MoveEffect.REVENGE -> if (v.damagedBy == target.entityId) move.power * 2 else move.power
       MoveEffect.ROLLOUT -> {
@@ -495,12 +555,15 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         p
       }
       MoveEffect.SPIT_UP -> 100 * v.stockpile
-      MoveEffect.GUST, MoveEffect.TWISTER -> if (tv.semiInvulnerable == "FLY") move.power * 2 else move.power
+      MoveEffect.GUST,
+      MoveEffect.TWISTER -> if (tv.semiInvulnerable == "FLY") move.power * 2 else move.power
       MoveEffect.EARTHQUAKE -> if (tv.semiInvulnerable == "DIG") move.power * 2 else move.power
       MoveEffect.FLINCH_MINIMIZE_HIT -> if (tv.minimized) move.power * 2 else move.power
       MoveEffect.LOW_KICK -> move.power.coerceAtLeast(60)
       MoveEffect.TRIPLE_KICK -> move.power
-      else -> if ((move.id == 57 || move.id == 250) && tv.semiInvulnerable == "DIVE") move.power * 2 else move.power
+      else ->
+          if ((move.id == 57 || move.id == 250) && tv.semiInvulnerable == "DIVE") move.power * 2
+          else move.power
     }
   }
 
@@ -510,11 +573,24 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     val bits = listOf(iv.hp, iv.atk, iv.def, iv.spd, iv.spAtk, iv.spDef)
     val typeBits = bits.mapIndexed { i, x -> (x and 1) shl i }.sum()
     val powerBits = bits.mapIndexed { i, x -> ((x shr 1) and 1) shl i }.sum()
-    val types = listOf(
-        PokemonType.FIGHTING, PokemonType.FLYING, PokemonType.POISON, PokemonType.GROUND,
-        PokemonType.ROCK, PokemonType.BUG, PokemonType.GHOST, PokemonType.STEEL, PokemonType.FIRE,
-        PokemonType.WATER, PokemonType.GRASS, PokemonType.ELECTRIC, PokemonType.PSYCHIC,
-        PokemonType.ICE, PokemonType.DRAGON, PokemonType.DARK)
+    val types =
+        listOf(
+            PokemonType.FIGHTING,
+            PokemonType.FLYING,
+            PokemonType.POISON,
+            PokemonType.GROUND,
+            PokemonType.ROCK,
+            PokemonType.BUG,
+            PokemonType.GHOST,
+            PokemonType.STEEL,
+            PokemonType.FIRE,
+            PokemonType.WATER,
+            PokemonType.GRASS,
+            PokemonType.ELECTRIC,
+            PokemonType.PSYCHIC,
+            PokemonType.ICE,
+            PokemonType.DRAGON,
+            PokemonType.DARK)
     return types[typeBits * 15 / 63] to (powerBits * 40 / 63 + 30)
   }
 
@@ -570,7 +646,9 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       ctx.emit(BattleEvent.AbilityShown(target.entityId, abilityName(target.ability)))
       if (ctx.heal(target, target.maxHp / 4, "ability") > 0) {
         ctx.say("$who restored HP using its ${abilityName(target.ability)}!", target.entityId)
-      } else ctx.say("$who's ${abilityName(target.ability)} made ${move.name} useless!", target.entityId)
+      } else
+          ctx.say(
+              "$who's ${abilityName(target.ability)} made ${move.name} useless!", target.entityId)
       return false
     }
     if (type == PokemonType.FIRE && target.ability == Ability.FLASH_FIRE && !target.frozen) {
@@ -585,8 +663,11 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       ctx.emit(BattleEvent.MoveFailed(user.entityId, move.id.toShort(), target.entityId))
       return false
     }
-    if (target.ability == Ability.WONDER_GUARD && eff <= TypeChart.NEUTRAL &&
-        type != PokemonType.QUESTIONQUESTIONQUESTION && power > 0 && !fixedDamage(move.effect)) {
+    if (target.ability == Ability.WONDER_GUARD &&
+        eff <= TypeChart.NEUTRAL &&
+        type != PokemonType.QUESTIONQUESTIONQUESTION &&
+        power > 0 &&
+        !fixedDamage(move.effect)) {
       ctx.emit(BattleEvent.AbilityShown(target.entityId, "WONDER GUARD"))
       ctx.say("$who avoided damage with WONDER GUARD!", target.entityId)
       return false
@@ -604,7 +685,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
               else -> 5
             }
           }
-          MoveEffect.DOUBLE_HIT, MoveEffect.TWINEEDLE -> 2
+          MoveEffect.DOUBLE_HIT,
+          MoveEffect.TWINEEDLE -> 2
           MoveEffect.TRIPLE_KICK -> 3
           else -> 1
         }
@@ -612,19 +694,25 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     var landed = 0
     for (i in 0 until hits) {
       if (target.fainted || user.fainted) break
-      if (move.effect == MoveEffect.TRIPLE_KICK && i > 0 && !runner.accuracyCheck(user, target, move)) break
+      if (move.effect == MoveEffect.TRIPLE_KICK &&
+          i > 0 &&
+          !runner.accuracyCheck(user, target, move))
+          break
       val pow = if (move.effect == MoveEffect.TRIPLE_KICK) power * (i + 1) else power
       val crit = !fixedDamage(move.effect) && runner.rollCrit(user, target, move)
       val hit =
-          fixed(user, target, move)?.let { MoveRunner.Hit(it, false, if (eff == 0) TypeChart.NEUTRAL else eff) }
-              ?: runner.damage(user, target, move, pow, type, crit, spread)
+          fixed(user, target, move)?.let {
+            MoveRunner.Hit(it, false, if (eff == 0) TypeChart.NEUTRAL else eff)
+          } ?: runner.damage(user, target, move, pow, type, crit, spread)
       if (move.effect == MoveEffect.OHKO) ctx.say("It's a one-hit KO!", target.entityId)
       dealtTotal +=
-          runner.applyDamage(user, target, move, hit.damage, hit, keepOne = move.effect == MoveEffect.FALSE_SWIPE)
+          runner.applyDamage(
+              user, target, move, hit.damage, hit, keepOne = move.effect == MoveEffect.FALSE_SWIPE)
       landed++
       if (move.hasFlag(MoveFlag.MAKES_CONTACT)) ctx.contactAbility(user, target)
       // A fire hit thaws a frozen target.
-      if (type == PokemonType.FIRE && target.frozen && !target.fainted) ctx.cureStatus(target, "$who thawed out!")
+      if (type == PokemonType.FIRE && target.frozen && !target.fainted)
+          ctx.cureStatus(target, "$who thawed out!")
     }
     if (hits > 1 && landed > 0) ctx.say("Hit $landed time(s)!", target.entityId)
     if (landed == 0) return false
@@ -644,23 +732,41 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       ctx.cureStatus(target, "$who was cured of paralysis.")
     }
     secondary(userRef, user, target, move, dealtTotal)
-    if (move.effect == MoveEffect.KNOCK_OFF && target.heldItem != 0 && !target.fainted &&
+    if (move.effect == MoveEffect.KNOCK_OFF &&
+        target.heldItem != 0 &&
+        !target.fainted &&
         target.ability != Ability.STICKY_HOLD) {
-      ctx.say("${ctx.name(user)} knocked off $who's ${ctx.held.name(target.heldItem).uppercase()}!", target.entityId)
+      ctx.say(
+          "${ctx.name(user)} knocked off $who's ${ctx.held.name(target.heldItem).uppercase()}!",
+          target.entityId)
       target.heldItem = 0
     }
-    if (move.effect == MoveEffect.THIEF && user.heldItem == 0 && target.heldItem != 0 &&
-        target.ability != Ability.STICKY_HOLD && !user.fainted) {
-      ctx.say("${ctx.name(user)} stole $who's ${ctx.held.name(target.heldItem).uppercase()}!", target.entityId)
+    if (move.effect == MoveEffect.THIEF &&
+        user.heldItem == 0 &&
+        target.heldItem != 0 &&
+        target.ability != Ability.STICKY_HOLD &&
+        !user.fainted) {
+      ctx.say(
+          "${ctx.name(user)} stole $who's ${ctx.held.name(target.heldItem).uppercase()}!",
+          target.entityId)
       user.heldItem = target.heldItem
       target.heldItem = 0
     }
     if (move.effect == MoveEffect.RAPID_SPIN && !user.fainted) {
       val v = user.volatile
-      if (v.trapTurns > 0) { v.trapTurns = 0; ctx.say("${ctx.name(user)} was freed!", user.entityId) }
-      if (v.seededBy != 0L) { v.seededBy = 0; ctx.say("${ctx.name(user)} was freed from LEECH SEED!", user.entityId) }
+      if (v.trapTurns > 0) {
+        v.trapTurns = 0
+        ctx.say("${ctx.name(user)} was freed!", user.entityId)
+      }
+      if (v.seededBy != 0L) {
+        v.seededBy = 0
+        ctx.say("${ctx.name(user)} was freed from LEECH SEED!", user.entityId)
+      }
       val side = ctx.sideState(userRef.side)
-      if (side.spikes > 0) { side.spikes = 0; ctx.say("${ctx.name(user)} blew away SPIKES!", user.entityId) }
+      if (side.spikes > 0) {
+        side.spikes = 0
+        ctx.say("${ctx.name(user)} blew away SPIKES!", user.entityId)
+      }
     }
     if (move.effect == MoveEffect.PAY_DAY && ctx.sideOf(user) == 0) {
       battle.payDay += user.level * 5
@@ -706,57 +812,92 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     // Fake Out's flinch is certain (setmoveeffect MOVE_EFFECT_FLINCH | MOVE_EFFECT_CERTAIN).
     var chance = if (move.effect == MoveEffect.FAKE_OUT) 100 else move.secondaryEffectChance
     if (user.ability == Ability.SERENE_GRACE) chance *= 2
-    val blocked = target.ability == Ability.SHIELD_DUST || target.volatile.substituteHp > 0 && dealt == 0
+    val blocked =
+        target.ability == Ability.SHIELD_DUST || target.volatile.substituteHp > 0 && dealt == 0
     val roll = { chance >= 100 || rng.percent(chance) }
     val onTarget = !target.fainted && !blocked
     when (move.effect) {
-      MoveEffect.POISON_HIT, MoveEffect.POISON_TAIL, MoveEffect.TWINEEDLE ->
+      MoveEffect.POISON_HIT,
+      MoveEffect.POISON_TAIL,
+      MoveEffect.TWINEEDLE ->
           if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.POISON, user, false)
-      MoveEffect.POISON_FANG -> if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.TOXIC, user, false)
-      MoveEffect.BURN_HIT, MoveEffect.THAW_HIT, MoveEffect.BLAZE_KICK ->
+      MoveEffect.POISON_FANG ->
+          if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.TOXIC, user, false)
+      MoveEffect.BURN_HIT,
+      MoveEffect.THAW_HIT,
+      MoveEffect.BLAZE_KICK ->
           if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.BURN, user, false)
-      MoveEffect.FREEZE_HIT -> if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.FREEZE, user, false)
-      MoveEffect.PARALYZE_HIT, MoveEffect.THUNDER ->
+      MoveEffect.FREEZE_HIT ->
+          if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.FREEZE, user, false)
+      MoveEffect.PARALYZE_HIT,
+      MoveEffect.THUNDER ->
           if (onTarget && roll()) ctx.trySetStatus(target, StatusCondition.PARALYSIS, user, false)
       MoveEffect.SECRET_POWER ->
           if (onTarget && roll()) {
             when (battle.terrain) {
-              BattleTerrain.GRASS, BattleTerrain.LONG_GRASS -> ctx.trySetStatus(target, StatusCondition.SLEEP_MASK, user, false)
+              BattleTerrain.GRASS,
+              BattleTerrain.LONG_GRASS ->
+                  ctx.trySetStatus(target, StatusCondition.SLEEP_MASK, user, false)
               BattleTerrain.SAND -> ctx.lowerStat(target, user, BattleStat.ACCURACY, 1, false)
-              BattleTerrain.WATER, BattleTerrain.POND -> ctx.lowerStat(target, user, BattleStat.ATTACK, 1, false)
-              BattleTerrain.ROCK, BattleTerrain.CAVE -> flinch(target)
+              BattleTerrain.WATER,
+              BattleTerrain.POND -> ctx.lowerStat(target, user, BattleStat.ATTACK, 1, false)
+              BattleTerrain.ROCK,
+              BattleTerrain.CAVE -> flinch(target)
               else -> ctx.trySetStatus(target, StatusCondition.PARALYSIS, user, false)
             }
           }
       MoveEffect.TRI_ATTACK ->
           if (onTarget && roll()) {
-            val s = listOf(StatusCondition.BURN, StatusCondition.FREEZE, StatusCondition.PARALYSIS)[rng.pick(3)]
+            val s =
+                listOf(StatusCondition.BURN, StatusCondition.FREEZE, StatusCondition.PARALYSIS)[
+                    rng.pick(3)]
             ctx.trySetStatus(target, s, user, false)
           }
-      MoveEffect.FLINCH_HIT, MoveEffect.FLINCH_MINIMIZE_HIT, MoveEffect.SKY_ATTACK, MoveEffect.TWISTER,
-      MoveEffect.FAKE_OUT, MoveEffect.SNORE ->
-          if (onTarget && roll()) flinch(target)
+      MoveEffect.FLINCH_HIT,
+      MoveEffect.FLINCH_MINIMIZE_HIT,
+      MoveEffect.SKY_ATTACK,
+      MoveEffect.TWISTER,
+      MoveEffect.FAKE_OUT,
+      MoveEffect.SNORE -> if (onTarget && roll()) flinch(target)
       MoveEffect.CONFUSE_HIT -> if (onTarget && roll()) ctx.tryConfuse(target, user, false)
-      MoveEffect.ATTACK_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.ATTACK, 1, false)
-      MoveEffect.DEFENSE_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.DEFENSE, 1, false)
-      MoveEffect.SPEED_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SPEED, 1, false)
-      MoveEffect.SPECIAL_ATTACK_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SP_ATTACK, 1, false)
-      MoveEffect.SPECIAL_DEFENSE_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SP_DEFENSE, 1, false)
-      MoveEffect.ACCURACY_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.ACCURACY, 1, false)
-      MoveEffect.EVASION_DOWN_HIT -> if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.EVASION, 1, false)
-      MoveEffect.ATTACK_UP_HIT -> if (!user.fainted && roll()) ctx.raiseStat(user, user, BattleStat.ATTACK, 1, false)
-      MoveEffect.DEFENSE_UP_HIT -> if (!user.fainted && roll()) ctx.raiseStat(user, user, BattleStat.DEFENSE, 1, false)
+      MoveEffect.ATTACK_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.ATTACK, 1, false)
+      MoveEffect.DEFENSE_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.DEFENSE, 1, false)
+      MoveEffect.SPEED_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SPEED, 1, false)
+      MoveEffect.SPECIAL_ATTACK_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SP_ATTACK, 1, false)
+      MoveEffect.SPECIAL_DEFENSE_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.SP_DEFENSE, 1, false)
+      MoveEffect.ACCURACY_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.ACCURACY, 1, false)
+      MoveEffect.EVASION_DOWN_HIT ->
+          if (onTarget && roll()) ctx.lowerStat(target, user, BattleStat.EVASION, 1, false)
+      MoveEffect.ATTACK_UP_HIT ->
+          if (!user.fainted && roll()) ctx.raiseStat(user, user, BattleStat.ATTACK, 1, false)
+      MoveEffect.DEFENSE_UP_HIT ->
+          if (!user.fainted && roll()) ctx.raiseStat(user, user, BattleStat.DEFENSE, 1, false)
       MoveEffect.ALL_STATS_UP_HIT ->
           if (!user.fainted && roll()) {
-            for (s in listOf(BattleStat.ATTACK, BattleStat.DEFENSE, BattleStat.SPEED, BattleStat.SP_ATTACK, BattleStat.SP_DEFENSE)) {
+            for (s in
+                listOf(
+                    BattleStat.ATTACK,
+                    BattleStat.DEFENSE,
+                    BattleStat.SPEED,
+                    BattleStat.SP_ATTACK,
+                    BattleStat.SP_DEFENSE)) {
               ctx.raiseStat(user, user, s, 1, false)
             }
           }
-      MoveEffect.SUPERPOWER -> if (!user.fainted) {
-        ctx.lowerStat(user, user, BattleStat.ATTACK, 1, false, fromFoe = false)
-        ctx.lowerStat(user, user, BattleStat.DEFENSE, 1, false, fromFoe = false)
-      }
-      MoveEffect.OVERHEAT -> if (!user.fainted) ctx.lowerStat(user, user, BattleStat.SP_ATTACK, 2, false, fromFoe = false)
+      MoveEffect.SUPERPOWER ->
+          if (!user.fainted) {
+            ctx.lowerStat(user, user, BattleStat.ATTACK, 1, false, fromFoe = false)
+            ctx.lowerStat(user, user, BattleStat.DEFENSE, 1, false, fromFoe = false)
+          }
+      MoveEffect.OVERHEAT ->
+          if (!user.fainted)
+              ctx.lowerStat(user, user, BattleStat.SP_ATTACK, 2, false, fromFoe = false)
       MoveEffect.TRAP ->
           if (onTarget && target.volatile.trapTurns == 0) {
             target.volatile.trapTurns = rng.range(2, 5) + 1
@@ -774,7 +915,9 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
           if (user.volatile.uproarTurns == 0) {
             user.volatile.uproarTurns = rng.range(2, 5)
             ctx.say("${ctx.name(user)} caused an UPROAR!", user.entityId)
-            for (r in ctx.allRefs()) ctx.live(r)?.let { m -> if (m.asleep) ctx.cureStatus(m, "${ctx.name(m)} woke up in the UPROAR!") }
+            for (r in ctx.allRefs()) ctx.live(r)?.let { m ->
+              if (m.asleep) ctx.cureStatus(m, "${ctx.name(m)} woke up in the UPROAR!")
+            }
           }
       MoveEffect.ROLLOUT -> {
         val v = user.volatile
@@ -786,9 +929,13 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       else -> Unit
     }
     // King's Rock adds a flinch to moves that have none of their own.
-    if (onTarget && dealt > 0 && move.hasFlag(MoveFlag.KINGS_ROCK_AFFECTED) &&
+    if (onTarget &&
+        dealt > 0 &&
+        move.hasFlag(MoveFlag.KINGS_ROCK_AFFECTED) &&
         move.effect !in FLINCH_EFFECTS) {
-      ctx.heldEffect(user)?.let { e -> if (e.name == "FLINCH" && rng.percent(e.param)) flinch(target) }
+      ctx.heldEffect(user)?.let { e ->
+        if (e.name == "FLINCH" && rng.percent(e.param)) flinch(target)
+      }
     }
   }
 
@@ -810,7 +957,12 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
   }
 
   /** After the hit loop: the user's own consequences (Explosion). */
-  fun afterAllHits(userRef: BattlerRef, user: BattleMonState, move: MoveDef, targets: List<BattlerRef>) {
+  fun afterAllHits(
+      userRef: BattlerRef,
+      user: BattleMonState,
+      move: MoveDef,
+      targets: List<BattlerRef>
+  ) {
     if (move.effect == MoveEffect.EXPLOSION && !user.fainted) ctx.setHp(user, 0, "explosion")
   }
 
@@ -881,18 +1033,30 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
         val d = ctx.lowerStat(target, user, BattleStat.DEFENSE, 1, true)
         a || d
       }
-      MoveEffect.COSMIC_POWER -> up(BattleStat.DEFENSE, 1).also { ctx.raiseStat(user, user, BattleStat.SP_DEFENSE, 1, true) }
-      MoveEffect.BULK_UP -> up(BattleStat.ATTACK, 1).also { ctx.raiseStat(user, user, BattleStat.DEFENSE, 1, true) }
-      MoveEffect.CALM_MIND -> up(BattleStat.SP_ATTACK, 1).also { ctx.raiseStat(user, user, BattleStat.SP_DEFENSE, 1, true) }
-      MoveEffect.DRAGON_DANCE -> up(BattleStat.ATTACK, 1).also { ctx.raiseStat(user, user, BattleStat.SPEED, 1, true) }
+      MoveEffect.COSMIC_POWER ->
+          up(BattleStat.DEFENSE, 1).also {
+            ctx.raiseStat(user, user, BattleStat.SP_DEFENSE, 1, true)
+          }
+      MoveEffect.BULK_UP ->
+          up(BattleStat.ATTACK, 1).also { ctx.raiseStat(user, user, BattleStat.DEFENSE, 1, true) }
+      MoveEffect.CALM_MIND ->
+          up(BattleStat.SP_ATTACK, 1).also {
+            ctx.raiseStat(user, user, BattleStat.SP_DEFENSE, 1, true)
+          }
+      MoveEffect.DRAGON_DANCE ->
+          up(BattleStat.ATTACK, 1).also { ctx.raiseStat(user, user, BattleStat.SPEED, 1, true) }
       MoveEffect.CURSE -> {
         anim(user, move, target)
         if (user.hasType(PokemonType.GHOST)) {
-          val foe = ctx.foesOf(userRef).firstNotNullOfOrNull { ctx.live(it) } ?: return failed(user, move).let { false }
+          val foe =
+              ctx.foesOf(userRef).firstNotNullOfOrNull { ctx.live(it) }
+                  ?: return failed(user, move).let { false }
           if (foe.volatile.cursed) return failed(user, move).let { false }
           ctx.hurt(user, user.maxHp / 2, "curse")
           foe.volatile.cursed = true
-          ctx.say("${ctx.name(user)} cut its own HP and laid a CURSE on ${ctx.name(foe)}!", foe.entityId)
+          ctx.say(
+              "${ctx.name(user)} cut its own HP and laid a CURSE on ${ctx.name(foe)}!",
+              foe.entityId)
           true
         } else {
           ctx.lowerStat(user, user, BattleStat.SPEED, 1, true, fromFoe = false)
@@ -906,7 +1070,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       MoveEffect.TOXIC -> status(StatusCondition.TOXIC)
       MoveEffect.PARALYZE -> status(StatusCondition.PARALYSIS)
       MoveEffect.WILL_O_WISP -> status(StatusCondition.BURN)
-      MoveEffect.CONFUSE, MoveEffect.TEETER_DANCE -> {
+      MoveEffect.CONFUSE,
+      MoveEffect.TEETER_DANCE -> {
         anim(user, move, target)
         ctx.tryConfuse(target, user, announceFail = true)
       }
@@ -924,7 +1089,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.ATTRACT -> {
         anim(user, move, target)
-        if (!genderOpposite(user, target) || tv.attractedTo != 0L) return failed(user, move).let { false }
+        if (!genderOpposite(user, target) || tv.attractedTo != 0L)
+            return failed(user, move).let { false }
         if (target.ability == Ability.OBLIVIOUS) {
           ctx.say("$who's OBLIVIOUS prevents romance!", target.entityId)
           return false
@@ -951,7 +1117,9 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.DISABLE -> {
         val last = tv.lastMove
-        if (last == 0 || tv.disabledMove != 0 || target.moves.none { it.id.toInt() == last && it.pp > 0 }) {
+        if (last == 0 ||
+            tv.disabledMove != 0 ||
+            target.moves.none { it.id.toInt() == last && it.pp > 0 }) {
           return failed(user, move).let { false }
         }
         anim(user, move, target)
@@ -962,8 +1130,11 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.ENCORE -> {
         val last = tv.lastMove
-        if (last == 0 || tv.encoreMove != 0 || last in setOf(move.id, 119, 144, 166) ||
-            target.moves.none { it.id.toInt() == last && it.pp > 0 }) return failed(user, move).let { false }
+        if (last == 0 ||
+            tv.encoreMove != 0 ||
+            last in setOf(move.id, 119, 144, 166) ||
+            target.moves.none { it.id.toInt() == last && it.pp > 0 })
+            return failed(user, move).let { false }
         anim(user, move, target)
         tv.encoreMove = last
         tv.encoreTurns = rng.range(3, 6)
@@ -979,7 +1150,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.YAWN -> {
         if (tv.yawnTurns > 0 || target.hasStatus) return failed(user, move).let { false }
-        if (ctx.statusBlock(target, StatusCondition.SLEEP_MASK, user) != null) return failed(user, move).let { false }
+        if (ctx.statusBlock(target, StatusCondition.SLEEP_MASK, user) != null)
+            return failed(user, move).let { false }
         anim(user, move, target)
         tv.yawnTurns = 2
         ctx.say("${ctx.name(user)} made $who drowsy!", target.entityId)
@@ -1106,10 +1278,13 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.CONVERSION_2 -> {
         val last = ctx.move(tv.lastMove) ?: return failed(user, move).let { false }
-        val resist = PokemonType.entries.filter {
-          it != PokemonType.NONE && it != PokemonType.QUESTIONQUESTIONQUESTION &&
-              ctx.typeChart.multiplier(last.type, it) < TypeChart.NEUTRAL && !user.hasType(it)
-        }
+        val resist =
+            PokemonType.entries.filter {
+              it != PokemonType.NONE &&
+                  it != PokemonType.QUESTIONQUESTIONQUESTION &&
+                  ctx.typeChart.multiplier(last.type, it) < TypeChart.NEUTRAL &&
+                  !user.hasType(it)
+            }
         if (resist.isEmpty()) return failed(user, move).let { false }
         anim(user, move)
         val t = resist[rng.pick(resist.size)]
@@ -1132,14 +1307,50 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
 
   private companion object {
     val FLINCH_EFFECTS =
-        setOf(MoveEffect.FLINCH_HIT, MoveEffect.FLINCH_MINIMIZE_HIT, MoveEffect.SKY_ATTACK,
-            MoveEffect.TWISTER, MoveEffect.FAKE_OUT, MoveEffect.SNORE)
+        setOf(
+            MoveEffect.FLINCH_HIT,
+            MoveEffect.FLINCH_MINIMIZE_HIT,
+            MoveEffect.SKY_ATTACK,
+            MoveEffect.TWISTER,
+            MoveEffect.FAKE_OUT,
+            MoveEffect.SNORE)
     /** Moves that ignore a substitute in Gen 3. */
     val SUBSTITUTE_PASSES =
-        setOf(MoveEffect.ROAR, MoveEffect.ATTRACT, MoveEffect.DISABLE, MoveEffect.ENCORE,
-            MoveEffect.TAUNT, MoveEffect.FORESIGHT, MoveEffect.SPITE, MoveEffect.PSYCH_UP,
-            MoveEffect.ROLE_PLAY, MoveEffect.SKILL_SWAP, MoveEffect.TRANSFORM)
-    val METRONOME_BANNED = setOf(102, 118, 119, 164, 165, 166, 168, 182, 194, 197, 203, 214, 264, 266, 267, 270, 271, 274, 289, 343)
-    val SLEEP_TALK_BANNED = setOf(13, 19, 76, 91, 117, 118, 119, 130, 143, 214, 253, 264, 274, 291, 340)
+        setOf(
+            MoveEffect.ROAR,
+            MoveEffect.ATTRACT,
+            MoveEffect.DISABLE,
+            MoveEffect.ENCORE,
+            MoveEffect.TAUNT,
+            MoveEffect.FORESIGHT,
+            MoveEffect.SPITE,
+            MoveEffect.PSYCH_UP,
+            MoveEffect.ROLE_PLAY,
+            MoveEffect.SKILL_SWAP,
+            MoveEffect.TRANSFORM)
+    val METRONOME_BANNED =
+        setOf(
+            102,
+            118,
+            119,
+            164,
+            165,
+            166,
+            168,
+            182,
+            194,
+            197,
+            203,
+            214,
+            264,
+            266,
+            267,
+            270,
+            271,
+            274,
+            289,
+            343)
+    val SLEEP_TALK_BANNED =
+        setOf(13, 19, 76, 91, 117, 118, 119, 130, 143, 214, 253, 264, 274, 291, 340)
   }
 }

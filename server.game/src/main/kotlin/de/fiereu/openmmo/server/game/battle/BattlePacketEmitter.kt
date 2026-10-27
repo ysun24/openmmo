@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.battle
 
 import de.fiereu.openmmo.common.Pokemon
+import de.fiereu.openmmo.common.StatusCondition
 import de.fiereu.openmmo.common.enums.EVs
 import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.common.utils.hexToBytes
@@ -13,6 +14,7 @@ import de.fiereu.openmmo.net.game.packets.battle.BattleEffectTarget
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityDeltaPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityMoveEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEventBody
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleOpponentBlock
 import de.fiereu.openmmo.net.game.packets.battle.BattleQueuedEventPacket
@@ -28,15 +30,13 @@ import de.fiereu.openmmo.net.game.packets.battle.OpposingSide
 import de.fiereu.openmmo.server.game.services.notice
 import de.fiereu.openmmo.server.game.world.interest.InterestManager
 import de.fiereu.openmmo.typechart.TypeChart
-import de.fiereu.openmmo.common.StatusCondition
-import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val ACTION_PROMPT: Byte = -128 // 0x80
 private const val MOVE_EVENT_KIND: Byte = 1
@@ -119,10 +119,14 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     val ext = mutableListOf<JsonObject>()
     fun flush() {
       if (ext.isEmpty()) return
-      broadcast(battle, BattleExtPacket(buildJsonObject {
-        put("t", "events")
-        put("e", JsonArray(ext.toList()))
-      }.toString()))
+      broadcast(
+          battle,
+          BattleExtPacket(
+              buildJsonObject {
+                    put("t", "events")
+                    put("e", JsonArray(ext.toList()))
+                  }
+                  .toString()))
       ext.clear()
     }
     var i = 0
@@ -132,7 +136,8 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
           flush()
           if (battle.isPlayerSide(event.attackerId)) {
             battle.session.send(
-                EntityMovePpPacket(event.attackerId, event.moveSlot.toByte(), event.ppLeft.toByte()))
+                EntityMovePpPacket(
+                    event.attackerId, event.moveSlot.toByte(), event.ppLeft.toByte()))
           }
           val byTarget = LinkedHashMap<Long, Pair<Int, MutableList<BattleActionEvent>>>()
           var j = i + 1
@@ -143,7 +148,8 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
                 val prev = byTarget[next.targetId]
                 val outcome = HP_TARGET_MOVE.toInt() or effectivenessBit(next.effectiveness)
                 val list = prev?.second ?: mutableListOf()
-                list += BattleActionEvent(null, null, BattleEventBody.HpUpdate(next.newHp.toShort()))
+                list +=
+                    BattleActionEvent(null, null, BattleEventBody.HpUpdate(next.newHp.toShort()))
                 byTarget[next.targetId] = (prev?.first?.let { it or outcome } ?: outcome) to list
               }
               is BattleEvent.StageChanged -> {
@@ -152,7 +158,8 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
                   val list = prev?.second ?: mutableListOf()
                   list +=
                       BattleActionEvent(
-                          null, null,
+                          null,
+                          null,
                           BattleEventBody.StatChange(statIndex(next.stat), next.delta.toShort()))
                   byTarget[next.targetId] = (prev?.first ?: DEFAULT_TARGET_MOVE.toInt()) to list
                 }
@@ -169,7 +176,9 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
           }
           i = j - 1
           val targets =
-              byTarget.map { (id, v) -> BattleEffectTarget(id, v.first.toShort(), v.second.toList()) }
+              byTarget.map { (id, v) ->
+                BattleEffectTarget(id, v.first.toShort(), v.second.toList())
+              }
           broadcast(
               battle,
               BattleEntityMoveEventPacket(event.attackerId, event.moveId, MOVE_EVENT_KIND, targets))
@@ -206,93 +215,120 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
   /** One extension event as JSON, or null when the retail packets already said it. */
   private fun extEvent(battle: BattleInstance, event: BattleEvent): JsonObject? =
       when (event) {
-        is BattleEvent.Message -> buildJsonObject {
-          put("k", "text")
-          put("text", event.text)
-          if (event.targetId != 0L) put("id", event.targetId)
-        }
-        is BattleEvent.HpChanged -> buildJsonObject {
-          put("k", "hp")
-          put("id", event.targetId)
-          put("hp", event.newHp)
-          put("reason", event.reason)
-        }
-        is BattleEvent.DamageDealt -> buildJsonObject {
-          put("k", "hp")
-          put("id", event.targetId)
-          put("hp", event.newHp)
-          put("reason", "move")
-          put("eff", event.effectiveness)
-        }
-        is BattleEvent.StatusChanged -> buildJsonObject {
-          put("k", "status")
-          put("id", event.targetId)
-          put("status", event.code)
-          put("raw", event.status)
-        }
-        is BattleEvent.VolatileChanged -> buildJsonObject {
-          put("k", "volatile")
-          put("id", event.targetId)
-          put("kind", event.kind)
-          put("on", event.on)
-        }
-        is BattleEvent.AbilityShown -> buildJsonObject {
-          put("k", "ability")
-          put("id", event.holderId)
-          put("ability", event.ability)
-        }
-        is BattleEvent.ItemActivated -> buildJsonObject {
-          put("k", "item")
-          put("id", event.holderId)
-          put("item", itemName(event.itemId))
-          put("consumed", event.consumed)
-        }
-        is BattleEvent.WeatherChanged -> buildJsonObject {
-          put("k", "weather")
-          put("weather", event.weather.code)
-        }
+        is BattleEvent.Message ->
+            buildJsonObject {
+              put("k", "text")
+              put("text", event.text)
+              if (event.targetId != 0L) put("id", event.targetId)
+            }
+        is BattleEvent.HpChanged ->
+            buildJsonObject {
+              put("k", "hp")
+              put("id", event.targetId)
+              put("hp", event.newHp)
+              put("reason", event.reason)
+            }
+        is BattleEvent.DamageDealt ->
+            buildJsonObject {
+              put("k", "hp")
+              put("id", event.targetId)
+              put("hp", event.newHp)
+              put("reason", "move")
+              put("eff", event.effectiveness)
+            }
+        is BattleEvent.StatusChanged ->
+            buildJsonObject {
+              put("k", "status")
+              put("id", event.targetId)
+              put("status", event.code)
+              put("raw", event.status)
+            }
+        is BattleEvent.VolatileChanged ->
+            buildJsonObject {
+              put("k", "volatile")
+              put("id", event.targetId)
+              put("kind", event.kind)
+              put("on", event.on)
+            }
+        is BattleEvent.AbilityShown ->
+            buildJsonObject {
+              put("k", "ability")
+              put("id", event.holderId)
+              put("ability", event.ability)
+            }
+        is BattleEvent.ItemActivated ->
+            buildJsonObject {
+              put("k", "item")
+              put("id", event.holderId)
+              put("item", itemName(event.itemId))
+              put("consumed", event.consumed)
+            }
+        is BattleEvent.WeatherChanged ->
+            buildJsonObject {
+              put("k", "weather")
+              put("weather", event.weather.code)
+            }
         is BattleEvent.StageChanged ->
             if (event.failed) null
-            else buildJsonObject {
-              put("k", "stat")
-              put("id", event.targetId)
-              put("stat", statIndex(event.stat).toInt())
-              put("delta", event.delta)
+            else
+                buildJsonObject {
+                  put("k", "stat")
+                  put("id", event.targetId)
+                  put("stat", statIndex(event.stat).toInt())
+                  put("delta", event.delta)
+                }
+        is BattleEvent.MoveMissed ->
+            buildJsonObject {
+              put("k", "miss")
+              put(
+                  "id",
+                  if (event.targetId != 0L) event.targetId
+                  else defenderOf(battle, event.attackerId, event))
             }
-        is BattleEvent.MoveMissed -> buildJsonObject {
-          put("k", "miss")
-          put("id", if (event.targetId != 0L) event.targetId else defenderOf(battle, event.attackerId, event))
-        }
-        is BattleEvent.MoveFailed -> buildJsonObject {
-          put("k", "text")
-          put("text", "But it failed!")
-        }
-        is BattleEvent.Fled -> buildJsonObject {
-          put("k", "fled")
-          put("side", event.side)
-        }
+        is BattleEvent.MoveFailed ->
+            buildJsonObject {
+              put("k", "text")
+              put("text", "But it failed!")
+            }
+        is BattleEvent.Fled ->
+            buildJsonObject {
+              put("k", "fled")
+              put("side", event.side)
+            }
         else -> null
       }
 
   private fun itemName(itemId: Int): String = itemNames(itemId)
+
+  /** The usable battle bag for the viewer (r3-battle), set by the service that owns the bag. */
+  var bagOf: (BattleInstance) -> JsonArray = { JsonArray(emptyList()) }
 
   /** Wire item id to a display name; set by the service that owns the item catalogue. */
   var itemNames: (Int) -> String = { "item" }
 
   /** A switch the engine made, shown with the viewer's own numbering. */
   private fun sendSwitched(battle: BattleInstance, event: BattleEvent.Switched) {
-    val own = battle.party.getOrNull(event.newSlot)?.entityId == event.entityId &&
-        battle.isPlayerSide(event.entityId)
+    val own =
+        battle.party.getOrNull(event.newSlot)?.entityId == event.entityId &&
+            battle.isPlayerSide(event.entityId)
     val pos = event.pos
-    broadcast(battle, BattleExtPacket(buildJsonObject {
-      put("t", "events")
-      put("e", JsonArray(listOf(buildJsonObject {
-        put("k", "switch")
-        put("side", if (own) "me" else "foe")
-        put("pos", pos)
-        put("slot", event.newSlot)
-      })))
-    }.toString()))
+    broadcast(
+        battle,
+        BattleExtPacket(
+            buildJsonObject {
+                  put("t", "events")
+                  put(
+                      "e",
+                      JsonArray(
+                          listOf(
+                              buildJsonObject {
+                                put("k", "switch")
+                                put("side", if (own) "me" else "foe")
+                                put("pos", pos)
+                                put("slot", event.newSlot)
+                              })))
+                }
+                .toString()))
     if (own) {
       val full = event.newSlot !in battle.seenActive
       battle.seenActive.add(event.newSlot)
@@ -334,17 +370,20 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     put("weather", battle.field.weather.code)
     put("turn", battle.turn)
     battle.trainer?.let { tr ->
-      put("trainer", buildJsonObject {
-        put("name", tr.name)
-        put("pic", tr.pic.lowercase())
-        put("class", tr.className)
-        put("double", tr.doubleBattle)
-      })
+      put(
+          "trainer",
+          buildJsonObject {
+            put("name", tr.name)
+            put("pic", tr.pic.lowercase())
+            put("class", tr.className)
+            put("double", tr.doubleBattle)
+          })
     }
     put("me", sideJson(battle, battle.party, battle.own, own = true))
     put("foe", sideJson(battle, battle.opponent, battle.foe, own = false))
     put("owedSwitches", JsonArray(battle.owedSwitches.map { JsonPrimitive(it) }))
     put("chosen", JsonArray(battle.pendingChoices.keys.map { JsonPrimitive(it) }))
+    put("bag", bagOf(battle))
   }
 
   private fun sideJson(
@@ -357,23 +396,26 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     put("reflect", side.reflectTurns)
     put("lightScreen", side.lightScreenTurns)
     put("spikes", side.spikes)
-    put("mons", JsonArray(party.map { m ->
-      buildJsonObject {
-        put("id", m.entityId)
-        put("status", StatusCondition.code(m.status))
-        if (m.asleep) put("sleep", m.status and StatusCondition.SLEEP_MASK)
-        put("confused", m.confused)
-        put("hp", m.currentHp)
-        put("maxHp", m.maxHp)
-        put("dex", m.species.id)
-        if (own) {
-          put("ability", m.ability.name.replace('_', ' '))
-          put("item", if (m.heldItem != 0) itemName(m.heldItem) else null)
-        }
-        if (m.volatile.substituteHp > 0) put("substitute", true)
-        if (m.volatile.seededBy != 0L) put("seeded", true)
-      }
-    }))
+    put(
+        "mons",
+        JsonArray(
+            party.map { m ->
+              buildJsonObject {
+                put("id", m.entityId)
+                put("status", StatusCondition.code(m.status))
+                if (m.asleep) put("sleep", m.status and StatusCondition.SLEEP_MASK)
+                put("confused", m.confused)
+                put("hp", m.currentHp)
+                put("maxHp", m.maxHp)
+                put("dex", m.species.id)
+                if (own) {
+                  put("ability", m.ability.name.replace('_', ' '))
+                  put("item", if (m.heldItem != 0) itemName(m.heldItem) else null)
+                }
+                if (m.volatile.substituteHp > 0) put("substitute", true)
+                if (m.volatile.seededBy != 0L) put("seeded", true)
+              }
+            }))
   }
 
   fun sendSwitchIn(battle: BattleInstance, oldSlot: Int, fullBlock: Boolean) {

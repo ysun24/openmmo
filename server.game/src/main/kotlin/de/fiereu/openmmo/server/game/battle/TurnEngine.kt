@@ -11,10 +11,10 @@ internal const val TACKLE_ID = 33
 internal const val STRUGGLE_ID = 165
 
 /**
- * The Gen 3 battle engine (src/battle_main.c turn order, src/battle_script_commands.c move
- * effects, src/battle_util.c end of turn). One call resolves a whole turn for every battle
- * position of both sides: switches first, then moves by priority and speed, then the end of turn
- * effects. Single and double battles run through the same code; a position is a [BattlerRef].
+ * The Gen 3 battle engine (src/battle_main.c turn order, src/battle_script_commands.c move effects,
+ * src/battle_util.c end of turn). One call resolves a whole turn for every battle position of both
+ * sides: switches first, then moves by priority and speed, then the end of turn effects. Single and
+ * double battles run through the same code; a position is a [BattlerRef].
  *
  * The battle is always seen from one player's view (side 0 = that player's party). A
  * player-vs-player duel calls it on one of the two linked views with both players' choices.
@@ -64,7 +64,8 @@ constructor(
       resolve(
           battle,
           listOfNotNull(
-              BattleChoice.Pass(0, 0), opponentMoveId?.let { BattleChoice.UseMove(1, 0, it.toInt()) }))
+              BattleChoice.Pass(0, 0),
+              opponentMoveId?.let { BattleChoice.UseMove(1, 0, it.toInt()) }))
 
   /** What the AI would pick for every opposing position. */
   fun aiChoices(battle: BattleInstance, side: Int = 1): List<BattleChoice> {
@@ -99,8 +100,11 @@ constructor(
    */
   fun tryEscape(battle: BattleInstance): Pair<Boolean, List<BattleEvent>> {
     val ctx = ctx(battle)
-    val me = battle.activeMons().firstOrNull { it != null && !it.fainted } ?: return true to emptyList()
-    val foe = battle.opponentMons().firstOrNull { it != null && !it.fainted } ?: return true to emptyList()
+    val me =
+        battle.activeMons().firstOrNull { it != null && !it.fainted } ?: return true to emptyList()
+    val foe =
+        battle.opponentMons().firstOrNull { it != null && !it.fainted }
+            ?: return true to emptyList()
     if (ctx.heldEffect(me)?.name == "CAN_ALWAYS_RUN") {
       ctx.say("Got away safely!")
       return true to ctx.events
@@ -121,7 +125,8 @@ constructor(
   }
 
   /** Why [mon] cannot switch out or flee, or null. */
-  fun switchBlock(battle: BattleInstance, mon: BattleMonState): String? = trappedBy(ctx(battle), mon)
+  fun switchBlock(battle: BattleInstance, mon: BattleMonState): String? =
+      trappedBy(ctx(battle), mon)
 
   private fun trappedBy(ctx: BattleCtx, mon: BattleMonState): String? {
     if (ctx.heldEffect(mon)?.name == "CAN_ALWAYS_RUN") return null
@@ -131,7 +136,8 @@ constructor(
     for (foeRef in ctx.foesOf(myRef)) {
       val foe = ctx.live(foeRef) ?: continue
       when (foe.ability) {
-        Ability.SHADOW_TAG -> if (mon.ability != Ability.SHADOW_TAG) return "${ctx.name(mon)} can't escape!"
+        Ability.SHADOW_TAG ->
+            if (mon.ability != Ability.SHADOW_TAG) return "${ctx.name(mon)} can't escape!"
         Ability.ARENA_TRAP ->
             if (!mon.hasType(de.fiereu.openmmo.common.enums.PokemonType.FLYING) &&
                 mon.ability != Ability.LEVITATE)
@@ -166,7 +172,10 @@ constructor(
     val worked =
         when (effect) {
           is BattleItemEffect.Heal -> {
-            if (target.fainted || target.currentHp >= target.maxHp && !(effect.cures && (target.hasStatus || target.confused))) false
+            if (target.fainted ||
+                target.currentHp >= target.maxHp &&
+                    !(effect.cures && (target.hasStatus || target.confused)))
+                false
             else {
               ctx.say("$user used $upper!")
               val gained = ctx.heal(target, effect.hp, "item")
@@ -177,7 +186,8 @@ constructor(
                   ctx.emit(BattleEvent.VolatileChanged(target.entityId, "confused", false))
                 }
               }
-              if (gained > 0) ctx.say("$who's HP was restored by $gained point(s).", target.entityId)
+              if (gained > 0)
+                  ctx.say("$who's HP was restored by $gained point(s).", target.entityId)
               true
             }
           }
@@ -186,7 +196,10 @@ constructor(
             else {
               ctx.say("$user used $upper!")
               target.currentHp = 0
-              ctx.setHp(target, (target.maxHp * effect.fraction).toInt().coerceIn(1, target.maxHp), "revive")
+              ctx.setHp(
+                  target,
+                  (target.maxHp * effect.fraction).toInt().coerceIn(1, target.maxHp),
+                  "revive")
               ctx.say("$who was revived!", target.entityId)
               true
             }
@@ -197,7 +210,8 @@ constructor(
             if (target.fainted || !hasBit && !conf) false
             else {
               ctx.say("$user used $upper!")
-              if (hasBit) ctx.cureStatus(target, "$who was cured of its ${statusName(target.status)}!")
+              if (hasBit)
+                  ctx.cureStatus(target, "$who was cured of its ${statusName(target.status)}!")
               if (conf) {
                 target.volatile.confusionTurns = 0
                 ctx.emit(BattleEvent.VolatileChanged(target.entityId, "confused", false))

@@ -2,7 +2,6 @@ package de.fiereu.openmmo.server.game.services
 
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
-import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.enums.BattleAction
 import de.fiereu.openmmo.common.enums.IVs
@@ -66,18 +65,19 @@ private val log = KotlinLogging.logger {}
 
 /** Gen 3 friendship: +5/+3/+2 on a level up below 100/200/above, -1 on a faint. */
 internal fun friendshipAfterLevelUp(friendship: Int): Int =
-    (friendship + when {
-          friendship < 100 -> 5
-          friendship < 200 -> 3
-          else -> 2
-        })
+    (friendship +
+            when {
+              friendship < 100 -> 5
+              friendship < 200 -> 3
+              else -> 2
+            })
         .coerceAtMost(255)
 
 /**
- * Orchestrates battles: builds the battle state from the party and the opposing side, collects
- * the player's choices (one per battle position in a double battle), runs them through the
- * [TurnEngine] with the AI's, and persists the outcome (hp, pp, major status, held items,
- * friendship). Packets go out through the [BattlePacketEmitter] over the battle's interest key.
+ * Orchestrates battles: builds the battle state from the party and the opposing side, collects the
+ * player's choices (one per battle position in a double battle), runs them through the [TurnEngine]
+ * with the AI's, and persists the outcome (hp, pp, major status, held items, friendship). Packets
+ * go out through the [BattlePacketEmitter] over the battle's interest key.
  */
 @Singleton
 class BattleService
@@ -109,6 +109,46 @@ constructor(
 
   init {
     emitter.itemNames = { id -> items.get(id)?.name ?: "item" }
+    emitter.bagOf = { battle -> battleBag(battle) }
+  }
+
+  /**
+   * The bag items usable in this battle, with what each needs a target for: "foe" (balls), "party"
+   * (medicine, on any party monster), "active" (X items, the monster out) or "none". Balls are left
+   * out of trainer battles and duels.
+   */
+  private fun battleBag(battle: BattleInstance): JsonArray {
+    if (battle.pvp != null) return JsonArray(emptyList())
+    val bag = characterStore.getCharacter(battle.charId)?.items.orEmpty()
+    return JsonArray(
+        bag.entries
+            .filter { it.value > 0 }
+            .mapNotNull { (id, count) ->
+              val def = items.get(id) ?: return@mapNotNull null
+              val effect = BattleItemEffects.of(def) ?: return@mapNotNull null
+              val target = BattleItemEffects.target(effect)
+              if (target == "foe" && (battle.trainer != null || !battle.catchable))
+                  return@mapNotNull null
+              if (target == "none" && !battle.escapable) return@mapNotNull null
+              buildJsonObject {
+                put("id", id)
+                put("name", def.name)
+                put("count", count)
+                put("target", target)
+                put(
+                    "pocket",
+                    when (effect) {
+                      BattleItemEffect.Ball -> "balls"
+                      is BattleItemEffect.StatUp,
+                      BattleItemEffect.DireHit,
+                      BattleItemEffect.GuardSpec,
+                      BattleItemEffect.Escape -> "battle"
+                      else -> "medicine"
+                    })
+                if (effect is BattleItemEffect.RestorePp && !effect.allMoves) put("perMove", true)
+              }
+            }
+            .sortedBy { it["pocket"].toString() })
   }
 
   fun onBattlePacket(event: PacketEvent<*>) {
@@ -129,7 +169,8 @@ constructor(
     val pos = battle.owedSwitches.firstOrNull() ?: nextPosition(battle) ?: 0
     when (action.action) {
       BattleAction.MOVE -> choose(battle, BattleChoice.UseMove(0, pos, action.moveOrItemId.toInt()))
-      BattleAction.ITEM -> useItem(battle, pos, action.moveOrItemId.toInt(), action.targetEntityId, -1)
+      BattleAction.ITEM ->
+          useItem(battle, pos, action.moveOrItemId.toInt(), action.targetEntityId, -1)
       BattleAction.SWITCH -> switchMon(battle, pos, action.moveOrItemId.toInt())
       BattleAction.RUN -> flee(battle)
     }
@@ -149,7 +190,9 @@ constructor(
     val pos = a.position.coerceIn(0, battle.format - 1)
     when (a.kind) {
       BattleExtKind.MOVE -> {
-        val target = if (a.targetSide in 0..1 && a.targetPos >= 0) BattlerRef(a.targetSide, a.targetPos) else null
+        val target =
+            if (a.targetSide in 0..1 && a.targetPos >= 0) BattlerRef(a.targetSide, a.targetPos)
+            else null
         choose(battle, BattleChoice.UseMove(0, pos, a.id.toInt(), target))
       }
       BattleExtKind.ITEM -> useItem(battle, pos, a.id.toInt(), a.targetEntity, a.targetPos)
@@ -161,7 +204,8 @@ constructor(
   /** The next position (in order) with a live monster that has no choice yet. */
   private fun nextPosition(battle: BattleInstance): Int? =
       battle.own.actives.indices.firstOrNull { pos ->
-        pos !in battle.pendingChoices && battle.party.getOrNull(battle.own.actives[pos])?.fainted == false
+        pos !in battle.pendingChoices &&
+            battle.party.getOrNull(battle.own.actives[pos])?.fainted == false
       }
 
   /** Applies the moveset the player picked after a level up or an evolution. */
@@ -311,8 +355,19 @@ constructor(
         trainer.className in setOf("LEADER", "GYM_LEADER") -> "gym"
         trainer.className in setOf("ELITE_FOUR") -> "elite"
         trainer.className in setOf("CHAMPION") -> "champion"
-        trainer.className in setOf("RIVAL", "RIVAL_EARLY", "RIVAL_LATE", "PKMN_TRAINER_3") -> "rival"
-        trainer.className in setOf("TEAM_AQUA", "TEAM_MAGMA", "AQUA_ADMIN", "MAGMA_ADMIN", "AQUA_LEADER", "MAGMA_LEADER", "TEAM_ROCKET", "BOSS", "ADMIN") -> "team"
+        trainer.className in setOf("RIVAL", "RIVAL_EARLY", "RIVAL_LATE", "PKMN_TRAINER_3") ->
+            "rival"
+        trainer.className in
+            setOf(
+                "TEAM_AQUA",
+                "TEAM_MAGMA",
+                "AQUA_ADMIN",
+                "MAGMA_ADMIN",
+                "AQUA_LEADER",
+                "MAGMA_LEADER",
+                "TEAM_ROCKET",
+                "BOSS",
+                "ADMIN") -> "team"
         else -> "trainer"
       }
 
@@ -340,7 +395,10 @@ constructor(
       return null
     }
     val stored = characterStore.getCharacter(charId) ?: return null
-    val partyMons = stored.pokemon.filter { it.container == PokemonContainer.PARTY }.sortedBy { it.containerSlot }
+    val partyMons =
+        stored.pokemon
+            .filter { it.container == PokemonContainer.PARTY }
+            .sortedBy { it.containerSlot }
     if (partyMons.isEmpty()) {
       session.send(notice("You need a monster in your party to battle."))
       return null
@@ -395,15 +453,16 @@ constructor(
       // Held items: the trainer's from its party table; a wild one's from the species
       // (itemCommon 50%, itemRare 5%, or always when both are the same item).
       val heldName =
-          if (!spec.wild) spec.heldItemName
-          else wildHeldItem(def.itemCommon, def.itemRare, rng)
+          if (!spec.wild) spec.heldItemName else wildHeldItem(def.itemCommon, def.itemRare, rng)
       val heldId = heldName.takeIf { it.isNotEmpty() }?.let { ItemNames.wireId(items, it) } ?: 0
       rolled = rolled.copy(heldItem = heldId)
-      enemies += BattleMonState(rolled.id, def, null, rolled, StatCalculator.computeAll(def, rolled))
+      enemies +=
+          BattleMonState(rolled.id, def, null, rolled, StatCalculator.computeAll(def, rolled))
     }
     log.info {
       "Starting ${if (actualFormat == 2) "double" else "single"} battle for char=$charId " +
-          "(${stored.info.name}) against " + enemies.joinToString { "${it.species.name} level ${it.level}" }
+          "(${stored.info.name}) against " +
+          enemies.joinToString { "${it.species.name} level ${it.level}" }
     }
     val foeFormat = if (actualFormat == 2 && enemies.size >= 2) 2 else actualFormat
     val battle =
@@ -444,8 +503,14 @@ constructor(
   private fun wildHeldItem(common: Int, rare: Int, rng: BattleRng): String {
     val c = ItemNames.byGbaId(common)
     val r = ItemNames.byGbaId(rare)
-    val cName = if (common != 0) de.fiereu.openmmo.pokemon.generated.GeneratedGbaItemNames.names[common].orEmpty() else ""
-    val rName = if (rare != 0) de.fiereu.openmmo.pokemon.generated.GeneratedGbaItemNames.names[rare].orEmpty() else ""
+    val cName =
+        if (common != 0)
+            de.fiereu.openmmo.pokemon.generated.GeneratedGbaItemNames.names[common].orEmpty()
+        else ""
+    val rName =
+        if (rare != 0)
+            de.fiereu.openmmo.pokemon.generated.GeneratedGbaItemNames.names[rare].orEmpty()
+        else ""
     if (c != null && common == rare) return cName
     val roll = rng.pick(100)
     return when {
@@ -464,8 +529,10 @@ constructor(
     if (choice is BattleChoice.UseMove) {
       val usable = mon.moves.filter { it.id.toInt() != 0 && it.pp > 0 }
       // An unknown or empty move falls back to the engine's Struggle check.
-      if (usable.isNotEmpty() && usable.none { it.id.toInt() == choice.moveId } &&
-          mon.volatile.chargingMove == 0 && mon.volatile.rampageMove == 0) {
+      if (usable.isNotEmpty() &&
+          usable.none { it.id.toInt() == choice.moveId } &&
+          mon.volatile.chargingMove == 0 &&
+          mon.volatile.rampageMove == 0) {
         emitter.sendNotice(battle, "${mon.species.name} can't use that move.")
         emitter.sendPrompt(battle)
         return
@@ -509,7 +576,8 @@ constructor(
       if (idx < 0) continue
       val def = ItemNames.byDecompName(battle.trainerItems.removeAt(idx)) ?: continue
       val effect = BattleItemEffects.of(def) ?: continue
-      val (worked, events) = engine.useBagItem(battle, def.name, effect, mon, side = 1, user = trainer.name)
+      val (worked, events) =
+          engine.useBagItem(battle, def.name, effect, mon, side = 1, user = trainer.name)
       emitter.sendEvents(battle, events)
       if (worked) passes += BattleChoice.Pass(1, pos)
     }
@@ -540,7 +608,9 @@ constructor(
           val current = battle.opponent.getOrNull(battle.foe.actives[pos])
           if (current != null && !current.fainted) continue
           val next =
-              battle.opponent.indices.firstOrNull { it !in battle.foe.actives && !battle.opponent[it].fainted }
+              battle.opponent.indices.firstOrNull {
+                it !in battle.foe.actives && !battle.opponent[it].fainted
+              }
           if (next == null) {
             battle.foe.actives[pos] = -1
             continue
@@ -548,12 +618,18 @@ constructor(
           log.info { "Opponent sends out slot $next at $pos for char=${battle.charId}" }
           emitter.sendEvents(battle, engine.switchIn(battle, 1, pos, next))
           for (m in battle.opponentMons().filterNotNull()) {
-            m.foughtBy += battle.activeMons().filterNotNull().filter { !it.fainted }.map { it.entityId }
+            m.foughtBy +=
+                battle.activeMons().filterNotNull().filter { !it.fainted }.map { it.entityId }
           }
         }
         // The player owes a replacement for every fainted position with a bench to draw from.
         battle.owedSwitches.clear()
-        val bench = battle.party.indices.filter { it !in battle.own.actives && !battle.party[it].fainted && !battle.party[it].source.isEgg }
+        val bench =
+            battle.party.indices.filter {
+              it !in battle.own.actives &&
+                  !battle.party[it].fainted &&
+                  !battle.party[it].source.isEgg
+            }
         var available = bench.size
         for (pos in battle.own.actives.indices) {
           val current = battle.party.getOrNull(battle.own.actives[pos])
@@ -587,8 +663,13 @@ constructor(
     val forced = pos in battle.owedSwitches
     val current = battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1)
     val invalid =
-        mon == null || mon.fainted || mon.source.isEgg || target in battle.own.actives ||
-            battle.pendingChoices.values.any { it is BattleChoice.Switch && it.partyIndex == target }
+        mon == null ||
+            mon.fainted ||
+            mon.source.isEgg ||
+            target in battle.own.actives ||
+            battle.pendingChoices.values.any {
+              it is BattleChoice.Switch && it.partyIndex == target
+            }
     if (invalid) {
       // Reopen the switch screen on an invalid forced choice, otherwise re-prompt for an action.
       if (forced) emitter.sendSwitchPrompt(battle) else emitter.sendPrompt(battle)
@@ -624,7 +705,10 @@ constructor(
 
   private suspend fun flee(battle: BattleInstance) {
     if (!battle.escapable) {
-      emitter.sendNotice(battle, if (battle.trainer != null) "No! There's no running from a TRAINER battle!" else "You can't run from this battle.")
+      emitter.sendNotice(
+          battle,
+          if (battle.trainer != null) "No! There's no running from a TRAINER battle!"
+          else "You can't run from this battle.")
       emitter.sendPrompt(battle)
       return
     }
@@ -645,10 +729,16 @@ constructor(
   // --- bag -------------------------------------------------------------------------------------
 
   /**
-   * A bag item from position [pos]: balls are thrown at once (a miss spends the turn), other
-   * items are applied right away (items go before moves) and use up that position's turn.
+   * A bag item from position [pos]: balls are thrown at once (a miss spends the turn), other items
+   * are applied right away (items go before moves) and use up that position's turn.
    */
-  private suspend fun useItem(battle: BattleInstance, pos: Int, itemId: Int, targetEntity: Long, moveSlot: Int) {
+  private suspend fun useItem(
+      battle: BattleInstance,
+      pos: Int,
+      itemId: Int,
+      targetEntity: Long,
+      moveSlot: Int
+  ) {
     val def = items.get(itemId)
     val stored = characterStore.getCharacter(battle.charId)
     val refuse: (String) -> Unit = { text ->
@@ -661,7 +751,11 @@ constructor(
     when (effect) {
       BattleItemEffect.Ball -> {
         if (battle.trainer != null || battle.pvp != null || !battle.catchable) {
-          emitter.sendEvents(battle, listOf(BattleEvent.Message("The TRAINER blocked the BALL!"), BattleEvent.Message("Don't be a thief!")))
+          emitter.sendEvents(
+              battle,
+              listOf(
+                  BattleEvent.Message("The TRAINER blocked the BALL!"),
+                  BattleEvent.Message("Don't be a thief!")))
           emitter.sendPrompt(battle)
           return
         }
@@ -670,7 +764,11 @@ constructor(
       BattleItemEffect.Escape -> {
         if (!battle.escapable || battle.trainer != null) return refuse("It won't have any effect.")
         consume(battle, itemId)
-        emitter.sendEvents(battle, listOf(BattleEvent.Message("You used ${def.name.uppercase()}!"), BattleEvent.Message("Got away safely!")))
+        emitter.sendEvents(
+            battle,
+            listOf(
+                BattleEvent.Message("You used ${def.name.uppercase()}!"),
+                BattleEvent.Message("Got away safely!")))
         emitter.sendFled(battle)
         persistParty(battle)
         battle.pendingResult = BattleResult.FLED
@@ -679,7 +777,9 @@ constructor(
         val target =
             when (BattleItemEffects.target(effect)) {
               "active" -> battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1)
-              else -> battle.party.firstOrNull { it.entityId == targetEntity } ?: battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1)
+              else ->
+                  battle.party.firstOrNull { it.entityId == targetEntity }
+                      ?: battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1)
             }
         if (target == null) return refuse("Choose a POKéMON.")
         val (worked, events) = engine.useBagItem(battle, def.name, effect, target, moveSlot)
@@ -694,10 +794,17 @@ constructor(
 
   private suspend fun consume(battle: BattleInstance, itemId: Int) {
     if (!characterStore.addItem(battle.charId, itemId, -1)) return
-    battle.session.send(itemStackUpdatePacket(itemId, characterStore.getCharacter(battle.charId)?.items?.get(itemId) ?: 0))
+    battle.session.send(
+        itemStackUpdatePacket(
+            itemId, characterStore.getCharacter(battle.charId)?.items?.get(itemId) ?: 0))
   }
 
-  private suspend fun throwBall(battle: BattleInstance, ball: ItemDef, ballId: Int, consume: Boolean) {
+  private suspend fun throwBall(
+      battle: BattleInstance,
+      ball: ItemDef,
+      ballId: Int,
+      consume: Boolean
+  ) {
     if (!battle.catchable) {
       emitter.sendNotice(battle, "You can't catch this monster.")
       emitter.sendPrompt(battle)
@@ -713,16 +820,23 @@ constructor(
             alreadyCaught = stored.pokemon.any { it.dexId == targetMon.species.id })
     val result = CatchCalculator.roll(ball, targetMon, ctx, battle.rng)
     log.info { "char=${battle.charId} threw ${ball.name} at ${targetMon.species.name}: $result" }
-    val ballEvent = BattleExtPacket(buildJsonObject {
-      put("t", "events")
-      put("e", JsonArray(listOf(buildJsonObject {
-        put("k", "ball")
-        put("ball", ball.name)
-        put("shakes", result.shakes)
-        put("caught", result.caught)
-        put("id", targetMon.entityId)
-      })))
-    }.toString())
+    val ballEvent =
+        BattleExtPacket(
+            buildJsonObject {
+                  put("t", "events")
+                  put(
+                      "e",
+                      JsonArray(
+                          listOf(
+                              buildJsonObject {
+                                put("k", "ball")
+                                put("ball", ball.name)
+                                put("shakes", result.shakes)
+                                put("caught", result.caught)
+                                put("id", targetMon.entityId)
+                              })))
+                }
+                .toString())
     if (!result.caught) {
       emitter.broadcast(battle, ballEvent)
       val line =
@@ -742,17 +856,23 @@ constructor(
     val party = stored.pokemon.filter { it.container == PokemonContainer.PARTY }
     val toBox = party.size >= 6
     val nextSlot =
-        if (toBox) ((stored.pokemon.filter { it.container == PokemonContainer.PC }.maxOfOrNull { it.containerSlot } ?: -1) + 1).toShort()
+        if (toBox)
+            ((stored.pokemon
+                    .filter { it.container == PokemonContainer.PC }
+                    .maxOfOrNull { it.containerSlot } ?: -1) + 1)
+                .toShort()
         else ((party.maxOfOrNull { it.containerSlot } ?: -1) + 1).toShort()
     val caught =
-        targetMon.persisted()
+        targetMon
+            .persisted()
             .copy(
                 ownerId = battle.charId,
                 container = if (toBox) PokemonContainer.PC else PokemonContainer.PARTY,
                 containerSlot = nextSlot,
                 ot = stored.info.name,
                 caughtAt = LocalDateTime.now(),
-                // Gen 3: a caught monster starts at its species' base friendship (Luxury Ball adds no
+                // Gen 3: a caught monster starts at its species' base friendship (Luxury Ball adds
+                // no
                 // starting bonus in Gen 3, only faster growth).
                 friendship = targetMon.species.friendship,
             )
@@ -783,7 +903,12 @@ constructor(
   private suspend fun endVictory(battle: BattleInstance) {
     var prize = battle.trainer?.let { rewards.trainerPrize(it, battle.opponent.last().level) } ?: 0
     // Amulet Coin on any monster that fought doubles the prize.
-    if (prize > 0 && battle.party.any { held.of(it.heldItem)?.name == "DOUBLE_PRIZE" && it.entityId in battle.opponent.flatMap { o -> o.foughtBy } }) prize *= 2
+    if (prize > 0 &&
+        battle.party.any {
+          held.of(it.heldItem)?.name == "DOUBLE_PRIZE" &&
+              it.entityId in battle.opponent.flatMap { o -> o.foughtBy }
+        })
+        prize *= 2
     prize += battle.payDay
     val paid = prize > 0 && characterStore.addMoney(battle.charId, prize)
     if (prize > 0 && !paid) {
@@ -798,31 +923,43 @@ constructor(
    * when there are any, x1.5 from a trainer, x1.5 with a Lucky Egg, x1.5 for a traded monster.
    */
   private fun awardXp(battle: BattleInstance, defeated: BattleMonState) {
-    val base = if (battle.trainer != null) rewards.trainerXp(defeated.species, defeated.level) else rewards.wildXp(defeated.species, defeated.level)
-    val fighters = battle.party.filter { !it.fainted && it.entityId in defeated.foughtBy }
-        .ifEmpty { battle.activeMons().filterNotNull().filter { !it.fainted } }
+    val base =
+        if (battle.trainer != null) rewards.trainerXp(defeated.species, defeated.level)
+        else rewards.wildXp(defeated.species, defeated.level)
+    val fighters =
+        battle.party
+            .filter { !it.fainted && it.entityId in defeated.foughtBy }
+            .ifEmpty { battle.activeMons().filterNotNull().filter { !it.fainted } }
     val sharers = battle.party.filter { !it.fainted && held.of(it.heldItem)?.name == "EXP_SHARE" }
     val fighterPool = if (sharers.isEmpty()) base else base / 2
     val sharePool = if (sharers.isEmpty()) 0 else base / 2
     val playerName = characterStore.getCharacter(battle.charId)?.info?.name
     val payouts = LinkedHashMap<BattleMonState, Int>()
-    for (f in fighters) payouts[f] = (payouts[f] ?: 0) + (fighterPool / fighters.size).coerceAtLeast(1)
+    for (f in fighters) payouts[f] =
+        (payouts[f] ?: 0) + (fighterPool / fighters.size).coerceAtLeast(1)
     for (s in sharers) payouts[s] = (payouts[s] ?: 0) + (sharePool / sharers.size).coerceAtLeast(1)
     for ((winner, raw) in payouts) {
       var gained = raw
       if (held.of(winner.heldItem)?.name == "LUCKY_EGG") gained = gained * 150 / 100
-      if (playerName != null && winner.source.ot.isNotEmpty() && winner.source.ot != playerName) gained = gained * 150 / 100
+      if (playerName != null && winner.source.ot.isNotEmpty() && winner.source.ot != playerName)
+          gained = gained * 150 / 100
       giveXp(battle, winner, defeated, gained)
     }
   }
 
-  private fun giveXp(battle: BattleInstance, winner: BattleMonState, defeated: BattleMonState, gained: Int) {
+  private fun giveXp(
+      battle: BattleInstance,
+      winner: BattleMonState,
+      defeated: BattleMonState,
+      gained: Int
+  ) {
     val reward = rewards.applyXp(winner, defeated.species, gained)
     log.info {
       "char=${battle.charId} ${winner.species.name}: +${reward.xpGained} xp, level ${winner.level} -> ${reward.newLevel}"
     }
     winner.currentHp = reward.newCurrentHp
-    val outcome = moveLearner.learn(winner.moves, winner.source.dexId, winner.level, reward.newLevel)
+    val outcome =
+        moveLearner.learn(winner.moves, winner.source.dexId, winner.level, reward.newLevel)
     emitter.sendVictoryDelta(battle, winner.entityId, reward)
     for (move in outcome.learned) {
       emitter.sendNotice(battle, "${winner.species.name} learned ${move.name}!")
@@ -848,7 +985,8 @@ constructor(
         )
     winner.source = grown
     winner.stats = reward.newStats
-    characterStore.updatePokemon(battle.charId, grown.copy(status = winner.status, heldItem = winner.heldItem))
+    characterStore.updatePokemon(
+        battle.charId, grown.copy(status = winner.status, heldItem = winner.heldItem))
   }
 
   private fun endDefeat(battle: BattleInstance) {
@@ -863,8 +1001,11 @@ constructor(
   ) {
     persistParty(battle)
     val party =
-        characterStore.getCharacter(battle.charId)?.pokemon?.filter { it.container == PokemonContainer.PARTY }?.sortedBy { it.containerSlot }
-            ?: emptyList()
+        characterStore
+            .getCharacter(battle.charId)
+            ?.pokemon
+            ?.filter { it.container == PokemonContainer.PARTY }
+            ?.sortedBy { it.containerSlot } ?: emptyList()
     emitter.sendBattleEnd(battle, party, prizeMoney)
     battle.pendingResult = result
   }
@@ -875,7 +1016,8 @@ constructor(
       if (state.ability == de.fiereu.openmmo.common.enums.Ability.NATURAL_CURE) state.status = 0
       var updated = state.persisted()
       // A faint costs a point of friendship.
-      if (state.fainted && state.source.hp > 0) updated = updated.copy(friendship = (updated.friendship - 1).coerceAtLeast(0))
+      if (state.fainted && state.source.hp > 0)
+          updated = updated.copy(friendship = (updated.friendship - 1).coerceAtLeast(0))
       characterStore.updatePokemon(battle.charId, updated)
     }
     characterStore.flushCharacterAsync(battle.charId)
@@ -887,6 +1029,7 @@ constructor(
     rewardedByBattle.remove(battle.battleId)
     val leveled = leveledIn.remove(battle.charId).orEmpty()
     battle.completion.complete(result)
-    if (result != BattleResult.DISCONNECTED) evolution?.afterBattle(battle.session, battle.charId, leveled)
+    if (result != BattleResult.DISCONNECTED)
+        evolution?.afterBattle(battle.session, battle.charId, leveled)
   }
 }

@@ -19,7 +19,10 @@ internal object BattleAi {
 
   fun choose(ctx: BattleCtx, ref: BattlerRef): BattleChoice {
     val mon = ctx.live(ref) ?: return BattleChoice.Pass(ref.side, ref.pos)
-    val usable = mon.moves.filter { it.id.toInt() != 0 && it.pp > 0 && it.id.toInt() != mon.volatile.disabledMove }
+    val usable =
+        mon.moves.filter {
+          it.id.toInt() != 0 && it.pp > 0 && it.id.toInt() != mon.volatile.disabledMove
+        }
     if (usable.isEmpty()) return BattleChoice.UseMove(ref.side, ref.pos, STRUGGLE_ID)
     val foes = ctx.foesOf(ref).filter { ctx.live(it) != null }
     val smart = ref.side == 1 && ctx.battle.trainer != null
@@ -32,7 +35,8 @@ internal object BattleAi {
     for (m in usable) {
       val def = ctx.move(m.id.toInt()) ?: continue
       val targets: List<BattlerRef?> =
-          if (def.target == MoveTarget.SELECTED && foes.size > 1) foes else listOf(foes.firstOrNull())
+          if (def.target == MoveTarget.SELECTED && foes.size > 1) foes
+          else listOf(foes.firstOrNull())
       for (t in targets) {
         val target = t?.let { ctx.live(it) }
         val score = score(ctx, mon, target, def) + ctx.rng.pick(6)
@@ -43,7 +47,12 @@ internal object BattleAi {
     return BattleChoice.UseMove(ref.side, ref.pos, pick.second, pick.third)
   }
 
-  private fun score(ctx: BattleCtx, user: BattleMonState, target: BattleMonState?, move: MoveDef): Int {
+  private fun score(
+      ctx: BattleCtx,
+      user: BattleMonState,
+      target: BattleMonState?,
+      move: MoveDef
+  ): Int {
     var score = 100
     if (target == null) return score
     val damaging = move.power > 0 || move.effect in FIXED
@@ -64,16 +73,29 @@ internal object BattleAi {
     }
     // Status and stat moves.
     when (move.effect) {
-      MoveEffect.SLEEP, MoveEffect.POISON, MoveEffect.TOXIC, MoveEffect.PARALYZE, MoveEffect.WILL_O_WISP ->
-          if (target.hasStatus || ctx.statusBlock(target, statusOf(move.effect), user) != null) return 0
-      MoveEffect.CONFUSE, MoveEffect.SWAGGER, MoveEffect.FLATTER ->
-          if (target.confused || target.ability == Ability.OWN_TEMPO) return 0
-      MoveEffect.LEECH_SEED -> if (target.volatile.seededBy != 0L || target.hasType(PokemonType.GRASS)) return 0
-      MoveEffect.SUBSTITUTE -> if (user.volatile.substituteHp > 0 || user.currentHp <= user.maxHp / 4) return 0
-      MoveEffect.REFLECT -> if ((ctx.refOf(user)?.let { ctx.sideState(it.side).reflectTurns } ?: 0) > 0) return 0
-      MoveEffect.LIGHT_SCREEN -> if ((ctx.refOf(user)?.let { ctx.sideState(it.side).lightScreenTurns } ?: 0) > 0) return 0
-      MoveEffect.RESTORE_HP, MoveEffect.SOFTBOILED, MoveEffect.MORNING_SUN, MoveEffect.SYNTHESIS, MoveEffect.MOONLIGHT ->
-          return if (user.currentHp * 2 < user.maxHp) 130 else 0
+      MoveEffect.SLEEP,
+      MoveEffect.POISON,
+      MoveEffect.TOXIC,
+      MoveEffect.PARALYZE,
+      MoveEffect.WILL_O_WISP ->
+          if (target.hasStatus || ctx.statusBlock(target, statusOf(move.effect), user) != null)
+              return 0
+      MoveEffect.CONFUSE,
+      MoveEffect.SWAGGER,
+      MoveEffect.FLATTER -> if (target.confused || target.ability == Ability.OWN_TEMPO) return 0
+      MoveEffect.LEECH_SEED ->
+          if (target.volatile.seededBy != 0L || target.hasType(PokemonType.GRASS)) return 0
+      MoveEffect.SUBSTITUTE ->
+          if (user.volatile.substituteHp > 0 || user.currentHp <= user.maxHp / 4) return 0
+      MoveEffect.REFLECT ->
+          if ((ctx.refOf(user)?.let { ctx.sideState(it.side).reflectTurns } ?: 0) > 0) return 0
+      MoveEffect.LIGHT_SCREEN ->
+          if ((ctx.refOf(user)?.let { ctx.sideState(it.side).lightScreenTurns } ?: 0) > 0) return 0
+      MoveEffect.RESTORE_HP,
+      MoveEffect.SOFTBOILED,
+      MoveEffect.MORNING_SUN,
+      MoveEffect.SYNTHESIS,
+      MoveEffect.MOONLIGHT -> return if (user.currentHp * 2 < user.maxHp) 130 else 0
       MoveEffect.RAIN_DANCE -> if (ctx.field.weather == Weather.RAIN) return 0
       MoveEffect.SUNNY_DAY -> if (ctx.field.weather == Weather.SUN) return 0
       MoveEffect.SANDSTORM -> if (ctx.field.weather == Weather.SAND) return 0
@@ -93,7 +115,12 @@ internal object BattleAi {
   }
 
   private val FIXED =
-      setOf(MoveEffect.SONICBOOM, MoveEffect.DRAGON_RAGE, MoveEffect.LEVEL_DAMAGE, MoveEffect.SUPER_FANG, MoveEffect.PSYWAVE)
+      setOf(
+          MoveEffect.SONICBOOM,
+          MoveEffect.DRAGON_RAGE,
+          MoveEffect.LEVEL_DAMAGE,
+          MoveEffect.SUPER_FANG,
+          MoveEffect.PSYWAVE)
 
   private fun statusOf(effect: MoveEffect): Int =
       when (effect) {
@@ -136,13 +163,17 @@ internal object BattleAi {
     when (move.effect) {
       MoveEffect.SONICBOOM -> return 20
       MoveEffect.DRAGON_RAGE -> return 40
-      MoveEffect.LEVEL_DAMAGE, MoveEffect.PSYWAVE -> return user.level
+      MoveEffect.LEVEL_DAMAGE,
+      MoveEffect.PSYWAVE -> return user.level
       MoveEffect.SUPER_FANG -> return target.currentHp / 2
       else -> Unit
     }
     val physical = MoveCategory.isPhysical(move.type)
     val atk = user.effective(if (physical) BattleStat.ATTACK else BattleStat.SP_ATTACK)
-    val def = target.effective(if (physical) BattleStat.DEFENSE else BattleStat.SP_DEFENSE).coerceAtLeast(1)
+    val def =
+        target
+            .effective(if (physical) BattleStat.DEFENSE else BattleStat.SP_DEFENSE)
+            .coerceAtLeast(1)
     var dmg = (2 * user.level / 5 + 2) * move.power * atk / def / 50 + 2
     if (user.hasType(move.type)) dmg = dmg * 3 / 2
     dmg = dmg * eff / TypeChart.NEUTRAL

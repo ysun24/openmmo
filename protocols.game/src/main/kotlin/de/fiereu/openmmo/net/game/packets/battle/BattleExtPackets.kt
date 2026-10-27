@@ -68,9 +68,9 @@ object BattleExtKind {
 /**
  * c2s 0xF0: one battle position's pick with an explicit target. [position] is the player's battle
  * position (0, or 1 in a double battle). For MOVE [id] is the move and [targetSide]/[targetPos] the
- * battler aimed at (side 1 = the opposing side; -1 lets the server pick). For ITEM [id] is the item,
- * [targetEntity] the party monster it is used on (0 for balls / X items) and [targetPos] the move
- * slot for one-move PP items. For SWITCH [id] is the party slot.
+ * battler aimed at (side 1 = the opposing side; -1 lets the server pick). For ITEM [id] is the
+ * item, [targetEntity] the party monster it is used on (0 for balls / X items) and [targetPos] the
+ * move slot for one-move PP items. For SWITCH [id] is the party slot.
  */
 data class BattleExtActionPacket(
     val position: Int,

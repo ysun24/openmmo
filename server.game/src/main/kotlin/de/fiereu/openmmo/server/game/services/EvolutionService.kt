@@ -95,8 +95,7 @@ constructor(
     for (evo in evolutions.of(mon.dexId)) {
       val ok =
           when (trigger) {
-            EvolutionTrigger.LEVEL_UP ->
-                heldDef != Items.EVERSTONE && levelRule(evo, mon)
+            EvolutionTrigger.LEVEL_UP -> heldDef != Items.EVERSTONE && levelRule(evo, mon)
             EvolutionTrigger.TRADE ->
                 when (evo.method) {
                   EvolutionMethod.TRADE -> true
@@ -105,7 +104,8 @@ constructor(
                   else -> false
                 }
             EvolutionTrigger.ITEM ->
-                evo.method == EvolutionMethod.ITEM && item != null &&
+                evo.method == EvolutionMethod.ITEM &&
+                    item != null &&
                     ItemNames.byDecompName(evo.item) == item
           }
       if (ok && species.get(evo.toDex) != null) return evo.toDex
@@ -122,9 +122,12 @@ constructor(
       EvolutionMethod.FRIENDSHIP_NIGHT -> mon.friendship >= FRIENDSHIP_EVOLVE && hour in 0..11
       EvolutionMethod.LEVEL,
       EvolutionMethod.LEVEL_NINJASK -> level >= evo.param
-      EvolutionMethod.LEVEL_ATK_GT_DEF -> level >= evo.param && stats(mon)?.let { it.atk > it.def } == true
-      EvolutionMethod.LEVEL_ATK_EQ_DEF -> level >= evo.param && stats(mon)?.let { it.atk == it.def } == true
-      EvolutionMethod.LEVEL_ATK_LT_DEF -> level >= evo.param && stats(mon)?.let { it.atk < it.def } == true
+      EvolutionMethod.LEVEL_ATK_GT_DEF ->
+          level >= evo.param && stats(mon)?.let { it.atk > it.def } == true
+      EvolutionMethod.LEVEL_ATK_EQ_DEF ->
+          level >= evo.param && stats(mon)?.let { it.atk == it.def } == true
+      EvolutionMethod.LEVEL_ATK_LT_DEF ->
+          level >= evo.param && stats(mon)?.let { it.atk < it.def } == true
       // The upper half of the personality, mod 10: 0-4 Silcoon, 5-9 Cascoon.
       EvolutionMethod.LEVEL_SILCOON -> level >= evo.param && upperPersonality(mon) % 10 <= 4
       EvolutionMethod.LEVEL_CASCOON -> level >= evo.param && upperPersonality(mon) % 10 > 4
@@ -136,9 +139,11 @@ constructor(
     }
   }
 
-  private fun upperPersonality(mon: Pokemon): Int = ((mon.seed.toLong() and 0xFFFFFFFFL) ushr 16).toInt()
+  private fun upperPersonality(mon: Pokemon): Int =
+      ((mon.seed.toLong() and 0xFFFFFFFFL) ushr 16).toInt()
 
-  private fun stats(mon: Pokemon) = species.get(mon.dexId)?.let { StatCalculator.computeAll(it, mon) }
+  private fun stats(mon: Pokemon) =
+      species.get(mon.dexId)?.let { StatCalculator.computeAll(it, mon) }
 
   /** Queues the scene for [monId] evolving into [toDex] and plays it when nothing else is up. */
   fun startEvolution(
@@ -149,7 +154,8 @@ constructor(
       consumeItem: Int = 0,
       consumeHeld: Boolean = false,
   ) {
-    queues.getOrPut(charId) { ConcurrentLinkedDeque() } += EvoScene(charId, monId, toDex, consumeItem, consumeHeld)
+    queues.getOrPut(charId) { ConcurrentLinkedDeque() } +=
+        EvoScene(charId, monId, toDex, consumeItem, consumeHeld)
     playNext(session, charId)
   }
 
@@ -167,14 +173,15 @@ constructor(
   }
 
   /**
-   * The items hook: a stone used on party monster [monId]. Returns null when the scene started
-   * (the stone is taken when the evolution completes) or the refusal text.
+   * The items hook: a stone used on party monster [monId]. Returns null when the scene started (the
+   * stone is taken when the evolution completes) or the refusal text.
    */
   fun useEvolutionItem(session: SessionContext, charId: Long, monId: Long, itemId: Int): String? {
     val item = items.get(itemId) ?: return "That item does not exist."
     val stored = characters.getCharacter(charId) ?: return ""
     if ((stored.items[itemId] ?: 0) <= 0) return "You don't have any ${item.name}."
-    val mon = stored.pokemon.firstOrNull { it.id == monId } ?: return "Choose a POKéMON in your party."
+    val mon =
+        stored.pokemon.firstOrNull { it.id == monId } ?: return "Choose a POKéMON in your party."
     val to = tryEvolve(mon, EvolutionTrigger.ITEM, item) ?: return "It won't have any effect."
     startEvolution(session, charId, mon.id, to, consumeItem = itemId)
     return null
@@ -193,7 +200,10 @@ constructor(
   fun onTraded(charId: Long, mon: Pokemon): Int? {
     val to = tryEvolve(mon, EvolutionTrigger.TRADE) ?: return null
     val held = items.get(mon.heldItem)
-    val consumesHeld = evolutions.of(mon.dexId).any { it.method == EvolutionMethod.TRADE_ITEM && ItemNames.byDecompName(it.item) == held }
+    val consumesHeld =
+        evolutions.of(mon.dexId).any {
+          it.method == EvolutionMethod.TRADE_ITEM && ItemNames.byDecompName(it.item) == held
+        }
     val session = sessions.getByCharacterId(charId) ?: return to
     startEvolution(session, charId, mon.id, to, consumeHeld = consumesHeld)
     return to
@@ -251,11 +261,15 @@ constructor(
     val fromDef = species.get(mon.dexId) ?: return null
     val toDef = species.get(scene.toDex) ?: return null
     if (scene.consumeItem != 0) {
-      if ((stored.items[scene.consumeItem] ?: 0) <= 0 || !characters.addItem(charId, scene.consumeItem, -1)) {
+      if ((stored.items[scene.consumeItem] ?: 0) <= 0 ||
+          !characters.addItem(charId, scene.consumeItem, -1)) {
         session.send(notice("You don't have that item anymore."))
         return null
       }
-      session.send(itemStackUpdatePacket(scene.consumeItem, characters.getCharacter(charId)?.items?.get(scene.consumeItem) ?: 0))
+      session.send(
+          itemStackUpdatePacket(
+              scene.consumeItem,
+              characters.getCharacter(charId)?.items?.get(scene.consumeItem) ?: 0))
     }
     val oldStats = StatCalculator.computeAll(fromDef, mon)
     var evolved = mon.copy(dexId = toDef.id, heldItem = if (scene.consumeHeld) 0 else mon.heldItem)
@@ -277,10 +291,13 @@ constructor(
       session.send(MoveLearnPromptPacket(evolved.id, offered))
     }
     // Ninjask leaves a Shedinja behind when the party has room.
-    if (evolutions.of(fromDef.id).any { it.method == EvolutionMethod.LEVEL_NINJASK && it.toDex == toDef.id }) {
-      evolutions.of(fromDef.id).firstOrNull { it.method == EvolutionMethod.LEVEL_SHEDINJA }?.let { sh ->
-        makeShedinja(session, charId, mon, sh.toDex)
-      }
+    if (evolutions.of(fromDef.id).any {
+      it.method == EvolutionMethod.LEVEL_NINJASK && it.toDex == toDef.id
+    }) {
+      evolutions
+          .of(fromDef.id)
+          .firstOrNull { it.method == EvolutionMethod.LEVEL_SHEDINJA }
+          ?.let { sh -> makeShedinja(session, charId, mon, sh.toDex) }
     }
     session.send(acquiredMonsterDelta(evolved, toDef))
     session.send(
@@ -288,7 +305,12 @@ constructor(
             container = PokemonContainer.PARTY,
             hasChange = true,
             delete = false,
-            pokemon = characters.getCharacter(charId)?.pokemon?.filter { it.container == PokemonContainer.PARTY }?.sortedBy { it.containerSlot } ?: listOf(evolved)))
+            pokemon =
+                characters
+                    .getCharacter(charId)
+                    ?.pokemon
+                    ?.filter { it.container == PokemonContainer.PARTY }
+                    ?.sortedBy { it.containerSlot } ?: listOf(evolved)))
     session.send(evoDone(evolved.id, "done", toDef.id, outcome.learned.map { it.name }))
     characters.flushCharacterAsync(charId)
     return evolved
@@ -300,7 +322,14 @@ constructor(
     if (party.size >= 6) return
     val def = species.get(dex) ?: return
     val slot = ((party.maxOfOrNull { it.containerSlot } ?: -1) + 1).toShort()
-    val base = from.copy(id = entityIds.newMonsterId(), dexId = dex, nickname = "", containerSlot = slot, heldItem = 0, status = 0)
+    val base =
+        from.copy(
+            id = entityIds.newMonsterId(),
+            dexId = dex,
+            nickname = "",
+            containerSlot = slot,
+            heldItem = 0,
+            status = 0)
     val shedinja = base.copy(hp = StatCalculator.computeAll(def, base).hp.toShort())
     if (characters.addPokemon(charId, shedinja)) {
       session.send(SocialListEntryAddPacket(shedinja))
@@ -331,6 +360,12 @@ constructor(
     const val FRIENDSHIP_EVOLVE = 220
 
     private val STONES =
-        setOf(Items.FIRE_STONE, Items.WATER_STONE, Items.THUNDERSTONE, Items.LEAF_STONE, Items.MOON_STONE, Items.SUN_STONE)
+        setOf(
+            Items.FIRE_STONE,
+            Items.WATER_STONE,
+            Items.THUNDERSTONE,
+            Items.LEAF_STONE,
+            Items.MOON_STONE,
+            Items.SUN_STONE)
   }
 }

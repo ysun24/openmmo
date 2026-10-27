@@ -21,15 +21,25 @@ object CatchCalculator {
   /** The Gen 3 balls (the decomp's ITEM_MASTER_BALL..ITEM_PREMIER_BALL). */
   val BALLS: Set<ItemDef> =
       setOf(
-          Items.MASTER_BALL, Items.ULTRA_BALL, Items.GREAT_BALL, Items.POKE_BALL,
-          Items.SAFARI_BALL, Items.NET_BALL, Items.DIVE_BALL, Items.NEST_BALL,
-          Items.REPEAT_BALL, Items.TIMER_BALL, Items.LUXURY_BALL, Items.PREMIER_BALL)
+          Items.MASTER_BALL,
+          Items.ULTRA_BALL,
+          Items.GREAT_BALL,
+          Items.POKE_BALL,
+          Items.SAFARI_BALL,
+          Items.NET_BALL,
+          Items.DIVE_BALL,
+          Items.NEST_BALL,
+          Items.REPEAT_BALL,
+          Items.TIMER_BALL,
+          Items.LUXURY_BALL,
+          Items.PREMIER_BALL)
 
   /** The ball's multiplier, per 10 (so 15 is the Great Ball's 1.5). */
   fun multiplier(ball: ItemDef, target: BattleMonState, ctx: CatchContext): Int =
       when (ball) {
         Items.ULTRA_BALL -> 20
-        Items.GREAT_BALL, Items.SAFARI_BALL -> 15
+        Items.GREAT_BALL,
+        Items.SAFARI_BALL -> 15
         Items.NET_BALL ->
             if (target.hasType(PokemonType.WATER) || target.hasType(PokemonType.BUG)) 30 else 10
         Items.DIVE_BALL -> if (ctx.underwater) 35 else 10
@@ -48,8 +58,12 @@ object CatchCalculator {
     var odds = (catchRate * mult / 10) * (maxHp * 3 - target.currentHp * 2) / (3 * maxHp)
     val s = target.status
     if (s and (StatusCondition.SLEEP_MASK or StatusCondition.FREEZE) != 0) odds *= 2
-    if (s and (StatusCondition.POISON or StatusCondition.BURN or StatusCondition.PARALYSIS or
-        StatusCondition.TOXIC) != 0) odds = odds * 15 / 10
+    if (s and
+        (StatusCondition.POISON or
+            StatusCondition.BURN or
+            StatusCondition.PARALYSIS or
+            StatusCondition.TOXIC) != 0)
+        odds = odds * 15 / 10
     return odds
   }
 
@@ -104,58 +118,57 @@ object BattleItemEffects {
   private const val FULL = Int.MAX_VALUE
   private const val ALL_STATUS = 0xFF
 
-  private val table: Map<ItemDef, BattleItemEffect> =
-      buildMap {
-        CatchCalculator.BALLS.forEach { put(it, BattleItemEffect.Ball) }
-        put(Items.POTION, BattleItemEffect.Heal(20))
-        put(Items.SUPER_POTION, BattleItemEffect.Heal(50))
-        put(Items.HYPER_POTION, BattleItemEffect.Heal(200))
-        put(Items.MAX_POTION, BattleItemEffect.Heal(FULL))
-        put(Items.FULL_RESTORE, BattleItemEffect.Heal(FULL, cures = true))
-        put(Items.FRESH_WATER, BattleItemEffect.Heal(50))
-        put(Items.SODA_POP, BattleItemEffect.Heal(60))
-        put(Items.LEMONADE, BattleItemEffect.Heal(80))
-        put(Items.MOOMOO_MILK, BattleItemEffect.Heal(100))
-        put(Items.ENERGYPOWDER, BattleItemEffect.Heal(50))
-        put(Items.ENERGY_ROOT, BattleItemEffect.Heal(200))
-        put(Items.BERRY_JUICE, BattleItemEffect.Heal(20))
-        put(Items.ORAN_BERRY, BattleItemEffect.Heal(10))
-        put(Items.SITRUS_BERRY, BattleItemEffect.Heal(30))
-        put(Items.REVIVE, BattleItemEffect.Revive(0.5))
-        put(Items.MAX_REVIVE, BattleItemEffect.Revive(1.0))
-        put(Items.REVIVAL_HERB, BattleItemEffect.Revive(1.0))
-        put(Items.ANTIDOTE, BattleItemEffect.Cure(StatusCondition.POISON or StatusCondition.TOXIC))
-        put(Items.PECHA_BERRY, BattleItemEffect.Cure(StatusCondition.POISON or StatusCondition.TOXIC))
-        put(Items.BURN_HEAL, BattleItemEffect.Cure(StatusCondition.BURN))
-        put(Items.RAWST_BERRY, BattleItemEffect.Cure(StatusCondition.BURN))
-        put(Items.ICE_HEAL, BattleItemEffect.Cure(StatusCondition.FREEZE))
-        put(Items.ASPEAR_BERRY, BattleItemEffect.Cure(StatusCondition.FREEZE))
-        put(Items.AWAKENING, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
-        put(Items.CHESTO_BERRY, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
-        put(Items.BLUE_FLUTE, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
-        put(Items.PARLYZ_HEAL, BattleItemEffect.Cure(StatusCondition.PARALYSIS))
-        put(Items.CHERI_BERRY, BattleItemEffect.Cure(StatusCondition.PARALYSIS))
-        put(Items.FULL_HEAL, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
-        put(Items.HEAL_POWDER, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
-        put(Items.LAVA_COOKIE, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
-        put(Items.LUM_BERRY, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
-        put(Items.PERSIM_BERRY, BattleItemEffect.Cure(0, confusion = true))
-        put(Items.YELLOW_FLUTE, BattleItemEffect.Cure(0, confusion = true))
-        put(Items.ETHER, BattleItemEffect.RestorePp(10, allMoves = false))
-        put(Items.LEPPA_BERRY, BattleItemEffect.RestorePp(10, allMoves = false))
-        put(Items.MAX_ETHER, BattleItemEffect.RestorePp(FULL, allMoves = false))
-        put(Items.ELIXIR, BattleItemEffect.RestorePp(10, allMoves = true))
-        put(Items.MAX_ELIXIR, BattleItemEffect.RestorePp(FULL, allMoves = true))
-        put(Items.X_ATTACK, BattleItemEffect.StatUp(BattleStat.ATTACK))
-        put(Items.X_DEFEND, BattleItemEffect.StatUp(BattleStat.DEFENSE))
-        put(Items.X_SPEED, BattleItemEffect.StatUp(BattleStat.SPEED))
-        put(Items.X_SPECIAL, BattleItemEffect.StatUp(BattleStat.SP_ATTACK))
-        put(Items.X_ACCURACY, BattleItemEffect.StatUp(BattleStat.ACCURACY))
-        put(Items.DIRE_HIT, BattleItemEffect.DireHit)
-        put(Items.GUARD_SPEC, BattleItemEffect.GuardSpec)
-        put(Items.POKE_DOLL, BattleItemEffect.Escape)
-        put(Items.FLUFFY_TAIL, BattleItemEffect.Escape)
-      }
+  private val table: Map<ItemDef, BattleItemEffect> = buildMap {
+    CatchCalculator.BALLS.forEach { put(it, BattleItemEffect.Ball) }
+    put(Items.POTION, BattleItemEffect.Heal(20))
+    put(Items.SUPER_POTION, BattleItemEffect.Heal(50))
+    put(Items.HYPER_POTION, BattleItemEffect.Heal(200))
+    put(Items.MAX_POTION, BattleItemEffect.Heal(FULL))
+    put(Items.FULL_RESTORE, BattleItemEffect.Heal(FULL, cures = true))
+    put(Items.FRESH_WATER, BattleItemEffect.Heal(50))
+    put(Items.SODA_POP, BattleItemEffect.Heal(60))
+    put(Items.LEMONADE, BattleItemEffect.Heal(80))
+    put(Items.MOOMOO_MILK, BattleItemEffect.Heal(100))
+    put(Items.ENERGYPOWDER, BattleItemEffect.Heal(50))
+    put(Items.ENERGY_ROOT, BattleItemEffect.Heal(200))
+    put(Items.BERRY_JUICE, BattleItemEffect.Heal(20))
+    put(Items.ORAN_BERRY, BattleItemEffect.Heal(10))
+    put(Items.SITRUS_BERRY, BattleItemEffect.Heal(30))
+    put(Items.REVIVE, BattleItemEffect.Revive(0.5))
+    put(Items.MAX_REVIVE, BattleItemEffect.Revive(1.0))
+    put(Items.REVIVAL_HERB, BattleItemEffect.Revive(1.0))
+    put(Items.ANTIDOTE, BattleItemEffect.Cure(StatusCondition.POISON or StatusCondition.TOXIC))
+    put(Items.PECHA_BERRY, BattleItemEffect.Cure(StatusCondition.POISON or StatusCondition.TOXIC))
+    put(Items.BURN_HEAL, BattleItemEffect.Cure(StatusCondition.BURN))
+    put(Items.RAWST_BERRY, BattleItemEffect.Cure(StatusCondition.BURN))
+    put(Items.ICE_HEAL, BattleItemEffect.Cure(StatusCondition.FREEZE))
+    put(Items.ASPEAR_BERRY, BattleItemEffect.Cure(StatusCondition.FREEZE))
+    put(Items.AWAKENING, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
+    put(Items.CHESTO_BERRY, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
+    put(Items.BLUE_FLUTE, BattleItemEffect.Cure(StatusCondition.SLEEP_MASK))
+    put(Items.PARLYZ_HEAL, BattleItemEffect.Cure(StatusCondition.PARALYSIS))
+    put(Items.CHERI_BERRY, BattleItemEffect.Cure(StatusCondition.PARALYSIS))
+    put(Items.FULL_HEAL, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
+    put(Items.HEAL_POWDER, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
+    put(Items.LAVA_COOKIE, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
+    put(Items.LUM_BERRY, BattleItemEffect.Cure(ALL_STATUS, confusion = true))
+    put(Items.PERSIM_BERRY, BattleItemEffect.Cure(0, confusion = true))
+    put(Items.YELLOW_FLUTE, BattleItemEffect.Cure(0, confusion = true))
+    put(Items.ETHER, BattleItemEffect.RestorePp(10, allMoves = false))
+    put(Items.LEPPA_BERRY, BattleItemEffect.RestorePp(10, allMoves = false))
+    put(Items.MAX_ETHER, BattleItemEffect.RestorePp(FULL, allMoves = false))
+    put(Items.ELIXIR, BattleItemEffect.RestorePp(10, allMoves = true))
+    put(Items.MAX_ELIXIR, BattleItemEffect.RestorePp(FULL, allMoves = true))
+    put(Items.X_ATTACK, BattleItemEffect.StatUp(BattleStat.ATTACK))
+    put(Items.X_DEFEND, BattleItemEffect.StatUp(BattleStat.DEFENSE))
+    put(Items.X_SPEED, BattleItemEffect.StatUp(BattleStat.SPEED))
+    put(Items.X_SPECIAL, BattleItemEffect.StatUp(BattleStat.SP_ATTACK))
+    put(Items.X_ACCURACY, BattleItemEffect.StatUp(BattleStat.ACCURACY))
+    put(Items.DIRE_HIT, BattleItemEffect.DireHit)
+    put(Items.GUARD_SPEC, BattleItemEffect.GuardSpec)
+    put(Items.POKE_DOLL, BattleItemEffect.Escape)
+    put(Items.FLUFFY_TAIL, BattleItemEffect.Escape)
+  }
 
   fun of(item: ItemDef): BattleItemEffect? = table[item]
 

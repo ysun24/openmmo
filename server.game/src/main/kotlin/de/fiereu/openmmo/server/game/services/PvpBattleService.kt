@@ -9,12 +9,16 @@ import de.fiereu.openmmo.net.game.packets.DuelInviteOutcomePacket
 import de.fiereu.openmmo.net.game.packets.DuelInvitePacket
 import de.fiereu.openmmo.net.game.packets.InGameChallengeResponsePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtActionPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleExtKind
 import de.fiereu.openmmo.net.game.packets.battle.BattleTurnTimerPacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesChallengePacket
 import de.fiereu.openmmo.net.game.packets.battle.DuelRulesPacket
 import de.fiereu.openmmo.pokemon.SpeciesDef
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
+import de.fiereu.openmmo.server.game.battle.BattleChoice
+import de.fiereu.openmmo.server.game.battle.BattleField
 import de.fiereu.openmmo.server.game.battle.BattleInstance
 import de.fiereu.openmmo.server.game.battle.BattleMonState
 import de.fiereu.openmmo.server.game.battle.BattlePacketEmitter
@@ -22,13 +26,9 @@ import de.fiereu.openmmo.server.game.battle.BattleRegistry
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.BattleRules
-import de.fiereu.openmmo.server.game.battle.BattleChoice
-import de.fiereu.openmmo.server.game.battle.BattleField
 import de.fiereu.openmmo.server.game.battle.BattleSideState
 import de.fiereu.openmmo.server.game.battle.BattleTerrain
 import de.fiereu.openmmo.server.game.battle.BattlerRef
-import de.fiereu.openmmo.net.game.packets.battle.BattleExtActionPacket
-import de.fiereu.openmmo.net.game.packets.battle.BattleExtKind
 import de.fiereu.openmmo.server.game.battle.DuelTimer
 import de.fiereu.openmmo.server.game.battle.PvpDuel
 import de.fiereu.openmmo.server.game.battle.StatCalculator
@@ -256,7 +256,8 @@ constructor(
     val bParty = buildParty(bStored.pokemon, rules) ?: return
     // 2v2 needs two monsters that can fight on both sides; otherwise it is fought 1v1.
     val format =
-        if (rules.doubles && aParty.count { !it.fainted } >= 2 && bParty.count { !it.fainted } >= 2) 2
+        if (rules.doubles && aParty.count { !it.fainted } >= 2 && bParty.count { !it.fainted } >= 2)
+            2
         else 1
     val battleRules =
         BattleRules(
@@ -266,11 +267,17 @@ constructor(
             format = format,
             terrain = BattleTerrain.STADIUM,
             musicKey = "pvp")
-    val aSide = BattleSideState(aParty.indices.filter { !aParty[it].fainted }.take(format).toMutableList())
-    val bSide = BattleSideState(bParty.indices.filter { !bParty[it].fainted }.take(format).toMutableList())
+    val aSide =
+        BattleSideState(aParty.indices.filter { !aParty[it].fainted }.take(format).toMutableList())
+    val bSide =
+        BattleSideState(bParty.indices.filter { !bParty[it].fainted }.take(format).toMutableList())
     val field = BattleField()
-    val a = battles.create(aId, challengerSession, aParty, bParty, BattleRng(), battleRules, aSide, bSide, field)
-    val b = battles.create(bId, targetSession, bParty, aParty, BattleRng(), battleRules, bSide, aSide, field)
+    val a =
+        battles.create(
+            aId, challengerSession, aParty, bParty, BattleRng(), battleRules, aSide, bSide, field)
+    val b =
+        battles.create(
+            bId, targetSession, bParty, aParty, BattleRng(), battleRules, bSide, aSide, field)
     val duel = PvpDuel(a, b, rules)
     a.pvp = duel
     b.pvp = duel
@@ -280,7 +287,9 @@ constructor(
       side.opponentSeen.clear()
       side.opponentSeen.addAll(side.foe.actives)
     }
-    log.info { "Starting duel ${aStored.info.name} vs ${bStored.info.name} $rules (format $format)" }
+    log.info {
+      "Starting duel ${aStored.info.name} vs ${bStored.info.name} $rules (format $format)"
+    }
     for ((side, name, rivalName) in
         listOf(
             Triple(a, aStored.info.name, bStored.info.name),
@@ -304,7 +313,9 @@ constructor(
     duel.mutex.withLock {
       val pos =
           duel.owed[battle.charId]?.firstOrNull()
-              ?: battle.own.actives.indices.firstOrNull { it !in duel.choices[battle.charId].orEmpty() }
+              ?: battle.own.actives.indices.firstOrNull {
+                it !in duel.choices[battle.charId].orEmpty()
+              }
               ?: 0
       act(duel, battle, toExt(pos, action))
     }
@@ -375,10 +386,14 @@ constructor(
       BattleExtKind.MOVE -> {
         val usable = mon.moves.filter { it.id.toInt() != 0 && it.pp > 0 }
         // With no pp left anywhere the engine falls back on Struggle.
-        if (usable.isNotEmpty() && usable.none { it.id == a.id } &&
-            mon.volatile.chargingMove == 0 && mon.volatile.rampageMove == 0) return null
+        if (usable.isNotEmpty() &&
+            usable.none { it.id == a.id } &&
+            mon.volatile.chargingMove == 0 &&
+            mon.volatile.rampageMove == 0)
+            return null
         val target =
-            if (a.targetSide in 0..1 && a.targetPos >= 0) BattlerRef(a.targetSide, a.targetPos) else null
+            if (a.targetSide in 0..1 && a.targetPos >= 0) BattlerRef(a.targetSide, a.targetPos)
+            else null
         BattleChoice.UseMove(0, pos, a.id.toInt(), target)
       }
       BattleExtKind.SWITCH -> {
@@ -426,7 +441,8 @@ constructor(
       else -> {
         for (side in duel.sides()) {
           val owed = mutableSetOf<Int>()
-          var bench = side.party.indices.count { it !in side.own.actives && !side.party[it].fainted }
+          var bench =
+              side.party.indices.count { it !in side.own.actives && !side.party[it].fainted }
           for (pos in side.own.actives.indices) {
             val m = side.party.getOrNull(side.own.actives[pos])
             if (m != null && !m.fainted) continue
@@ -461,7 +477,9 @@ constructor(
     val at = if (pos in owed) pos else owed.firstOrNull() ?: return
     val target = action.id.toInt()
     val next = battle.party.getOrNull(target)
-    if (action.kind != BattleExtKind.SWITCH || next == null || next.fainted ||
+    if (action.kind != BattleExtKind.SWITCH ||
+        next == null ||
+        next.fainted ||
         target in battle.own.actives) {
       emitter.sendSwitchPrompt(battle)
       return

@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 
@@ -44,6 +45,31 @@ interface GameActions {
   fun pcWithdraw(slot: Int): String?
 
   fun battleFight(move: Int): String?
+
+  /** r3-battle: a move for battle position [pos] aimed at [targetSide] (me/foe) [targetPos]. */
+  fun battleFightAt(move: Int, pos: Int?, targetSide: String?, targetPos: Int?): String? =
+      battleFight(move)
+
+  /** r3-battle: a bag item in battle, on party monster [mon] (id) and move slot [moveSlot]. */
+  fun battleItem(item: Int, mon: Long?, moveSlot: Int?, pos: Int?): String? = "not supported"
+
+  /** r3-battle: throws the given ball item. */
+  fun battleBallItem(item: Int): String? = battleBall()
+
+  /** r3-battle: answers the evolution scene (false = B, stop it). */
+  fun evolutionAnswer(proceed: Boolean): String? = "not supported"
+
+  /** r3-battle: closes a finished evolution scene. */
+  fun evolutionClose(): String? = null
+
+  /** r3-battle: a challenge with rules including the 2v2 double option. */
+  fun duelRulesDoubles(
+      name: String,
+      levelCap: Int,
+      maxParty: Int,
+      turnSeconds: Int,
+      doubles: Boolean
+  ): String? = duelRules(name, levelCap, maxParty, turnSeconds)
 
   fun battleSwitch(slot: Int): String?
 
@@ -135,10 +161,33 @@ object Dispatcher {
         "party.move" -> g.partyMove(m.reqInt("from", 0..5), m.reqInt("to", 0..5))
         "pc.deposit" -> g.pcDeposit(m.reqInt("slot", 0..5))
         "pc.withdraw" -> g.pcWithdraw(m.reqInt("slot", 0..MAX_PC_SLOT))
-        "battle.fight" -> g.battleFight(m.reqInt("move", 0..3))
+        "battle.fight" ->
+            if (m.keys.none { it in setOf("pos", "target") }) g.battleFight(m.reqInt("move", 0..3))
+            else {
+              val target = (m["target"] as? JsonObject)
+              val side = target?.get("side")?.let { (it as? JsonPrimitive)?.contentOrNull }
+              if (side != null && side !in setOf("me", "foe")) throw bad("target")
+              val tpos = target?.get("pos")?.let { (it as? JsonPrimitive)?.intOrNull }
+              if (tpos != null && tpos !in 0..1) throw bad("target")
+              g.battleFightAt(
+                  m.reqInt("move", 0..3),
+                  m.int("pos")?.also { if (it !in 0..1) throw bad("pos") },
+                  side,
+                  tpos)
+            }
+        "battle.item" -> {
+          val mon = m["mon"]
+          g.battleItem(
+              m.reqInt("item"),
+              if (mon == null || mon is JsonNull) null else m.id("mon"),
+              m.int("moveSlot")?.also { if (it !in 0..3) throw bad("moveSlot") },
+              m.int("pos")?.also { if (it !in 0..1) throw bad("pos") })
+        }
+        "evolution.answer" -> g.evolutionAnswer(m.bool("proceed") ?: throw bad("proceed"))
+        "evolution.close" -> g.evolutionClose()
         "battle.switch" -> g.battleSwitch(m.reqInt("slot", 0..5))
         "battle.run" -> g.battleRun()
-        "battle.ball" -> g.battleBall()
+        "battle.ball" -> m.int("item")?.let { g.battleBallItem(it) } ?: g.battleBall()
         "battle.learn" -> {
           val slot = m["slot"]
           if (slot == null || slot is JsonNull) g.battleLearn(null)
@@ -148,12 +197,13 @@ object Dispatcher {
         "duel" ->
             if (m.keys.none { it in DUEL_RULE_FIELDS }) g.duel(m.name("name"))
             else
-                g.duelRules(
+                g.duelRulesDoubles(
                     m.name("name"),
                     m.int("levelCap")?.also { if (it != 0 && it !in 1..100) throw bad("levelCap") }
                         ?: 0,
                     m.int("party")?.also { if (it !in 1..6) throw bad("party") } ?: 6,
-                    m.int("timer")?.also { if (it != 0 && it !in 5..240) throw bad("timer") } ?: 0)
+                    m.int("timer")?.also { if (it != 0 && it !in 5..240) throw bad("timer") } ?: 0,
+                    m.bool("doubles") ?: false)
         "duel.answer" -> g.duelAnswer(m.bool("accept") ?: throw bad("accept"))
         "trade.request" -> g.tradeRequest(m.name("name"))
         "trade.accept",

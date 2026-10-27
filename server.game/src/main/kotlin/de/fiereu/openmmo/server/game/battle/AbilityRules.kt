@@ -78,7 +78,12 @@ internal fun BattleCtx.lowerStat(
   val applied = target.changeStage(stat, -delta)
   emit(
       BattleEvent.StageChanged(
-          target.entityId, stat, target.stage(stat), stageValue(target, stat), -delta, applied == 0))
+          target.entityId,
+          stat,
+          target.stage(stat),
+          stageValue(target, stat),
+          -delta,
+          applied == 0))
   if (applied == 0 && announce) {
     say("${name(target)}'s ${statLabel(stat)} won't go lower!", target.entityId)
   }
@@ -105,11 +110,12 @@ internal fun BattleCtx.onEntry(ref: BattlerRef) {
   mon.volatile.actedSinceSwitchIn = false
   val side = sideState(ref.side)
   if (side.spikes > 0 && !mon.hasType(PokemonType.FLYING) && mon.ability != Ability.LEVITATE) {
-    val divisor = when (side.spikes) {
-      1 -> 8
-      2 -> 6
-      else -> 4
-    }
+    val divisor =
+        when (side.spikes) {
+          1 -> 8
+          2 -> 6
+          else -> 4
+        }
     say("${name(mon)} is hurt by SPIKES!", mon.entityId)
     hurt(mon, mon.maxHp / divisor, "spikes")
     if (mon.fainted) return
@@ -207,7 +213,9 @@ internal fun BattleCtx.contactAbility(attacker: BattleMonState, defender: Battle
       hurt(attacker, attacker.maxHp / 16, "roughskin")
     }
     Ability.CUTE_CHARM ->
-        if (chance30 && attacker.volatile.attractedTo == 0L && genderOpposite(attacker, defender) &&
+        if (chance30 &&
+            attacker.volatile.attractedTo == 0L &&
+            genderOpposite(attacker, defender) &&
             attacker.ability != Ability.OBLIVIOUS) {
           attacker.volatile.attractedTo = defender.entityId
           emit(BattleEvent.AbilityShown(defender.entityId, "CUTE CHARM"))

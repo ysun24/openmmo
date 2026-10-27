@@ -50,16 +50,26 @@ private class R3Fixture(scope: CoroutineScope) {
   val emitter = BattlePacketEmitter(interest)
   val service =
       BattleService(
-          store, registry, engine,
+          store,
+          registry,
+          engine,
           WildMonFactory(SpeciesRegistry(), MoveRegistry(), LearnsetRegistry(), EntityIdService()),
-          emitter, BattleRewards(), MoveLearner(LearnsetRegistry(), MoveRegistry()), interest,
-          SpeciesRegistry(), MoveRegistry(), TrainerRegistry(), items,
-          PvpBattleService(store, SessionRegistry(), registry, engine, emitter, interest, SpeciesRegistry()))
+          emitter,
+          BattleRewards(),
+          MoveLearner(LearnsetRegistry(), MoveRegistry()),
+          interest,
+          SpeciesRegistry(),
+          MoveRegistry(),
+          TrainerRegistry(),
+          items,
+          PvpBattleService(
+              store, SessionRegistry(), registry, engine, emitter, interest, SpeciesRegistry()))
 
   suspend fun player(vararg mons: de.fiereu.openmmo.common.Pokemon): Pair<FakeSession, Long> {
     val created = store.createCharacter(1, "Ash", CharacterGender.MALE, Region.HOENN)
     for ((i, m) in mons.withIndex()) {
-      store.addPokemon(created.info.id, m.copy(ownerId = created.info.id, containerSlot = i.toShort(), hp = 999))
+      store.addPokemon(
+          created.info.id, m.copy(ownerId = created.info.id, containerSlot = i.toShort(), hp = 999))
     }
     return FakeSession(created.info.id) to created.info.id
   }
@@ -70,9 +80,18 @@ class BattleServiceR3Test :
       test("a double trainer battle puts two monsters out on each side and waits for both picks") {
         runTest {
           val fx = R3Fixture(this)
-          val (session, charId) = fx.player(testMon(7, 40, listOf(55)), testMon(4, 40, listOf(52)), testMon(1, 40, listOf(22)))
+          val (session, charId) =
+              fx.player(
+                  testMon(7, 40, listOf(55)),
+                  testMon(4, 40, listOf(52)),
+                  testMon(1, 40, listOf(22)))
           val trainer =
-              TrainerDef(1, "TWINS", 1, true, 10,
+              TrainerDef(
+                  1,
+                  "TWINS",
+                  1,
+                  true,
+                  10,
                   listOf(TrainerMon(19, 5, 0, 0, listOf(33)), TrainerMon(19, 5, 0, 0, listOf(33))))
           val job = launch { fx.service.startTrainerBattle(session, trainer) }
           runCurrent()
@@ -80,11 +99,16 @@ class BattleServiceR3Test :
           battle.format shouldBe 2
           battle.own.actives shouldBe mutableListOf(0, 1)
           battle.foe.actives shouldBe mutableListOf(0, 1)
-          session.sent.filterIsInstance<BattleExtPacket>().any { it.json.contains("\"format\":2") }.shouldBeTrue()
+          session.sent
+              .filterIsInstance<BattleExtPacket>()
+              .any { it.json.contains("\"format\":2") }
+              .shouldBeTrue()
           val turnBefore = battle.turn
-          fx.service.onExtAction(PacketEvent(BattleExtActionPacket(0, BattleExtKind.MOVE, 55, 1, 0), session))
+          fx.service.onExtAction(
+              PacketEvent(BattleExtActionPacket(0, BattleExtKind.MOVE, 55, 1, 0), session))
           battle.turn shouldBe turnBefore // still waiting for position 1
-          fx.service.onExtAction(PacketEvent(BattleExtActionPacket(1, BattleExtKind.MOVE, 52, 1, 1), session))
+          fx.service.onExtAction(
+              PacketEvent(BattleExtActionPacket(1, BattleExtKind.MOVE, 52, 1, 1), session))
           // Two level 40 hits knock both level 5 foes out; the trainer has no more.
           battle.pendingResult shouldBe de.fiereu.openmmo.server.game.battle.BattleResult.VICTORY
           job.cancel()
@@ -96,11 +120,19 @@ class BattleServiceR3Test :
           val fx = R3Fixture(this)
           val (session, charId) = fx.player(testMon(7, 40, listOf(55)))
           fx.store.addItem(charId, fx.items.idOf(Items.POKE_BALL), 2)
-          val trainer = TrainerDef(2, "JOEY", 1, false, 10, listOf(TrainerMon(19, 5, 0, 0, listOf(33))))
+          val trainer =
+              TrainerDef(2, "JOEY", 1, false, 10, listOf(TrainerMon(19, 5, 0, 0, listOf(33))))
           val job = launch { fx.service.startTrainerBattle(session, trainer) }
           runCurrent()
-          fx.service.onBattleAction(PacketEvent(BattleActionSelectPacket(0, BattleAction.ITEM, fx.items.idOf(Items.POKE_BALL).toShort(), 0, 0), session))
-          session.sent.filterIsInstance<BattleExtPacket>().any { it.json.contains("blocked the BALL") }.shouldBeTrue()
+          fx.service.onBattleAction(
+              PacketEvent(
+                  BattleActionSelectPacket(
+                      0, BattleAction.ITEM, fx.items.idOf(Items.POKE_BALL).toShort(), 0, 0),
+                  session))
+          session.sent
+              .filterIsInstance<BattleExtPacket>()
+              .any { it.json.contains("blocked the BALL") }
+              .shouldBeTrue()
           fx.store.getCharacter(charId)!!.items[fx.items.idOf(Items.POKE_BALL)] shouldBe 2
           job.cancel()
         }
@@ -116,7 +148,11 @@ class BattleServiceR3Test :
           fx.store.addItem(charId, potion, 1)
           fx.service.startWildBattle(session, 129, 5) // Magikarp only splashes
           val battle = fx.registry.byChar(charId).shouldNotBeNull()
-          fx.service.onExtAction(PacketEvent(BattleExtActionPacket(0, BattleExtKind.ITEM, potion.toShort(), targetEntity = mon.id), session))
+          fx.service.onExtAction(
+              PacketEvent(
+                  BattleExtActionPacket(
+                      0, BattleExtKind.ITEM, potion.toShort(), targetEntity = mon.id),
+                  session))
           battle.activeMon().currentHp shouldBe 50
           (fx.store.getCharacter(charId)!!.items[potion] ?: 0) shouldBe 0
           battle.turn shouldBe 2
@@ -126,9 +162,11 @@ class BattleServiceR3Test :
       test("the major status persists after the battle and a heal clears it") {
         runTest {
           val fx = R3Fixture(this)
-          val (session, charId) = fx.player(testMon(7, 40, listOf(55), status = StatusCondition.POISON))
+          val (session, charId) =
+              fx.player(testMon(7, 40, listOf(55), status = StatusCondition.POISON))
           fx.service.startWildBattle(session, 129, 5)
-          fx.service.onBattleAction(PacketEvent(BattleActionSelectPacket(0, BattleAction.RUN, 0, 0, 0), session))
+          fx.service.onBattleAction(
+              PacketEvent(BattleActionSelectPacket(0, BattleAction.RUN, 0, 0, 0), session))
           fx.service.onClientReady(PacketEvent(MapLoadedAckPacket(), session))
           val stored = fx.store.getCharacter(charId)!!.pokemon.single()
           stored.status shouldBe StatusCondition.POISON

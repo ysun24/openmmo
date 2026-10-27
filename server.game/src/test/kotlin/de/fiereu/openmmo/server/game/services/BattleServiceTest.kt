@@ -17,8 +17,8 @@ import de.fiereu.openmmo.net.game.packets.MapLoadedAckPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleActionSelectPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleBulkStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleEntityDeltaPacket
-import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleExtPacket
+import de.fiereu.openmmo.net.game.packets.battle.BattleFieldStatePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleListEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleQueuedEventPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePacket
@@ -330,12 +330,15 @@ class BattleServiceTest :
 
           (fx.store.getCharacter(charId)?.items?.get(5004) ?: 0) shouldBe 0
           val ball =
-              session.sent.filterIsInstance<BattleExtPacket>().map { it.json }.single {
-                it.contains("\"k\":\"ball\"")
-              }
+              session.sent
+                  .filterIsInstance<BattleExtPacket>()
+                  .map { it.json }
+                  .single { it.contains("\"k\":\"ball\"") }
           ball.contains("Poké Ball").shouldBeTrue()
           // A caught monster also gets the retail throw event, named by the client's ball id.
-          session.sent.filterIsInstance<BattleListEventPacket>().forEach { it.value shouldBe 5004.toShort() }
+          session.sent.filterIsInstance<BattleListEventPacket>().forEach {
+            it.value shouldBe 5004.toShort()
+          }
         }
       }
 
@@ -347,7 +350,10 @@ class BattleServiceTest :
 
           session.act(fx.service, BattleAction.ITEM, 5004)
 
-          session.sent.filterIsInstance<BattleExtPacket>().none { it.json.contains("\"k\":\"ball\"") }.shouldBeTrue()
+          session.sent
+              .filterIsInstance<BattleExtPacket>()
+              .none { it.json.contains("\"k\":\"ball\"") }
+              .shouldBeTrue()
         }
       }
 

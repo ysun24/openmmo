@@ -39,7 +39,9 @@ internal fun BattleCtx.statusBlock(
     }
   }
   val ref = refOf(target)
-  if (source != null && source !== target && ref != null &&
+  if (source != null &&
+      source !== target &&
+      ref != null &&
       sideState(ref.side).safeguardTurns > 0) {
     return "$who is protected by SAFEGUARD!"
   }
@@ -110,11 +112,17 @@ internal fun BattleCtx.trySetStatus(
       },
       target.entityId)
   // Synchronize passes poison, burn and paralysis back to the monster that caused them.
-  if (source != null && source !== target && target.ability == Ability.SYNCHRONIZE &&
-      packed in SYNCHRONIZED && !source.hasStatus) {
+  if (source != null &&
+      source !== target &&
+      target.ability == Ability.SYNCHRONIZE &&
+      packed in SYNCHRONIZED &&
+      !source.hasStatus) {
     emit(BattleEvent.AbilityShown(target.entityId, "SYNCHRONIZE"))
-    trySetStatus(source, if (packed == StatusCondition.TOXIC) StatusCondition.POISON else packed,
-        null, announceFail = false)
+    trySetStatus(
+        source,
+        if (packed == StatusCondition.TOXIC) StatusCondition.POISON else packed,
+        null,
+        announceFail = false)
   }
   statusBerry(target)
   return true
@@ -149,7 +157,8 @@ internal fun BattleCtx.tryConfuse(
         target.fainted -> "But it failed!"
         target.confused -> "$who is already confused!"
         target.ability == Ability.OWN_TEMPO -> "$who's OWN TEMPO prevents confusion!"
-        source != null && source !== target &&
+        source != null &&
+            source !== target &&
             refOf(target)?.let { sideState(it.side).safeguardTurns > 0 } == true ->
             "$who is protected by SAFEGUARD!"
         else -> null
@@ -248,8 +257,10 @@ private fun BattleCtx.weatherEndOfTurn() {
     val immune =
         when (w) {
           Weather.SAND ->
-              mon.hasType(PokemonType.ROCK) || mon.hasType(PokemonType.GROUND) ||
-                  mon.hasType(PokemonType.STEEL) || mon.ability == Ability.SAND_VEIL
+              mon.hasType(PokemonType.ROCK) ||
+                  mon.hasType(PokemonType.GROUND) ||
+                  mon.hasType(PokemonType.STEEL) ||
+                  mon.ability == Ability.SAND_VEIL
           Weather.HAIL -> mon.hasType(PokemonType.ICE)
           else -> true
         }

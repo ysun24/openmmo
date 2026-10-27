@@ -6,8 +6,8 @@ import de.fiereu.openmmo.moves.MoveRegistry
 import de.fiereu.openmmo.typechart.TypeChart
 
 /**
- * Everything one engine call works on: the battle seen from [battle]'s player (side 0 = its
- * party, side 1 = the opposing party) and the events produced so far, in order.
+ * Everything one engine call works on: the battle seen from [battle]'s player (side 0 = its party,
+ * side 1 = the opposing party) and the events produced so far, in order.
  */
 internal class BattleCtx(
     val battle: BattleInstance,
@@ -42,7 +42,8 @@ internal class BattleCtx(
     for (side in 0..1) {
       val actives = sideState(side).actives
       for (pos in actives.indices) {
-        if (party(side).getOrNull(actives[pos])?.entityId == mon.entityId) return BattlerRef(side, pos)
+        if (party(side).getOrNull(actives[pos])?.entityId == mon.entityId)
+            return BattlerRef(side, pos)
       }
     }
     return null

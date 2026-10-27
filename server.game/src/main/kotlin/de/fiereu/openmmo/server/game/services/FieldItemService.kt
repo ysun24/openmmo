@@ -43,7 +43,9 @@ constructor(
     val state = session.attributes[PLAYER_STATE] ?: return
     val charId = state.characterId ?: return
     val evo = evolution
-    if (evo != null && evo.isEvolutionItem(event.packet.itemId.toInt()) && !battles.inBattle(charId)) {
+    if (evo != null &&
+        evo.isEvolutionItem(event.packet.itemId.toInt()) &&
+        !battles.inBattle(charId)) {
       evo.useEvolutionItem(session, charId, event.packet.pokemonId, event.packet.itemId.toInt())
           ?.let { session.send(notice(it)) }
       return
@@ -110,7 +112,8 @@ constructor(
         if (restored == mon.moves) null else mon.copy(moves = restored)
       }
       // r3-battle: the major status now outlasts a battle (Pokemon.status).
-      FieldItemEffect.CureStatus -> if (mon.status == 0 || mon.hp <= 0) null else mon.copy(status = 0)
+      FieldItemEffect.CureStatus ->
+          if (mon.status == 0 || mon.hp <= 0) null else mon.copy(status = 0)
       is FieldItemEffect.Repel -> null
     }
   }

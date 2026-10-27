@@ -2,11 +2,11 @@ package de.fiereu.openmmo.net.game.packets.battle
 
 import de.fiereu.bytecodec.Codec
 import de.fiereu.bytecodec.CodecScope
-import de.fiereu.bytecodec.ReadBuffer
-import de.fiereu.bytecodec.WriteBuffer
 import de.fiereu.bytecodec.PacketCodec
+import de.fiereu.bytecodec.ReadBuffer
 import de.fiereu.bytecodec.U8
 import de.fiereu.bytecodec.Utf16LeNullTerminated
+import de.fiereu.bytecodec.WriteBuffer
 
 /*
  * Duel rules and the duel turn timer. These packets are our own, not reverse engineered: both ends

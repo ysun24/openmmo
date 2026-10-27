@@ -81,10 +81,11 @@ internal class MoveRunner(private val ctx: BattleCtx) {
 
   /** Switches and items first, then moves by priority, Quick Claw, speed and a coin flip. */
   private fun order(planned: List<Planned>): List<Planned> {
-    val quick = planned.associateWith { p ->
-      val e = ctx.heldEffect(p.mon)
-      e?.name == "QUICK_CLAW" && rng.percent(e.param)
-    }
+    val quick =
+        planned.associateWith { p ->
+          val e = ctx.heldEffect(p.mon)
+          e?.name == "QUICK_CLAW" && rng.percent(e.param)
+        }
     val tiebreak = planned.associateWith { rng.random16() }
     return planned.sortedWith(
         compareByDescending<Planned> { if (it.choice is BattleChoice.UseMove) 0 else 1 }
@@ -187,7 +188,9 @@ internal class MoveRunner(private val ctx: BattleCtx) {
         }
       } else if (move.id == SNORE || move.id == SLEEP_TALK) {
         deductPp(user, move, userRef)
-        ctx.emit(BattleEvent.MoveUsed(user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
+        ctx.emit(
+            BattleEvent.MoveUsed(
+                user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
         ctx.emit(BattleEvent.MoveFailed(user.entityId, move.id.toShort()))
         return
       }
@@ -243,7 +246,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
         return
       }
       if (v.attractedTo != 0L) {
-        val lover = ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.entityId == v.attractedTo }
+        val lover =
+            ctx.allRefs().mapNotNull { ctx.live(it) }.firstOrNull { it.entityId == v.attractedTo }
         if (lover == null) v.attractedTo = 0
         else {
           ctx.say("$who is in love with ${ctx.name(lover)}!", user.entityId)
@@ -255,7 +259,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       }
       // Choice Band locks the holder into its first move.
       if (ctx.heldEffect(user)?.name == "CHOICE_BAND") {
-        if (v.choiceMove != 0 && v.choiceMove != move.id &&
+        if (v.choiceMove != 0 &&
+            v.choiceMove != move.id &&
             user.moves.any { it.id.toInt() == v.choiceMove && it.pp > 0 }) {
           moveId = v.choiceMove
           move = ctx.move(moveId) ?: move
@@ -266,10 +271,14 @@ internal class MoveRunner(private val ctx: BattleCtx) {
 
     // A two-turn move spends its first turn charging (Solar Beam fires at once in the sun).
     val charging = chargeMessage(move, user)
-    if (!called && charging != null && v.chargingMove != move.id &&
+    if (!called &&
+        charging != null &&
+        v.chargingMove != move.id &&
         !(move.effect == MoveEffect.SOLAR_BEAM && ctx.weather() == Weather.SUN)) {
       deductPp(user, move, userRef)
-      ctx.emit(BattleEvent.MoveUsed(user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
+      ctx.emit(
+          BattleEvent.MoveUsed(
+              user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
       ctx.emit(BattleEvent.Animation(user.entityId, move.id, 0))
       ctx.say(charging, user.entityId)
       v.chargingMove = move.id
@@ -304,7 +313,9 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     if (move.effect != MoveEffect.PROTECT) v.protectChain = 0
     if (move.effect != MoveEffect.RAGE) v.raging = false
 
-    ctx.emit(BattleEvent.MoveUsed(user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
+    ctx.emit(
+        BattleEvent.MoveUsed(
+            user.entityId, move.id.toShort(), slotOf(user, move), ppOf(user, move)))
     if (fakeOutFails) {
       ctx.emit(BattleEvent.MoveFailed(user.entityId, move.id.toShort()))
       return
@@ -392,7 +403,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       MoveTarget.BOTH -> liveFoes
       MoveTarget.FOES_AND_ALLY ->
           liveFoes + listOfNotNull(ctx.allyOf(userRef)?.takeIf { ctx.live(it) != null })
-      MoveTarget.RANDOM -> if (liveFoes.isEmpty()) emptyList() else listOf(liveFoes[rng.pick(liveFoes.size)])
+      MoveTarget.RANDOM ->
+          if (liveFoes.isEmpty()) emptyList() else listOf(liveFoes[rng.pick(liveFoes.size)])
       MoveTarget.USER_OR_SELECTED -> listOf(userRef)
       MoveTarget.SELECTED -> {
         if (chosen != null && chosen != userRef && ctx.live(chosen) != null) listOf(chosen)
@@ -444,7 +456,13 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     if (inv != null) {
       val reaches =
           when (inv) {
-            "FLY" -> move.effect in setOf(MoveEffect.GUST, MoveEffect.TWISTER, MoveEffect.THUNDER, MoveEffect.SKY_UPPERCUT)
+            "FLY" ->
+                move.effect in
+                    setOf(
+                        MoveEffect.GUST,
+                        MoveEffect.TWISTER,
+                        MoveEffect.THUNDER,
+                        MoveEffect.SKY_UPPERCUT)
             "DIG" -> move.effect in setOf(MoveEffect.EARTHQUAKE, MoveEffect.MAGNITUDE)
             "DIVE" -> move.id == 57 || move.id == 250
             else -> false
@@ -465,7 +483,9 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       accuracy = move.accuracy + (user.level - target.level)
       return rng.accuracyRoll() <= accuracy
     }
-    val evasionStage = if (tv.foresight) target.stage(BattleStat.EVASION).coerceAtMost(0) else target.stage(BattleStat.EVASION)
+    val evasionStage =
+        if (tv.foresight) target.stage(BattleStat.EVASION).coerceAtMost(0)
+        else target.stage(BattleStat.EVASION)
     val stage = user.stage(BattleStat.ACCURACY) - evasionStage
     var calc = StatStages.scaleAccuracy(accuracy, stage)
     if (user.ability == Ability.COMPOUND_EYES) calc = calc * 130 / 100
@@ -485,7 +505,13 @@ internal class MoveRunner(private val ctx: BattleCtx) {
   /** Gen 3 critical stage: high-crit moves +1, Scope Lens +1, Focus Energy +2, species items +2. */
   private fun critStage(user: BattleMonState, move: MoveDef): Int {
     var stage = 0
-    if (move.effect in setOf(MoveEffect.HIGH_CRITICAL, MoveEffect.SKY_ATTACK, MoveEffect.BLAZE_KICK, MoveEffect.POISON_TAIL)) stage += 1
+    if (move.effect in
+        setOf(
+            MoveEffect.HIGH_CRITICAL,
+            MoveEffect.SKY_ATTACK,
+            MoveEffect.BLAZE_KICK,
+            MoveEffect.POISON_TAIL))
+        stage += 1
     if (user.volatile.focusEnergy) stage += 2
     when (ctx.heldEffect(user)?.name) {
       "SCOPE_LENS" -> stage += 1
@@ -498,7 +524,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
   private val critOdds = intArrayOf(16, 8, 4, 3, 2)
 
   fun rollCrit(user: BattleMonState, target: BattleMonState, move: MoveDef): Boolean {
-    if (target.ability == Ability.BATTLE_ARMOR || target.ability == Ability.SHELL_ARMOR) return false
+    if (target.ability == Ability.BATTLE_ARMOR || target.ability == Ability.SHELL_ARMOR)
+        return false
     return rng.critRoll(critOdds[critStage(user, move)])
   }
 
@@ -509,8 +536,11 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       if (i == 1 && t == target.types[0]) break
       if (t == PokemonType.NONE || t == PokemonType.QUESTIONQUESTIONQUESTION) continue
       var m = ctx.typeChart.multiplier(type, t)
-      if (m == 0 && t == PokemonType.GHOST && target.volatile.foresight &&
-          (type == PokemonType.NORMAL || type == PokemonType.FIGHTING)) m = TypeChart.NEUTRAL
+      if (m == 0 &&
+          t == PokemonType.GHOST &&
+          target.volatile.foresight &&
+          (type == PokemonType.NORMAL || type == PokemonType.FIGHTING))
+          m = TypeChart.NEUTRAL
       result = result * m / TypeChart.NEUTRAL
     }
     return result
@@ -538,7 +568,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       HeldItems.boostedType(e)?.let { if (it == type) attack = attack * (100 + e.param) / 100 }
       when (e.name) {
         "CHOICE_BAND" -> if (physical) attack = attack * 150 / 100
-        "SOUL_DEW" -> if (!physical && user.species.id in setOf(380, 381)) attack = attack * 150 / 100
+        "SOUL_DEW" ->
+            if (!physical && user.species.id in setOf(380, 381)) attack = attack * 150 / 100
         "DEEP_SEA_TOOTH" -> if (!physical && user.species.id == 366) attack *= 2
         "LIGHT_BALL" -> if (!physical && user.species.id == 25) attack *= 2
         "THICK_CLUB" -> if (physical && user.species.id in setOf(104, 105)) attack *= 2
@@ -546,15 +577,19 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     }
     ctx.heldEffect(target)?.let { e ->
       when (e.name) {
-        "SOUL_DEW" -> if (!physical && target.species.id in setOf(380, 381)) defense = defense * 150 / 100
+        "SOUL_DEW" ->
+            if (!physical && target.species.id in setOf(380, 381)) defense = defense * 150 / 100
         "DEEP_SEA_SCALE" -> if (!physical && target.species.id == 366) defense *= 2
         "METAL_POWDER" -> if (physical && target.species.id == 132) defense *= 2
       }
     }
-    if (target.ability == Ability.THICK_FAT && (type == PokemonType.FIRE || type == PokemonType.ICE)) attack /= 2
+    if (target.ability == Ability.THICK_FAT &&
+        (type == PokemonType.FIRE || type == PokemonType.ICE))
+        attack /= 2
     if (user.ability == Ability.HUSTLE && physical) attack = attack * 150 / 100
     if (user.ability == Ability.GUTS && user.hasStatus && physical) attack = attack * 150 / 100
-    if (target.ability == Ability.MARVEL_SCALE && target.hasStatus && physical) defense = defense * 150 / 100
+    if (target.ability == Ability.MARVEL_SCALE && target.hasStatus && physical)
+        defense = defense * 150 / 100
     if (user.ability in setOf(Ability.PLUS, Ability.MINUS) && !physical) {
       val partner = ctx.refOf(user)?.let { ctx.allyOf(it) }?.let { ctx.live(it) }
       val other = if (user.ability == Ability.PLUS) Ability.MINUS else Ability.PLUS
@@ -584,7 +619,10 @@ internal class MoveRunner(private val ctx: BattleCtx) {
 
     var dmg = attack * pow * (2 * user.level / 5 + 2) / defense / 50
     val targetSide = ctx.refOf(target)?.let { ctx.sideState(it.side) }
-    val sideCount = ctx.refOf(target)?.let { r -> ctx.sideState(r.side).actives.indices.count { ctx.live(BattlerRef(r.side, it)) != null } } ?: 1
+    val sideCount =
+        ctx.refOf(target)?.let { r ->
+          ctx.sideState(r.side).actives.indices.count { ctx.live(BattlerRef(r.side, it)) != null }
+        } ?: 1
     if (physical) {
       if (user.burned && user.ability != Ability.GUTS) dmg /= 2
       if (targetSide != null && targetSide.reflectTurns > 0 && !crit) {
@@ -611,7 +649,9 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       }
       if (type == PokemonType.FIRE && user.volatile.flashFire) dmg = dmg * 15 / 10
     }
-    if (move.effect == MoveEffect.SOLAR_BEAM && ctx.weather() in setOf(Weather.RAIN, Weather.SAND, Weather.HAIL)) dmg /= 2
+    if (move.effect == MoveEffect.SOLAR_BEAM &&
+        ctx.weather() in setOf(Weather.RAIN, Weather.SAND, Weather.HAIL))
+        dmg /= 2
     if (spread) dmg /= 2
     if (dmg == 0) dmg = 1
     dmg += 2
@@ -643,7 +683,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     if (tv.substituteHp > 0 && user !== target && move.id !in SOUND_MOVES) {
       val dealt = minOf(amount, tv.substituteHp)
       tv.substituteHp -= dealt
-      ctx.emit(BattleEvent.DamageDealt(target.entityId, target.currentHp, hit.crit, hit.effectiveness))
+      ctx.emit(
+          BattleEvent.DamageDealt(target.entityId, target.currentHp, hit.crit, hit.effectiveness))
       ctx.say("The SUBSTITUTE took damage for ${ctx.name(target)}!", target.entityId)
       if (tv.substituteHp <= 0) {
         tv.substituteHp = 0
@@ -670,10 +711,12 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     }
     dmg = dmg.coerceAtLeast(0)
     target.currentHp = (target.currentHp - dmg).coerceAtLeast(0)
-    if (MoveCategory.isPhysical(move.type)) tv.physicalDamageTaken += dmg else tv.specialDamageTaken += dmg
+    if (MoveCategory.isPhysical(move.type)) tv.physicalDamageTaken += dmg
+    else tv.specialDamageTaken += dmg
     tv.damagedBy = user.entityId
     if (tv.bideTurns > 0) tv.bideDamage += dmg
-    ctx.emit(BattleEvent.DamageDealt(target.entityId, target.currentHp, hit.crit, hit.effectiveness))
+    ctx.emit(
+        BattleEvent.DamageDealt(target.entityId, target.currentHp, hit.crit, hit.effectiveness))
     if (hit.crit) ctx.say("A critical hit!", target.entityId)
     hungOn?.let { ctx.say(it, target.entityId) }
     if (target.fainted) {

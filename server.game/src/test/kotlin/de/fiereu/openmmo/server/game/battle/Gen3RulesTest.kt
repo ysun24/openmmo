@@ -95,7 +95,12 @@ internal fun stateOf(mon: Pokemon, index: Int? = 0): BattleMonState {
   return BattleMonState(mon.id, def, index, mon, StatCalculator.computeAll(def, mon))
 }
 
-private fun single(me: BattleMonState, foe: BattleMonState, seed: Long = 1, trainer: Boolean = false) =
+private fun single(
+    me: BattleMonState,
+    foe: BattleMonState,
+    seed: Long = 1,
+    trainer: Boolean = false
+) =
     BattleInstance(
         1L,
         1L,
@@ -104,11 +109,17 @@ private fun single(me: BattleMonState, foe: BattleMonState, seed: Long = 1, trai
         listOf(foe),
         BattleRng(seed),
         trainer =
-            if (trainer) de.fiereu.openmmo.trainer.TrainerDef(1, "T", 1, false, 1, emptyList()) else null)
+            if (trainer) de.fiereu.openmmo.trainer.TrainerDef(1, "T", 1, false, 1, emptyList())
+            else null)
 
 private fun doubles(me: List<BattleMonState>, foe: List<BattleMonState>, seed: Long = 1) =
     BattleInstance(
-        1L, 1L, FakeSession(1L), me, foe, BattleRng(seed),
+        1L,
+        1L,
+        FakeSession(1L),
+        me,
+        foe,
+        BattleRng(seed),
         format = 2,
         own = BattleSideState(mutableListOf(0, 1)),
         foe = BattleSideState(mutableListOf(0, 1)),
@@ -135,7 +146,9 @@ class Gen3RulesTest :
           val a = stateOf(testMon(4, 30, listOf(TACKLE), status = status))
           val d = stateOf(testMon(19, 30, listOf(SPLASH)), null)
           val runner = MoveRunner(engine.context(single(a, d, seed = 5)))
-          return runner.damage(a, d, moveReg.get(TACKLE)!!, 35, moveReg.get(TACKLE)!!.type, false, false).damage
+          return runner
+              .damage(a, d, moveReg.get(TACKLE)!!, 35, moveReg.get(TACKLE)!!.type, false, false)
+              .damage
         }
         dealt(StatusCondition.BURN) shouldBeLessThan dealt(0)
       }
@@ -177,10 +190,19 @@ class Gen3RulesTest :
       }
 
       test("sleep lasts 2-5 turns and the monster acts on the turn it wakes") {
-        val ctx = engine.context(single(stateOf(testMon(1, 30, listOf(SPLASH))), stateOf(testMon(19, 30, listOf(SPLASH)), null)))
+        val ctx =
+            engine.context(
+                single(
+                    stateOf(testMon(1, 30, listOf(SPLASH))),
+                    stateOf(testMon(19, 30, listOf(SPLASH)), null)))
         repeat(20) { i ->
           val m = stateOf(testMon(19, 30, listOf(TACKLE)), null)
-          val ok = BattleCtx(single(stateOf(testMon(1, 30, listOf(SPLASH))), m, seed = i.toLong()), moveReg, TypeChart(), HeldItems(itemReg))
+          val ok =
+              BattleCtx(
+                  single(stateOf(testMon(1, 30, listOf(SPLASH))), m, seed = i.toLong()),
+                  moveReg,
+                  TypeChart(),
+                  HeldItems(itemReg))
           ok.trySetStatus(m, StatusCondition.SLEEP_MASK, null, false).shouldBeTrue()
           (m.status and StatusCondition.SLEEP_MASK) shouldBeInRange 2..5
         }
@@ -189,8 +211,14 @@ class Gen3RulesTest :
         val target = stateOf(testMon(19, 30, listOf(SPLASH)), null)
         val events = turn(single(sleeper, target), TACKLE)
         sleeper.asleep.shouldBeFalse()
-        events.filterIsInstance<BattleEvent.Message>().any { it.text.endsWith("woke up!") }.shouldBeTrue()
-        events.filterIsInstance<BattleEvent.MoveUsed>().any { it.attackerId == sleeper.entityId }.shouldBeTrue()
+        events
+            .filterIsInstance<BattleEvent.Message>()
+            .any { it.text.endsWith("woke up!") }
+            .shouldBeTrue()
+        events
+            .filterIsInstance<BattleEvent.MoveUsed>()
+            .any { it.attackerId == sleeper.entityId }
+            .shouldBeTrue()
       }
 
       test("a frozen monster stays frozen until thawed by a fire hit") {
@@ -216,10 +244,20 @@ class Gen3RulesTest :
         val fast = stateOf(testMon(52, 30, listOf(FAKE_OUT))) // Meowth
         val slow = stateOf(testMon(74, 30, listOf(TACKLE)), null)
         val events = turn(single(fast, slow), FAKE_OUT, TACKLE)
-        events.filterIsInstance<BattleEvent.Message>().any { it.text.endsWith("flinched!") }.shouldBeTrue()
+        events
+            .filterIsInstance<BattleEvent.Message>()
+            .any { it.text.endsWith("flinched!") }
+            .shouldBeTrue()
         // Fake Out fails after the first turn out.
-        val again = turn(single(fast, slow).also { fast.volatile.actedSinceSwitchIn = true }, FAKE_OUT, SPLASH)
-        again.filterIsInstance<BattleEvent.MoveFailed>().any { it.attackerId == fast.entityId }.shouldBeTrue()
+        val again =
+            turn(
+                single(fast, slow).also { fast.volatile.actedSinceSwitchIn = true },
+                FAKE_OUT,
+                SPLASH)
+        again
+            .filterIsInstance<BattleEvent.MoveFailed>()
+            .any { it.attackerId == fast.entityId }
+            .shouldBeTrue()
       }
 
       test("secondary effects roll their chance: Ember burns about 10% of the time") {
@@ -289,7 +327,9 @@ class Gen3RulesTest :
         val full = runner.damage(bulba, target, vine, vine.power, vine.type, false, false).damage
         bulba.currentHp = 1
         val runner2 = MoveRunner(engine.context(single(bulba, target, seed = 4)))
-        runner2.damage(bulba, target, vine, vine.power, vine.type, false, false).damage shouldBeGreaterThan full
+        runner2
+            .damage(bulba, target, vine, vine.power, vine.type, false, false)
+            .damage shouldBeGreaterThan full
       }
 
       // --- held items --------------------------------------------------------------------------
@@ -336,7 +376,9 @@ class Gen3RulesTest :
           val slow = stateOf(testMon(74, 20, listOf(TACKLE), held = wire(Items.QUICK_CLAW)))
           val fast = stateOf(testMon(19, 40, listOf(TACKLE)), null)
           val ev = turn(single(slow, fast, seed = s.toLong()), TACKLE, TACKLE)
-          if (ev.filterIsInstance<BattleEvent.MoveUsed>().firstOrNull()?.attackerId == slow.entityId) firsts++
+          if (ev.filterIsInstance<BattleEvent.MoveUsed>().firstOrNull()?.attackerId ==
+              slow.entityId)
+              firsts++
         }
         firsts shouldBeInRange 15..80
       }
@@ -357,9 +399,17 @@ class Gen3RulesTest :
         CatchCalculator.multiplier(Items.NET_BALL, goldeen, ctx) shouldBe 30
         CatchCalculator.multiplier(Items.NEST_BALL, goldeen, ctx) shouldBe 30
         CatchCalculator.multiplier(Items.TIMER_BALL, goldeen, ctx.copy(turn = 35)) shouldBe 40
-        CatchCalculator.multiplier(Items.DIVE_BALL, goldeen, ctx.copy(underwater = true)) shouldBe 35
-        CatchCalculator.multiplier(Items.REPEAT_BALL, goldeen, ctx.copy(alreadyCaught = true)) shouldBe 30
-        CatchCalculator.roll(Items.MASTER_BALL, stateOf(testMon(150, 70, listOf(TACKLE)), null), ctx, BattleRng(1)).caught.shouldBeTrue()
+        CatchCalculator.multiplier(Items.DIVE_BALL, goldeen, ctx.copy(underwater = true)) shouldBe
+            35
+        CatchCalculator.multiplier(
+            Items.REPEAT_BALL, goldeen, ctx.copy(alreadyCaught = true)) shouldBe 30
+        CatchCalculator.roll(
+                Items.MASTER_BALL,
+                stateOf(testMon(150, 70, listOf(TACKLE)), null),
+                ctx,
+                BattleRng(1))
+            .caught
+            .shouldBeTrue()
       }
 
       test("a hard catch shakes 0-3 times and mostly breaks free") {
@@ -386,10 +436,19 @@ class Gen3RulesTest :
         engine.useBagItem(b, "Revive", BattleItemEffect.Revive(0.5), me).first.shouldBeTrue()
         me.currentHp shouldBe me.maxHp / 2
         me.status = StatusCondition.BURN
-        engine.useBagItem(b, "Antidote", BattleItemEffect.Cure(StatusCondition.POISON), me).first.shouldBeFalse()
-        engine.useBagItem(b, "Burn Heal", BattleItemEffect.Cure(StatusCondition.BURN), me).first.shouldBeTrue()
+        engine
+            .useBagItem(b, "Antidote", BattleItemEffect.Cure(StatusCondition.POISON), me)
+            .first
+            .shouldBeFalse()
+        engine
+            .useBagItem(b, "Burn Heal", BattleItemEffect.Cure(StatusCondition.BURN), me)
+            .first
+            .shouldBeTrue()
         me.hasStatus.shouldBeFalse()
-        engine.useBagItem(b, "X Attack", BattleItemEffect.StatUp(BattleStat.ATTACK), me).first.shouldBeTrue()
+        engine
+            .useBagItem(b, "X Attack", BattleItemEffect.StatUp(BattleStat.ATTACK), me)
+            .first
+            .shouldBeTrue()
         me.stage(BattleStat.ATTACK) shouldBe 1
       }
 
@@ -415,7 +474,8 @@ class Gen3RulesTest :
         val r = MoveRunner(engine.context(b))
         val surf = moveReg.get(SURF)!!
         val one = r.damage(user, f1, surf, surf.power, surf.type, false, false)
-        val spread = MoveRunner(engine.context(b)).damage(user, f1, surf, surf.power, surf.type, false, true)
+        val spread =
+            MoveRunner(engine.context(b)).damage(user, f1, surf, surf.power, surf.type, false, true)
         spread.damage shouldBeLessThan one.damage
       }
 
@@ -439,14 +499,20 @@ class Gen3RulesTest :
       test("Protect blocks a move aimed at the protected monster") {
         val user = stateOf(testMon(4, 50, listOf(FLAMETHROWER)), 0)
         val protector = stateOf(testMon(1, 50, listOf(PROTECT)), null)
-        val events = engine.resolve(
-            single(user, protector, seed = 3),
-            listOf(BattleChoice.UseMove(0, 0, FLAMETHROWER), BattleChoice.UseMove(1, 0, PROTECT)))
+        val events =
+            engine.resolve(
+                single(user, protector, seed = 3),
+                listOf(
+                    BattleChoice.UseMove(0, 0, FLAMETHROWER), BattleChoice.UseMove(1, 0, PROTECT)))
         protector.currentHp shouldBe protector.maxHp
-        events.filterIsInstance<BattleEvent.Message>().any { it.text.endsWith("protected itself!") }.shouldBeTrue()
+        events
+            .filterIsInstance<BattleEvent.Message>()
+            .any { it.text.endsWith("protected itself!") }
+            .shouldBeTrue()
       }
 
-      // --- weather ---------------------------------------------------------------------------------
+      // --- weather
+      // ---------------------------------------------------------------------------------
 
       test("Rain Dance sets five turns of rain that boost water and weaken fire") {
         val me = stateOf(testMon(7, 30, listOf(RAIN_DANCE)))

@@ -82,7 +82,9 @@ constructor(
     if (kanto && !cooldownAllows(state, table, lead)) return
     if (prev != tile.behavior && random.nextInt(100) >= 60) return
     if (!rollsEncounter(table, lead, kanto, state)) {
-      if (kanto) state.encounterRateBuff = if (repelled) 0 else state.encounterRateBuff + table.encounterRate
+      if (kanto)
+          state.encounterRateBuff =
+              if (repelled) 0 else state.encounterRateBuff + table.encounterRate
       return
     }
     val slot = pickSlot(table, lead, kanto) ?: return
@@ -136,7 +138,12 @@ constructor(
       mon.heldItem != 0 && items.get(mon.heldItem) == Items.CLEANSE_TAG
 
   /** DoWildEncounterRateTest / WildEncounterCheck. */
-  internal fun encounterChance(table: WildEncounterTable, lead: Pokemon, kanto: Boolean, buff: Int): Int {
+  internal fun encounterChance(
+      table: WildEncounterTable,
+      lead: Pokemon,
+      kanto: Boolean,
+      buff: Int
+  ): Int {
     var rate = table.encounterRate * ENCOUNTER_RATE_SCALE
     if (kanto) rate += buff * 16 / 200
     if (holdsCleanseTag(lead)) rate = rate * 2 / 3
@@ -155,7 +162,9 @@ constructor(
       lead: Pokemon,
       kanto: Boolean,
       state: StepState,
-  ): Boolean = random.nextInt(ENCOUNTER_ROLL_MAX) < encounterChance(table, lead, kanto, state.encounterRateBuff)
+  ): Boolean =
+      random.nextInt(ENCOUNTER_ROLL_MAX) <
+          encounterChance(table, lead, kanto, state.encounterRateBuff)
 
   /** FireRed's HandleWildEncounterCooldown: a short no-encounter window after each battle. */
   private fun cooldownAllows(state: StepState, table: WildEncounterTable, lead: Pokemon): Boolean {
@@ -185,7 +194,11 @@ constructor(
   }
 
   /** Picks a slot by the decomp's per-slot percentages (weights). */
-  internal fun pickSlot(table: WildEncounterTable, lead: Pokemon?, kanto: Boolean): WildEncounterSlot? {
+  internal fun pickSlot(
+      table: WildEncounterTable,
+      lead: Pokemon?,
+      kanto: Boolean
+  ): WildEncounterSlot? {
     // Emerald's TryGetAbilityInfluencedWildMonIndex: half the time a matching type's slot.
     if (!kanto && lead != null && table.method == EncounterMethod.LAND) {
       val forced =
@@ -214,7 +227,8 @@ constructor(
     val min = minOf(slot.minLevel, slot.maxLevel)
     val max = maxOf(slot.minLevel, slot.maxLevel)
     val rolled = min + random.nextInt(max - min + 1)
-    if (!kanto && lead != null &&
+    if (!kanto &&
+        lead != null &&
         abilityOf(lead) in setOf(Ability.HUSTLE, Ability.VITAL_SPIRIT, Ability.PRESSURE) &&
         random.nextBoolean()) {
       return max
@@ -222,7 +236,9 @@ constructor(
     return rolled
   }
 
-  /** Emerald's IsAbilityAllowingEncounter: Keen Eye / Intimidate skip weak monsters half the time. */
+  /**
+   * Emerald's IsAbilityAllowingEncounter: Keen Eye / Intimidate skip weak monsters half the time.
+   */
   private fun abilityAllowsEncounter(lead: Pokemon, level: Int): Boolean {
     if (abilityOf(lead) !in setOf(Ability.KEEN_EYE, Ability.INTIMIDATE)) return true
     val leadLevel = lead.level.toInt()

@@ -12,9 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Dev only (r3-battle): edits a party monster's battle state for testing.
- * `/monset <slot 1-6> status <none|slp|psn|tox|brn|frz|par>`, `... held <ITEM_NAME|none>`,
- * `... friendship <0-255>`, `... hp <n>`, `... level <n>`.
+ * Dev only (r3-battle): edits a party monster's battle state for testing. `/monset <slot 1-6>
+ * status <none|slp|psn|tox|brn|frz|par>`, `... held <ITEM_NAME|none>`, `... friendship <0-255>`,
+ * `... hp <n>`, `... level <n>`.
  */
 @Singleton
 class MonSetCommand
@@ -36,7 +36,9 @@ constructor(
     if (slot == null || field == null || value == null) return ctx.reply("Usage: $usage")
     if (battles.inBattle(ctx.characterId)) return ctx.reply("Not during a battle.")
     val party =
-        characters.getCharacter(ctx.characterId)?.pokemon
+        characters
+            .getCharacter(ctx.characterId)
+            ?.pokemon
             ?.filter { it.container == PokemonContainer.PARTY }
             ?.sortedBy { it.containerSlot } ?: return
     val mon = party.getOrNull(slot - 1) ?: return ctx.reply("No monster in slot $slot.")
@@ -55,7 +57,8 @@ constructor(
                         else -> 0
                       })
           "held" -> {
-            val id = if (value.equals("none", true)) 0 else ItemNames.wireId(items, value.uppercase())
+            val id =
+                if (value.equals("none", true)) 0 else ItemNames.wireId(items, value.uppercase())
             if (id == 0 && !value.equals("none", true)) return ctx.reply("Unknown item $value.")
             mon.copy(heldItem = id)
           }
@@ -64,7 +67,10 @@ constructor(
           "level" -> {
             val level = (value.toIntOrNull() ?: mon.level.toInt()).coerceIn(1, 100)
             val def = de.fiereu.openmmo.pokemon.SpeciesRegistry().get(mon.dexId)
-            val xp = def?.let { de.fiereu.openmmo.server.game.battle.ExpCurves.totalXpFor(it.growthRate, level) } ?: mon.xp
+            val xp =
+                def?.let {
+                  de.fiereu.openmmo.server.game.battle.ExpCurves.totalXpFor(it.growthRate, level)
+                } ?: mon.xp
             mon.copy(level = level.toByte(), xp = xp)
           }
           else -> return ctx.reply("Usage: $usage")
@@ -75,7 +81,12 @@ constructor(
             container = PokemonContainer.PARTY,
             hasChange = true,
             delete = false,
-            pokemon = characters.getCharacter(ctx.characterId)?.pokemon?.filter { it.container == PokemonContainer.PARTY }?.sortedBy { it.containerSlot } ?: emptyList()))
+            pokemon =
+                characters
+                    .getCharacter(ctx.characterId)
+                    ?.pokemon
+                    ?.filter { it.container == PokemonContainer.PARTY }
+                    ?.sortedBy { it.containerSlot } ?: emptyList()))
     ctx.reply("Slot $slot: $field = $value")
   }
 }

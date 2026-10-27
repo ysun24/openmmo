@@ -1,6 +1,5 @@
 package de.fiereu.openmmo.server.game.battle
 
-import de.fiereu.openmmo.common.enums.Ability
 import de.fiereu.openmmo.common.enums.PokemonStat
 
 /*
@@ -74,7 +73,8 @@ internal fun BattleCtx.pinchBerry(mon: BattleMonState) {
       consume(mon, effect)
       raiseStat(mon, mon, open[rng.pick(open.size)], 2, announce = true, cause = itemName(effect))
     }
-    effect.name == "CRITICAL_UP" && mon.currentHp <= mon.maxHp / effect.param &&
+    effect.name == "CRITICAL_UP" &&
+        mon.currentHp <= mon.maxHp / effect.param &&
         !mon.volatile.focusEnergy -> {
       consume(mon, effect)
       mon.volatile.focusEnergy = true

@@ -243,7 +243,9 @@ class TurnEngineTest :
         val wild = state(19, 3, listOf(SPLASH), WILD_ID)
         val before = wild.currentHp
         val events = engine.resolveTurn(battle(player, wild, seed = 9), SPLASH)
-        events.filterIsInstance<BattleEvent.Message>().any { it.text == "But nothing happened!" } shouldBe true
+        events.filterIsInstance<BattleEvent.Message>().any {
+          it.text == "But nothing happened!"
+        } shouldBe true
         wild.currentHp shouldBe before
       }
 

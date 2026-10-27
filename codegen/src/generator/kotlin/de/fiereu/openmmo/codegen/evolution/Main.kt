@@ -80,16 +80,22 @@ fun main(args: Array<String>) {
           .sortedBy { it.value }
           .distinctBy { it.value }
   // Hold effects straight from src/data/items.h (.holdEffect / .holdEffectParam).
-  val holdEffects = HOLD.findAll(File(args[3], "src/data/items.h").readText()).mapNotNull { m ->
-    val body = m.groupValues[2]
-    val effect = HOLD_EFFECT.find(body)?.groupValues?.get(1) ?: return@mapNotNull null
-    val param = HOLD_PARAM.find(body)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-    listOf(m.groupValues[1], effect, param.toString())
-  }.toList()
+  val holdEffects =
+      HOLD.findAll(File(args[3], "src/data/items.h").readText())
+          .mapNotNull { m ->
+            val body = m.groupValues[2]
+            val effect = HOLD_EFFECT.find(body)?.groupValues?.get(1) ?: return@mapNotNull null
+            val param = HOLD_PARAM.find(body)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            listOf(m.groupValues[1], effect, param.toString())
+          }
+          .toList()
   FileOutput(File(pkg, "GeneratedHoldEffects.kt").toPath()).use { out ->
     engine.render("HoldEffects.jte", mapOf("rows" to holdEffects), out)
   }
   FileOutput(File(pkg, "GeneratedGbaItemNames.kt").toPath()).use { out ->
-    engine.render("GbaItemNames.jte", mapOf("rows" to gbaItems.map { listOf(it.value.toString(), it.key.removePrefix("ITEM_")) }), out)
+    engine.render(
+        "GbaItemNames.jte",
+        mapOf("rows" to gbaItems.map { listOf(it.value.toString(), it.key.removePrefix("ITEM_")) }),
+        out)
   }
 }

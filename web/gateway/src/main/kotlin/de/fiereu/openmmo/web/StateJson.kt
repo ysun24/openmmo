@@ -58,6 +58,8 @@ class StateJson(private val names: Names) {
           "pc" to pc(s),
           "battle" to battle(s.battle),
           "invite" to invite(s.battle),
+          // r3-battle: the evolution scene, which can also play outside a battle.
+          "evolution" to evolution(s.battle),
           "trade" to trade(s.trade),
           "market" to market(s),
       )
@@ -269,6 +271,46 @@ class StateJson(private val names: Names) {
       put("phase", b.phase.name)
       put("turn", b.turn)
       put("activeSlot", b.activeSlot)
+      // r3-battle: format, positions, background, music, weather, trainer sprite, bag.
+      put("format", b.format)
+      putJsonArray("actives") { b.actives.forEach { add(it) } }
+      put("choosingPos", b.choosingPos?.let { JsonPrimitive(it) } ?: JsonNull)
+      putJsonArray("owedSwitches") { b.owedSwitches.forEach { add(it) } }
+      putJsonArray("mine") {
+        b.actives.indices.forEach { pos ->
+          add(b.mine(pos)?.let { monJson(it, withMoves = true) } ?: JsonNull)
+        }
+      }
+      putJsonArray("foes") {
+        b.foeActives.indices.forEach { pos ->
+          add(
+              b.foeAt(pos)?.takeIf { it.revealed }?.let { monJson(it, withMoves = false) }
+                  ?: JsonNull)
+        }
+      }
+      put("terrain", b.terrain)
+      put("music", b.music)
+      put("weather", b.weather)
+      put(
+          "trainer",
+          if (b.trainerPic == null) JsonNull
+          else
+              buildJsonObject {
+                put("pic", b.trainerPic)
+                put("class", b.trainerClass)
+              })
+      putJsonArray("bag") {
+        b.bag.forEach { i ->
+          addJsonObject {
+            put("id", i.id)
+            put("name", i.name)
+            put("count", i.count)
+            put("target", i.target)
+            put("pocket", i.pocket)
+            if (i.perMove) put("perMove", true)
+          }
+        }
+      }
       put("me", b.me?.let { monJson(it, withMoves = true) } ?: JsonNull)
       put("foe", b.foe?.takeIf { it.revealed }?.let { monJson(it, withMoves = false) } ?: JsonNull)
       putJsonArray("party") { b.party.forEach { add(monJson(it, withMoves = false)) } }
@@ -307,7 +349,29 @@ class StateJson(private val names: Names) {
     }
   }
 
+  /** r3-battle: the evolution scene, or null. */
+  fun evolution(b: BattleState): JsonElement =
+      b.evolution?.let { e ->
+        buildJsonObject {
+          put("id", e.id.toString())
+          put("seq", e.seq)
+          put("phase", e.phase)
+          put("fromDex", e.fromDex)
+          put("toDex", e.toDex)
+          put("name", e.name)
+          put("toName", e.toName)
+          putJsonArray("learned") { e.learned.forEach { add(it) } }
+        }
+      } ?: JsonNull
+
   private fun monJson(m: BattleMon, withMoves: Boolean) = buildJsonObject {
+    put("id", m.entityId.toString())
+    put("slot", m.slot)
+    put("status", m.status)
+    put("confused", m.confused)
+    m.ability?.let { put("ability", it) }
+    m.item?.let { put("item", it) }
+    if (m.substitute) put("substitute", true)
     put("dex", m.species)
     put("name", names.species(m.species))
     put("level", m.level)
@@ -343,6 +407,7 @@ class StateJson(private val names: Names) {
     put("levelCap", r.levelCap)
     put("party", r.maxParty)
     put("timer", r.turnSeconds)
+    put("doubles", r.doubles)
   }
 
   private fun moveInfo(id: Int, pp: Int?, maxPp: Int?) = buildJsonObject {
