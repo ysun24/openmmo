@@ -281,3 +281,73 @@ serves `.mid` as `audio/midi`.
 - Controls: keyboard (arrows/WASD, Z/Space = A, X/Esc = B, Shift = run, Enter = chat), and on touch
   devices an on-screen D-pad + A/B buttons (multi-touch, no scroll/zoom on the canvas). UI panels
   (battle menu, trade, market, shop, chat) are HTML overlays usable by touch.
+
+### 4.2 r3-social (additive)
+
+Browser → gateway (new types; the old ones keep their meaning):
+
+| `t` | fields | notes |
+|---|---|---|
+| `say` | + optional `channel` (`local`/`global`/`trade`/`guild`/`whisper`), `to` (whisper target, required for `whisper`) | no `channel` = local, as before; a leading `/` is still a command |
+| `social.refresh` | – | resend friends, blocks, guild |
+| `friends.add` / `friends.remove` / `block` / `unblock` / `profile` | `name` | one-way friends; blocking also removes the friendship |
+| `guild.create` | `name` (3-24 letters, digits, spaces), `tag` (2-5 letters/digits) | costs `guild.foundCost` (15000) |
+| `guild.invite` / `guild.kick` | `name` | officers and above; kick only lower ranks |
+| `guild.answer` | `accept` (bool) | invites lapse after 60 s |
+| `guild.rank` | `name`, `rank` (0 Recruit .. 5 Leader; 5 hands over the leadership) | |
+| `guild.motd` | `text` | officers and above |
+| `guild.leave` / `guild.disband` | – | the leader disbands or hands over first |
+| `trade.pcMon` | `slot` (PC slot, `pc.mons[].slot`) | toggles a PC monster on the table |
+| `trade.history` | – | fills `social.tradeHistory` |
+| `market.history` | `kind` (`mon`/`item`), `id` | fills `market.history` |
+| `market.sales` / `market.info` | – | fill `market.sales` / `market.info` |
+
+Gateway → browser:
+- `chat[]` lines gain `channel` (`local|global|trade|guild|whisper|system`, absent for server notices)
+  and `to` (whisper target). The sender of a `system` line is `*`.
+- `trade` gains `expiresAt` (epoch ms, pending requests only) and `mine/theirs.pcMons[]`
+  (`{slot,dex,name,level}`, slot = PC slot). While a trade is `OPEN` the server refuses steps (the
+  position stays), shop, npc and sign actions, and market actions.
+- `market.browse[]/mine[]` rows gain `seller` (name, `null` until the page metadata arrived);
+  `market` gains `info` `{feePermille,minFee,maxActive,active,listingHours}`, `history`
+  `{kind,id,name,days:[{day (epoch day),min,max,avg,volume}],recent:[{at,price,qty}]}` (unit prices,
+  last 30 days), `sales` `[{id,kind,dex,item,name,qty,price,fee,buyer,at}]` and `openSeq` (grows when
+  a market clerk asked the client to open the market window).
+- New section `social`:
+
+```jsonc
+"social": {
+  "friends": [{"name":"Gary","online":true,"location":{"region":0,"bank":5,"map":4,"name":"ViridianCity_PokemonCenter_1F"} | null,
+               "since":1793064112,"mutual":true}],
+  "blocked": ["Spammer"],
+  "profile": {"name":"Gary","online":true,"location":{...} | null,"guild":"Pallet Pals" | null,"tag":"PAL" | null,
+              "party":[{"dex":1,"name":"BULBASAUR","level":15,"shiny":false}],"created":1793063796,
+              "friend":true,"blocked":false,"trades":8} | null,
+  "profileSeq": 3,               // grows with every profile reply
+  "guild": {"inGuild":true,"name":"Pallet Pals","tag":"PAL","motd":"...","myRank":5,"myRankName":"Leader",
+            "members":[{"name":"Ash","rank":5,"rankName":"Leader","online":true,"location":{...} | null,"joined":...}],
+            "log":[{"at":...,"text":"Ash founded the guild."}]} | {"inGuild":false},
+  "invite": {"from":"Ash","guild":"Pallet Pals","tag":"PAL","expiresAt":1793064173000} | null,
+  "tradeHistory": [{"at":...,"partner":"Gary","gave":"10 money","got":"RATTATA Lv5"}] | null
+}
+```
+
+A player who blocked you shows offline with no location, and never receives your chat, whispers,
+trade requests or guild invites. Refusals (rate limits, permissions, offline targets) arrive as
+`ui.notice` / `system` chat lines, never as errors.
+
+Game protocol (ours, `packets/social/CommunityPackets.kt`): c2s 0xFC `SocialRequestPacket`
+(op, name, text, arg), c2s 0xFD `MarketQueryPacket`, c2s 0xFE `TradeOfferPcMonPacket`, s2c 0xFD
+`CommunityPacket` (a tagged union: friends, profile, chat line, guild, guild invite, listing seller
+names, price history, sales, market info, market open, trade history). All four opcodes were free in
+both directions on every r3 worktree. `TradeStatePacket` gained `expiresInSeconds` and
+`TradeOfferView.pcMons` (appended to the codec). Player chat is delivered as `CommunityPacket`
+chat lines; the retail `ChatMessagePacket` c2s still works (its type picks the channel) and s2c
+carries server notices only.
+
+Server settings (system property, then env): `trade.proximity`/`TRADE_PROXIMITY` (`map` default,
+`none`, or a tile count), `trade.requestSeconds` (60), `market.feePermille` (20), `market.minFee` (1),
+`market.maxActive` (30), `chat.maxLength` (200), `chat.filterFile`/`OPENMMO_CHAT_FILTER_FILE`
+(profanity word list, empty by default), `guild.foundCost` (15000), `guild.maxMembers` (50),
+`rate.chat|whisper|tradeRequest|market|social` / `RATE_<KIND>` as `events/seconds`
+(defaults 8/10, 10/10, 5/60, 30/10, 20/10, per login account). Dev command `/tp r:b:m x y [facing]`.
