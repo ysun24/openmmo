@@ -188,7 +188,7 @@ constructor(
             log.error(e) { "frontier desk $desk failed for char=$charId" }
             session.send(notice("The facility had a problem: ${e.message}"))
           } finally {
-            persist(charId)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { persist(charId) }
             if (runs[charId] === run) {
               runs.remove(charId)
               run.screen = JsonObject(emptyMap())
@@ -218,9 +218,16 @@ constructor(
   }
 
   fun onLogout(charId: Long) {
-    runs.remove(charId)?.cancel()
+    val run = runs.remove(charId)
+    run?.cancel()
     linkHosts.remove(charId)
-    saves.remove(charId)
+    // Leaving mid-challenge ends it (the decomp's challenge without saving): the run's own cleanup
+    // persists the streak it lost, then the cached save goes.
+    scope.launch {
+      run?.job?.join()
+      persist(charId)
+      saves.remove(charId)
+    }
   }
 
   fun push(run: FrontierRun, expectsAnswer: Boolean) {

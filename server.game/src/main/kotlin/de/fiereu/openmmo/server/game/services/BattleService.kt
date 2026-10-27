@@ -289,6 +289,11 @@ constructor(
     val charId = event.session.attributes[PLAYER_STATE]?.characterId ?: return
     val battle = battles.byChar(charId) ?: return
     val result = battle.pendingResult ?: return
+    // r5-frontier: a multi battle ends once both players are back on the map.
+    if (battle.multiSessions.size > 1) {
+      battle.multiAcked += charId
+      if (!battle.multiAcked.containsAll(battle.multiSessions.keys)) return
+    }
     finishBattle(battle, result)
   }
 
@@ -908,7 +913,9 @@ constructor(
               battle.own.actives[pos] = -1
               continue
             }
+            // A multi battle player brings two monsters, so the replacement is the only one left.
             if (battle.facility?.allowSwitch == false ||
+                battle.multiOwners.isNotEmpty() ||
                 pos in (battle.facility?.aiPositions ?: emptySet())) {
               battle.owedSwitches.remove(pos)
               emitter.sendEvents(battle, engine.switchIn(battle, 0, pos, next))

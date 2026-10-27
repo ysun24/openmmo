@@ -140,6 +140,8 @@ class BattleInstance(
    */
   var multiOwners: Map<Int, Long> = emptyMap()
   var multiSessions: Map<Long, SessionContext> = emptyMap()
+  /** Multi battle players whose client is back on the map after the end. */
+  val multiAcked: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
   /**
    * The player's name, the OT their own monsters carry; a monster with another OT is traded and
