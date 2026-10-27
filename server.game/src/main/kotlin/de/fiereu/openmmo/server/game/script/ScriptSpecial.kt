@@ -31,12 +31,14 @@ interface ScriptSpecialModule {
 /** Name -> handler, built once from every bound [ScriptSpecial]. */
 class ScriptSpecials(handlers: Set<ScriptSpecial>) {
   private val byName: Map<String, ScriptSpecial> = buildMap {
+    val clashes = mutableListOf<String>()
     for (h in handlers) for (n in h.names) {
       val prev = put(n, h)
-      check(prev == null) {
-        "special $n is claimed by both ${prev!!::class.simpleName} and ${h::class.simpleName}"
-      }
+      if (prev != null)
+          clashes +=
+              "special $n is claimed by both ${prev::class.simpleName} and ${h::class.simpleName}"
     }
+    check(clashes.isEmpty()) { clashes.sorted().joinToString("; ") }
   }
 
   fun forName(name: String): ScriptSpecial? = byName[name]

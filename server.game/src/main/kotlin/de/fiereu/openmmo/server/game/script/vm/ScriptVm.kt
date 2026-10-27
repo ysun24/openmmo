@@ -953,11 +953,12 @@ class ScriptVm(
       }
       "addcoins" -> result = if (ctx.vmAddCoins(hv())) 0 else 1
       "removecoins" -> result = if (ctx.vmAddCoins(-hv())) 0 else 1
-      "checkcoins" -> varSet(u16(), ctx.coins)
+      "checkcoins" -> varSet(u16(), ctx.coins())
       "showcoinsbox" -> {
         u8()
         u8()
-        ui("coinsbox") { put("coins", ctx.coins) }
+        val coins = ctx.coins()
+        ui("coinsbox") { put("coins", coins) }
       }
       "hidecoinsbox" -> {
         u8()
@@ -967,7 +968,8 @@ class ScriptVm(
       "updatecoinsbox" -> {
         u8()
         u8()
-        ui("coinsbox") { put("coins", ctx.coins) }
+        val coins = ctx.coins()
+        ui("coinsbox") { put("coins", coins) }
       }
       "trainerbattle" -> {
         val next = configureTrainerBattle(pc, approaching = false) ?: return true

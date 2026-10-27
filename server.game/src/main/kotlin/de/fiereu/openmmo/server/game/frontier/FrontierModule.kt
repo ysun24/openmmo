@@ -151,16 +151,16 @@ class FrontierSpecials @Inject constructor(private val frontier: FrontierService
   override suspend fun run(ctx: ScriptContext, name: String): Int {
     val charId = ctx.state.characterId ?: return 0
     val save = frontier.save(charId)
-    val f = ctx.getVar("VAR_0x8004")
+    val f = ctx.specialVar(4)
     return when (name) {
       "GetFrontierBattlePoints" -> save.battlePoints
       "GiveFrontierBattlePoints" -> {
-        save.addPoints(ctx.getVar("VAR_0x8004"))
+        save.addPoints(ctx.specialVar(4))
         frontier.persist(charId)
         0
       }
       "TakeFrontierBattlePoints" -> {
-        save.battlePoints = (save.battlePoints - ctx.getVar("VAR_0x8004")).coerceAtLeast(0)
+        save.battlePoints = (save.battlePoints - ctx.specialVar(4)).coerceAtLeast(0)
         frontier.persist(charId)
         0
       }
@@ -183,7 +183,7 @@ class FrontierSpecials @Inject constructor(private val frontier: FrontierService
           when (f) {
             11 ->
                 save.symbolsOf(
-                    Facility.entries.getOrElse(ctx.getVar("VAR_FRONTIER_FACILITY")) {
+                    Facility.entries.getOrElse(ctx.varGet("VAR_FRONTIER_FACILITY")) {
                       Facility.TOWER
                     })
             else -> 0
@@ -259,6 +259,8 @@ class FrontierSpecials @Inject constructor(private val frontier: FrontierService
 @Module
 interface FrontierModule {
   @Binds @IntoSet fun frontierSpecials(h: FrontierSpecials): ScriptSpecial
+
+  @Binds @IntoSet fun frontierMiscSpecials(h: FrontierMiscSpecials): ScriptSpecial
 
   @Binds @IntoSet fun frontierCommand(c: FrontierCommand): ChatCommand
 

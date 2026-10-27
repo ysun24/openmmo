@@ -185,8 +185,9 @@ class MiscSpecials @Inject constructor() : SpecialTable() {
         }
 
     // ---- link rooms: there is no link cable; every attempt reports nobody connected.
-    on("IsWirelessAdapterConnected") { ctx -> 0 }
-    on("TryBattleLinkup", "TryTradeLinkup", "TryJoinLinkGroup", "TryBecomeLinkLeader") { ctx ->
+    // IsWirelessAdapterConnected / TryJoinLinkGroup / TryBecomeLinkLeader are r5-minigames'
+    // (LinkSpecials: the Wireless Club lobby).
+    on("TryBattleLinkup", "TryTradeLinkup") { ctx ->
       ctx.setResult(LINKUP_FAILED)
       0
     }

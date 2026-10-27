@@ -8,11 +8,6 @@ import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
-/** VAR_0x8004 .. as the script interpreter keeps them (story vars named like the decomp). */
-internal fun ScriptContext.specialVar(n: Int): Int = getVar("VAR_0x%04X".format(n))
-
-internal fun ScriptContext.setSpecialVar(n: Int, value: Int) = setVar("VAR_0x%04X".format(n), value)
-
 typealias SpecialFn = suspend (ScriptContext) -> Int
 
 /** A [ScriptSpecial] given as a name -> function table. */
@@ -46,7 +41,7 @@ constructor(
               },
           "PlaySlotMachine" to
               { ctx ->
-                corner.get().playSlots(ctx.session, ctx.state, ctx.getVar("VAR_RESULT"))
+                corner.get().playSlots(ctx.session, ctx.state, ctx.result)
                 0
               },
           "PlayRoulette" to

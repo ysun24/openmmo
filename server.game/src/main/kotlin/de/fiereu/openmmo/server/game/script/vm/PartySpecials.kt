@@ -444,7 +444,7 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       update(ctx, m.copy(friendship = minOf(255, m.friendship + 10)))
       0
     }
-    on("UpdatePickStateFromSpecialVar8005") { ctx -> 0 }
+    // UpdatePickStateFromSpecialVar8005 is r5-minigames' (FameCheckerSpecials).
     on("CreateEnemyEventMon") { ctx ->
       // FRLG: the mon a seteventmon / special battle fights is gEnemyParty[0] (0x8004 species).
       val vm = ctx.vm ?: return@on 0

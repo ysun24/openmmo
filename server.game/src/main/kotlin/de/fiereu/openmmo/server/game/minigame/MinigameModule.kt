@@ -47,6 +47,11 @@ interface MinigameModule {
 
   @Binds @IntoSet fun specials(h: MinigameSpecials): ScriptSpecial
 
+  @Binds @IntoSet fun miscSpecials(h: MinigameMiscSpecials): ScriptSpecial
+
+  // r5 merge: the interpreter's coin commands go through the Game Corner's store.
+  @Binds fun coinStore(h: MinigameCoinStore): de.fiereu.openmmo.server.game.script.CoinStore
+
   @Binds
   @IntoSet
   fun linkSpecials(h: de.fiereu.openmmo.server.game.minigame.link.LinkSpecials): ScriptSpecial

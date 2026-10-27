@@ -301,12 +301,56 @@ internal constructor(
 
   // ---------------------------------------------------------------- r5-scripts: for specials
 
-  /** The decomp's VarGet: story vars (0x4000+), special vars (0x8000+), else the value itself. */
-  fun varGet(id: Int): Int = vm?.varGet(id) ?: 0
+  /**
+   * The decomp's VarGet: story vars (0x4000+), special vars (0x8000+), else the value itself. This
+   * is the ONE accessor for VAR_0x8000-0x800F / VAR_RESULT / VAR_SPECIAL_* (r5 merge): inside the
+   * interpreter they are the VM's gSpecialVar_* slots; a hand-ported script running without the VM
+   * keeps them in this context.
+   */
+  fun varGet(id: Int): Int {
+    vm?.let {
+      return it.varGet(id)
+    }
+    return when {
+      id >= 0x8000 && id < 0x8100 -> localSpecialVars[id - 0x8000]
+      id in 0x4000..0x7FFF -> getVar("$regionName/VAR_0x%04X".format(id))
+      else -> id
+    }
+  }
 
   /** The decomp's VarSet (u16). */
   fun varSet(id: Int, value: Int) {
-    vm?.varSet(id, value)
+    vm?.let {
+      it.varSet(id, value)
+      return
+    }
+    when {
+      id >= 0x8000 && id < 0x8100 -> localSpecialVars[id - 0x8000] = value and 0xFFFF
+      id in 0x4000..0x7FFF -> setVar("$regionName/VAR_0x%04X".format(id), value and 0xFFFF)
+    }
+  }
+
+  private val localSpecialVars = IntArray(0x100)
+
+  /** A var by its decomp name (`VAR_0x8004`, `VAR_RESULT`, `VAR_CONTEST_RANK`), else null. */
+  fun varId(name: String): Int? =
+      HEX_VAR.matchEntire(name)?.groupValues?.get(1)?.toInt(16)
+          ?: (vm?.img ?: de.fiereu.openmmo.server.game.script.vm.ScriptImage.of(regionName))
+              ?.constOrNull(name)
+
+  /** VarGet by decomp name; a story var the image does not know is read by its region key. */
+  fun varGet(name: String): Int {
+    val id = varId(name)
+    return when {
+      id != null && (vm != null || id >= 0x8000) -> varGet(id)
+      else -> getVar("$regionName/$name")
+    }
+  }
+
+  fun varSet(name: String, value: Int) {
+    val id = varId(name)
+    if (id != null && (vm != null || id >= 0x8000)) varSet(id, value)
+    else setVar("$regionName/$name", value and 0xFFFF)
   }
 
   /** FlagGet / FlagSet / FlagClear by the decomp's flag id (trainer and special flags too). */
@@ -334,10 +378,22 @@ internal constructor(
   val regionName: String
     get() = if (state.regionId == 1) "hoenn" else "kanto"
 
-  /** The coin case (one per character, shared by both regions; story var `coins/COINS`). */
-  var coins: Int
-    get() = getVar(COINS_KEY)
-    set(v) = setVar(COINS_KEY, v.coerceIn(0, 9999))
+  /** The coin case (one per character, shared by both regions; r5-minigames' coin store). */
+  suspend fun coins(): Int {
+    val c = characterId ?: return 0
+    return services?.coins?.coins(c) ?: getVar(COINS_KEY)
+  }
+
+  /** AddCoins / RemoveCoins through the coin store; false when out of 0..9999. */
+  suspend fun addCoins(delta: Int): Boolean {
+    val c = characterId ?: return false
+    val store = services?.coins
+    if (store != null) return store.addCoins(session, c, delta)
+    val now = getVar(COINS_KEY) + delta
+    if (now !in 0..9999) return false
+    setVar(COINS_KEY, now)
+    return true
+  }
 
   /** A decomp constant of the running region's scripts (e.g. "SPECIES_RAYQUAZA"), or null. */
   fun constant(name: String): Int? = vm?.img?.constOrNull(name)
@@ -377,6 +433,7 @@ internal constructor(
   private companion object {
     const val VAR_RESULT = 0x800D
     const val COINS_KEY = "coins/COINS"
+    private val HEX_VAR = Regex("VAR_0x([0-9A-Fa-f]{4})")
 
     // Sign boxes have no speaker, npc boxes point at the entity.
     const val SIGN = 3

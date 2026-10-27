@@ -12,7 +12,6 @@ import de.fiereu.openmmo.server.game.minigame.action
 import de.fiereu.openmmo.server.game.minigame.arr
 import de.fiereu.openmmo.server.game.minigame.gamecorner.GameCornerScripts
 import de.fiereu.openmmo.server.game.minigame.jsonOf
-import de.fiereu.openmmo.server.game.minigame.specialVar
 import de.fiereu.openmmo.server.game.minigame.str
 import de.fiereu.openmmo.server.game.session.PlayerState
 import de.fiereu.openmmo.server.game.storage.CharacterStore

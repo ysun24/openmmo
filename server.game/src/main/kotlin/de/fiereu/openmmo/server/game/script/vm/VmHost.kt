@@ -391,14 +391,7 @@ internal suspend fun ScriptContext.vmAddMoney(delta: Int): Boolean {
   return true
 }
 
-internal fun ScriptContext.vmAddCoins(delta: Int): Boolean {
-  val now = coins + delta
-  if (now < 0 || now > MAX_COINS) return false
-  coins = now
-  return true
-}
-
-private const val MAX_COINS = 9999
+internal suspend fun ScriptContext.vmAddCoins(delta: Int): Boolean = addCoins(delta)
 
 internal suspend fun ScriptContext.vmWildBattle(
     dex: Int,

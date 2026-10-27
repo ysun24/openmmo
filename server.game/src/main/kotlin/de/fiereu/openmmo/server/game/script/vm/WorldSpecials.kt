@@ -414,7 +414,7 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
         "QuestLog_StartRecordingInputsAfterDeferredEvent",
         "SetUsedPkmnCenterQuestLogEvent")
     on("GetQuestLogState") { ctx -> 0 }
-    on("SetFlavorTextFlagFromSpecialVars") { ctx -> 0 }
+    // SetFlavorTextFlagFromSpecialVars is r5-minigames' (FameCheckerSpecials).
     on("StickerManGetBragFlags") { ctx ->
       ctx.setSpecialVar(4, 0)
       0

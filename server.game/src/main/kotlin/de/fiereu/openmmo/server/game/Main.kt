@@ -15,6 +15,7 @@ fun main() {
   val config = ConfigLoader.load()
   val component = DaggerGameServerComponent.factory().create(config)
   component.databaseBootstrap().migrate()
+  log.info { "${component.scriptSpecials().names.size} decomp specials have a handler" }
   val characterStore = component.characterStore()
   characterStore.startPeriodicFlush()
   runBlocking { component.devCharacterSeeder().seed() }

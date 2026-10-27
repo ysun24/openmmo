@@ -8,7 +8,6 @@ import de.fiereu.openmmo.server.game.minigame.SpecialFn
 import de.fiereu.openmmo.server.game.minigame.SpecialTable
 import de.fiereu.openmmo.server.game.minigame.action
 import de.fiereu.openmmo.server.game.minigame.jsonOf
-import de.fiereu.openmmo.server.game.minigame.specialVar
 import de.fiereu.openmmo.server.game.services.StoryService
 import de.fiereu.openmmo.server.game.session.PlayerState
 import de.fiereu.openmmo.story.generated.kanto.KantoFlags

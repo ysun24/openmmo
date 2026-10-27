@@ -38,6 +38,15 @@ class ScriptCoverageTest :
             .toSet()
       }
 
+      // Every handler bound in the real component: this lane's and the other lanes' (r5 merge).
+      // Building the registry also proves no two handlers claim one name.
+      val bound: Set<String> by lazy {
+        de.fiereu.openmmo.server.game.di.DaggerGameServerComponent.factory()
+            .create(de.fiereu.openmmo.server.game.config.ConfigLoader.load())
+            .scriptSpecials()
+            .names
+      }
+
       for ((region, game) in listOf("kanto" to "pokefirered", "hoenn" to "pokeemerald")) {
         test("every command and special the $region scripts reach is implemented") {
           val img = ScriptImage.of(region)!!
@@ -71,15 +80,10 @@ class ScriptCoverageTest :
           val missingCommands = d.commands.keys - implemented
           println("[coverage] $region: missing commands $missingCommands")
           missingCommands.shouldBeEmpty()
-          val unclaimed =
-              (d.specials.keys + d.natives.keys).filter {
-                it !in ours && !SpecialOwners.otherLane(it)
-              }
+          val unclaimed = (d.specials.keys + d.natives.keys).filter { it !in bound }
+          val others = (d.specials.keys + d.natives.keys).filter { it !in ours && it in bound }
           println(
-              "[coverage] $region: other lanes' specials: " +
-                  (d.specials.keys + d.natives.keys)
-                      .filter { it !in ours && SpecialOwners.otherLane(it) }
-                      .sorted())
+              "[coverage] $region: ${bound.size} bound specials; other lanes' reached: ${others.sorted()}")
           println("[coverage] $region: unclaimed specials ${unclaimed.size}: ${unclaimed.sorted()}")
           d.errors.shouldBeEmpty()
           unclaimed.sorted().shouldBeEmpty()

@@ -40,7 +40,12 @@ constructor(
     private val battlesProvider: Provider<BattleService>,
     private val healProvider: Provider<HealLocations>,
     private val progressProvider: Provider<ScriptProgress>,
+    private val coinsProvider: Provider<de.fiereu.openmmo.server.game.script.CoinStore>,
 ) {
+  /** r5 merge: the coin case (r5-minigames' store). */
+  val coins: de.fiereu.openmmo.server.game.script.CoinStore
+    get() = coinsProvider.get()
+
   val specials: ScriptSpecials
     get() = specialsProvider.get()
 

@@ -27,9 +27,10 @@ object SpecialVars {
   fun key(ctx: ScriptContext, name: String): String =
       (if (ctx.state.regionId == 0) "kanto/" else "hoenn/") + name
 
-  fun get(ctx: ScriptContext, name: String): Int = ctx.getVar(key(ctx, name))
+  // r5 merge: one accessor for the temp / special vars (ScriptContext.varGet / varSet).
+  fun get(ctx: ScriptContext, name: String): Int = ctx.varGet(name)
 
-  fun set(ctx: ScriptContext, name: String, v: Int) = ctx.setVar(key(ctx, name), v and 0xFFFF)
+  fun set(ctx: ScriptContext, name: String, v: Int) = ctx.varSet(name, v)
 
   fun flag(ctx: ScriptContext, name: String): Boolean = ctx.isFlagSet(key(ctx, name))
 

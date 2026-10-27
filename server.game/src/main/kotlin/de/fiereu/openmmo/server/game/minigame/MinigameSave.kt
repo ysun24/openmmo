@@ -75,3 +75,22 @@ class MinigameSave @Inject constructor(private val repo: MinigameRepository) {
 /** The coin case's state (topic "coins"), pushed whenever it changes. */
 fun sendCoins(session: SessionContext, coins: Int, hasCase: Boolean) =
     MinigameChannel.send(session, "coins", jsonOf("coins" to coins, "hasCase" to hasCase))
+
+/** r5 merge: the script interpreter's coin commands use the Game Corner's coin column. */
+@javax.inject.Singleton
+class MinigameCoinStore
+@javax.inject.Inject
+constructor(
+    private val save: MinigameSave,
+    private val corner:
+        javax.inject.Provider<de.fiereu.openmmo.server.game.minigame.gamecorner.GameCornerService>,
+) : de.fiereu.openmmo.server.game.script.CoinStore {
+  override suspend fun coins(charId: Long): Int = save.coins(charId)
+
+  override suspend fun addCoins(session: SessionContext?, charId: Long, delta: Int): Boolean {
+    val ok = save.addCoins(charId, delta)
+    if (ok && session != null)
+        sendCoins(session, save.coins(charId), corner.get().hasCoinCase(charId))
+    return ok
+  }
+}

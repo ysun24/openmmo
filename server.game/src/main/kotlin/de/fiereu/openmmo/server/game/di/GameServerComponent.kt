@@ -41,6 +41,9 @@ interface GameServerComponent {
 
   fun devCharacterSeeder(): DevCharacterSeeder
 
+  /** r5: built at start-up so two handlers claiming one decomp special fail fast. */
+  fun scriptSpecials(): de.fiereu.openmmo.server.game.script.ScriptSpecials
+
   @Component.Factory
   fun interface Factory {
     fun create(@BindsInstance config: GameServerConfig): GameServerComponent
