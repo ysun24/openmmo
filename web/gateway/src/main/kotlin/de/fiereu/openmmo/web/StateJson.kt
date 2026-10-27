@@ -389,6 +389,7 @@ class StateJson(private val names: Names) {
             put("maxPp", it.maxPp)
             put("type", BattleNames.moveType(it.id))
             put("power", BattleNames.power(it.id))
+            put("target", BattleNames.target(it.id))
           }
         }
       }
@@ -407,7 +408,7 @@ class StateJson(private val names: Names) {
     put("levelCap", r.levelCap)
     put("party", r.maxParty)
     put("timer", r.turnSeconds)
-    put("doubles", r.doubles)
+    if (r.doubles) put("doubles", true)
   }
 
   private fun moveInfo(id: Int, pp: Int?, maxPp: Int?) = buildJsonObject {

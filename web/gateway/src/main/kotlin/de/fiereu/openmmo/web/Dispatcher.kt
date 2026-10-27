@@ -197,13 +197,17 @@ object Dispatcher {
         "duel" ->
             if (m.keys.none { it in DUEL_RULE_FIELDS }) g.duel(m.name("name"))
             else
-                g.duelRulesDoubles(
-                    m.name("name"),
-                    m.int("levelCap")?.also { if (it != 0 && it !in 1..100) throw bad("levelCap") }
-                        ?: 0,
-                    m.int("party")?.also { if (it !in 1..6) throw bad("party") } ?: 6,
-                    m.int("timer")?.also { if (it != 0 && it !in 5..240) throw bad("timer") } ?: 0,
-                    m.bool("doubles") ?: false)
+                (m.bool("doubles") ?: false).let { doubles ->
+                  val cap =
+                      m.int("levelCap")?.also {
+                        if (it != 0 && it !in 1..100) throw bad("levelCap")
+                      } ?: 0
+                  val party = m.int("party")?.also { if (it !in 1..6) throw bad("party") } ?: 6
+                  val timer =
+                      m.int("timer")?.also { if (it != 0 && it !in 5..240) throw bad("timer") } ?: 0
+                  if (doubles) g.duelRulesDoubles(m.name("name"), cap, party, timer, true)
+                  else g.duelRules(m.name("name"), cap, party, timer)
+                }
         "duel.answer" -> g.duelAnswer(m.bool("accept") ?: throw bad("accept"))
         "trade.request" -> g.tradeRequest(m.name("name"))
         "trade.accept",
@@ -248,7 +252,7 @@ object Dispatcher {
         else -> "unknown message type: $t"
       }
 
-  private val DUEL_RULE_FIELDS = setOf("levelCap", "party", "timer")
+  private val DUEL_RULE_FIELDS = setOf("levelCap", "party", "timer", "doubles")
 
   private fun bad(field: String) = BadMessage("missing or bad field: $field")
 

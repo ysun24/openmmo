@@ -79,6 +79,9 @@ object BattleNames {
 
   fun accuracy(id: Int): Int = moves.get(id)?.accuracy ?: 0
 
+  /** r3-battle: the move's target kind (SELECTED, BOTH, USER...) for the doubles target picker. */
+  fun target(id: Int): String? = moves.get(id)?.target?.name
+
   fun growth(species: Int): GrowthRate? = this.species.get(species)?.growthRate
 
   /** Total experience to reach [level] on the Gen 3 curve, as the server's ExpCurves. */
@@ -575,11 +578,14 @@ class BattleClient(
         "type" to BattleNames.moveType(moveId),
         "power" to BattleNames.power(moveId),
         "target" to firstTarget?.let { sideOf(it.entityId) },
-        "hits" to hits)
+        "hits" to hits,
+        "id" to p.sourceEntity,
+        "targetId" to firstTarget?.entityId,
+        "targets" to p.targets.map { it.entityId })
     for (t in p.targets) {
       val outcome = t.targetMove.toInt()
       if (t.subEvents.isEmpty() && outcome == OUTCOME_MISSED) {
-        fx("miss", sideOf(t.entityId))
+        fx("miss", sideOf(t.entityId), "id" to t.entityId)
         say("$attacker's attack missed!")
       }
       if (t.subEvents.isEmpty() && outcome == OUTCOME_FAILED) say("But it failed!")
@@ -602,6 +608,7 @@ class BattleClient(
                 "from" to before?.hp?.coerceAtLeast(0),
                 "hp" to body.currentHp.toInt().coerceAtLeast(0),
                 "maxHp" to before?.maxHp,
+                "id" to t.entityId,
                 "effect" to
                     when {
                       outcome and SUPER_EFFECTIVE_BIT != 0 -> "super"
@@ -610,7 +617,7 @@ class BattleClient(
                     })
             effectiveness()
             if (body.currentHp <= 0) {
-              fx("faint", sideOf(t.entityId))
+              fx("faint", sideOf(t.entityId), "id" to t.entityId)
               say("$target fainted!")
             }
           }
@@ -627,11 +634,12 @@ class BattleClient(
                 "stat",
                 sideOf(t.entityId),
                 "stat" to BattleNames.stat(body.stat.toInt()),
-                "delta" to d)
+                "delta" to d,
+                "id" to t.entityId)
             say("$target's ${BattleNames.stat(body.stat.toInt())} $how!")
           }
           is BattleEventBody.Faint -> {
-            fx("faint", sideOf(t.entityId))
+            fx("faint", sideOf(t.entityId), "id" to t.entityId)
             say("$target fainted!")
           }
           is BattleEventBody.MoveFailed -> say("But it failed!")
@@ -1006,12 +1014,13 @@ class BattleClient(
             "hp" to hp.coerceAtLeast(0),
             "maxHp" to before.maxHp,
             "effect" to if (hp > before.hp) "heal" else "normal",
-            "reason" to e.str("reason"))
+            "reason" to e.str("reason"),
+            "id" to id)
         if (hp <= 0 && before.hp > 0) {
-          fx("faint", side)
+          fx("faint", side, "id" to id)
           say("${nameOf(id)} fainted!")
         }
-        if (hp > 0 && before.hp <= 0) fx("revive", side)
+        if (hp > 0 && before.hp <= 0) fx("revive", side, "id" to id)
       }
       "status" -> {
         val code = e.str("status")
@@ -1025,12 +1034,19 @@ class BattleClient(
           "confused" -> mapMon(id) { it.copy(confused = on) }
           "substitute" -> mapMon(id) { it.copy(substitute = on) }
         }
-        fx("volatile", side, "kind" to kind, "on" to on)
+        fx("volatile", side, "kind" to kind, "on" to on, "id" to id)
       }
-      "ability" -> fx("ability", side, "ability" to e.str("ability"), "name" to nameOf(id))
+      "ability" ->
+          fx("ability", side, "ability" to e.str("ability"), "name" to nameOf(id), "id" to id)
       "item" -> {
         if (e.bool("consumed")) mapMon(id) { it.copy(item = null) }
-        fx("item", side, "item" to e.str("item"), "consumed" to e.bool("consumed"))
+        fx(
+            "item",
+            side,
+            "item" to e.str("item"),
+            "consumed" to e.bool("consumed"),
+            "id" to id,
+            "name" to nameOf(id))
       }
       "weather" -> {
         val w = e.str("weather") ?: "none"
@@ -1047,12 +1063,10 @@ class BattleClient(
               d <= -2 -> "harshly fell"
               else -> "fell"
             }
-        fx("stat", side, "stat" to stat, "delta" to d)
+        fx("stat", side, "stat" to stat, "delta" to d, "id" to id)
         say("${nameOf(id)}'s $stat $how!")
       }
-      "miss" -> {
-        fx("miss", side)
-      }
+      "miss" -> fx("miss", side, "id" to id)
       "switch" -> synchronized(lock) { pendingSwitchPos = e.int("pos") }
       "ball" -> {
         val ball = e.str("ball") ?: "POKé BALL"

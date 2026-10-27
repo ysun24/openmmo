@@ -10,8 +10,8 @@ import kotlinx.serialization.json.put
 /**
  * r3-battle: battle presentation assets from the decomps, all under `battle/`:
  * - trainer front sprites keyed by the decomp's `TRAINER_PIC_` suffix in lower case
- *   (`battle/trainers/leader_roxanne.png`), resolved through front_pic_tables.h, Emerald first
- *   and FireRed for the Kanto-only pictures;
+ *   (`battle/trainers/leader_roxanne.png`), resolved through front_pic_tables.h, Emerald first and
+ *   FireRed for the Kanto-only pictures;
  * - the player's back sprites (the throw animation frames stacked vertically): Brendan / May
  *   (Emerald), Red / Leaf (FireRed);
  * - battle backgrounds per environment (`battle/bg/<region>/<key>.png`), rendered from the
@@ -53,7 +53,11 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
 
   private fun image(d: Decomp, picSymbol: String, palSymbol: String?): BufferedImage? {
     val png = d.symbols[picSymbol]?.firstOrNull()?.let(d::file) ?: return null
-    val pal = palSymbol?.let { d.symbols[it]?.firstOrNull() }?.takeIf { it.endsWith(".pal") }?.let(d::file)
+    val pal =
+        palSymbol
+            ?.let { d.symbols[it]?.firstOrNull() }
+            ?.takeIf { it.endsWith(".pal") }
+            ?.let(d::file)
     return Decomp.readIndexed(png, Decomp.readPalette(pal))
   }
 
@@ -79,10 +83,25 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
   private fun backs(): JsonObject = buildJsonObject {
     val list =
         listOf(
-            Triple("brendan", emerald, "graphics/trainers/back_pics/brendan.png" to "graphics/trainers/palettes/brendan.pal"),
-            Triple("may", emerald, "graphics/trainers/back_pics/may.png" to "graphics/trainers/palettes/may.pal"),
-            Triple("red", firered, "graphics/trainers/back_pics/red_back_pic.png" to "graphics/trainers/palettes/red_back_pic.pal"),
-            Triple("leaf", firered, "graphics/trainers/back_pics/leaf_back_pic.png" to "graphics/trainers/palettes/leaf_back_pic.pal"),
+            Triple(
+                "brendan",
+                emerald,
+                "graphics/trainers/back_pics/brendan.png" to
+                    "graphics/trainers/palettes/brendan.pal"),
+            Triple(
+                "may",
+                emerald,
+                "graphics/trainers/back_pics/may.png" to "graphics/trainers/palettes/may.pal"),
+            Triple(
+                "red",
+                firered,
+                "graphics/trainers/back_pics/red_back_pic.png" to
+                    "graphics/trainers/palettes/red_back_pic.pal"),
+            Triple(
+                "leaf",
+                firered,
+                "graphics/trainers/back_pics/leaf_back_pic.png" to
+                    "graphics/trainers/palettes/leaf_back_pic.pal"),
         )
     for ((name, d, paths) in list) {
       runCatching {
@@ -164,8 +183,10 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
               runCatching {
                     val dir = File(base, "$root/${cfg.first}")
                     val img =
-                        renderBg(File(dir, names.first), File(dir, names.second), File(base, "$root/${cfg.second}"))
-                            ?: return@runCatching
+                        renderBg(
+                            File(dir, names.first),
+                            File(dir, names.second),
+                            File(base, "$root/${cfg.second}")) ?: return@runCatching
                     put(key, out.writePng("battle/bg/$region/$key.png", img))
                   }
                   .onFailure { failures += "bg $region $key: $it" }
@@ -177,9 +198,9 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
   private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
   /**
-   * One battle background: 4bpp tiles + a GBA text tilemap (tile 0-9, h flip 10, v flip 11,
-   * palette 12-15) + the environment's palettes, loaded at palette slot 2 as battle_bg.c does.
-   * The visible 240x160 screen is kept.
+   * One battle background: 4bpp tiles + a GBA text tilemap (tile 0-9, h flip 10, v flip 11, palette
+   * 12-15) + the environment's palettes, loaded at palette slot 2 as battle_bg.c does. The visible
+   * 240x160 screen is kept.
    */
   internal fun renderBg(tilesPng: File, mapBin: File, palFile: File): BufferedImage? {
     if (!tilesPng.isFile || !mapBin.isFile || !palFile.isFile) return null
@@ -214,7 +235,8 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
     return img
   }
 
-  // --- animation sprites ---------------------------------------------------------------------------
+  // --- animation sprites
+  // ---------------------------------------------------------------------------
 
   /** Move type (or effect) -> battle_anims/sprites file stem. */
   private val animSprites =
@@ -248,7 +270,9 @@ class BattleAssetsExport(private val decompRoot: File, private val out: Output) 
       runCatching {
             val png =
                 File(emerald.base, "graphics/battle_anims/sprites/$stem.png").takeIf { it.isFile }
-                    ?: File(firered.base, "graphics/battle_anims/sprites/$stem.png").takeIf { it.isFile }
+                    ?: File(firered.base, "graphics/battle_anims/sprites/$stem.png").takeIf {
+                      it.isFile
+                    }
                     ?: return@runCatching
             val pal = File(png.parentFile, "$stem.pal").takeIf { it.isFile }
             val img = Decomp.readIndexed(png, Decomp.readPalette(pal))

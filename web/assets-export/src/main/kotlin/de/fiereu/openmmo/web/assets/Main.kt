@@ -189,7 +189,9 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
         put("battle", battleAssets.export())
         put(
             "battleMusicExtra",
-            buildJsonObject { REGIONS.keys.forEach { r -> put("$r", battleAssets.battleMusic(r)) } })
+            buildJsonObject {
+              REGIONS.keys.forEach { r -> put("$r", battleAssets.battleMusic(r)) }
+            })
       }
       out.write(
           "manifest.json", Json.encodeToString(JsonObject.serializer(), manifest).toByteArray())
