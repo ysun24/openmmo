@@ -597,7 +597,10 @@ def scene_regirock(s):
     rx, ry = npc_by_script(1, "DesertRuins", "DesertRuins_EventScript_Regirock")
     s.stand_by("DesertRuins", rx, ry, "down")
     check(not (s.script_ui().get("metatiles") or []), "solved: the entrance stays open")
-    texts = s.talk(timeout=120)
+    # Regirock's cry and the screen shake come first, seconds without a message.
+    s.p.send(t="a")
+    s.p.wait(lambda q: (q.state.get("battle") or {}).get("phase"), 30, "the Regirock battle")
+    texts = s.settle(timeout=150)
     check(s.flag("FLAG_DEFEATED_REGIROCK"), f"REGIROCK fought and defeated: {texts[-1:]}")
 
 
