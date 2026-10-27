@@ -80,6 +80,12 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     // Without it, opening the bag crashes. Opcode 0x40 is left alone here, since re-sending it
     // would wipe the balls out of the battle bag.
     battle.session.send(BattleSidePacket(side = PLAYER_SIDE))
+    // r5-frontier: a multi battle partner sees the same battle from the same side.
+    for ((cid, s) in battle.multiSessions) {
+      if (cid == battle.charId) continue
+      s.send(EntityPresencePacket(entityId = cid, status = PRESENCE_IN_BATTLE))
+      s.send(BattleSidePacket(side = PLAYER_SIDE))
+    }
     // r3-battle: the extended state goes first too, so the client knows the format, trainer and
     // background when it opens the battle.
     sendState(battle)
@@ -385,6 +391,12 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     put("me", sideJson(battle, battle.party, battle.own, own = true))
     put("foe", sideJson(battle, battle.opponent, battle.foe, own = false))
     put("owedSwitches", JsonArray(battle.owedSwitches.map { JsonPrimitive(it) }))
+    // r5-frontier: a multi battle's positions belong to two players (position -> character id).
+    if (battle.multiOwners.isNotEmpty()) {
+      val partner = battle.multiOwners.values.firstOrNull { it != battle.charId } ?: 0L
+      put("posOwners", JsonArray(listOf(JsonPrimitive(battle.charId), JsonPrimitive(partner))))
+    }
+    battle.facility?.let { put("facility", true) }
     put("chosen", JsonArray(battle.pendingChoices.keys.map { JsonPrimitive(it) }))
     put("bag", bagOf(battle))
   }
@@ -472,6 +484,23 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     broadcast(battle, BattleBulkStatePacket.battleEnd(prizeMoney))
     battle.session.send(EntityPresencePacket(entityId = battle.charId, status = PRESENCE_OVERWORLD))
     battle.session.send(
+        PokemonContainerPacket(
+            container = PokemonContainer.PARTY,
+            hasChange = true,
+            delete = false,
+            pokemon = party,
+        ),
+    )
+  }
+
+  /** r5-frontier: a multi battle partner's end of battle (their own stored party). */
+  fun sendPartnerBattleEnd(
+      session: de.fiereu.network.SessionContext,
+      charId: Long,
+      party: List<Pokemon>,
+  ) {
+    session.send(EntityPresencePacket(entityId = charId, status = PRESENCE_OVERWORLD))
+    session.send(
         PokemonContainerPacket(
             container = PokemonContainer.PARTY,
             hasChange = true,

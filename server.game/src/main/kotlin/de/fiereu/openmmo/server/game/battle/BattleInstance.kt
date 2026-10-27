@@ -128,6 +128,19 @@ class BattleInstance(
   /** Set when the other side is a player rather than the AI, see [PvpDuel]. */
   var pvp: PvpDuel? = null
 
+  /** r5-frontier: the battle facility's rules, see [FacilityHooks]. */
+  var facility: FacilityHooks? = null
+
+  /** r5-frontier: true for every facility battle (with or without hooks); nothing is persisted. */
+  var facilityBattle: Boolean = false
+
+  /**
+   * r5-frontier: a Battle Tower multi battle with another player. Party slot -> the character that
+   * controls it, and that character's session, so each player picks for their own position only.
+   */
+  var multiOwners: Map<Int, Long> = emptyMap()
+  var multiSessions: Map<Long, SessionContext> = emptyMap()
+
   /**
    * The player's name, the OT their own monsters carry; a monster with another OT is traded and
    * obeys only up to [obedienceLevel] (battle_util.c IsMonDisobedient). Empty: everything obeys.
