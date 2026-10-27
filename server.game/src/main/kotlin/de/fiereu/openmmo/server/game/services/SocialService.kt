@@ -19,6 +19,7 @@ import de.fiereu.openmmo.net.game.packets.social.ProfileMon
 import de.fiereu.openmmo.net.game.packets.social.SocialOp
 import de.fiereu.openmmo.net.game.packets.social.SocialRequestPacket
 import de.fiereu.openmmo.net.game.packets.social.TradeRecord
+import de.fiereu.openmmo.server.game.services.command.ChatCommandService
 import de.fiereu.openmmo.server.game.services.social.BlockList
 import de.fiereu.openmmo.server.game.services.social.ChatFilter
 import de.fiereu.openmmo.server.game.services.social.OnlineDirectory
@@ -36,6 +37,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -71,6 +73,12 @@ constructor(
     private val limiter: RateLimiter,
     private val filter: ChatFilter,
     private val scope: CoroutineScope,
+    /**
+     * Slash lines that reach a chat channel (a client that sends commands on the social packet, or
+     * the retail chat packet) run as commands, so a command and its reply never reach anyone but
+     * the caller. Lazy: commands may themselves depend on social services.
+     */
+    private val commands: Provider<ChatCommandService>? = null,
 ) {
   private fun now(): LocalDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS)
 
@@ -352,6 +360,11 @@ constructor(
   ) {
     val sender = directory.online().firstOrNull { it.info.id == me } ?: return
     if (channel == ChatChannel.SYSTEM) return
+    if (raw.trimStart().startsWith("/")) {
+      val router = commands?.get() ?: return system(session, "Commands are not available here.")
+      router.tryHandle(session, raw)
+      return
+    }
     val cleaned = cleanText(raw) ?: return
     if (cleaned.length > config.chatMaxLength) {
       return system(session, "Messages are limited to ${config.chatMaxLength} characters.")

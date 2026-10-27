@@ -13,6 +13,9 @@ import de.fiereu.openmmo.net.game.packets.social.SocialRequestPacket
 import de.fiereu.openmmo.server.game.services.GuildRules
 import de.fiereu.openmmo.server.game.services.GuildService
 import de.fiereu.openmmo.server.game.services.SocialService
+import de.fiereu.openmmo.server.game.services.command.ChatCommand
+import de.fiereu.openmmo.server.game.services.command.ChatCommandService
+import de.fiereu.openmmo.server.game.services.command.CommandContext
 import de.fiereu.openmmo.server.game.services.trade.tradeMon
 import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -48,8 +51,20 @@ internal class SocialFixture(
   val blocks = BlockList(repo)
   val limiter = RateLimiter(config.rates)
   val guilds = GuildService(repo, directory, store, config, blocks, filter, scope)
+  /** A dev command whose reply must reach only the caller. */
+  val echo =
+      object : ChatCommand {
+        override val name = "echo"
+        override val usage = "/echo <text>"
+        override val description = "test"
+
+        override suspend fun run(ctx: CommandContext) =
+            ctx.reply("echo: ${ctx.args.joinToString(" ")}")
+      }
+  val commands = ChatCommandService(store, setOf(echo))
   val social =
-      SocialService(repo, directory, charRepo, blocks, guilds, config, limiter, filter, scope)
+      SocialService(
+          repo, directory, charRepo, blocks, guilds, config, limiter, filter, scope, { commands })
 
   private var nextUser = 1
 
@@ -187,6 +202,24 @@ class SocialServiceTest :
           repeat(3) { fx.social.sendFriendList(ash.session) }
           runCurrent()
           gary.notices().count { it == "Ash is online." } shouldBe 1
+        }
+      }
+
+      test("a slash line on any channel runs as a command; only the caller sees the reply") {
+        runTest {
+          val fx = SocialFixture(backgroundScope)
+          val ash = fx.player("Ash")
+          val gary = fx.player("Gary")
+          for (ch in listOf(ChatChannel.LOCAL, ChatChannel.GLOBAL, ChatChannel.TRADE)) {
+            fx.say(ash, ch, "/echo hi ${ch.name}")
+            ash.notices().last() shouldBe "echo: hi ${ch.name}"
+          }
+          fx.say(ash, ChatChannel.GLOBAL, "/nosuch")
+          ash.notices().last() shouldBe "Unknown command: nosuch. Try /help."
+          // Neither the command line nor any reply reached Gary, and Ash got no chat echo.
+          gary.chat().shouldBeEmpty()
+          gary.notices().shouldBeEmpty()
+          ash.chat().shouldBeEmpty()
         }
       }
 
