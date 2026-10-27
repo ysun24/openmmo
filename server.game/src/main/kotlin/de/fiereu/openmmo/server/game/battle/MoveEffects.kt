@@ -703,7 +703,8 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       move: MoveDef,
       dealt: Int,
   ) {
-    var chance = move.secondaryEffectChance
+    // Fake Out's flinch is certain (setmoveeffect MOVE_EFFECT_FLINCH | MOVE_EFFECT_CERTAIN).
+    var chance = if (move.effect == MoveEffect.FAKE_OUT) 100 else move.secondaryEffectChance
     if (user.ability == Ability.SERENE_GRACE) chance *= 2
     val blocked = target.ability == Ability.SHIELD_DUST || target.volatile.substituteHp > 0 && dealt == 0
     val roll = { chance >= 100 || rng.percent(chance) }
