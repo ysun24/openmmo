@@ -135,6 +135,8 @@ export class Renderer {
     // ground effects (footprints, splashes, grass rustles), then entities, y-sorted
     this.effects(world, camX, camY, now);
     const region = world.map ? world.map.region : 0;
+    // reflections on ponds, puddles and ice below each sprite (GROUND_EFFECT_FLAG_*_REFLECTION)
+    for (const e of world.drawList) this.entity(e, camX, camY, now, region, true);
     for (const e of world.drawList) this.entity(e, camX, camY, now, region);
 
     // top layers
@@ -226,13 +228,19 @@ export class Renderer {
     this.ctx.drawImage(c, x, y);
   }
 
-  entity(e, camX, camY, now, region) {
+  entity(e, camX, camY, now, region, reflect = false) {
     const ctx = this.ctx;
     const d = this.sheetForMode(e, region);
     const bx = Math.round(e.px) - camX;
     const by = Math.round(e.py) - camY;
     if (bx < -32 || by < -32 || bx > VW + 16 || by > VH + 32) return;
-    if (this.highlight === e.id) {
+    let refl = null;
+    if (reflect) {
+      if (!d || !d._img || !d._img.ready || e.mode === 'surf' || e.mode === 'underwater') return;
+      refl = this.reflectionTiles(e, d.frameH);
+      if (!refl) return;
+    }
+    if (!reflect && this.highlight === e.id) {
       ctx.fillStyle = '#f8c030';
       const bob = (now / 200) & 1;
       ctx.fillRect(bx + 6, by - 22 + bob, 4, 2);
@@ -241,8 +249,8 @@ export class Renderer {
     // under the sprite: the surf blob, the ledge-hop shadow
     const surfing = e.mode === 'surf';
     const bobY = surfing ? ((now / 266) | 0) & 1 : 0; // the blob bobs 1px every 16 frames
-    if (surfing) this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, bx - 8, by - 8 + bobY, e.facing === 'right');
-    if (e.jump > 0) this.fxSprite('shadow', 0, bx, by + 10);
+    if (surfing && !reflect) this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, bx - 8, by - 8 + bobY, e.facing === 'right');
+    if (e.jump > 0 && !reflect) this.fxSprite('shadow', 0, bx, by + 10);
     const lift = Math.round(e.jump || 0) - (surfing ? bobY : 0);
     if (!d || !d._img || !d._img.ready) {
       ctx.fillStyle = e.kind === 'player' ? '#e04848' : '#4878e0';
@@ -271,6 +279,7 @@ export class Renderer {
     const sx = (idx % perRow) * fw, sy = Math.floor(idx / perRow) * fh;
     const dx = bx + ((16 - fw) >> 1);
     const dy = by + 16 - fh - lift;
+    if (refl) return this.drawReflection(img, sx, sy, fw, fh, dx, dy, by + 16, mirror, refl, camX, camY);
     if (mirror) {
       ctx.save();
       ctx.scale(-1, 1);
@@ -286,6 +295,61 @@ export class Renderer {
     }
     // a trainer's "!" when it spots the player (FLDEFF_EXCLAMATION_MARK_ICON, ~1 s)
     if (e.exclaimAt && now - e.exclaimAt < 1000) this.fxSprite('exclamation', 0, bx, by - 30 + (now - e.exclaimAt < 120 ? 4 : 0));
+  }
+
+  /**
+   * ObjectEventGetNearbyReflectionType: the reflective tiles (pond water, puddles, ice) in the
+   * sprite's height below its feet, or null when there are none. 'ice' reflections keep the
+   * sprite's colours, water ones are tinted.
+   */
+  reflectionTiles(e, h) {
+    const w = this.world;
+    if (!w) return null;
+    const ty = Math.floor(e.py / 16);
+    const rows = Math.max(1, Math.ceil(h / 16)) + (Math.floor(e.py / 16) !== Math.ceil(e.py / 16) ? 1 : 0);
+    let tiles = null;
+    let ice = false;
+    for (let i = 1; i <= rows; i++) {
+      // a sprite between two tiles reflects in both columns (and rows) it spans
+      const x0 = Math.floor(e.px / 16), x1 = Math.ceil(e.px / 16);
+      for (const x of x0 === x1 ? [x0] : [x0, x1]) {
+        const b = w.behAt(x, ty + i);
+        if (b !== 'POND_WATER' && b !== 'PUDDLE' && b !== 'ICE') continue;
+        (tiles || (tiles = [])).push([x, ty + i]);
+        if (b === 'ICE') ice = true;
+      }
+    }
+    return tiles && { tiles, ice };
+  }
+
+  /**
+   * The sprite frame drawn at ([dx], [dy]) mirrored about its feet line [footY] (so a jump drops
+   * the reflection as far as it lifts the sprite), clipped to the reflective tiles of [refl].
+   */
+  drawReflection(img, sx, sy, fw, fh, dx, dy, footY, mirror, refl, camX, camY) {
+    const ctx = this.ctx;
+    let c = this._reflCanvas;
+    if (!c) c = this._reflCanvas = document.createElement('canvas');
+    if (c.width !== fw || c.height !== fh) (c.width = fw), (c.height = fh);
+    const rc = c.getContext('2d');
+    rc.globalCompositeOperation = 'source-over';
+    rc.clearRect(0, 0, fw, fh);
+    rc.drawImage(img, sx, sy, fw, fh, 0, 0, fw, fh);
+    if (!refl.ice) {
+      // the reflection palette: the sprite's colours darkened towards the water's blue
+      rc.globalCompositeOperation = 'source-atop';
+      rc.fillStyle = 'rgba(40, 72, 152, 0.45)';
+      rc.fillRect(0, 0, fw, fh);
+    }
+    ctx.save();
+    ctx.beginPath();
+    for (const [x, y] of refl.tiles) ctx.rect(x * 16 - camX, y * 16 - camY, 16, 16);
+    ctx.clip();
+    ctx.globalAlpha = refl.ice ? 0.5 : 0.7;
+    ctx.translate(0, footY * 2);
+    ctx.scale(mirror ? -1 : 1, -1);
+    ctx.drawImage(c, mirror ? -dx - fw : dx, dy, fw, fh);
+    ctx.restore();
   }
 
   /** The sprite sheet for an entity, swapped for its bike/surf/underwater variant (players). */
