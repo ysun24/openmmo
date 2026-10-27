@@ -6,6 +6,7 @@ import de.fiereu.openmmo.client.gfx.MetatilePainter
 import de.fiereu.openmmo.client.gfx.MetatilePainter.Pixels
 import de.fiereu.openmmo.client.gfx.PretData
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -29,6 +30,8 @@ data class MapEntry(
     val music: String?,
     /** (direction, offset, target key) for the four seamless edge connections. */
     val connections: List<Triple<String, Int, String>>,
+    /** Warp tiles (x, y) from map.json `warp_events`: doors, stairs, arrows. */
+    val warps: List<Pair<Int, Int>> = emptyList(),
 ) {
   val key = "$region:$bank:$map"
 }
@@ -38,12 +41,21 @@ data class LayoutFiles(
     val bottom: String,
     val top: String,
     val collision: String,
-    val border: String?
+    val border: String?,
+    /** `<stem>.anim.json` when the layout has animated metatiles. */
+    val anim: String? = null,
 )
 
 class MapExport(private val decompRoot: File, private val out: Output) {
   private val json = Json { ignoreUnknownKeys = true }
   val failures: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
+  private val anims = ConcurrentHashMap<GbaGame, TilesetAnims>()
+
+  fun anims(game: GbaGame): TilesetAnims =
+      anims.computeIfAbsent(game) { TilesetAnims(decompRoot, it) }
+
+  val animFailures: List<String>
+    get() = anims.values.flatMap { it.failures }
 
   /**
    * Every map of [game]. Banks and map numbers are positions in `map_groups.json`'s group_order,
@@ -80,7 +92,20 @@ class MapExport(private val decompRoot: File, private val out: Output) {
                   }
                   Triple(c.direction, c.offset, "$region:${addr.first}:${addr.second}")
                 }
-            entries += MapEntry(region, bank, map, name, layoutId, layout, music, conns)
+            val warps =
+                (mapJson["warp_events"] as? kotlinx.serialization.json.JsonArray)
+                    .orEmpty()
+                    .mapNotNull { w ->
+                      val o = w as? JsonObject ?: return@mapNotNull null
+                      val x =
+                          o["x"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                              ?: return@mapNotNull null
+                      val y =
+                          o["y"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                              ?: return@mapNotNull null
+                      x to y
+                    }
+            entries += MapEntry(region, bank, map, name, layoutId, layout, music, conns, warps)
           }
         } catch (e: Exception) {
           failures += "$key $name: ${e.javaClass.simpleName}: ${e.message}"
@@ -103,6 +128,27 @@ class MapExport(private val decompRoot: File, private val out: Output) {
       MetatilePainter.drawMetatile(bottom, top, game, layout, id, x * 16, y * 16)
     }
     val stem = "maps/$region/${layoutId.removePrefix("LAYOUT_").lowercase()}"
+    val anim =
+        runCatching { anims(game).forLayout(layoutId, layout, "$stem.anim.png") }
+            .onFailure { failures += "anim $region:$layoutId: $it" }
+            .getOrNull()
+    var animPath: String? = null
+    if (anim != null) {
+      // Animated top layers are drawn from the atlas every frame; the baked copy would show
+      // through.
+      for ((x, y) in anim.topCells) for (yy in 0 until 16) {
+        java.util.Arrays.fill(
+            top.data,
+            (y * 16 + yy) * top.width + x * 16,
+            (y * 16 + yy) * top.width + x * 16 + 16,
+            0)
+      }
+      out.writePng("$stem.anim.png", anim.atlas.toImage())
+      animPath =
+          out.write(
+              "$stem.anim.json",
+              Json.encodeToString(JsonObject.serializer(), anim.json).toByteArray())
+    }
     val b = out.writePng("$stem.bottom.png", bottom.toImage())
     val t = out.writePng("$stem.top.png", top.toImage())
     val c = out.write("$stem.col.bin", collision(layout))
@@ -112,7 +158,7 @@ class MapExport(private val decompRoot: File, private val out: Output) {
             layout.borderHeight > 0)
             out.writePng("$stem.border.png", border(game, layout).toImage())
         else null
-    return LayoutFiles(b, t, c, border)
+    return LayoutFiles(b, t, c, border, animPath)
   }
 
   fun manifestEntry(e: MapEntry, files: LayoutFiles): JsonObject = buildJsonObject {
@@ -138,6 +184,15 @@ class MapExport(private val decompRoot: File, private val out: Output) {
           }
         })
     put("music", e.music?.let(::JsonPrimitive) ?: JsonNull)
+    put(
+        "warps",
+        buildJsonArray {
+          e.warps.forEach { (x, y) ->
+            add(JsonPrimitive(x))
+            add(JsonPrimitive(y))
+          }
+        })
+    put("anim", files.anim?.let(::JsonPrimitive) ?: JsonNull)
   }
 
   companion object {

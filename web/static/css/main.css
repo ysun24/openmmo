@@ -323,3 +323,15 @@ body.landscape #sysbtns { top: auto; bottom: 8px; }
 .panel .grow { flex: 1; }
 .item.move { grid-template-columns: 1fr auto; }
 .panel .sumhead .hpbar { display: block; width: 100%; max-width: 200px; }
+/* ------------------------------------------------------------------ loading bar + settings */
+#loadbar { position: fixed; left: 0; right: 0; top: 0; height: 4px; z-index: 100; background: #0008; pointer-events: none; }
+#loadbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; box-shadow: 0 0 6px var(--accent); }
+.panel input[type=range] { padding: 0; accent-color: var(--accent); min-height: 32px; }
+body.landscape #topbar { opacity: .92; }
+/* landscape phones: system pills in the top-left corner, beside the game instead of over it */
+body.landscape #sysbtns { left: max(10px, env(safe-area-inset-left)); top: 8px; bottom: auto; transform: none; flex-direction: column; align-items: flex-start; }
+/* small phones (iPhone SE class): shrink the controls so D-pad and B never touch */
+@media (max-width: 359px), (max-height: 359px) {
+  #dpad { transform: scale(.82); transform-origin: left bottom; }
+  #abtns { transform: scale(.82); transform-origin: right bottom; }
+}

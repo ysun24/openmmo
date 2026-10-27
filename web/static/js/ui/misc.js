@@ -196,11 +196,39 @@ export function openMenu() {
     item('Trade with…', 'trade', () => askName('Trade with', (n) => app.send({ t: 'trade.request', name: n }))),
     item('Duel…', 'duel', () => askName('Duel', (n) => openChallenge(n))),
     item('Chat', 'chat', () => app.openChat()),
+    item('Sound & display', 'sound', openSettings),
     item(app.showFps ? 'Hide FPS' : 'Show FPS', 'fps', () => app.toggleFps()),
     item('Log out', 'logout', () => app.logout()),
   ]);
   p.body.style.gridTemplateColumns = '1fr 1fr';
   setFocus(p.body, p.body.querySelector('button'));
+}
+
+/** Music volume / mute and name tag toggles (all remembered in localStorage by their owners). */
+export function openSettings() {
+  const p = panels.open('settings', 'Sound & display');
+  const s = app.settings;
+  const pct = h('span.muted', Math.round(s.volume() * 100) + '%');
+  const range = h('input', {
+    type: 'range', min: 0, max: 100, step: 5, value: Math.round(s.volume() * 100), 'aria-label': 'Music volume', 'data-k': 'vol',
+    on: { input: (e) => { s.setVolume(e.target.value / 100); pct.textContent = e.target.value + '%'; } },
+  });
+  range.style.flex = '1';
+  const toggle = (label, k, get, set) => {
+    const b = h('button', { type: 'button', 'data-k': k, 'aria-pressed': String(get()) }, `${label}: ${get() ? 'ON' : 'OFF'}`);
+    b.addEventListener('click', () => {
+      set(!get());
+      b.textContent = `${label}: ${get() ? 'ON' : 'OFF'}`;
+      b.setAttribute('aria-pressed', String(get()));
+    });
+    return b;
+  };
+  rerender(p.body, () => [
+    h('div.row', h('b', 'Music'), range, pct),
+    h('div.row', toggle('Mute', 'mute', s.muted, s.setMuted)),
+    h('div.row', toggle('Name tags', 'tags', s.tags, s.setTags), toggle('My name tag', 'selftag', s.selfTag, s.setSelfTag)),
+  ]);
+  setFocus(p.body, p.body.querySelector('[data-k=mute]'));
 }
 
 export function askName(title, fn, initial = '') {

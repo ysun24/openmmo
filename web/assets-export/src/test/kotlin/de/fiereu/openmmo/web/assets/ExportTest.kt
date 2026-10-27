@@ -84,7 +84,88 @@ class ExportTest {
     val before = File(dir, "manifest.json").readBytes()
     Exporter(decomp, dir, 4).run()
     assertTrue(before.contentEquals(File(dir, "manifest.json").readBytes()))
+
+    // Tileset animations: Pallet Town's flowers and water (FireRed's general tileset).
+    val anim =
+        Json.parseToJsonElement(File(dir, pallet.getValue("anim").jsonPrimitive.content).readText())
+            .jsonObject
+    val channels = anim.getValue("channels").jsonArray.map { it.jsonObject }
+    fun ch(dest: Int) = channels.first { it.getValue("dest").jsonPrimitive.int == dest }
+    assertEquals(48, ch(416).getValue("size").jsonPrimitive.int, "water + land water edge")
+    assertEquals(640, ch(416).getValue("cycle").jsonPrimitive.int)
+    // TilesetAnim_General: water copies on timer % 16 == 1, frame (timer / 16) % 8
+    val ev = ch(416).getValue("events").jsonArray.map { it.jsonPrimitive.int }
+    assertEquals(listOf(0, 7, 1, 0, 17, 1, 33, 2), ev.take(8))
+    assertEquals(4, ch(508).getValue("size").jsonPrimitive.int, "flowers")
+    val metas = anim.getValue("metatiles").jsonArray.map { it.jsonObject }
+    assertTrue(metas.any { it.getValue("combos").jsonArray.size == 8 }, "8 water frames")
+    assertTrue(File(dir, anim.getValue("image").jsonPrimitive.content).isFile)
+    assertNotNull(
+        m.getValue("maps").jsonObject.getValue("1:50:9").jsonObject["anim"]?.jsonPrimitive)
+    // warps
+    val house = m.getValue("maps").jsonObject.getValue("0:4:1").jsonObject
+    assertEquals(listOf(10, 2), house.getValue("warps").jsonArray.map { it.jsonPrimitive.int })
+
+    // Music: the decomp MIDIs + voice tables
+    assertEquals(
+        "music/0/index.json", m.getValue("music").jsonObject.getValue("0").jsonPrimitive.content)
+    val idx = Json.parseToJsonElement(File(dir, "music/0/index.json").readText()).jsonObject
+    val song = idx.getValue("songs").jsonObject.getValue("MUS_PALLET").jsonObject
+    assertEquals(100, song.getValue("vol").jsonPrimitive.int)
+    assertTrue(
+        File(dir, song.getValue("mid").jsonPrimitive.content).readBytes().take(4) ==
+            "MThd".toByteArray().toList())
+    val sq = song.getValue("voices").jsonObject.getValue("80").jsonObject
+    assertEquals("sq", sq.getValue("t").jsonPrimitive.content)
+    assertEquals(
+        "MUS_VS_WILD",
+        m.getValue("battleMusic")
+            .jsonObject
+            .getValue("1")
+            .jsonObject
+            .getValue("wild")
+            .jsonPrimitive
+            .content)
+    val emerald = Json.parseToJsonElement(File(dir, "music/1/index.json").readText()).jsonObject
+    val drums =
+        emerald
+            .getValue("songs")
+            .jsonObject
+            .getValue("MUS_LITTLEROOT")
+            .jsonObject
+            .getValue("voices")
+            .jsonObject
+            .getValue("0")
+            .jsonObject
+    assertTrue(
+        drums.getValue("keys").jsonObject.values.all { it.jsonObject["drum"] != null }, "drum kit")
     dir.deleteRecursively()
+  }
+
+  @Test
+  fun miniCInterpretsCounters() {
+    val src =
+        """
+        static const u16 *const sFrames[] = { gA, gB, gA };
+        static void Q(u16 timer_div, u8 timer_mod)
+        {
+            timer_div -= timer_mod;
+            if (timer_div < 2) { Append(sFrames[timer_div % ARRAY_COUNT(sFrames)], (u16 *)(BASE + 3)); }
+            else Append(gC, 7);
+        }
+        """
+            .trimIndent()
+    val calls = mutableListOf<List<Any?>>()
+    val c =
+        MiniC(src, mapOf("BASE" to 10L)) { name, args ->
+          if (name == "Append") {
+            calls += args
+            0L
+          } else null
+        }
+    c.call("Q", listOf(1L, 0L))
+    c.call("Q", listOf(0L, 1L)) // u16 wraps: 65535 >= 2
+    assertEquals(listOf(listOf<Any?>("gB", 13L), listOf<Any?>("gC", 7L)), calls)
   }
 
   private fun createTempDir(): File = kotlin.io.path.createTempDirectory("webassets").toFile()

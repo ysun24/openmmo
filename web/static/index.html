@@ -6,11 +6,17 @@
   <meta name="theme-color" content="#101018">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OpenMMO">
+  <link rel="manifest" href="app.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>OpenMMO</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/battle.css">
 </head>
 <body>
+  <div id="loadbar" class="hidden" role="progressbar" aria-label="Loading"><i></i></div>
   <!-- ============================================================ login -->
   <section id="login" class="screen">
     <form id="login-form" class="card" autocomplete="on">

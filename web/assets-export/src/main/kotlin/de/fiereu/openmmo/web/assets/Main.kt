@@ -107,6 +107,19 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
       val monJobs =
           dexes.map { dex -> dex to pool.submit(Callable { exportMon(out, pokemon, dex) }) }
 
+      val musicJobs =
+          REGIONS.map { (r, g) ->
+            pool.submit(
+                Callable {
+                  val m = MusicExport(decomp, g, out)
+                  Triple(
+                      r,
+                      m,
+                      runCatching { m.export(r) }
+                          .onFailure { m.failures += "music $r: $it" }
+                          .getOrNull())
+                })
+          }
       val layoutFiles = layoutJobs.associate { (k, f) -> k to f.get() }
       val objects = objectJobs.map { it.get() }
       val mons = monJobs.mapNotNull { (dex, f) -> f.get()?.let { dex to it } }
@@ -152,13 +165,33 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
               }
             })
         put("pokemon", buildJsonObject { mons.forEach { (dex, o) -> put("$dex", o) } })
+        val music = musicJobs.map { it.get() }
+        put("music", buildJsonObject { music.forEach { (r, _, p) -> p?.let { put("$r", it) } } })
+        put(
+            "battleMusic",
+            buildJsonObject {
+              music.forEach { (r, _, p) ->
+                p ?: return@forEach
+                val songs = File(decomp, REGIONS.getValue(r).dir + "/sound/songs/midi")
+                put(
+                    "$r",
+                    buildJsonObject {
+                      MusicExport.BATTLE.forEach { (k, c) ->
+                        if (File(songs, c.lowercase() + ".mid").isFile) put(k, c)
+                      }
+                    })
+              }
+            })
         put("ui", buildJsonObject { put("font", kotlinx.serialization.json.JsonNull) })
       }
       out.write(
           "manifest.json", Json.encodeToString(JsonObject.serializer(), manifest).toByteArray())
       val pruned = out.prune()
       val failures =
-          maps.failures + objects.flatMap { it.second.failures } + pokemon.flatMap { it.failures }
+          maps.failures +
+              maps.animFailures +
+              objects.flatMap { it.second.failures } +
+              pokemon.flatMap { it.failures }
       return Result(
           entries.sumOf { it.size },
           layoutFiles.values.count { it != null },

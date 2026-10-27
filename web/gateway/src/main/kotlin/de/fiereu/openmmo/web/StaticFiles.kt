@@ -84,6 +84,7 @@ class StaticFiles(root: Path) {
             "ogg" to "audio/ogg",
             "mp3" to "audio/mpeg",
             "wav" to "audio/wav",
+            "mid" to "audio/midi",
             "webmanifest" to "application/manifest+json",
         )
 
