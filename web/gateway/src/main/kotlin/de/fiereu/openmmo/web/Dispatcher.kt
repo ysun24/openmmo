@@ -28,6 +28,9 @@ interface GameActions : SocialActions {
   fun matchCall(id: Int): String? = "match call is not supported"
 
   /** r4: a secret base PC action (place / putaway / packup / close). */
+  /** r5-frontier: a battle facility action, passed through as JSON (PROTOCOL.md "r5-frontier"). */
+  fun frontier(json: String): String? = "battle facilities are not supported"
+
   fun secretBase(action: String, decor: Int, x: Int, y: Int): String? =
       "secret bases are not supported"
 
@@ -370,6 +373,16 @@ object Dispatcher {
         "progress.refresh" -> g.progressRefresh()
         // r3-field: a field move or field item (PROTOCOL.md "r3-field").
         "matchcall" -> g.matchCall((m.int("id") ?: -1).coerceIn(-1, 0x7FFF))
+        "frontier" -> {
+          // {"t":"frontier","a":"answer|close|open", ...}; only these keys reach the server.
+          val a = m.string("a")
+          if (a !in setOf("answer", "close", "open")) "unknown frontier action: $a"
+          else {
+            val body = JsonObject(m.filterKeys { it != "t" })
+            if (body.toString().length > 4096) "frontier message too long"
+            else g.frontier(body.toString())
+          }
+        }
         "secretbase" -> {
           val action = m.string("action")
           if (action !in SECRET_BASE_ACTIONS) "unknown secret base action: $action"

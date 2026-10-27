@@ -31,6 +31,8 @@ internal object BattleAi {
       taken: Set<Int> = emptySet(),
   ): BattleChoice? {
     if (ref.side != 1 || ctx.battle.trainer == null || ctx.battle.pvp != null) return null
+    // r5-frontier: Arena and Palace monsters never switch out by choice.
+    if (ctx.battle.facility?.allowSwitch == false) return null
     val mon = ctx.live(ref) ?: return null
     if (trapped(mon)) return null
     val foe = ctx.foesOf(ref).mapNotNull { ctx.live(it) }.firstOrNull() ?: return null
@@ -79,15 +81,28 @@ internal object BattleAi {
     return best
   }
 
-  fun choose(ctx: BattleCtx, ref: BattlerRef): BattleChoice {
+  /**
+   * r5-frontier: [allowed] restricts the pick to these move ids (the Battle Palace's nature-chosen
+   * move group, BattleAI_SetupAIData(selectedMoves)); [forceSmart] scores moves like a trainer for
+   * either side (the Palace runs the AI for the player's monsters too).
+   */
+  fun choose(
+      ctx: BattleCtx,
+      ref: BattlerRef,
+      allowed: Set<Int>? = null,
+      forceSmart: Boolean = false,
+  ): BattleChoice {
     val mon = ctx.live(ref) ?: return BattleChoice.Pass(ref.side, ref.pos)
     val usable =
         mon.moves.filter {
-          it.id.toInt() != 0 && it.pp > 0 && it.id.toInt() != mon.volatile.disabledMove
+          it.id.toInt() != 0 &&
+              it.pp > 0 &&
+              it.id.toInt() != mon.volatile.disabledMove &&
+              (allowed == null || it.id.toInt() in allowed)
         }
     if (usable.isEmpty()) return BattleChoice.UseMove(ref.side, ref.pos, STRUGGLE_ID)
     val foes = ctx.foesOf(ref).filter { ctx.live(it) != null }
-    val smart = ref.side == 1 && ctx.battle.trainer != null
+    val smart = forceSmart || ref.side == 1 && ctx.battle.trainer != null
     if (!smart) {
       val move = usable[ctx.rng.pick(usable.size)].id.toInt()
       val target = if (foes.isEmpty()) null else foes[ctx.rng.pick(foes.size)]

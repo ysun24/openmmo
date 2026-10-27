@@ -16,6 +16,7 @@ import * as misc from './ui/misc.js';
 import * as progress from './ui/progress.js';
 import * as field from './ui/field.js';
 import * as sbui from './ui/secretbase.js';
+import * as frontier from './ui/frontier.js';
 import * as social from './ui/social.js';
 import * as contests from './ui/contests.js'; // r5-contests
 import * as typer from './ui/typewriter.js';
@@ -114,7 +115,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui, scriptui, contests];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui, scriptui, contests, frontier];
 UIS.forEach((u) => u.init(app));
 typer.init();
 

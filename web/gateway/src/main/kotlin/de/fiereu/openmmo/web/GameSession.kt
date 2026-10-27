@@ -88,6 +88,11 @@ class GameSession(val client: GameClient) : GameActions {
     else "close the dialog first"
   }
 
+  override fun frontier(json: String): String? {
+    client.send(de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket(json))
+    return null
+  }
+
   override fun secretBase(action: String, decor: Int, x: Int, y: Int): String? {
     if (inBattle()) return "not in a battle"
     val a =

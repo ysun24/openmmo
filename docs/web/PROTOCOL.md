@@ -640,3 +640,45 @@ Documents and actions:
 - Assets: manifest `contest.berryTrees` `{"1".."43": sheet}`, 9 frames of 16x32 per berry (dirt,
   sprout x2, tree x6, each in its stage's palette), `contest.stageAnims` `{"1".."5": [[frame,
   gbaFrames]...]}` (sAnim_BerryTreeStage0-4).
+## 14. r5-frontier (round 5: battle facilities; all additive)
+
+The Emerald Battle Frontier (Tower, Dome, Palace, Arena, Factory, Pike, Pyramid), the Battle Tents,
+the Trainer Hill, the FRLG Trainer Tower and the Exchange Service Corner run on the server as
+"desks"; every screen of a desk is sent whole as JSON.
+
+- Game protocol: c2s **0xD8** `FrontierActionPacket(json)` and s2c **0xE2** `FrontierStatePacket(json)`
+  (32-bit length + UTF-8). s2c 0xD8-0xDB, the r5-frontier reservation, are retail packets, so the
+  state rides on 0xE2 (free in every r5 branch).
+- Browser → gateway: `{t:"frontier", a:"answer", seq, ...}` answers the current screen (`seq` must
+  be the screen's); `{t:"frontier", a:"close"}` leaves the desk; `{t:"frontier", a:"open",
+  desk:"card"}` opens the Frontier Pass. Only `a`, `seq` and the answer fields reach the server
+  (4 KiB at most).
+- `world.frontier`: `{open, seq, desk, answer, bp, symbols:{tower..pyramid: 0|1|2}, screen}`;
+  `{open:false}` when no desk is open. `answer` false means the screen needs no answer (`wait`,
+  `battle`, a link-multi partner's mirrored screen, which also carries `mirror:true`).
+- `screen.kind` and its answer:
+  - `menu` `{text, options:[{id,label}]}` → `{v:id}`
+  - `message` `{text}` → `{}`
+  - `team` `{text, count, party:[card + {slot, ok, why}]}` → `{slots:[party slots]}` or `{v:"cancel"}`
+  - `between` `{text, team:[card], opponent, opponentPic, brain, hint?, timer?}` → `{v:"continue"|"retire"}`
+  - `rental` `{text, count:3, mons:[card]}` → `{picks:[i]}` (Battle Factory / Slateport Tent)
+  - `swap` `{text, mine:[card], theirs:[card]}` → `{mine:i, theirs:j}` (or -1/-1 to keep)
+  - `dome` `{text, round, bracket:[{leaf, name, seed, out, outRound, player, brain}], opponent,
+    opponentMons:[{dex,name,item,moves}], mine:[card], count:2}` → `{picks:[i,j]}` or `{v:"retire"}`
+  - `doors` `{text, hint, room, streak, team}` → `{door:0|1|2}` or `{v:"retire"}` (Battle Pike)
+  - `pyramid` `{text, floor, at, light, grid:[{i, seen, lit, kind: dark|floor|trainer|item|exit}],
+    bag:[{item,name,count}], team}` → `{v:"move", to}` (an adjacent square), `{v:"use", item,
+    target}` or `{v:"retire"}`
+  - `shop` `{text, items:[{idx, name, kind, cost}]}` → `{buy: idx}` or `{v:"cancel"}`
+  - `card` `{bp, earned, symbols, records:[{key, current, best, active}], hill, ttower}` → `{}`
+  - `wait` `{text}`, `battle` `{text}` (the battle scene takes over; the desk comes back after it)
+  - card = `{id, dex, name, species, level, hp, maxHp, status, item, nature, ability, types, moves, stats}`
+- Battle extension state (`BattleExtPacket` `t:"state"`, r3-battle) gains `posOwners: [charId, charId]`
+  in a multi battle (position → controlling character; -1 for an NPC partner) and `facility: true`.
+  The battle client marks positions it does not own (`notMine`) and only prompts for its own.
+- Desks are opened by the attendants' object event scripts (`FrontierDesks.BY_SCRIPT`), by the
+  facility specials when the scripts interpreter calls them, and by `/frontier <desk>` (developer).
+  Desks: `tower:{singles|doubles|multis|linkmultis}`, `dome:{singles|doubles}`,
+  `palace:{singles|doubles}`, `arena`, `factory:{singles|doubles}`, `pike`, `pyramid`,
+  `tent:{slateport|verdanturf|fallarbor}`, `hill`, `ttower`, `exchange:{Decor1|Decor2|Vitamins|HoldItems}`, `card`.
+  Dev: `/frontier bp <n>`, `/frontier streak <key> <n>`.

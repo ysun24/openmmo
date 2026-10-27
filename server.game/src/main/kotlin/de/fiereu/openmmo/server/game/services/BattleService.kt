@@ -2,6 +2,7 @@ package de.fiereu.openmmo.server.game.services
 
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
+import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.enums.BattleAction
 import de.fiereu.openmmo.common.enums.IVs
@@ -39,6 +40,8 @@ import de.fiereu.openmmo.server.game.battle.BattleTerrain
 import de.fiereu.openmmo.server.game.battle.BattlerRef
 import de.fiereu.openmmo.server.game.battle.CatchCalculator
 import de.fiereu.openmmo.server.game.battle.CatchContext
+import de.fiereu.openmmo.server.game.battle.FacilityBattleOutcome
+import de.fiereu.openmmo.server.game.battle.FacilityBattleSetup
 import de.fiereu.openmmo.server.game.battle.HeldItems
 import de.fiereu.openmmo.server.game.battle.ItemNames
 import de.fiereu.openmmo.server.game.battle.MoveLearnPrompts
@@ -120,7 +123,10 @@ constructor(
    */
   private fun battleBag(battle: BattleInstance): JsonArray {
     if (battle.pvp != null) return JsonArray(emptyList())
-    val bag = characterStore.getCharacter(battle.charId)?.items.orEmpty()
+    if (battle.facilityBattle && battle.facility?.allowItems != true) return JsonArray(emptyList())
+    val bag =
+        if (battle.facilityBattle) battle.facility?.bag().orEmpty()
+        else characterStore.getCharacter(battle.charId)?.items.orEmpty()
     return JsonArray(
         bag.entries
             .filter { it.value > 0 }
@@ -167,7 +173,11 @@ constructor(
       pvp.onAction(battle, action)
       return
     }
-    val pos = battle.owedSwitches.firstOrNull() ?: nextPosition(battle) ?: 0
+    val pos =
+        multiPosition(battle, charId)
+            ?: battle.owedSwitches.firstOrNull()
+            ?: nextPosition(battle)
+            ?: 0
     when (action.action) {
       BattleAction.MOVE -> choose(battle, BattleChoice.UseMove(0, pos, action.moveOrItemId.toInt()))
       BattleAction.ITEM ->
@@ -188,7 +198,7 @@ constructor(
       pvp.onExtAction(battle, a)
       return
     }
-    val pos = a.position.coerceIn(0, battle.format - 1)
+    val pos = multiPosition(battle, charId) ?: a.position.coerceIn(0, battle.format - 1)
     when (a.kind) {
       BattleExtKind.MOVE -> {
         val target =
@@ -202,10 +212,15 @@ constructor(
     }
   }
 
+  /** r5-frontier: in a multi battle each player acts for their own position only. */
+  private fun multiPosition(battle: BattleInstance, charId: Long): Int? =
+      if (battle.multiOwners.isEmpty()) null else if (charId == battle.charId) 0 else 1
+
   /** The next position (in order) with a live monster that has no choice yet. */
   private fun nextPosition(battle: BattleInstance): Int? =
       battle.own.actives.indices.firstOrNull { pos ->
         pos !in battle.pendingChoices &&
+            pos !in (battle.facility?.aiPositions ?: emptySet()) &&
             battle.party.getOrNull(battle.own.actives[pos])?.fainted == false
       }
 
@@ -259,6 +274,11 @@ constructor(
       pvp.onDisconnect(battle)
       return
     }
+    // r5-frontier: leaving a facility battle loses it (the decomp's turned-off challenge).
+    if (battle.facilityBattle) {
+      finishBattle(battle, BattleResult.DISCONNECTED)
+      return
+    }
     persistParty(battle)
     finishBattle(battle, BattleResult.DISCONNECTED)
   }
@@ -269,6 +289,11 @@ constructor(
     val charId = event.session.attributes[PLAYER_STATE]?.characterId ?: return
     val battle = battles.byChar(charId) ?: return
     val result = battle.pendingResult ?: return
+    // r5-frontier: a multi battle ends once both players are back on the map.
+    if (battle.multiSessions.size > 1) {
+      battle.multiAcked += charId
+      if (!battle.multiAcked.containsAll(battle.multiSessions.keys)) return
+    }
     finishBattle(battle, result)
   }
 
@@ -504,6 +529,40 @@ constructor(
       enemies +=
           BattleMonState(rolled.id, def, null, rolled, StatCalculator.computeAll(def, rolled))
     }
+    return launchBattle(
+        session,
+        charId,
+        stored,
+        party,
+        healthy,
+        actualFormat,
+        enemies,
+        rng,
+        BattleRules(
+            catchable,
+            escapable,
+            trainer,
+            format = actualFormat,
+            terrain = trainerBackground(trainer) ?: terrain ?: terrainHere(session),
+            musicKey = musicFor(trainer),
+            underwater = underwater))
+  }
+
+  /** The common tail of every battle start: registry, positions, interest, first packets. */
+  private fun launchBattle(
+      session: SessionContext,
+      charId: Long,
+      stored: de.fiereu.openmmo.server.game.storage.StoredCharacter,
+      party: List<BattleMonState>,
+      healthy: List<Int>,
+      actualFormat: Int,
+      enemies: List<BattleMonState>,
+      rng: BattleRng,
+      rules: BattleRules,
+      configure: (BattleInstance) -> Unit = {},
+      intro: String = "",
+  ): BattleInstance {
+    val trainer = rules.trainer
     log.info {
       "Starting ${if (actualFormat == 2) "double" else "single"} battle for char=$charId " +
           "(${stored.info.name}) against " +
@@ -513,21 +572,8 @@ constructor(
     // r3-items: the leads are seen as they come out (GetSetPokedexFlag FLAG_SET_SEEN).
     characterStore.registerSeen(
         charId, enemies.take(foeFormat.coerceAtLeast(1)).map { it.species.id })
-    val battle =
-        battles.create(
-            charId,
-            session,
-            party,
-            enemies,
-            rng,
-            BattleRules(
-                catchable,
-                escapable,
-                trainer,
-                format = actualFormat,
-                terrain = trainerBackground(trainer) ?: terrain ?: terrainHere(session),
-                musicKey = musicFor(trainer),
-                underwater = underwater))
+    val battle = battles.create(charId, session, party, enemies, rng, rules)
+    configure(battle)
     // Gen 3 obedience: traded monsters listen up to the badge level of the player's region.
     battle.trainerName = stored.info.name
     val region =
@@ -550,10 +596,147 @@ constructor(
       foe.foughtBy += battle.activeMons().filterNotNull().map { it.entityId }
     }
     interestManager.join(session, battle.key)
+    for ((cid, s) in battle.multiSessions) if (cid != charId) interestManager.join(s, battle.key)
     emitter.sendStart(battle, stored.info.name, prompt = false)
+    if (intro.isNotBlank()) emitter.sendEvents(battle, listOf(BattleEvent.Message(intro)))
     emitter.sendEvents(battle, engine.startOfBattle(battle))
-    emitter.sendPrompt(battle)
+    if (battle.facility?.autoPlay != true) emitter.sendPrompt(battle)
     return battle
+  }
+
+  // --- r5-frontier: facility battles -----------------------------------------------------------
+
+  /**
+   * r5-frontier: a battle facility's battle (Battle Frontier, Battle Tents, Trainer Hill, Trainer
+   * Tower). The player fights with [FacilityBattleSetup.team] (their own monsters at the facility's
+   * level, or rentals) and nothing is written back; the end state comes back instead.
+   */
+  suspend fun startFacilityBattle(
+      session: SessionContext,
+      setup: FacilityBattleSetup,
+      partner: Pair<SessionContext, FacilityBattleSetup>? = null,
+  ): FacilityBattleOutcome {
+    val charId =
+        session.attributes[PLAYER_STATE]?.characterId
+            ?: return FacilityBattleOutcome(BattleResult.FAILED, setup.team)
+    val battle =
+        createFacilityBattle(session, charId, setup, partner)
+            ?: return FacilityBattleOutcome(BattleResult.FAILED, setup.team)
+    if (battle.facility?.autoPlay == true) autoTurn(battle)
+    val result = battle.completion.await()
+    val byId = battle.party.associateBy { it.entityId }
+    return FacilityBattleOutcome(result, setup.team.map { m -> byId[m.id]?.persisted() ?: m })
+  }
+
+  /** The partner's end state of a multi battle that [startFacilityBattle] ran for the leader. */
+  fun multiPartnerTeam(battleOutcome: FacilityBattleOutcome, partnerTeam: List<Pokemon>) =
+      partnerTeam.map { m -> battleOutcome.team.firstOrNull { it.id == m.id } ?: m }
+
+  private fun createFacilityBattle(
+      session: SessionContext,
+      charId: Long,
+      setup: FacilityBattleSetup,
+      partner: Pair<SessionContext, FacilityBattleSetup>?,
+  ): BattleInstance? {
+    if (battles.byChar(charId) != null) {
+      session.send(notice("You are already in a battle."))
+      return null
+    }
+    val stored = characterStore.getCharacter(charId) ?: return null
+    val partnerId = partner?.first?.attributes?.get(PLAYER_STATE)?.characterId
+    if (partner != null && (partnerId == null || battles.byChar(partnerId) != null)) return null
+    val team = setup.team + (partner?.second?.team ?: emptyList())
+    val party = mutableListOf<BattleMonState>()
+    for ((index, mon) in team.withIndex()) {
+      val def = speciesRegistry.get(mon.dexId) ?: return null
+      party += BattleMonState(mon.id, def, index, mon, StatCalculator.computeAll(def, mon))
+    }
+    val enemies =
+        setup.opponents.map { mon ->
+          val def = speciesRegistry.get(mon.dexId)!!
+          BattleMonState(mon.id, def, null, mon, StatCalculator.computeAll(def, mon))
+        }
+    if (party.none { !it.fainted } || enemies.isEmpty()) return null
+    val format = if (partner != null) 2 else setup.format
+    val healthy =
+        if (partner == null && setup.partnerFrom > 0) {
+          listOf(
+              (0 until setup.partnerFrom).first { !party[it].fainted },
+              (setup.partnerFrom until party.size).first { !party[it].fainted })
+        } else if (partner != null) {
+          // Multi battle: position 0 is the leader's first monster, position 1 the partner's.
+          listOf(
+              setup.team.indices.first { !party[it].fainted },
+              setup.team.size +
+                  partner.second.team.indices.first { !party[setup.team.size + it].fainted })
+        } else party.indices.filter { !party[it].fainted }
+    val actualFormat = if (format >= 2 && healthy.size >= 2) 2 else 1
+    val trainer =
+        if (setup.wild) null
+        else
+            TrainerDef(
+                // Not 0, which the client reads as a player duel; no decomp trainer has this id.
+                id = Short.MAX_VALUE.toInt(),
+                name = setup.trainerName,
+                trainerClass = 0,
+                doubleBattle = actualFormat == 2,
+                prizeRate = 0,
+                party = emptyList(),
+                pic = setup.trainerPic,
+                className = setup.trainerClass)
+    val rules =
+        BattleRules(
+            catchable = false,
+            escapable = false,
+            trainer = trainer,
+            format = actualFormat,
+            terrain = setup.terrain,
+            musicKey = if (setup.wild) "wild" else setup.musicKey)
+    return launchBattle(
+        session,
+        charId,
+        stored,
+        party,
+        healthy,
+        actualFormat,
+        enemies,
+        BattleRng(),
+        rules,
+        configure = { b ->
+          b.facility = setup.hooks
+          b.facilityBattle = true
+          if (partner == null && setup.partnerFrom > 0) {
+            // An NPC partner: its slots belong to the "character" -1, played by the AI.
+            b.multiOwners =
+                party.indices.associateWith { if (it < setup.partnerFrom) charId else -1L }
+          }
+          if (partner != null && partnerId != null) {
+            b.multiOwners =
+                party.indices.associateWith { if (it < setup.team.size) charId else partnerId }
+            b.multiSessions = mapOf(charId to session, partnerId to partner.first)
+            battles.link(partnerId, b)
+          }
+        },
+        intro = setup.intro)
+  }
+
+  /** Battle Palace: every position picks for itself, turn after turn, until the battle ends. */
+  private suspend fun autoTurn(battle: BattleInstance) {
+    if (battle.pendingResult != null || battles.byChar(battle.charId) !== battle) return
+    // Paced like the decomp, one turn after the other, so the browser plays each turn.
+    if (battle.turn > 1) kotlinx.coroutines.delay(AUTO_TURN_PACE_MS)
+    if (battle.pendingResult != null || battles.byChar(battle.charId) !== battle) return
+    resolveTurn(battle)
+  }
+
+  private companion object {
+    const val AUTO_TURN_PACE_MS = 2500L
+  }
+
+  /** Who controls battle position [pos] of side 0 in a multi battle (null outside one). */
+  private fun positionOwner(battle: BattleInstance, pos: Int): Long? {
+    if (battle.multiOwners.isEmpty()) return null
+    return if (pos == 0) battle.charId else battle.multiOwners.values.first { it != battle.charId }
   }
 
   private fun wildHeldItem(common: Int, rare: Int, rng: BattleRng): String {
@@ -580,6 +763,8 @@ constructor(
 
   private suspend fun choose(battle: BattleInstance, choice: BattleChoice) {
     if (battle.owedSwitches.isNotEmpty()) return
+    // r5-frontier: in the Battle Palace the monsters choose for themselves.
+    if (battle.facility?.autoPlay == true && choice !is BattleChoice.Pass) return
     val mon = battle.party.getOrNull(battle.own.actives.getOrNull(choice.pos) ?: -1)
     if (mon == null || mon.fainted) return
     if (choice is BattleChoice.UseMove) {
@@ -604,11 +789,39 @@ constructor(
   }
 
   private suspend fun resolveTurn(battle: BattleInstance) {
-    val choices = battle.pendingChoices.values.toList()
+    val hooks = battle.facility
+    hooks?.beforeTurn(engine, battle)
+    var choices = battle.pendingChoices.values.toList()
     battle.pendingChoices.clear()
+    // r5-frontier: Battle Palace picks for every position on both sides.
+    val lead = mutableListOf<BattleEvent>()
+    if (hooks != null) {
+      val auto = mutableListOf<BattleChoice>()
+      for (side in 0..1) {
+        val actives = if (side == 0) battle.own.actives else battle.foe.actives
+        for (pos in actives.indices) {
+          val ref = BattlerRef(side, pos)
+          val (c, line) = hooks.autoChoice(engine, battle, ref) ?: continue
+          auto += c
+          line?.let { lead += BattleEvent.Message(it) }
+        }
+      }
+      // The AI plays an NPC partner's positions.
+      for (pos in hooks.aiPositions) {
+        val ref = BattlerRef(0, pos)
+        val ctx = engine.context(battle)
+        if (ctx.live(ref) != null && auto.none { it.side == 0 && it.pos == pos })
+            auto +=
+                de.fiereu.openmmo.server.game.battle.BattleAi.choose(ctx, ref, forceSmart = true)
+      }
+      if (auto.isNotEmpty()) {
+        val keys = auto.map { it.side to it.pos }.toSet()
+        choices = choices.filter { (it.side to it.pos) !in keys } + auto
+      }
+    }
     // Trainer items go before everything, like the player's; that monster spends its turn.
     val trainerPasses = trainerUsesItems(battle)
-    val events = engine.resolve(battle, choices + trainerPasses)
+    val events = engine.resolve(battle, choices + trainerPasses, lead)
     emitter.sendEvents(battle, events)
     afterTurn(battle, events)
   }
@@ -655,14 +868,24 @@ constructor(
       battle.pendingResult = BattleResult.FLED
       return
     }
-    // Every opposing monster that fainted this turn pays its EXP now.
+    // r5-frontier: the facility's own end-of-turn rules (Arena judgment, Palace lines).
+    battle.facility?.let { hooks ->
+      val extra = hooks.afterTurn(engine, battle, events)
+      if (extra.isNotEmpty()) emitter.sendEvents(battle, extra)
+    }
+    // Every opposing monster that fainted this turn pays its EXP now (facilities pay none).
     for (foe in battle.opponent) {
       if (foe.fainted && foe.entityId !in rewarded(battle)) {
         rewarded(battle) += foe.entityId
-        awardXp(battle, foe)
+        if (!battle.facilityBattle) awardXp(battle, foe)
       }
     }
+    val drew =
+        battle.facility?.bothDownIsLoss == true &&
+            battle.opponent.all { it.fainted } &&
+            battle.party.all { it.fainted || it.source.isEgg }
     when {
+      drew -> endDefeat(battle)
       battle.opponent.all { it.fainted } -> endVictory(battle)
       battle.party.all { it.fainted || it.source.isEgg } -> endDefeat(battle)
       else -> {
@@ -704,13 +927,40 @@ constructor(
             battle.own.actives[pos] = -1
           }
         }
+        // r5-frontier: Arena / Palace monsters come out in party order by themselves; in a multi
+        // battle each player only draws from their own monsters.
+        if (battle.owedSwitches.isNotEmpty() &&
+            (battle.facility?.allowSwitch == false || battle.multiOwners.isNotEmpty())) {
+          for (pos in battle.owedSwitches.toList()) {
+            val owner = positionOwner(battle, pos)
+            val next =
+                battle.party.indices.firstOrNull {
+                  it !in battle.own.actives &&
+                      !battle.party[it].fainted &&
+                      !battle.party[it].source.isEgg &&
+                      (owner == null || battle.multiOwners[it] == owner)
+                }
+            if (next == null) {
+              battle.owedSwitches.remove(pos)
+              battle.own.actives[pos] = -1
+              continue
+            }
+            // A multi battle player brings two monsters, so the replacement is the only one left.
+            if (battle.facility?.allowSwitch == false ||
+                battle.multiOwners.isNotEmpty() ||
+                pos in (battle.facility?.aiPositions ?: emptySet())) {
+              battle.owedSwitches.remove(pos)
+              emitter.sendEvents(battle, engine.switchIn(battle, 0, pos, next))
+            }
+          }
+        }
         if (battle.owedSwitches.isNotEmpty()) {
           emitter.sendState(battle)
           emitter.sendSwitchPrompt(battle)
         } else {
           battle.turn += 1
           emitter.sendState(battle)
-          emitter.sendPrompt(battle)
+          if (battle.facility?.autoPlay == true) autoTurn(battle) else emitter.sendPrompt(battle)
         }
       }
     }
@@ -724,6 +974,18 @@ constructor(
   private suspend fun switchMon(battle: BattleInstance, pos: Int, target: Int) {
     val mon = battle.party.getOrNull(target)
     val forced = pos in battle.owedSwitches
+    // r5-frontier: no switching by choice in the Arena / Palace; multi partners keep to their own.
+    if (!forced && battle.facility?.allowSwitch == false) {
+      emitter.sendNotice(battle, "You can't switch POKéMON here.")
+      emitter.sendPrompt(battle)
+      return
+    }
+    positionOwner(battle, pos)?.let { owner ->
+      if (battle.multiOwners[target] != owner) {
+        if (forced) emitter.sendSwitchPrompt(battle) else emitter.sendPrompt(battle)
+        return
+      }
+    }
     val current = battle.party.getOrNull(battle.own.actives.getOrNull(pos) ?: -1)
     val invalid =
         mon == null ||
@@ -753,7 +1015,7 @@ constructor(
       } else {
         battle.turn += 1
         emitter.sendState(battle)
-        emitter.sendPrompt(battle)
+        if (battle.facility?.autoPlay == true) autoTurn(battle) else emitter.sendPrompt(battle)
       }
       return
     }
@@ -809,8 +1071,16 @@ constructor(
       emitter.sendPrompt(battle)
     }
     if (def == null || stored == null) return refuse("That item does not exist.")
+    // r5-frontier: facility battles allow no bag items (the Pyramid brings its own bag).
+    if (battle.facilityBattle && battle.facility?.allowItems != true)
+        return refuse("Items can't be used here.")
+    if (battle.facilityBattle) {
+      val have = battle.facility?.bag()?.get(itemId) ?: 0
+      if (have <= 0) return refuse("You don't have any ${def.name}.")
+    }
     val effect = BattleItemEffects.of(def) ?: return refuse("${def.name} can't be used now.")
-    if ((stored.items[itemId] ?: 0) <= 0) return refuse("You don't have any ${def.name}.")
+    if (!battle.facilityBattle && (stored.items[itemId] ?: 0) <= 0)
+        return refuse("You don't have any ${def.name}.")
     when (effect) {
       BattleItemEffect.Ball -> {
         if (battle.trainer != null || battle.pvp != null || !battle.catchable) {
@@ -856,6 +1126,10 @@ constructor(
   }
 
   private suspend fun consume(battle: BattleInstance, itemId: Int) {
+    if (battle.facilityBattle) {
+      battle.facility?.consume(itemId)
+      return
+    }
     if (!characterStore.addItem(battle.charId, itemId, -1)) return
     battle.session.send(
         itemStackUpdatePacket(
@@ -964,7 +1238,9 @@ constructor(
   // --- endings ---------------------------------------------------------------------------------
 
   private suspend fun endVictory(battle: BattleInstance) {
-    var prize = battle.trainer?.let { rewards.trainerPrize(it, battle.opponent.last().level) } ?: 0
+    var prize =
+        if (battle.facilityBattle) 0
+        else battle.trainer?.let { rewards.trainerPrize(it, battle.opponent.last().level) } ?: 0
     // Amulet Coin on any monster that fought doubles the prize.
     if (prize > 0 &&
         battle.party.any {
@@ -1070,11 +1346,23 @@ constructor(
             ?.filter { it.container == PokemonContainer.PARTY }
             ?.sortedBy { it.containerSlot } ?: emptyList()
     emitter.sendBattleEnd(battle, party, prizeMoney)
+    for ((cid, s) in battle.multiSessions) {
+      if (cid == battle.charId) continue
+      val theirs =
+          characterStore
+              .getCharacter(cid)
+              ?.pokemon
+              ?.filter { it.container == PokemonContainer.PARTY }
+              ?.sortedBy { it.containerSlot } ?: emptyList()
+      emitter.sendPartnerBattleEnd(s, cid, theirs)
+    }
     battle.pendingResult = result
   }
 
   /** Write the battle's live hp, pp, status and held items back and flush the character. */
   private fun persistParty(battle: BattleInstance) {
+    // r5-frontier: a facility owns its team copy, nothing goes back to the stored party.
+    if (battle.facilityBattle) return
     for (state in battle.party) {
       if (state.ability == de.fiereu.openmmo.common.enums.Ability.NATURAL_CURE) state.status = 0
       var updated = state.persisted()
@@ -1089,6 +1377,17 @@ constructor(
   private fun finishBattle(battle: BattleInstance, result: BattleResult) {
     interestManager.leave(battle.session, battle.key)
     battles.remove(battle.charId)
+    for ((cid, s) in battle.multiSessions) {
+      if (cid == battle.charId) continue
+      interestManager.leave(s, battle.key)
+      battles.remove(cid)
+    }
+    if (battle.facilityBattle) {
+      rewardedByBattle.remove(battle.battleId)
+      leveledIn.remove(battle.charId)
+      battle.completion.complete(result)
+      return
+    }
     rewardedByBattle.remove(battle.battleId)
     val leveled = leveledIn.remove(battle.charId).orEmpty()
     battle.completion.complete(result)

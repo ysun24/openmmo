@@ -35,8 +35,17 @@ constructor(
   private fun ctx(battle: BattleInstance) = BattleCtx(battle, moves, typeChart, held)
 
   /** Resolves one full turn. Missing choices for side 1 are filled in by the AI. */
-  fun resolve(battle: BattleInstance, choices: List<BattleChoice>): List<BattleEvent> {
+  fun resolve(battle: BattleInstance, choices: List<BattleChoice>): List<BattleEvent> =
+      resolve(battle, choices, emptyList())
+
+  /** r5-frontier: [lead] events (Palace flavor lines) go out first, before the turn's own. */
+  fun resolve(
+      battle: BattleInstance,
+      choices: List<BattleChoice>,
+      lead: List<BattleEvent>,
+  ): List<BattleEvent> {
     val ctx = ctx(battle)
+    lead.forEach(ctx::emit)
     val all = choices.toMutableList()
     val taken = mutableSetOf<Int>()
     for (pos in battle.foe.actives.indices) {

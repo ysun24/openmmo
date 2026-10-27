@@ -648,6 +648,12 @@ object GameProtocol : Protocol() {
         0xF5u, de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacketCodec)
     s2c<de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket>(
         0xEDu, de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacketCodec)
+    // r5-frontier: battle facilities (packets/frontier). c2s 0xD8 is in the reserved r5-frontier
+    // range; s2c 0xD8-0xDB are retail, so the state rides on s2c 0xE2 (free in every r5 branch).
+    c2s<de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket>(
+        0xD8u, de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.frontier.FrontierStatePacket>(
+        0xE2u, de.fiereu.openmmo.net.game.packets.frontier.FrontierStatePacketCodec)
     // r4-gaps: the Match Call list (s2c 0xE0 was free).
     s2c<de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket>(
         0xE0u, de.fiereu.openmmo.net.game.packets.field.MatchCallListPacketCodec)

@@ -49,5 +49,10 @@ class BattleRegistry @Inject constructor() {
 
   fun byChar(charId: Long): BattleInstance? = byChar[charId]
 
+  /** r5-frontier: a second player in the same battle (Battle Tower multi battle partner). */
+  fun link(charId: Long, battle: BattleInstance) {
+    byChar[charId] = battle
+  }
+
   fun remove(charId: Long): BattleInstance? = byChar.remove(charId)
 }

@@ -135,6 +135,7 @@ constructor(
     private val characterStore: CharacterStore,
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
     private val secretBaseService: de.fiereu.openmmo.server.game.services.SecretBaseService,
+    private val frontierService: de.fiereu.openmmo.server.game.frontier.FrontierService,
     private val marketClerks: MarketClerks,
     private val scriptUi: de.fiereu.openmmo.server.game.script.vm.ScriptUiService,
     private val contestActions: de.fiereu.openmmo.server.game.contest.ContestActionService,
@@ -175,6 +176,10 @@ constructor(
     // r5-contests: contests, blender, pokeblocks, berry trees.
     onSuspend<de.fiereu.openmmo.net.game.packets.contest.ContestActionPacket> { event ->
       contestActions.onAction(event)
+    }
+    // r5-frontier: battle facility screens.
+    onSuspend<de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket> { event ->
+      frontierService.onAction(event)
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
@@ -285,6 +290,7 @@ constructor(
       // The battle flush must land before the unload evicts the character from the cache, and
       // before the rollback, which would otherwise be overwritten by the party it persists.
       battleService.onDisconnect(session)
+      frontierService.onLogout(charId)
       tradeService.onDisconnect(charId)
       progressActions.onLeave(charId)
       contestActions.onDisconnect(session, charId)
