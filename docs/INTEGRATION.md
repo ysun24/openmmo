@@ -106,6 +106,43 @@ the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sect
 - The lanes' own "Not done" lists stand otherwise (docs/reports/r5-*.md).
 
 
+## Final verification (round 5)
+- `spotlessCheck :protocols.game:test :protocols.login:test :server.game:test :server.login:test :codegen:test
+  :client:check :web.assets:test :web.gateway:test installDist :web.gateway:installDist`: BUILD SUCCESSFUL,
+  no failures, no skips; `scripts/check-opcodes.py`: 405 registrations, 0 clashes.
+
+  | Module | Tests |
+  |---|---|
+  | server.game | 536 |
+  | protocols.game | 105 |
+  | server.login | 54 |
+  | codegen | 38 |
+  | web.gateway | 42 |
+  | protocols.login | 12 |
+  | web.assets | 8 |
+- Assets regenerated, live stack restarted (game 7777, login 2106, gateway 8080, all 127.0.0.1).
+- Gateway e2e (`e2e.py`): **ALL OK** on the live stack and on the home bundle.
+- `r5c_e2e.py --only contest,blender,berry` **ALL OK** (two players + two NPCs in one contest, the
+  interpreter-run blender and berry tree), `--only feebas,link` **ALL OK** (Feebas → Milotic, two players at
+  the link blender).
+- `frontier_e2e.py`: **ALL OK** (every desk, link multi). Reruns with a character whose party the e2e
+  trade had emptied lost a Tower battle (the driver fights with the first move); a fresh character passes.
+- `story.py`: Kanto **ALL OK** (10 scenes, one run); Hoenn **ALL OK** (7 scenes, one run).
+- Browser regression (desktop 960×640 and Pixel 7, every shot looked at), `docs/reports/r5-integration/`:
+  `d-k1-newgame` / `m-k1-newgame` (a new Kanto game), `d-k2-oaklab` / `d-k3-starter-scene` (Oak's Lab starter
+  scene), `d-k5-ssanne` / `m-k5-ssanne` (the seasick captain), `d-k6-silph` / `d-k7-silph-battle`
+  (Giovanni at Silph Co.), `cd-d-appeals` / `cd-d-results` / `cm-m-results` (a contest won), `d-t1-tower` /
+  `d-t2-tower` / `m-t1-tower` (Battle Tower desk), `d-s-slots` / `m-s-slots` (Celadon slots through
+  `playslotmachine`, the coin chip from the shared store), `d-u-A2` / `m-u-B` (Union Room trade request on
+  one browser, YES/NO on the other), `d-h1-devon` / `d-h2-devon` / `m-h2-devon` (Hoenn: Devon Corp 3F).
+- **Home bundle**: `deploy/home/dist/openmmo-home-20261027-298b7ab2.zip` (248 MB, image
+  `openmmo:20261027-298b7ab2`), built with `deploy/home/build-bundle.sh --skip-gradle` after the final
+  installDist. Smoke test on this host: unzip + `sha256sum -c`, `docker load`, compose (project `omr5`,
+  `TUNNEL=off`, `127.0.0.1:8090`) up and healthy, an invite from `server.login invite create`, two accounts
+  registered with it through the gateway, e2e **ALL OK**, then `down -v` (containers, volumes and networks
+  removed).
+
+
 ---
 
 # Round 3 integration (branch `own-client`)
