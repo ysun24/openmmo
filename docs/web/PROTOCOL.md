@@ -281,3 +281,35 @@ serves `.mid` as `audio/midi`.
 - Controls: keyboard (arrows/WASD, Z/Space = A, X/Esc = B, Shift = run, Enter = chat), and on touch
   devices an on-screen D-pad + A/B buttons (multi-touch, no scroll/zoom on the canvas). UI panels
   (battle menu, trade, market, shop, chat) are HTML overlays usable by touch.
+
+## 6. r3-battle additions (all additive / optional)
+
+### 6.1 Browser → gateway
+| message | fields | meaning |
+|---|---|---|
+| `battle.fight` | `move` 0-3, optional `pos` 0-1, optional `target` `{side: "me"|"foe", pos: 0-1}` | a move for a battle position; without `pos`/`target` it is the old single-battle message |
+| `battle.item` | `item` (wire id), optional `mon` (party monster id, string), `moveSlot` 0-3 (one-move PP items), `pos` 0-1 | uses a bag item in battle (medicine on any party monster, X items on the position's monster); spends that position's turn |
+| `battle.ball` | optional `item` | throws that ball (default Poké Ball) |
+| `evolution.answer` | `proceed` bool | `false` = B pressed during the scene ("stopped evolving") |
+| `evolution.close` | — | closes a finished / cancelled evolution scene |
+| `duel` | optional `doubles` bool | 2v2 double duel (needs two healthy monsters on both sides, else 1v1) |
+
+### 6.2 Gateway → browser
+- `battle` gains: `format` (1|2), `actives` (party slot per position, -1 empty), `choosingPos` (position picking next, null when all picked), `owedSwitches`, `mine` / `foes` (monster per position, same shape as `me` / `foe`), `terrain` (background key, see 6.4), `music` (`wild|trainer|gym|elite|champion|rival|team|pvp`), `weather` (`none|rain|sun|sand|hail`), `trainer` `{pic, class}` or null, `bag` `[{id, name, count, target: foe|party|active|none, pocket: medicine|balls|battle, perMove?}]` (only items usable in this battle; no balls against trainers / players).
+- Every battle monster (`me`, `foe`, `mine[]`, `foes[]`, `party[]`) gains `id` (string), `slot`, `status` (`slp|psn|tox|brn|frz|par` or null), `confused`, and for own monsters `ability`, `item`, `substitute`. Moves gain `target` (the decomp MoveTarget: `SELECTED`, `BOTH`, `USER`, `FOES_AND_ALLY`, ...).
+- `fx` entries carry `id` (string entity id) where they concern one monster (`move` also `targetId`, `targets`), `switch` carries `pos`, `ball` carries `ball` (name), real `shakes` 0-3 and `caught`. New kinds: `status` (`status`), `ability` (`ability`, `name`), `item` (`item`, `consumed`, `name`), `weather` (`weather`), `volatile` (`kind`: confused|substitute|seeded, `on`), `revive`; `hp` gains `reason` (move|poison|burn|leftovers|berry|recoil|drain|weather|item|...).
+- New top-level section `evolution`: `{id, seq, phase: start|evolving|stopping|done|cancelled, fromDex, toDex, name, toName, learned[]}` or null. It can appear outside a battle (stones, trades) and after one (level-up); the browser plays it once the battle screen is gone.
+- `rules` / `invite.rules` gain `doubles: true` when set.
+
+### 6.3 Game protocol (OpenMMO-only, r3-battle)
+- s2c **0xE6** `BattleExtPacket` — UTF-8 JSON (u32 length): `{"t":"state",...}` extended battle state, `{"t":"events","e":[...]}` ordered extension events between the retail packets, `{"t":"evo",...}` evolution scene. (The reserved s2c 0xF0-0xF3 were already used by retail packets.)
+- c2s **0xF0** `BattleExtActionPacket` `{position u8, kind u8 (0 move,1 item,2 switch,3 run), id s16, targetSide s8, targetPos s8, targetEntity s64}`.
+- c2s **0xF2** `EvolutionReplyPacket` `{entityId s64, proceed u8}`.
+- `DuelRulesChallengePacket` / `DuelRulesPacket` (0xEE) gain a trailing flags byte (bit 0 = doubles); senders that leave it out mean 1v1.
+
+### 6.4 Static assets (`manifest.battle`, `manifest.battleMusicExtra`)
+- `battle.trainers[<TRAINER_PIC_ suffix lower case>]` → front sprite PNG (64x64).
+- `battle.backs[brendan|may|red|leaf]` → `{file, frame, frames}` (throw animation frames stacked vertically).
+- `battle.backgrounds[<region>][<key>]` → 240x160 PNG; keys `tall_grass long_grass sand underwater water pond_water rock cave building plain gym leader stadium champion elite_<name> team_aqua team_magma` (FireRed: no team_*, elite_lorelei/bruno/agatha/lance).
+- `battle.anims[<TYPE>|hit|sleep|ball|sparkle|stat]` → `{file, frame, frames}` sprite sheets from graphics/battle_anims.
+- `battleMusicExtra[<region>]` → `{elite, champion, rival, team, pvp, victoryElite}` song constants (alongside `battleMusic.gym`), picked with `battle.music`.
