@@ -56,6 +56,8 @@ class WorldState {
       val overworld: OverworldState.View? = null,
       /** The server's last FieldInfoPacket: dark map, flash, usable field moves, FLY towns. */
       val field: FieldInfoPacket? = null,
+      /** The selected character's gender (CharacterInfo.rivalSex: 0 male, 1 female). */
+      val characterGender: Int = 0,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -63,6 +65,7 @@ class WorldState {
 
   private val lock = Any()
   private var characterName: String? = null
+  private var characterGender = 0
   private var selfId: Long? = null
   private var map: MapKey? = null
   private var mapWidth = 0
@@ -86,17 +89,19 @@ class WorldState {
             chat.toList(),
             inWorld,
             overworld.view(),
-            field)
+            field,
+            characterGender)
       }
 
   private var field: FieldInfoPacket? = null
 
   fun setField(info: FieldInfoPacket) = synchronized(lock) { field = info }
 
-  fun selectCharacter(id: Long, name: String) =
+  fun selectCharacter(id: Long, name: String, gender: Int = 0) =
       synchronized(lock) {
         selfId = id
         characterName = name
+        characterGender = gender
       }
 
   fun enterMap(key: MapKey, width: Int, height: Int, clearEntities: Boolean) =

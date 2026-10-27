@@ -18,6 +18,7 @@ import { h, $, hpClass, same } from '../util.js';
 import { assets } from '../assets.js';
 import { panels, rerender, setFocus } from './panels.js';
 import { monImg } from './common.js';
+import { settings } from '../settings.js';
 
 let app;
 let b = null; // last battle section
@@ -237,11 +238,11 @@ function setupIntroSprites() {
 const monEl = (k) => (sk && (sk.wraps[k] || sk.wraps[sideOfKey(k)])) || null;
 const infoEl = (k) => (sk && (sk.infos[k] || sk.infos[sideOfKey(k)])) || null;
 
-function setSprite(k, dex) {
+function setSprite(k, dex, shiny = false) {
   if (!sk || !sk.wraps[k]) return;
-  if (sk.dex[k] === dex) return;
-  sk.dex[k] = dex;
-  const url = dex ? assets.pokemon(dex, sideOfKey(k) === 'foe' ? 'front' : 'back') : null;
+  if (sk.dex[k] === dex + (shiny ? 's' : '')) return;
+  sk.dex[k] = dex + (shiny ? 's' : '');
+  const url = dex ? assets.pokemon(dex, sideOfKey(k) === 'foe' ? 'front' : 'back', shiny) : null;
   const n = url ? h('img.sprite', { src: url, alt: '', draggable: false }) : h('div.ph', '#' + (dex ?? '?'));
   sk.wraps[k].querySelector('.monclip').replaceChildren(n);
 }
@@ -361,7 +362,7 @@ function paintView() {
   if (!sk || !view) return;
   for (const k of keysInUse()) {
     if (view[k]) {
-      setSprite(k, view[k].dex);
+      setSprite(k, view[k].dex, view[k].shiny);
       setInfo(infoEl(k), view[k], sideOfKey(k) === 'me');
     }
     setVisible(k, !!view[k + 'Vis'] && !!view[k]);
@@ -413,7 +414,8 @@ function paintWeather(w) {
 
 // ------------------------------------------------------------------ effect players
 const U = () => parseFloat(getComputedStyle($('#ov')).getPropertyValue('--u')) || 2;
-const fast = () => queue.length > 10;
+// settings (r3-present): battle animations off plays every step in the fast mode
+const fast = () => queue.length > 10 || !settings.get('battleAnims');
 const dur = (ms) => (fast() ? ms * 0.35 : ms);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function bounded(p, ms) {
@@ -720,7 +722,7 @@ async function playSwitch(f) {
   const live = stateMon(k);
   view[k] = { ...view[k], ...f.mon, id: live && live.name === f.mon.name ? live.id : view[k] && view[k].id,
     exp: side === 'me' ? (live && live.name === f.mon.name ? live.exp : undefined) : undefined };
-  setSprite(k, f.mon.dex);
+  setSprite(k, f.mon.dex, f.mon.shiny);
   setInfo(infoEl(k), view[k], side === 'me');
   setVisible(k, false);
 }
@@ -812,7 +814,7 @@ async function playText(text) {
       i = Math.min(text.length, i + speed);
       el.textContent = text.slice(0, i);
       if (i >= text.length) return res();
-      typing.t = setTimeout(tick, 22);
+      typing.t = setTimeout(tick, settings.battleCharMs());
     };
     typing = { t: 0, finish: () => { clearTimeout(typing && typing.t); el.textContent = text; res(); } };
     tick();
@@ -823,7 +825,7 @@ async function playText(text) {
       // In a double battle both monsters come out on one line.
       for (const k of (dbl() ? hiddenOf(sendSide) : hiddenOf(sendSide).slice(0, 1))) {
         view[k] = copyMon(stateMon(k)) || view[k];
-        setSprite(k, view[k].dex);
+        setSprite(k, view[k].dex, view[k].shiny);
         setInfo(infoEl(k), view[k], sendSide === 'me');
         await sendOut(k);
       }

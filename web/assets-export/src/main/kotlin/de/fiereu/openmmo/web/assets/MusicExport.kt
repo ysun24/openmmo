@@ -98,6 +98,34 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
 
   private val waves = LinkedHashMap<String, Int>()
 
+  /** `DirectSoundWaveData_x` -> its `.wav` (`direct_sound_data.inc` incbins the built `.bin`). */
+  private val samplePaths: Map<String, File> by lazy {
+    val out = HashMap<String, File>()
+    var lbl: String? = null
+    File(base, "sound/direct_sound_data.inc")
+        .takeIf { it.isFile }
+        ?.forEachLine { l ->
+          val t = l.trim()
+          if (t.endsWith("::")) lbl = t.trimEnd(':')
+          Regex("""\.incbin\s+"([^"]+)"""").find(t)?.let { m ->
+            val wav = File(base, m.groupValues[1].replace(Regex("""\.bin$"""), ".wav"))
+            lbl?.let { if (wav.isFile) out[it] = wav }
+          }
+        }
+    out
+  }
+  private val profiles = LinkedHashMap<String, JsonObject?>()
+
+  /** Measured timbre of a DirectSound sample (see [SampleProfile]); null when unreadable. */
+  private fun sampleProfile(sym: String): JsonObject? =
+      profiles.getOrPut(sym) {
+        samplePaths[sym]?.let { f ->
+          runCatching { SampleProfile.profile(f) }
+              .onFailure { failures += "${game.dir} sample $sym: $it" }
+              .getOrNull()
+        }
+      }
+
   /** The leaf voice (no key split) [note] of [program] plays with, as JSON. */
   private fun leaf(v: Voice, note: Int, depth: Int = 0): JsonObject? {
     val a = v.args
@@ -170,6 +198,7 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
                     .removePrefix("sd90_")
                     .removePrefix("unused_"))
             if (v.kind.endsWith("no_resample")) put("fixed", true)
+            a.getOrNull(2)?.let { sym -> if (sampleProfile(sym) != null) put("sample", sym) }
             env(i(3), i(4), i(5), i(6), false)
           }
       else -> null
@@ -254,13 +283,16 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
     loadVoices()
     val songs = buildJsonObject {
       cfg.readLines().forEach { line ->
-        val m = Regex("""^(mus_\w+)\.mid:\s*(.*)$""").find(line.trim()) ?: return@forEach
+        // songs and the sound effects (SE_*), which are songs on their own players
+        val m = Regex("""^((?:mus|se)_\w+)\.mid:\s*(.*)$""").find(line.trim()) ?: return@forEach
         val stem = m.groupValues[1]
         val flags = m.groupValues[2]
         val f = File(dir, "$stem.mid").takeIf { it.isFile } ?: return@forEach
         val bytes = f.readBytes()
         val group = Regex("""-G(\S+)""").find(flags)?.groupValues?.get(1)
         val vol = Regex("""-V(\d+)""").find(flags)?.groupValues?.get(1)?.toInt() ?: 127
+        // -R: m4a reverb amount (reverb_set + n), applied to the DirectSound mix
+        val rev = Regex("""-R(\d+)""").find(flags)?.groupValues?.get(1)?.toInt()
         val path = out.write("music/$region/$stem.mid", bytes)
         val label = group?.let { "voicegroup$it" }
         put(
@@ -268,6 +300,7 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
             buildJsonObject {
               put("mid", path)
               put("vol", vol)
+              rev?.let { put("rev", it) }
               putJsonObject("voices") {
                 if (label == null || label !in labels) {
                   if (label != null) failures += "${game.dir} $stem: voicegroup $label not found"
@@ -292,6 +325,9 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
     }
     val index = buildJsonObject {
       put("songs", songs)
+      put(
+          "samples",
+          buildJsonObject { profiles.toSortedMap().forEach { (k, v) -> v?.let { put(k, it) } } })
       putJsonArray("waves") {
         val wavePaths = HashMap<String, String>()
         var lbl: String? = null
@@ -340,6 +376,29 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
             "victoryTrainer" to "MUS_VICTORY_TRAINER",
             "victoryGym" to "MUS_VICTORY_GYM_LEADER",
             "caught" to "MUS_CAUGHT",
+        )
+
+    /** UI / field sound effects and short jingles the browser plays, by role. */
+    val SFX =
+        linkedMapOf(
+            "select" to listOf("SE_SELECT"),
+            "winOpen" to listOf("SE_WIN_OPEN", "SE_SELECT"),
+            "door" to listOf("SE_DOOR"),
+            "exit" to listOf("SE_EXIT"),
+            "bump" to listOf("SE_WALL_HIT"),
+            "ledge" to listOf("SE_LEDGE"),
+            "pcOn" to listOf("SE_PC_ON"),
+            "pcLogin" to listOf("SE_PC_LOGIN"),
+            "pcOff" to listOf("SE_PC_OFF"),
+            "shop" to listOf("SE_SHOP"),
+            "save" to listOf("SE_SAVE"),
+            "shiny" to listOf("SE_SHINY"),
+            "failure" to listOf("SE_FAILURE", "SE_BOO"),
+            "success" to listOf("SE_SUCCESS"),
+            "itemGet" to listOf("MUS_OBTAIN_ITEM"),
+            "keyItemGet" to listOf("MUS_OBTAIN_KEY_ITEM", "MUS_OBTAIN_ITEM"),
+            "levelUp" to listOf("MUS_LEVEL_UP"),
+            "heal" to listOf("MUS_HEAL"),
         )
   }
 }

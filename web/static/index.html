@@ -17,8 +17,16 @@
 </head>
 <body>
   <div id="loadbar" class="hidden" role="progressbar" aria-label="Loading"><i></i></div>
+  <!-- ============================================================ loading screen -->
+  <section id="splash" class="screen" aria-live="polite" aria-busy="true">
+    <div class="card">
+      <h1 class="logo">Open<span>MMO</span></h1>
+      <div class="sbar" role="progressbar" aria-label="Loading game data" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <p id="splash-status" class="status">Loading…</p>
+    </div>
+  </section>
   <!-- ============================================================ login -->
-  <section id="login" class="screen">
+  <section id="login" class="screen hidden">
     <form id="login-form" class="card" autocomplete="on">
       <h1>Open<span>MMO</span></h1>
       <label>Username <input id="user" name="username" autocomplete="username" required maxlength="32" autocapitalize="off" spellcheck="false"></label>
@@ -30,6 +38,13 @@
           <option value="1">Hoenn</option>
         </select>
       </label>
+      <label>New character
+        <select id="gender" name="gender">
+          <option value="0">Boy</option>
+          <option value="1">Girl</option>
+        </select>
+      </label>
+      <label class="check"><input id="remember" type="checkbox" checked> Stay logged in on this device</label>
       <button id="login-btn" type="submit" class="primary">Log in</button>
       <p id="login-status" class="status" role="status" aria-live="polite"></p>
     </form>
@@ -44,11 +59,11 @@
       <span class="grow"></span>
       <span id="money" title="money">₽0</span>
       <button id="btn-reconnect" class="hidden small">Reconnect</button>
-      <button id="btn-menu" class="small" aria-label="Menu">☰ Menu</button>
+      <button id="btn-menu" class="small" aria-label="Open menu" aria-haspopup="dialog">☰ Menu</button>
     </header>
 
     <div id="stage">
-      <canvas id="screen" width="240" height="160" aria-label="game screen"></canvas>
+      <canvas id="screen" width="240" height="160" tabindex="0" role="application" aria-label="Game screen. Arrow keys move, Z talks, X goes back, Tab opens the menu, Enter opens chat."></canvas>
       <!-- overlay sized exactly like the canvas; children laid out in GBA pixels (var(--u)) -->
       <div id="ov">
         <div id="battle" class="hidden" aria-live="polite"></div>
@@ -79,6 +94,11 @@
     </div>
 
     <div id="panels"></div>
+    <div id="connbanner" class="hidden" role="alert" aria-live="assertive">
+      <b id="connbanner-text">Connection lost</b>
+      <button id="connbanner-retry" type="button" class="small">Retry now</button>
+    </div>
+    <div id="help" class="hidden" role="dialog" aria-modal="true" aria-labelledby="help-title"></div>
     <div id="toast" class="hidden" role="status"></div>
   </section>
 

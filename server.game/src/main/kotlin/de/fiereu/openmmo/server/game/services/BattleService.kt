@@ -43,6 +43,7 @@ import de.fiereu.openmmo.server.game.battle.HeldItems
 import de.fiereu.openmmo.server.game.battle.ItemNames
 import de.fiereu.openmmo.server.game.battle.MoveLearnPrompts
 import de.fiereu.openmmo.server.game.battle.MoveLearner
+import de.fiereu.openmmo.server.game.battle.Shininess
 import de.fiereu.openmmo.server.game.battle.StatCalculator
 import de.fiereu.openmmo.server.game.battle.TurnEngine
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
@@ -440,6 +441,10 @@ constructor(
       if (rolled == null) {
         session.send(notice("Unknown species ${spec.dexId}."))
         return null
+      }
+      // Gen 3: wild monsters roll against the player's OT id, trainer monsters are never shiny.
+      if (trainer == null) {
+        rolled = rolled.copy(isShiny = Shininess.isShiny(rolled.seed, Shininess.otId(charId)))
       }
       if (spec.moveIds.isNotEmpty()) {
         rolled =

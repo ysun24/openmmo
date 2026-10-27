@@ -22,6 +22,8 @@ data class BattleMonBlock(
     val currentHp: Short,
     val movesPresent: Boolean,
     val moveIds: List<Short>,
+    /** Gen 3 shiny (alternate palette); rides in the first byte after the gender. */
+    val shiny: Boolean = false,
 ) {
   init {
     require(moveIds.size == MOVE_SLOTS) { "A battle mon block carries exactly $MOVE_SLOTS moves" }
@@ -77,7 +79,8 @@ internal object BattleFullBlockCodec : PacketCodec<BattleMonBlock>() {
     val level = field(S8) { it.level }
     padding(2)
     val gender = field(S8) { it.gender }
-    padding(3)
+    val shiny = field(Bool) { it.shiny }
+    padding(2)
     val currentHp = field(S16LE) { it.currentHp }
     val maxHp = field(S16LE) { it.maxHp }
     constant(MOVES_HEADER)
@@ -87,7 +90,17 @@ internal object BattleFullBlockCodec : PacketCodec<BattleMonBlock>() {
         if (movesPresent) field(S16LE.repeat(BattleMonBlock.MOVE_SLOTS)) { it.moveIds }
         else List(BattleMonBlock.MOVE_SLOTS) { 0.toShort() }
     return BattleMonBlock(
-        slot, entityId, species, level, gender, abilityId, maxHp, currentHp, movesPresent, moveIds)
+        slot,
+        entityId,
+        species,
+        level,
+        gender,
+        abilityId,
+        maxHp,
+        currentHp,
+        movesPresent,
+        moveIds,
+        shiny)
   }
 }
 
@@ -104,6 +117,8 @@ data class BattleOpponentBlock(
     val gender: Byte = 0,
     val maxHp: Short = 0,
     val currentHp: Short = 0,
+    /** Gen 3 shiny (alternate palette); rides in the first byte after the gender. */
+    val shiny: Boolean = false,
 )
 
 private const val REVEALED: Byte = 1
@@ -119,12 +134,14 @@ internal object BattleOpponentBlockCodec : PacketCodec<BattleOpponentBlock>() {
     val level = field(S8) { it.level }
     padding(2)
     val gender = field(S8) { it.gender }
-    padding(3)
+    val shiny = field(Bool) { it.shiny }
+    padding(2)
     val currentHp = field(S16LE) { it.currentHp }
     val maxHp = field(S16LE) { it.maxHp }
     constant(MOVES_HEADER)
     // The opposing side never carries a moveset, so the client cannot read the enemy's moves.
     constant(0)
-    return BattleOpponentBlock(slot, true, entityId, species, level, gender, maxHp, currentHp)
+    return BattleOpponentBlock(
+        slot, true, entityId, species, level, gender, maxHp, currentHp, shiny)
   }
 }

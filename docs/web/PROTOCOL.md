@@ -268,42 +268,6 @@ Top level gains:
 serves `.mid` as `audio/midi`.
 
 
-### r3-field (round 3: field moves, travel modes, field effects; all additive)
-
-Browser → gateway:
-
-| `t` | fields | notes |
-|---|---|---|
-| `field` | `action` (lower case, no underscores: `cut` `flash` `rocksmash` `strength` `surf` `fly` `dive` `waterfall` `teleport` `dig` `sweetscent` `escaperope` `bike` `dismount` `itemfinder`), `arg` (bike: 0 Bicycle/Mach, 1 Acro), `bank`+`map` (FLY target, the player's region) | c2s 0xF4 `FieldActionPacket`. The server checks badge + party move + place; refusals come back as `ui.notice`. `fly` without a valid visited target makes the server send `ui.open` `fly`. |
-| `step` | optional `jump: true` | the browser predicted a ledge hop (two tiles); the headless client predicts the same. The server decides either way and sends the landing tile back. |
-
-Gateway → browser:
-- `world.entities[]` gain, only when not default: `mode` (`mach_bike` `acro_bike` `surf` `underwater`; Kanto's Bicycle is `mach_bike`), `run` (true), `jump` (counter, +1 per ledge hop the server reported: animate a 2-tile hop), `exclaim` (counter, +1 when a trainer spots the player: draw "!" for ~1 s). From s2c 0xE8 `FieldAvatarPacket` and `GbaEntityMovePacket.movementMode` 6 (= ledge hop).
-- `world.field` (s2c 0xE9 `FieldInfoPacket`, sent on every map entry and change):
-  `{"dark","flash","canRun","canBike","hasBike","strength","canEscape","moves":["surf",...],"fly":[{"bank","map","name"}]}`.
-  `dark` = the map needs FLASH (header `requires_flash`), `flash` = FLASH lit this visit; `canRun` = running
-  shoes (FLAG_SYS_B_DASH) on a map that allows running; `moves` = field actions the party can use now
-  (knows the move, has the badge); `fly` = visited FLY towns.
-- `ui.open` `{"seq","kind":"pc"|"pcItems"|"fly"}`: the server asks for a UI (the PC tile: Pokémon storage
-  in Pokémon Centers, item storage elsewhere; the FLY map). Act once per new `seq`. The PC panel itself
-  belongs to the items branch.
-
-Static assets, map entries gain `"behavior": "maps/<r>/<layout>.beh.bin"` (one byte per tile, a
-`TileBehavior` ordinal; names in the new top-level `"behaviors": [...]`), `"allowCycling"`,
-`"allowRunning"`, `"requiresFlash"`, and `"borderAnim": [slot...]` (per border cell, the `.anim.json`
-metatile slot that animates it, -1 = static). Top level gains `"fieldEffects": {"surfBlob": {"sheet",
-"frameW","frameH","count"}, "tallGrass", "longGrass", "shadow", "footprints", "deepFootprints",
-"tireTracks", "splash", "ripple", "jumpSplash", "jumpGrass", "dust", "ashPuff", "exclamation"}` (Emerald's
-`graphics/field_effects` art, one strip each).
-
-Prediction rules (server `FieldRules`, mirrored in `world.js`): `col.bin` bits 4-7 elevation; a step onto a
-tile of another elevation is refused unless either is 0 (or the target 15, a bridge); water is 1, land 3,
-so land walkers stop at the shore and surfers hop off onto elevation-3 land; elevation after a step = the
-new tile's (15 keeps it). Ledges (`JUMP_*` behaviour ahead, matching direction) hop two tiles; directional
-walls (`IMPASSABLE_*`); muddy slopes uphill only on the Mach Bike, bumpy slopes / rails only on the Acro
-Bike; `NO_RUNNING` tiles and maps without `allowRunning` walk. A STRENGTH boulder (active) is pushed by
-stepping into it (the player stays). Step times: walk 250 ms, run/surf/acro 125, Mach 70, Kanto bike 95,
-ledge hop 520.
 
 ## 5. Smoothness requirements (browser)
 
@@ -461,3 +425,77 @@ Server settings (system property, then env): `trade.proximity`/`TRADE_PROXIMITY`
 (profanity word list, empty by default), `guild.foundCost` (15000), `guild.maxMembers` (50),
 `rate.chat|whisper|tradeRequest|market|social` / `RATE_<KIND>` as `events/seconds`
 (defaults 8/10, 10/10, 5/60, 30/10, 20/10, per login account). Dev command `/tp r:b:m x y [facing]`.
+
+## 9. r3-field (round 3: field moves, travel modes, field effects; all additive)
+
+Browser → gateway:
+
+| `t` | fields | notes |
+|---|---|---|
+| `field` | `action` (lower case, no underscores: `cut` `flash` `rocksmash` `strength` `surf` `fly` `dive` `waterfall` `teleport` `dig` `sweetscent` `escaperope` `bike` `dismount` `itemfinder`), `arg` (bike: 0 Bicycle/Mach, 1 Acro), `bank`+`map` (FLY target, the player's region) | c2s 0xF4 `FieldActionPacket`. The server checks badge + party move + place; refusals come back as `ui.notice`. `fly` without a valid visited target makes the server send `ui.open` `fly`. |
+| `step` | optional `jump: true` | the browser predicted a ledge hop (two tiles); the headless client predicts the same. The server decides either way and sends the landing tile back. |
+
+Gateway → browser:
+- `world.entities[]` gain, only when not default: `mode` (`mach_bike` `acro_bike` `surf` `underwater`; Kanto's Bicycle is `mach_bike`), `run` (true), `jump` (counter, +1 per ledge hop the server reported: animate a 2-tile hop), `exclaim` (counter, +1 when a trainer spots the player: draw "!" for ~1 s). From s2c 0xE8 `FieldAvatarPacket` and `GbaEntityMovePacket.movementMode` 6 (= ledge hop).
+- `world.field` (s2c 0xE9 `FieldInfoPacket`, sent on every map entry and change):
+  `{"dark","flash","canRun","canBike","hasBike","strength","canEscape","moves":["surf",...],"fly":[{"bank","map","name"}]}`.
+  `dark` = the map needs FLASH (header `requires_flash`), `flash` = FLASH lit this visit; `canRun` = running
+  shoes (FLAG_SYS_B_DASH) on a map that allows running; `moves` = field actions the party can use now
+  (knows the move, has the badge); `fly` = visited FLY towns.
+- `ui.open` `{"seq","kind":"pc"|"pcItems"|"fly"}`: the server asks for a UI (the PC tile: Pokémon storage
+  in Pokémon Centers, item storage elsewhere; the FLY map). Act once per new `seq`. The PC panel itself
+  belongs to the items branch.
+
+Static assets, map entries gain `"behavior": "maps/<r>/<layout>.beh.bin"` (one byte per tile, a
+`TileBehavior` ordinal; names in the new top-level `"behaviors": [...]`), `"allowCycling"`,
+`"allowRunning"`, `"requiresFlash"`, and `"borderAnim": [slot...]` (per border cell, the `.anim.json`
+metatile slot that animates it, -1 = static). Top level gains `"fieldEffects": {"surfBlob": {"sheet",
+"frameW","frameH","count"}, "tallGrass", "longGrass", "shadow", "footprints", "deepFootprints",
+"tireTracks", "splash", "ripple", "jumpSplash", "jumpGrass", "dust", "ashPuff", "exclamation"}` (Emerald's
+`graphics/field_effects` art, one strip each).
+
+Prediction rules (server `FieldRules`, mirrored in `world.js`): `col.bin` bits 4-7 elevation; a step onto a
+tile of another elevation is refused unless either is 0 (or the target 15, a bridge); water is 1, land 3,
+so land walkers stop at the shore and surfers hop off onto elevation-3 land; elevation after a step = the
+new tile's (15 keeps it). Ledges (`JUMP_*` behaviour ahead, matching direction) hop two tiles; directional
+walls (`IMPASSABLE_*`); muddy slopes uphill only on the Mach Bike, bumpy slopes / rails only on the Acro
+Bike; `NO_RUNNING` tiles and maps without `allowRunning` walk. A STRENGTH boulder (active) is pushed by
+stepping into it (the player stays). Step times: walk 250 ms, run/surf/acro 125, Mach 70, Kanto bike 95,
+ledge hop 520.
+
+## 10. r3-present (round 3: presentation, sound, session resume; all additive)
+
+WebSocket:
+- `login` gains `token` (base64 remember-me token from an earlier reply; replaces `pass`),
+  `remember` (bool: ask the login server for a token on a password login; maps to
+  `PasswordLogin.stayLoggedIn`) and `gender` (0 boy, 1 girl; only used when the character is
+  created). The `login` reply gains `token` (base64) whenever the login server sent one
+  (`SentCredentialsPacket`: password login with `remember`, and every token login — sliding
+  expiry). A rejected token fails with `INVALID_SAVED_CREDENTIALS`. The browser stores only the
+  token (`localStorage openmmo.session`), never the password.
+- `world` gains `female` (bool): the own character's gender (`CharacterInfo.rivalSex`), so the
+  browser picks the region's female player sheet. Other players' gender is not known yet.
+- Battle `me` / `foe` / `party` entries gain `shiny` (bool). It travels in the battle mon blocks
+  (byte after the gender, formerly padding, so non-shiny blocks are byte-identical).
+
+Static assets (manifest):
+- `pokemon[dex]` gains `"shiny": {"front", "back"}` (same picture, `gMonShinyPaletteTable`
+  palette) and `"iconAnim"` (both party-icon frames, 32x64; cycled every ~0.2 s).
+- `"sfx": {"<region>": {"select": "SE_SELECT", "door", "exit", "bump", "ledge", "pcOn", "pcLogin",
+  "pcOff", "shop", "save", "shiny", "failure", "success", "itemGet", "keyItemGet", "levelUp",
+  "heal"}}` — role → song constant. SE_* songs are in the music index like the MUS_* ones.
+- Music index: songs gain `rev` (`midi.cfg -R`, m4a reverb amount). Index gains `"samples":
+  {"DirectSoundWaveData_x": profile}` and DirectSound voices gain `"sample": "<that key>"`. A
+  profile is measured from the decomp's `.wav`: `dur`, `loop`, `loopAt`, `envDur`, `env` (48-point
+  amplitude curve), `pitch60` (Hz at MIDI note 60), and either `re`/`im` (24 harmonics, tonal) +
+  `gain`, or `bands` (20 log-spaced band energies, noisy) + `level`. No sample data is shipped.
+- `ui.fonts`: `{"pokefirered/normal" | "pokeemerald/normal" | "pokeemerald/narrow" |
+  "pokeemerald/small": {"json", "image", "ttf", "family", "baseline", "lineHeight"}}`. `ttf` is a
+  TrueType of the glyph pixels (64 units per pixel, 16 px em); `image` an atlas (16x16 cells,
+  16 per row, red = glyph pixel, green = shadow pixel); `json`: `{"cell", "baseline",
+  "lineHeight", "glyphs": {"<code point>": [glyph index, advance px]}}`. Code points come from the
+  decomp charmap; every glyph is also at U+E000 + byte (PK = U+E053, MN = U+E054).
+- `ui.windows`: `{"<region>": {"dialog": png, "dialogSlice": [t, r, b, l], "frames": [png...],
+  "frameSlice": 8, "arrow": png, "arrowSize": "WxH", "arrowSteps": [[x, y]...]}}` — 9-slice
+  `border-image` sources composed from the games' frame tiles; `arrowSteps` are the source
+  offsets of the bobbing "more" arrow, one step per 8 frames.

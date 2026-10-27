@@ -399,7 +399,7 @@ class GameClient(
           chars.firstOrNull { it.characterInfo.name.equals(newCharacter.name, true) } ?: chars[0]
       val info = chosen.characterInfo
       log.info { "Selecting character '${info.name}' (id=${info.id})" }
-      world.selectCharacter(info.id, info.name)
+      world.selectCharacter(info.id, info.name, info.rivalSex.toInt())
       market.selfId = info.id
       event.session.send(SelectCharacterPacket(info.id, info.id))
     }

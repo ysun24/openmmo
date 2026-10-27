@@ -2,6 +2,7 @@
 // the edges, border fill outside every map, animated tiles re-blitted from the layout's atlas, player
 // name tags, fade on warps.
 import { assets, stepAnim, GBA_HZ } from './assets.js';
+import { fonts } from './font.js';
 
 export const VW = 240;
 export const VH = 160;
@@ -32,9 +33,19 @@ const GLYPHS = {
 /** A name tag as a small canvas (cached per text+colour). */
 const tagCache = new Map();
 function tagCanvas(text, self) {
-  const key = (self ? '1' : '0') + text;
+  // the game's small font in full case once it is loaded (js/font.js), else the 3x5 fallback
+  const gf = fonts.canvasFont(0);
+  const key = (gf ? 'f' : '') + (self ? '1' : '0') + text;
   let c = tagCache.get(key);
   if (c) return c;
+  if (gf) {
+    c = fonts.textCanvas(gf, String(text || '').slice(0, 16), {
+      fg: self ? '#f8d850' : '#ffffff', shadow: '#303040', bg: 'rgba(16,16,24,0.62)', pad: 2, maxW: 120,
+    });
+    if (tagCache.size > 200) tagCache.clear();
+    tagCache.set(key, c);
+    return c;
+  }
   const t = String(text || '').toUpperCase().slice(0, 12);
   const w = Math.max(1, t.length * 4 - 1) + 4, h = 9;
   c = document.createElement('canvas');

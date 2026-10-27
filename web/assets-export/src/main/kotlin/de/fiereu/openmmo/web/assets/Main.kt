@@ -108,6 +108,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
       val monJobs =
           dexes.map { dex -> dex to pool.submit(Callable { exportMon(out, pokemon, dex) }) }
 
+      val fonts = FontExport(decomp, out)
+      val windows = UiExport(decomp, out)
       val musicJobs =
           REGIONS.map { (r, g) ->
             pool.submit(
@@ -193,7 +195,29 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
                     })
               }
             })
-        put("ui", buildJsonObject { put("font", kotlinx.serialization.json.JsonNull) })
+        put(
+            "sfx",
+            buildJsonObject {
+              music.forEach { (r, _, p) ->
+                p ?: return@forEach
+                val songs = File(decomp, REGIONS.getValue(r).dir + "/sound/songs/midi")
+                put(
+                    "$r",
+                    buildJsonObject {
+                      MusicExport.SFX.forEach { (k, cs) ->
+                        cs.firstOrNull { File(songs, it.lowercase() + ".mid").isFile }
+                            ?.let { put(k, it) }
+                      }
+                    })
+              }
+            })
+        put(
+            "ui",
+            buildJsonObject {
+              put("font", kotlinx.serialization.json.JsonNull)
+              put("fonts", fonts.export())
+              put("windows", windows.export())
+            })
         // r3-battle: trainer / player-back sprites, battle backgrounds, animation sprites, and the
         // extra battle music keys (elite / champion / rival / team / pvp).
         put("battle", battleAssets.export())
@@ -210,6 +234,8 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
           maps.failures +
               maps.animFailures +
               objects.flatMap { it.second.failures } +
+              fonts.failures +
+              windows.failures +
               pokemon.flatMap { it.failures } +
               battleAssets.failures
       return Result(
@@ -235,10 +261,20 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
     val back = images.firstNotNullOfOrNull { it.back }
     val icon = images.firstNotNullOfOrNull { it.icon }
     if (front == null && back == null && icon == null) return null
+    // shiny art from the same game as the normal art, so the two always match
+    val src = images.firstOrNull { it.front != null } ?: images.first()
+    val iconSrc = images.firstOrNull { it.icon != null } ?: images.first()
     return buildJsonObject {
       front?.let { put("front", out.writePng("pokemon/$dex.front.png", it)) }
       back?.let { put("back", out.writePng("pokemon/$dex.back.png", it)) }
       icon?.let { put("icon", out.writePng("pokemon/$dex.icon.png", it)) }
+      buildJsonObject {
+            src.shinyFront?.let { put("front", out.writePng("pokemon/$dex.shiny.front.png", it)) }
+            src.shinyBack?.let { put("back", out.writePng("pokemon/$dex.shiny.back.png", it)) }
+          }
+          .takeIf { it.isNotEmpty() }
+          ?.let { put("shiny", it) }
+      iconSrc.iconAnim?.let { put("iconAnim", out.writePng("pokemon/$dex.icon2.png", it)) }
     }
   }
 }

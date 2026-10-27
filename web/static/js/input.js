@@ -2,7 +2,7 @@
 // "press" events (with auto-repeat for directions) for menus.
 import { Emitter } from './util.js';
 
-const KEYS = {
+export const KEYS = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
   KeyZ: 'a', Space: 'a', KeyX: 'b', Escape: 'b', Enter: 'chat', Tab: 'menu',
@@ -80,6 +80,7 @@ export class Input extends Emitter {
       const k = KEYS[e.code];
       if (!k) return;
       e.preventDefault();
+      if (k === 'run') return void (this.shift = true); // remappable run key (settings)
       if (DIRS.includes(k)) {
         if (!e.repeat) this.dirDown('k:' + e.code, k);
       } else if (!e.repeat) this.emit('press', k);
@@ -87,6 +88,7 @@ export class Input extends Emitter {
     window.addEventListener('keyup', (e) => {
       if (e.key === 'Shift') this.shift = false;
       const k = KEYS[e.code];
+      if (k === 'run') this.shift = false;
       if (k && DIRS.includes(k)) this.dirUp('k:' + e.code);
     });
     window.addEventListener('blur', () => this.releaseAll());

@@ -127,7 +127,7 @@ class StateJsonTest {
     assertEquals(
         parse(
             """{"map":{"region":0,"bank":3,"map":0,"name":"PalletTown","width":24,"height":20},
-            "self":"$selfId","inWorld":true,
+            "self":"$selfId","female":false,"inWorld":true,
             "entities":[
               {"id":"7","kind":"npc","name":"","gfx":23,"x":3,"y":4,"facing":"left","moving":true,
                "map":{"region":0,"bank":3,"map":0}},
@@ -276,11 +276,11 @@ class StateJsonTest {
     assertEquals(
         parse(
             """{"wild":true,"opponentName":"","phase":"ACTION","turn":3,"activeSlot":0,
-               "me":{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39,
+               "me":{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39,"shiny":false,
                      "moves":[{"name":"SCRATCH","pp":33,"maxPp":35,"type":"NORMAL","power":40},
                               {"name":"EMBER","pp":25,"maxPp":25,"type":"FIRE","power":40}]},
-               "foe":{"dex":19,"name":"RATTATA","level":3,"hp":0,"maxHp":15},
-               "party":[{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39}],
+               "foe":{"dex":19,"name":"RATTATA","level":3,"hp":0,"maxHp":15,"shiny":false},
+               "party":[{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39,"shiny":false}],
                "log":["CHARMANDER used SCRATCH!"],"result":null,"rules":null,"timer":null,"fx":[],
                "learn":{"move":"EMBER","current":["SCRATCH","EMBER"],"mon":"CHARMANDER",
                         "offer":{"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":35,"maxPp":35},

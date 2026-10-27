@@ -25,6 +25,8 @@ export class Net extends Emitter {
     /** Latest value of every state section (null = absent). */
     this.state = Object.fromEntries(SECTIONS.map((s) => [s, null]));
     this.stateSeq = 0;
+    /** performance.now() of the last frame received (heartbeat watchdog in main.js). */
+    this.lastRx = 0;
   }
 
   setStatus(s) {
@@ -46,6 +48,7 @@ export class Net extends Emitter {
     this.ws = ws;
     return new Promise((resolve, reject) => {
       ws.onopen = () => {
+        this.lastRx = performance.now();
         this.setStatus('online');
         this.pingTimer = setInterval(() => this.ping(), 5000);
         this.ping();
@@ -61,6 +64,7 @@ export class Net extends Emitter {
         reject(new Error('closed'));
       };
       ws.onmessage = (ev) => {
+        this.lastRx = performance.now();
         let m;
         try {
           m = JSON.parse(ev.data);
