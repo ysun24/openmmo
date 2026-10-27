@@ -1,5 +1,7 @@
 package de.fiereu.openmmo.server.game.progression
 
+import de.fiereu.openmmo.progression.Evolution
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.common.MAX_PARTY_SIZE
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove

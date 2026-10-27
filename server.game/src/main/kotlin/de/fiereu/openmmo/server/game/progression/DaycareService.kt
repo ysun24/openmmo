@@ -1,5 +1,6 @@
 package de.fiereu.openmmo.server.game.progression
 
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.MAX_MOVE_SLOTS
 import de.fiereu.openmmo.common.MAX_PARTY_SIZE

@@ -9,6 +9,7 @@ import de.fiereu.openmmo.common.enums.Ability
 import de.fiereu.openmmo.common.enums.PokemonStat
 import de.fiereu.openmmo.items.ItemRegistry
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
+import de.fiereu.openmmo.progression.Gen3Data
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.Json
@@ -41,6 +42,15 @@ interface Names {
 
   /** Whether the map has the PC: any map with a Pokemon Center nurse, as the server decides. */
   fun hasPc(key: MapKey): Boolean = false
+
+  /** The pokedex page of national [dex], worded as [region]'s game does (0 Kanto, 1 Hoenn). */
+  fun dexEntry(dex: Int, region: Int): DexEntry? = null
+
+  /** The species' types, for the pokedex list. */
+  fun types(dex: Int): List<String> = emptyList()
+
+  /** A move's description (the TM case and the learn prompt). */
+  fun moveDescription(id: Int): String? = null
 }
 
 data class MonSummary(
@@ -102,7 +112,30 @@ class CodegenNames(private val decomp: File) : Names {
     return (2 * base + mon.iVs.hp + mon.eVs.hp / 4) * level / 100 + level + 10
   }
 
-  override fun itemInfo(id: Int): ItemInfo? = items.info(id)
+  private val gen3Text by lazy { Gen3Text(decomp) }
+
+  override fun itemInfo(id: Int): ItemInfo? {
+    val info = items.info(id) ?: return null
+    // A gen 3 TM teaches the Emerald/FireRed move of its number, not gen 5's: name it from the
+    // decomp's tms_hms.h order (Gen3Data) instead of leaving the description blank.
+    val def = itemRegistry.get(id) ?: return info
+    val index = Gen3Data.tmhmIndex(def) ?: return info.copy(use = info.use.takeUnless { info.pocket == "tms" })
+    val moveId = Gen3Data.tmhmMove(index) ?: return info
+    val text = gen3Text.moveDescription(moveId).orEmpty()
+    return info.copy(
+        description = "Teaches ${move(moveId)}. $text".trim(),
+        use = "teach",
+        teaches = moveId,
+        tmIndex = index)
+  }
+
+  override fun dexEntry(dex: Int, region: Int): DexEntry? =
+      gen3Text.dexEntry(dex, if (region == 0) Gen3Text.FIRERED else Gen3Text.EMERALD)
+
+  override fun types(dex: Int): List<String> =
+      speciesRegistry.get(dex)?.types?.map { it.name }?.distinct().orEmpty()
+
+  override fun moveDescription(id: Int): String? = gen3Text.moveDescription(id)
 
   override fun hasPc(key: MapKey): Boolean =
       maps.getMap(key.regionId, key.bankId, key.mapId)?.npcs?.any {

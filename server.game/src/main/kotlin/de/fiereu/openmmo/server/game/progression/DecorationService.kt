@@ -1,5 +1,6 @@
 package de.fiereu.openmmo.server.game.progression
 
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.inject.Inject

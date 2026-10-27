@@ -1,4 +1,4 @@
-package de.fiereu.openmmo.server.game.progression
+package de.fiereu.openmmo.progression
 
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.items.generated.Items

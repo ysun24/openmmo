@@ -3,7 +3,7 @@ package de.fiereu.openmmo.server.game.services
 import de.fiereu.openmmo.common.MonStatus
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.items.generated.Items
-import de.fiereu.openmmo.server.game.progression.Gen3Data
+import de.fiereu.openmmo.progression.Gen3Data
 
 /** Which stat an EV item works on. */
 enum class EvStat {

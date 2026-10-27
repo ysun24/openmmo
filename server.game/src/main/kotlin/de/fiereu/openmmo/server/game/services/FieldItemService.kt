@@ -13,7 +13,7 @@ import de.fiereu.openmmo.net.game.packets.FieldItemUsePacket
 import de.fiereu.openmmo.net.game.packets.progress.LearnPrompt
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.progression.EscapeRopeService
-import de.fiereu.openmmo.server.game.progression.Gen3Data
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.server.game.progression.Growth
 import de.fiereu.openmmo.server.game.progression.MonGrowth
 import de.fiereu.openmmo.server.game.progression.PlayerProgressService

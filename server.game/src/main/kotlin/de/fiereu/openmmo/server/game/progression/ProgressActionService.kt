@@ -1,5 +1,6 @@
 package de.fiereu.openmmo.server.game.progression
 
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.CharacterPermissions

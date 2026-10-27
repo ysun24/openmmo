@@ -92,6 +92,31 @@ interface GameActions {
   fun marketBuy(id: Long): String?
 
   fun marketCancel(id: Long): String?
+
+  // r3-items. Defaults keep older fakes compiling.
+
+  /** Use bag [item] on [slot] of party monster [mon]: Ether, PP Up, Leppa; a TM forgets [slot]. */
+  fun itemMove(item: Int, mon: Long, slot: Int): String? = "unsupported"
+
+  /** The learn prompt: forget move [slot] (0-3) for the new one, or null to give it up. */
+  fun learnReply(slot: Int?): String? = "unsupported"
+
+  /** Register key [item] to the select button (0 clears). */
+  fun itemRegister(item: Int): String? = "unsupported"
+
+  fun itemRegistered(): String? = "unsupported"
+
+  /** The day care's party picker: leave [mon], or null to cancel. */
+  fun daycareDeposit(mon: Long?): String? = "unsupported"
+
+  /** The day care's level menu: take monster [index] back, or null to cancel. */
+  fun daycareWithdraw(index: Int?): String? = "unsupported"
+
+  fun decorBuy(id: Int, qty: Int): String? = "unsupported"
+
+  fun decorClose(): String? = "unsupported"
+
+  fun progressRefresh(): String? = "unsupported"
 }
 
 /** A field that is missing or of the wrong type. */
@@ -195,6 +220,24 @@ object Dispatcher {
         "market.listItem" -> g.marketListItem(m.reqInt("item"), m.qty("qty"), m.price())
         "market.buy" -> g.marketBuy(m.id("id"))
         "market.cancel" -> g.marketCancel(m.id("id"))
+        "item.move" -> g.itemMove(m.reqInt("item"), m.id("mon"), m.reqInt("slot", 0..3))
+        "learn.reply" -> {
+          val slot = m["slot"]
+          g.learnReply(if (slot == null || slot is JsonNull) null else m.reqInt("slot", 0..3))
+        }
+        "item.register" -> g.itemRegister(m.reqInt("item", 0..Short.MAX_VALUE.toInt()))
+        "item.registered" -> g.itemRegistered()
+        "daycare.deposit" -> {
+          val mon = m["mon"]
+          g.daycareDeposit(if (mon == null || mon is JsonNull) null else m.id("mon"))
+        }
+        "daycare.withdraw" -> {
+          val i = m["index"]
+          g.daycareWithdraw(if (i == null || i is JsonNull) null else m.reqInt("index", 0..1))
+        }
+        "decor.buy" -> g.decorBuy(m.reqInt("id", 1..Short.MAX_VALUE.toInt()), m.reqInt("qty", 1..99))
+        "decor.close" -> g.decorClose()
+        "progress.refresh" -> g.progressRefresh()
         else -> "unknown message type: $t"
       }
 
