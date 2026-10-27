@@ -6,22 +6,6 @@ import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * trainerhill_inchallenge
- * goto_if_eq VAR_RESULT, FALSE, TrainerHill_Entrance_EventScript_ThanksForPlaying
- * msgbox TrainerHill_Entrance_Text_HopeYouGiveItYourBest, MSGBOX_DEFAULT
- * goto TrainerHill_Entrance_EventScript_AttendantEnd
- * ```
- */
-internal object TrainerHill_Entrance_EventScript_Attendant : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port TrainerHill_Entrance_EventScript_Attendant")
-}
-
 /** The decomp's Pokemon Center nurse: heal the party. */
 internal object TrainerHill_Entrance_EventScript_Nurse : Script {
   override suspend fun run(ctx: ScriptContext) {
@@ -64,51 +48,8 @@ internal object TrainerHill_Entrance_EventScript_Clerk : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_unset FLAG_SYS_GAME_CLEAR, TrainerHill_Entrance_EventScript_GirlTrainerHillClosed
- * msgbox TrainerHill_Entrance_Text_FriendsTryingToReachTimeBoardTop, MSGBOX_NPC
- * end
- * ```
- */
-internal object TrainerHill_Entrance_EventScript_Girl : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port TrainerHill_Entrance_EventScript_Girl")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto_if_unset FLAG_SYS_GAME_CLEAR, TrainerHill_Entrance_EventScript_ManTrainerHillClosed
- * msgbox TrainerHill_Entrance_Text_WhatSortOfTrainersAreAhead, MSGBOX_NPC
- * end
- * ```
- */
-internal object TrainerHill_Entrance_EventScript_Man : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port TrainerHill_Entrance_EventScript_Man")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * fadescreen FADE_TO_BLACK
- * special ShowTrainerHillRecords
- * releaseall
- * end
- * ```
- */
-internal object TrainerHill_Entrance_EventScript_Records : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port TrainerHill_Entrance_EventScript_Records")
-}
-
 internal val TrainerHill_EntranceScripts: Map<String, Script> =
     mapOf(
-        "TrainerHill_Entrance_EventScript_Attendant" to TrainerHill_Entrance_EventScript_Attendant,
         "TrainerHill_Entrance_EventScript_Nurse" to TrainerHill_Entrance_EventScript_Nurse,
         "TrainerHill_Entrance_EventScript_Clerk" to TrainerHill_Entrance_EventScript_Clerk,
-        "TrainerHill_Entrance_EventScript_Girl" to TrainerHill_Entrance_EventScript_Girl,
-        "TrainerHill_Entrance_EventScript_Man" to TrainerHill_Entrance_EventScript_Man,
-        "TrainerHill_Entrance_EventScript_Records" to TrainerHill_Entrance_EventScript_Records,
     )

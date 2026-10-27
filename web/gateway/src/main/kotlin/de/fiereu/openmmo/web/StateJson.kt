@@ -23,6 +23,7 @@ import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import de.fiereu.openmmo.net.game.packets.trade.TradeStage
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import de.fiereu.openmmo.progression.Gen3Data
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -295,6 +296,38 @@ class StateJson(private val names: Names) {
                   else -> "unknown"
                 })
           }
+      // r5-scripts: the script interpreter's menu and effects (PROTOCOL.md "r5-scripts").
+      putJsonObject("script") {
+        val menu = v?.scriptMenu
+        put(
+            "menu",
+            if (menu == null) JsonNull
+            else
+                buildJsonObject {
+                  put("seq", menu.seq)
+                  put("kind", menu.kind)
+                  put("args", Json.parseToJsonElement(menu.json))
+                })
+        putJsonArray("fx") {
+          v?.scriptFx.orEmpty().forEach {
+            addJsonObject {
+              put("n", it.n)
+              put("kind", it.kind)
+              put("args", Json.parseToJsonElement(it.json))
+            }
+          }
+        }
+        putJsonArray("metatiles") {
+          v?.metatiles.orEmpty().forEach { (xy, t) ->
+            addJsonObject {
+              put("x", xy.first)
+              put("y", xy.second)
+              put("tile", t.first)
+              put("impassable", t.second)
+            }
+          }
+        }
+      }
       val n = v?.notice
       put(
           "notice",

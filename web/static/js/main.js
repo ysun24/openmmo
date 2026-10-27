@@ -18,6 +18,7 @@ import * as field from './ui/field.js';
 import * as sbui from './ui/secretbase.js';
 import * as social from './ui/social.js';
 import * as typer from './ui/typewriter.js';
+import * as scriptui from './ui/scripts.js';
 import { music } from './audio.js';
 import { fonts, setFrameStyle } from './font.js';
 import { settings, ACTIONS, keyLabel } from './settings.js';
@@ -112,7 +113,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui, scriptui];
 UIS.forEach((u) => u.init(app));
 typer.init();
 

@@ -9,22 +9,8 @@ internal object AbandonedShip_Rooms2_B1F_EventScript_Camper : Script {
       ctx.say(AbandonedShip_Rooms2_B1F.PerfectPlaceToGoExploring)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * finditem ITEM_DIVE_BALL
- * end
- * ```
- */
-internal object AbandonedShip_Rooms2_B1F_EventScript_ItemDiveBall : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port AbandonedShip_Rooms2_B1F_EventScript_ItemDiveBall")
-}
-
 internal val AbandonedShip_Rooms2_B1FScripts: Map<String, Script> =
     mapOf(
         "AbandonedShip_Rooms2_B1F_EventScript_Camper" to
             AbandonedShip_Rooms2_B1F_EventScript_Camper,
-        "AbandonedShip_Rooms2_B1F_EventScript_ItemDiveBall" to
-            AbandonedShip_Rooms2_B1F_EventScript_ItemDiveBall,
     )

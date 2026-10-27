@@ -120,21 +120,6 @@ internal object LittlerootTown_BrendansHouse_2F_EventScript_RivalsPokeBall : Scr
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * checkplayergender
- * goto_if_eq VAR_RESULT, MALE, LittlerootTown_BrendansHouse_2F_EventScript_CheckPlayersPC
- * goto_if_eq VAR_RESULT, FEMALE, LittlerootTown_BrendansHouse_2F_EventScript_CheckRivalsPC
- * end
- * ```
- */
-internal object LittlerootTown_BrendansHouse_2F_EventScript_PC : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_BrendansHouse_2F_EventScript_PC")
-}
-
 internal object PlayersHouse_2F_EventScript_Notebook : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.sign(PlayersHouse_2F.Notebook)
 }
@@ -193,8 +178,6 @@ internal val LittlerootTown_BrendansHouse_2FScripts: Map<String, Script> =
         "RivalsHouse_2F_EventScript_Rival" to RivalsHouse_2F_EventScript_Rival,
         "LittlerootTown_BrendansHouse_2F_EventScript_RivalsPokeBall" to
             LittlerootTown_BrendansHouse_2F_EventScript_RivalsPokeBall,
-        "LittlerootTown_BrendansHouse_2F_EventScript_PC" to
-            LittlerootTown_BrendansHouse_2F_EventScript_PC,
         "PlayersHouse_2F_EventScript_Notebook" to PlayersHouse_2F_EventScript_Notebook,
         "LittlerootTown_BrendansHouse_2F_EventScript_WallClock" to
             LittlerootTown_BrendansHouse_2F_EventScript_WallClock,

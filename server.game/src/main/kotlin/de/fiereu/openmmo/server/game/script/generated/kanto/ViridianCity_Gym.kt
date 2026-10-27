@@ -203,35 +203,6 @@ internal object ViridianCity_Gym_EventScript_Warren : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_LEADER_GIOVANNI, ViridianCity_Gym_EventScript_GymGuyPostVictory
- * msgbox ViridianCity_Gym_Text_GymGuyAdvice
- * release
- * end
- * ```
- */
-internal object ViridianCity_Gym_EventScript_GymGuy : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_GymGuy")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE08_GET, ViridianCity_Gym_EventScript_GymStatuePostVictory
- * msgbox ViridianCity_Gym_Text_GymStatue
- * releaseall
- * end
- * ```
- */
-internal object ViridianCity_Gym_EventScript_GymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_GymStatue")
-}
-
 internal val ViridianCity_GymScripts: Map<String, Script> =
     mapOf(
         "ViridianCity_Gym_EventScript_Takashi" to ViridianCity_Gym_EventScript_Takashi,
@@ -243,6 +214,4 @@ internal val ViridianCity_GymScripts: Map<String, Script> =
         "ViridianCity_Gym_EventScript_Samuel" to ViridianCity_Gym_EventScript_Samuel,
         "ViridianCity_Gym_EventScript_Giovanni" to ViridianCity_Gym_EventScript_Giovanni,
         "ViridianCity_Gym_EventScript_Warren" to ViridianCity_Gym_EventScript_Warren,
-        "ViridianCity_Gym_EventScript_GymGuy" to ViridianCity_Gym_EventScript_GymGuy,
-        "ViridianCity_Gym_EventScript_GymStatue" to ViridianCity_Gym_EventScript_GymStatue,
     )

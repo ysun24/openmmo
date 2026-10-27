@@ -33,73 +33,6 @@ internal object IndigoPlateau_PokemonCenter_1F_EventScript_GymGuy : Script {
       ctx.say(IndigoPlateau_PokemonCenter_1F.GymGuyAdvice)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * specialvar VAR_RESULT, IsNationalPokedexEnabled
- * goto_if_eq VAR_RESULT, TRUE, IndigoPlateau_PokemonCenter_1F_EventScript_CheckSeviiIslandComplete
- * msgbox IndigoPlateau_PokemonCenter_1F_Text_FaceEliteFourGoodLuck
- * release
- * end
- * ```
- */
-internal object IndigoPlateau_PokemonCenter_1F_EventScript_DoorGuard : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port IndigoPlateau_PokemonCenter_1F_EventScript_DoorGuard")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_AGATHA, 1
- * famechecker FAMECHECKER_AGATHA, 2
- * msgbox IndigoPlateau_PokemonCenter_1F_Text_AgathaWhuppedUs
- * release
- * end
- * ```
- */
-internal object IndigoPlateau_PokemonCenter_1F_EventScript_BlackBelt : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port IndigoPlateau_PokemonCenter_1F_EventScript_BlackBelt")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_LANCE, 4
- * textcolor NPC_TEXT_COLOR_NEUTRAL
- * msgbox PokemonJournal_Text_SpecialFeatureLance
- * release
- * end
- * ```
- */
-internal object IndigoPlateau_PokemonCenter_1F_EventScript_PokemonJournal : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port IndigoPlateau_PokemonCenter_1F_EventScript_PokemonJournal")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_LANCE, 5
- * msgbox IndigoPlateau_PokemonCenter_1F_Text_LancesCousinGymLeaderFarAway
- * release
- * end
- * ```
- */
-internal object IndigoPlateau_PokemonCenter_1F_EventScript_CooltrainerM : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port IndigoPlateau_PokemonCenter_1F_EventScript_CooltrainerM")
-}
-
 internal val IndigoPlateau_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "IndigoPlateau_PokemonCenter_1F_EventScript_Clerk" to
@@ -108,12 +41,4 @@ internal val IndigoPlateau_PokemonCenter_1FScripts: Map<String, Script> =
             IndigoPlateau_PokemonCenter_1F_EventScript_Nurse,
         "IndigoPlateau_PokemonCenter_1F_EventScript_GymGuy" to
             IndigoPlateau_PokemonCenter_1F_EventScript_GymGuy,
-        "IndigoPlateau_PokemonCenter_1F_EventScript_DoorGuard" to
-            IndigoPlateau_PokemonCenter_1F_EventScript_DoorGuard,
-        "IndigoPlateau_PokemonCenter_1F_EventScript_BlackBelt" to
-            IndigoPlateau_PokemonCenter_1F_EventScript_BlackBelt,
-        "IndigoPlateau_PokemonCenter_1F_EventScript_PokemonJournal" to
-            IndigoPlateau_PokemonCenter_1F_EventScript_PokemonJournal,
-        "IndigoPlateau_PokemonCenter_1F_EventScript_CooltrainerM" to
-            IndigoPlateau_PokemonCenter_1F_EventScript_CooltrainerM,
     )

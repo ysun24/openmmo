@@ -95,23 +95,6 @@ internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarRight : Scri
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * applymovement LOCALID_DEPARTMENT_STORE_STAIRS_WOMAN, Common_Movement_FacePlayer
- * waitmovement 0
- * goto_if_eq VAR_SOOTOPOLIS_CITY_STATE, 0, LilycoveCity_DepartmentStore_5F_EventScript_WomanNormal
- * goto_if_ge VAR_SOOTOPOLIS_CITY_STATE, 4, LilycoveCity_DepartmentStore_5F_EventScript_WomanNormal
- * goto LilycoveCity_DepartmentStore_5F_EventScript_WomanLegendaryWeather
- * end
- * ```
- */
-internal object LilycoveCity_DepartmentStore_5F_EventScript_Woman : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_5F_EventScript_Woman")
-}
-
 internal val LilycoveCity_DepartmentStore_5FScripts: Map<String, Script> =
     mapOf(
         "LilycoveCity_DepartmentStore_5F_EventScript_LittleGirl" to
@@ -126,6 +109,4 @@ internal val LilycoveCity_DepartmentStore_5FScripts: Map<String, Script> =
             LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidRight,
         "LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarRight" to
             LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarRight,
-        "LilycoveCity_DepartmentStore_5F_EventScript_Woman" to
-            LilycoveCity_DepartmentStore_5F_EventScript_Woman,
     )

@@ -4,18 +4,6 @@ import de.fiereu.openmmo.dialog.generated.kanto.CeladonCity_DepartmentStore_3F
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * goto EventScript_CounterTutor
- * end
- * ```
- */
-internal object CeladonCity_DepartmentStore_3F_EventScript_CounterTutor : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port CeladonCity_DepartmentStore_3F_EventScript_CounterTutor")
-}
-
 internal object CeladonCity_DepartmentStore_3F_EventScript_GBAKid1 : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(CeladonCity_DepartmentStore_3F.OTStandsForOriginalTrainer)
@@ -69,8 +57,6 @@ internal object CeladonCity_DepartmentStore_3F_EventScript_Poster : Script {
 
 internal val CeladonCity_DepartmentStore_3FScripts: Map<String, Script> =
     mapOf(
-        "CeladonCity_DepartmentStore_3F_EventScript_CounterTutor" to
-            CeladonCity_DepartmentStore_3F_EventScript_CounterTutor,
         "CeladonCity_DepartmentStore_3F_EventScript_GBAKid1" to
             CeladonCity_DepartmentStore_3F_EventScript_GBAKid1,
         "CeladonCity_DepartmentStore_3F_EventScript_GBAKid3" to

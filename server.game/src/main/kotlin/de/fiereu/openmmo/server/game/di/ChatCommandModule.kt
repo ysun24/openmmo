@@ -57,4 +57,11 @@ interface ChatCommandModule {
   fun fieldDevCommand(
       command: de.fiereu.openmmo.server.game.services.command.FieldDevCommand
   ): ChatCommand
+
+  // r5-scripts
+  @Binds
+  @IntoSet
+  fun scriptCommand(
+      command: de.fiereu.openmmo.server.game.services.command.ScriptCommand
+  ): ChatCommand
 }

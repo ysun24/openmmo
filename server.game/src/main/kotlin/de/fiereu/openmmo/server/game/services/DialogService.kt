@@ -124,6 +124,43 @@ class DialogService @Inject constructor() {
     advance.await()
   }
 
+  /**
+   * r5-scripts: sends a box without waiting for it, the decomp's `message`. The returned deferred
+   * completes when the player advances it (`waitbuttonpress` awaits it).
+   */
+  fun show(
+      session: SessionContext,
+      state: PlayerState,
+      textId: Int,
+      actionType: Int,
+      entityId: Long,
+      presentation: DialogPresentation = DialogPresentation(),
+  ): CompletableDeferred<Unit> {
+    val advance = CompletableDeferred<Unit>()
+    session.attributes[PENDING_DIALOG] = advance
+    val seq = state.dialogSeqId
+    state.dialogSeqId = seq + 1
+    state.inDialog = true
+    state.dialogNpcEntityId = entityId
+    session.send(
+        DialogActionPacket(
+            flags = seq.toByte(),
+            actionType = actionType.toByte(),
+            textId = textId,
+            entityId = entityId,
+            contextValue = presentation.contextValue,
+            messageArgs = presentation.messageArgs,
+            detail = presentation.detail,
+        ))
+    return advance
+  }
+
+  /** r5-scripts: hides the open box but keeps the script's dialog lock (`closemessage`). */
+  fun hideBox(session: SessionContext) {
+    session.attributes.remove(PENDING_DIALOG)
+    session.send(CLOSE_DIALOG_ACTION)
+  }
+
   /** Show a scene page and wait for the client's 0x21 acknowledgement. */
   suspend fun showScenePageAndWait(
       session: SessionContext,

@@ -26,24 +26,6 @@ internal object BattleFrontier_PokemonCenter_1F_EventScript_Picnicker : Script {
       ctx.say(BattleFrontier_PokemonCenter_1F.GoingThroughEveryChallenge)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * waitse
- * playmoncry SPECIES_SKITTY, CRY_MODE_NORMAL
- * msgbox BattleFrontier_PokemonCenter_1F_Text_Skitty, MSGBOX_DEFAULT
- * waitmoncry
- * release
- * end
- * ```
- */
-internal object BattleFrontier_PokemonCenter_1F_EventScript_Skitty : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port BattleFrontier_PokemonCenter_1F_EventScript_Skitty")
-}
-
 internal val BattleFrontier_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "BattleFrontier_PokemonCenter_1F_EventScript_Nurse" to
@@ -54,6 +36,4 @@ internal val BattleFrontier_PokemonCenter_1FScripts: Map<String, Script> =
             BattleFrontier_PokemonCenter_1F_EventScript_Man,
         "BattleFrontier_PokemonCenter_1F_EventScript_Picnicker" to
             BattleFrontier_PokemonCenter_1F_EventScript_Picnicker,
-        "BattleFrontier_PokemonCenter_1F_EventScript_Skitty" to
-            BattleFrontier_PokemonCenter_1F_EventScript_Skitty,
     )

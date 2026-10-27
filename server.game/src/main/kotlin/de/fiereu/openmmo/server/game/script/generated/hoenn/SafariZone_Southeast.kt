@@ -16,18 +16,6 @@ internal object SafariZone_Southeast_EventScript_LittleGirl : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(SafariZone_Southeast.LittleGirl)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * finditem ITEM_BIG_PEARL
- * end
- * ```
- */
-internal object SafariZone_Southeast_EventScript_ItemBigPearl : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port SafariZone_Southeast_EventScript_ItemBigPearl")
-}
-
 internal object SafariZone_Southeast_EventScript_ExpansionZoneAttendant : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(SafariZone_Southeast.ExpansionIsFinished)
 }
@@ -38,8 +26,6 @@ internal val SafariZone_SoutheastScripts: Map<String, Script> =
         "SafariZone_Southeast_EventScript_FatMan" to SafariZone_Southeast_EventScript_FatMan,
         "SafariZone_Southeast_EventScript_LittleGirl" to
             SafariZone_Southeast_EventScript_LittleGirl,
-        "SafariZone_Southeast_EventScript_ItemBigPearl" to
-            SafariZone_Southeast_EventScript_ItemBigPearl,
         "SafariZone_Southeast_EventScript_ExpansionZoneAttendant" to
             SafariZone_Southeast_EventScript_ExpansionZoneAttendant,
     )

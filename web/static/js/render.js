@@ -137,6 +137,9 @@ export class Renderer {
     // r4: secret base decorations / open entrances replace their metatiles
     const sbCells = this.secretBaseCells(world);
     if (sbCells) this.drawCells(sbCells, 0, camX, camY);
+    // r5-scripts: metatiles map scripts changed (setmetatile: opened doors, barriers, puzzles)
+    const stCells = this.scriptTileCells(world);
+    if (stCells) this.drawCells(stCells, 0, camX, camY);
 
     // ground effects (footprints, splashes, grass rustles), then entities, y-sorted
     this.effects(world, camX, camY, now);
@@ -161,6 +164,15 @@ export class Renderer {
         this.layer(res.top, 0, 0, camX, camY);
         ctx.restore();
         this.drawCells(sbCells, 16, camX, camY);
+      } else if (stCells) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, VW, VH);
+        for (const c of stCells) ctx.rect(c.x * 16 - camX, c.y * 16 - camY, 16, 16);
+        ctx.clip('evenodd');
+        this.layer(res.top, 0, 0, camX, camY);
+        ctx.restore();
+        this.drawCells(stCells, 16, camX, camY);
       } else this.layer(res.top, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, true);
     }
@@ -449,6 +461,22 @@ export class Renderer {
     if (spots.length && m.entrances) {
       if (!m._entImg) m._entImg = assets.image(m.entrances);
       if (m._entImg.ready) for (const s of spots) out.push({ x: s.x, y: s.y, img: m._entImg.img, cell: s.cell });
+    }
+    return out.length ? out : null;
+  }
+
+  /** r5-scripts: the cells the server's map scripts replaced (manifest scriptTiles atlas). */
+  scriptTileCells(world) {
+    const tiles = world.scriptTiles;
+    if (!tiles || !tiles.length) return null;
+    const m = assets.manifest && assets.manifest.scriptTiles && assets.manifest.scriptTiles[world.mapKey];
+    if (!m) return null;
+    if (!m._img) m._img = assets.image(m.atlas);
+    if (!m._img.ready) return null;
+    const out = [];
+    for (const t of tiles) {
+      const cell = m.ids.indexOf(t.tile);
+      if (cell >= 0) out.push({ x: t.x, y: t.y, img: m._img.img, cell });
     }
     return out.length ? out : null;
   }

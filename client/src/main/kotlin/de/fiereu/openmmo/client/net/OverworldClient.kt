@@ -43,7 +43,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 private val log = KotlinLogging.logger {}
@@ -144,7 +146,11 @@ class OverworldClient(
           it.copy(status = "$name x${s.backSpriteId}  ₽${world.overworld.view().money ?: 0}")
         }
       }
-      is MapTransitionPacket -> world.overworld.setTransitioning(true)
+      is de.fiereu.openmmo.net.game.packets.script.ScriptUiPacket -> onScriptUi(p)
+      is MapTransitionPacket -> {
+        world.overworld.setTransitioning(true)
+        world.overworld.clearMetatiles()
+      }
       is RenderScreenPacket -> if (p.renderScreen) world.overworld.setTransitioning(false)
       else -> return false
     }
@@ -219,9 +225,51 @@ class OverworldClient(
         else -> 120
       }
 
+  private val CLOSE_BOX = 0x64
+
+  // --- r5-scripts: the script interpreter's menus and effects (0xCE) -------------------------
+
+  private val menuKinds = setOf("multichoice", "elevator", "party", "trade", "name", "number")
+
+  private fun onScriptUi(p: de.fiereu.openmmo.net.game.packets.script.ScriptUiPacket) {
+    val v = de.fiereu.openmmo.client.world.ScriptUiView(p.seq, p.kind, p.json)
+    when (p.kind) {
+      in menuKinds -> world.overworld.setScriptMenu(v)
+      "metatile", "metatiles" -> {
+        val o = Json.parseToJsonElement(p.json).jsonObject
+        val tiles = o["tiles"]?.jsonArray?.map { it.jsonObject } ?: listOf(o)
+        for (t in tiles) {
+          world.overworld.setMetatile(
+              t["x"]!!.jsonPrimitive.int,
+              t["y"]!!.jsonPrimitive.int,
+              t["tile"]!!.jsonPrimitive.int,
+              t["impassable"]?.jsonPrimitive?.content == "true")
+        }
+        world.overworld.addScriptFx(v)
+      }
+      else -> world.overworld.addScriptFx(v)
+    }
+    log.info { "[script-ui] ${p.kind} ${p.json.take(200)}" }
+  }
+
+  /** Answers the open script menu: [value] is the index (or -1 / 127 for cancel). */
+  fun scriptReply(seq: Int, value: Int, text: String = ""): Boolean {
+    val m = world.overworld.scriptMenu() ?: return false
+    if (m.seq != seq && seq >= 0) return false
+    world.overworld.setScriptMenu(null)
+    send(de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacket(m.seq, value, text))
+    onChange()
+    return true
+  }
+
   // --- dialog -----------------------------------------------------------------------------------
 
   private fun onDialog(p: DialogActionPacket) {
+    // r5-scripts: closemessage hides the box but the script (and its lock) goes on.
+    if ((p.actionType.toInt() and 0xFF) == CLOSE_BOX) {
+      world.overworld.setDialog(null)
+      return
+    }
     val snap = world.snapshot()
     val region = snap.map?.regionId?.let(GbaGame::forRegion)?.dialogRegion
     val raw =
@@ -236,7 +284,8 @@ class OverworldClient(
                 speciesName(it.speciesId.toInt())
         is TextStringArg ->
             if (it.stringVariable == TextStringArg.RIVAL) vars["RIVAL"] = it.text
-            else if (it.stringVariable in 1..3) vars["STR_VAR_${it.stringVariable}"] = it.text
+            // 1..3 are the GBA's buffers; 9 is r5-scripts' dynamic line (C strings).
+            else if (it.stringVariable in 1..9) vars["STR_VAR_${it.stringVariable}"] = it.text
         else -> {}
       }
     }

@@ -42,6 +42,9 @@ interface GameActions : SocialActions {
 
   fun choose(index: Int): String?
 
+  /** r5-scripts: answers the open script menu (multichoice, party, trade, name). */
+  fun scriptReply(seq: Int, value: Int, text: String): String? = "not supported"
+
   fun shopBuy(item: Int, qty: Int): String?
 
   fun shopSell(item: Int, qty: Int): String?
@@ -238,6 +241,8 @@ object Dispatcher {
         "b" -> g.b()
         "cursor" -> g.cursor((m.int("delta") ?: throw bad("delta")).coerceIn(-1, 1))
         "choose" -> g.choose(m.reqInt("index"))
+        "script.reply" ->
+            g.scriptReply(m.int("seq") ?: -1, m.int("value") ?: -1, (m.optString("text") ?: "").take(16))
         "shop.buy" -> g.shopBuy(m.reqInt("item"), m.qty("qty"))
         "shop.sell" -> g.shopSell(m.reqInt("item"), m.qty("qty"))
         "shop.close" -> g.shopClose()

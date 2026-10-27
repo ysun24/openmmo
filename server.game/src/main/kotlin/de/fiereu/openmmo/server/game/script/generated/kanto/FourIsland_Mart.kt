@@ -22,21 +22,6 @@ internal object FourIsland_Mart_EventScript_Clerk : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * famechecker FAMECHECKER_LORELEI, 2
- * msgbox FourIsland_Mart_Text_LoreleiGrewUpOnThisIsland
- * release
- * end
- * ```
- */
-internal object FourIsland_Mart_EventScript_OldMan : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FourIsland_Mart_EventScript_OldMan")
-}
-
 internal object FourIsland_Mart_EventScript_Camper : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(FourIsland_Mart.IcefallCaveIsFrigid)
 }
@@ -44,6 +29,5 @@ internal object FourIsland_Mart_EventScript_Camper : Script {
 internal val FourIsland_MartScripts: Map<String, Script> =
     mapOf(
         "FourIsland_Mart_EventScript_Clerk" to FourIsland_Mart_EventScript_Clerk,
-        "FourIsland_Mart_EventScript_OldMan" to FourIsland_Mart_EventScript_OldMan,
         "FourIsland_Mart_EventScript_Camper" to FourIsland_Mart_EventScript_Camper,
     )

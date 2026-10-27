@@ -48,6 +48,7 @@ constructor(
     private val entryScripts: MapEntryScripts,
     private val shopService: ShopService,
     private val scriptProgress: ScriptProgress,
+    private val services: de.fiereu.openmmo.server.game.script.vm.ScriptServices? = null,
 ) {
   fun run(session: SessionContext, state: PlayerState, script: Script, entityId: Long) =
       runAll(session, state, listOf(script), entityId)
@@ -84,23 +85,7 @@ constructor(
     state.inDialog = true
     val snapshot = state.characterId?.let(characterStore::getCharacter)
     if (snapshot != null) session.attributes[SCRIPT_SNAPSHOT] = snapshot
-    val ctx =
-        ScriptContext(
-            session,
-            state,
-            entityId,
-            dialogService,
-            storyService,
-            movementService,
-            warpService,
-            storyPlayerService,
-            battleService,
-            characterStore,
-            mapManager,
-            entryScripts,
-            shopService,
-            scriptProgress,
-        )
+    val ctx = context(session, state, entityId)
     scope.launch {
       var finished = false
       var cancelled = false
@@ -127,4 +112,37 @@ constructor(
       }
     }
   }
+
+  /**
+   * r5-scripts: runs [block] to completion right now on the calling thread, without the dialog
+   * lock: the decomp's RunScriptImmediately for map ON_LOAD / ON_TRANSITION / ON_RESUME /
+   * ON_WARP_INTO scripts, which never wait on the player.
+   */
+  fun immediate(session: SessionContext, state: PlayerState, block: suspend (ScriptContext) -> Unit) {
+    val ctx = context(session, state, -1)
+    try {
+      de.fiereu.openmmo.server.game.script.vm.VmMapScripts.bounded { block(ctx) }
+    } catch (e: Exception) {
+      log.warn(e) { "Immediate map script failed" }
+    }
+  }
+
+  private fun context(session: SessionContext, state: PlayerState, entityId: Long): ScriptContext =
+        ScriptContext(
+            session,
+            state,
+            entityId,
+            dialogService,
+            storyService,
+            movementService,
+            warpService,
+            storyPlayerService,
+            battleService,
+            characterStore,
+            mapManager,
+            entryScripts,
+            shopService,
+            scriptProgress,
+            services,
+        )
 }

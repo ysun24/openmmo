@@ -112,21 +112,6 @@ internal object DewfordTown_Gym_EventScript_Laura : Script {
 /**
  * Not ported yet. Decomp body:
  * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_DEWFORD_GYM, DewfordTown_Gym_EventScript_GymGuidePostVictory
- * msgbox DewfordTown_Gym_Text_GymGuideAdvice, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object DewfordTown_Gym_EventScript_GymGuide : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port DewfordTown_Gym_EventScript_GymGuide")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
  * trainerbattle_single TRAINER_CRISTIAN, DewfordTown_Gym_Text_CristianIntro, DewfordTown_Gym_Text_CristianDefeat, DewfordTown_Gym_EventScript_CristianBrightenRoom
  * msgbox DewfordTown_Gym_Text_CristianPostBattle, MSGBOX_AUTOCLOSE
  * end
@@ -181,44 +166,13 @@ internal object DewfordTown_Gym_EventScript_Brenden : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE02_GET, DewfordTown_Gym_EventScript_GymStatueCertified
- * goto DewfordTown_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object DewfordTown_Gym_EventScript_LeftGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port DewfordTown_Gym_EventScript_LeftGymStatue")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * goto_if_set FLAG_BADGE02_GET, DewfordTown_Gym_EventScript_GymStatueCertified
- * goto DewfordTown_Gym_EventScript_GymStatue
- * end
- * ```
- */
-internal object DewfordTown_Gym_EventScript_RightGymStatue : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port DewfordTown_Gym_EventScript_RightGymStatue")
-}
-
 internal val DewfordTown_GymScripts: Map<String, Script> =
     mapOf(
         "DewfordTown_Gym_EventScript_Brawly" to DewfordTown_Gym_EventScript_Brawly,
         "DewfordTown_Gym_EventScript_Takao" to DewfordTown_Gym_EventScript_Takao,
         "DewfordTown_Gym_EventScript_Jocelyn" to DewfordTown_Gym_EventScript_Jocelyn,
         "DewfordTown_Gym_EventScript_Laura" to DewfordTown_Gym_EventScript_Laura,
-        "DewfordTown_Gym_EventScript_GymGuide" to DewfordTown_Gym_EventScript_GymGuide,
         "DewfordTown_Gym_EventScript_Cristian" to DewfordTown_Gym_EventScript_Cristian,
         "DewfordTown_Gym_EventScript_Lilith" to DewfordTown_Gym_EventScript_Lilith,
         "DewfordTown_Gym_EventScript_Brenden" to DewfordTown_Gym_EventScript_Brenden,
-        "DewfordTown_Gym_EventScript_LeftGymStatue" to DewfordTown_Gym_EventScript_LeftGymStatue,
-        "DewfordTown_Gym_EventScript_RightGymStatue" to DewfordTown_Gym_EventScript_RightGymStatue,
     )

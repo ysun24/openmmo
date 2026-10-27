@@ -30,22 +30,6 @@ internal object TrainerTower_Lobby_EventScript_MartClerk : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * ttower_getbeatchallenge
- * goto_if_eq VAR_RESULT, TRUE, TrainerTower_Lobby_EventScript_ThanksForCompeting
- * msgbox TrainerTower_Lobby_Text_GiveItYourBest
- * goto TrainerTower_Lobby_EventScript_ReceptionistEnd
- * ```
- */
-internal object TrainerTower_Lobby_EventScript_Receptionist : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port TrainerTower_Lobby_EventScript_Receptionist")
-}
-
 internal object TrainerTower_Lobby_EventScript_CooltrainerF : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(TrainerTower_Lobby.WonderWhatKindsOfTrainers)
@@ -56,31 +40,11 @@ internal object TrainerTower_Lobby_EventScript_BaldingMan : Script {
       ctx.say(TrainerTower_Lobby.StairsTougherThanAnyBattle)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * fadescreen FADE_TO_BLACK
- * setvar VAR_0x8004, 1
- * special ShowBattleRecords
- * waitstate
- * releaseall
- * end
- * ```
- */
-internal object TrainerTower_Lobby_EventScript_ShowRecords : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port TrainerTower_Lobby_EventScript_ShowRecords")
-}
-
 internal val TrainerTower_LobbyScripts: Map<String, Script> =
     mapOf(
         "TrainerTower_Lobby_EventScript_Nurse" to TrainerTower_Lobby_EventScript_Nurse,
         "TrainerTower_Lobby_EventScript_MartClerk" to TrainerTower_Lobby_EventScript_MartClerk,
-        "TrainerTower_Lobby_EventScript_Receptionist" to
-            TrainerTower_Lobby_EventScript_Receptionist,
         "TrainerTower_Lobby_EventScript_CooltrainerF" to
             TrainerTower_Lobby_EventScript_CooltrainerF,
         "TrainerTower_Lobby_EventScript_BaldingMan" to TrainerTower_Lobby_EventScript_BaldingMan,
-        "TrainerTower_Lobby_EventScript_ShowRecords" to TrainerTower_Lobby_EventScript_ShowRecords,
     )

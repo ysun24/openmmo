@@ -29,22 +29,6 @@ internal object OldaleTown_PokemonCenter_1F_EventScript_Boy : Script {
       ctx.say(OldaleTown_PokemonCenter_1F.PokemonCentersAreGreat)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_SYS_POKEDEX_GET, OldaleTown_PokemonCenter_1F_EventScript_WirelessClubAvailable
- * msgbox OldaleTown_PokemonCenter_1F_Text_WirelessClubNotAvailable, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object OldaleTown_PokemonCenter_1F_EventScript_Girl : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port OldaleTown_PokemonCenter_1F_EventScript_Girl")
-}
-
 internal val OldaleTown_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "OldaleTown_PokemonCenter_1F_EventScript_Nurse" to
@@ -53,6 +37,4 @@ internal val OldaleTown_PokemonCenter_1FScripts: Map<String, Script> =
             OldaleTown_PokemonCenter_1F_EventScript_Gentleman,
         "OldaleTown_PokemonCenter_1F_EventScript_Boy" to
             OldaleTown_PokemonCenter_1F_EventScript_Boy,
-        "OldaleTown_PokemonCenter_1F_EventScript_Girl" to
-            OldaleTown_PokemonCenter_1F_EventScript_Girl,
     )

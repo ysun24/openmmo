@@ -28,30 +28,6 @@ internal object LavaridgeTown_EventScript_HotSpringsOldWoman2 : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.say(LavaridgeTown.HotSpringsClaims)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_RECEIVED_LAVARIDGE_EGG, LavaridgeTown_EventScript_ReceivedEgg
- * msgbox LavaridgeTown_Text_HaveEggWillYouTakeIt, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, NO, LavaridgeTown_EventScript_DeclineEgg
- * getpartysize
- * goto_if_eq VAR_RESULT, PARTY_SIZE, LavaridgeTown_EventScript_NoRoomForEgg
- * msgbox LavaridgeTown_Text_HopeYoullWalkPlentyWithEgg, MSGBOX_DEFAULT
- * setflag FLAG_RECEIVED_LAVARIDGE_EGG
- * playfanfare MUS_OBTAIN_ITEM
- * message LavaridgeTown_Text_ReceivedTheEgg
- * waitfanfare
- * giveegg SPECIES_WYNAUT
- * release
- * end
- * ```
- */
-internal object LavaridgeTown_EventScript_EggWoman : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port LavaridgeTown_EventScript_EggWoman")
-}
-
 internal object LavaridgeTown_EventScript_HerbShopSign : Script {
   override suspend fun run(ctx: ScriptContext) = ctx.sign(LavaridgeTown.HerbShopSign)
 }
@@ -74,7 +50,6 @@ internal val LavaridgeTownScripts: Map<String, Script> =
             LavaridgeTown_EventScript_HotSpringsOldWoman1,
         "LavaridgeTown_EventScript_HotSpringsOldWoman2" to
             LavaridgeTown_EventScript_HotSpringsOldWoman2,
-        "LavaridgeTown_EventScript_EggWoman" to LavaridgeTown_EventScript_EggWoman,
         "LavaridgeTown_EventScript_HerbShopSign" to LavaridgeTown_EventScript_HerbShopSign,
         "LavaridgeTown_EventScript_GymSign" to LavaridgeTown_EventScript_GymSign,
         "LavaridgeTown_EventScript_TownSign" to LavaridgeTown_EventScript_TownSign,

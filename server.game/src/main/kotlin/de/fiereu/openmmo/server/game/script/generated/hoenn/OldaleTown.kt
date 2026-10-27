@@ -33,28 +33,6 @@ internal object OldaleTown_EventScript_Girl : Script {
  * ```
  * lock
  * faceplayer
- * goto_if_set FLAG_RECEIVED_POTION_OLDALE, OldaleTown_EventScript_ExplainPotion
- * goto_if_set FLAG_TEMP_1, OldaleTown_EventScript_ExplainPotion
- * setflag FLAG_TEMP_1
- * playbgm MUS_FOLLOW_ME, FALSE
- * msgbox OldaleTown_Text_IWorkAtPokemonMart, MSGBOX_DEFAULT
- * closemessage
- * switch VAR_FACING
- * case DIR_SOUTH, OldaleTown_EventScript_GoToMartSouth
- * case DIR_NORTH, OldaleTown_EventScript_GoToMartNorth
- * case DIR_EAST, OldaleTown_EventScript_GoToMartEast
- * end
- * ```
- */
-internal object OldaleTown_EventScript_MartEmployee : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port OldaleTown_EventScript_MartEmployee")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
  * goto_if_set FLAG_ADVENTURE_STARTED, OldaleTown_EventScript_NotBlockingPath
  * msgbox OldaleTown_Text_DiscoveredFootprints, MSGBOX_DEFAULT
  * closemessage
@@ -143,7 +121,6 @@ internal val OldaleTownScripts: Map<String, Script> =
     mapOf(
         "OldaleTown_OnTransition" to OldaleTown_OnTransition,
         "OldaleTown_EventScript_Girl" to OldaleTown_EventScript_Girl,
-        "OldaleTown_EventScript_MartEmployee" to OldaleTown_EventScript_MartEmployee,
         "OldaleTown_EventScript_FootprintsMan" to OldaleTown_EventScript_FootprintsMan,
         "OldaleTown_EventScript_BlockedPath" to OldaleTown_EventScript_BlockedPath,
         "OldaleTown_EventScript_Rival" to OldaleTown_EventScript_Rival,

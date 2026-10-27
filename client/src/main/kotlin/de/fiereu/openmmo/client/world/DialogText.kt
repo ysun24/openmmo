@@ -25,8 +25,8 @@ class DialogText(private val dir: File) {
   private fun table(region: String): Map<Int, String> =
       tables.getOrPut(region) {
         // The ROM-resolved table, plus decomp-only lines with synthetic ids
-        // (`<region>.extra.json`).
-        listOf("$region.json", "$region.extra.json")
+        // (`<region>.extra.json`, and r5's `<region>.script.json` for the script interpreter).
+        listOf("$region.json", "$region.extra.json", "$region.script.json")
             .map { File(dir, it) }
             .filter { it.exists() }
             .flatMap { f ->

@@ -59,57 +59,6 @@ internal object SlateportCity_OceanicMuseum_1F_EventScript_MuseumPatron4 : Scrip
       ctx.say(SlateportCity_OceanicMuseum_1F.WantSeaPokemon)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * delay 8
- * playse SE_PIN
- * applymovement LOCALID_OCEANIC_MUSEUM_FAMILIAR_GRUNT, Common_Movement_ExclamationMark
- * waitmovement 0
- * applymovement LOCALID_OCEANIC_MUSEUM_FAMILIAR_GRUNT, Common_Movement_Delay48
- * waitmovement 0
- * msgbox SlateportCity_OceanicMuseum_1F_Text_RememberMeTakeThis, MSGBOX_DEFAULT
- * giveitem ITEM_TM_THIEF
- * goto_if_eq VAR_RESULT, 0, SlateportCity_OceanicMuseum_1F_EventScript_NoRoomForThief
- * setflag FLAG_RECEIVED_TM_THIEF
- * msgbox SlateportCity_OceanicMuseum_1F_Text_HopeINeverSeeYouAgain, MSGBOX_DEFAULT
- * closemessage
- * goto_if_eq VAR_FACING, DIR_NORTH, SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGruntExitNorth
- * goto_if_eq VAR_FACING, DIR_SOUTH, SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGruntExitSouth
- * goto_if_eq VAR_FACING, DIR_WEST, SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGruntExitWestEast
- * goto_if_eq VAR_FACING, DIR_EAST, SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGruntExitWestEast
- * end
- * ```
- */
-internal object SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGrunt : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGrunt")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * setvar VAR_0x8005, TVSHOW_RECENT_HAPPENINGS
- * special InterviewBefore
- * goto_if_eq VAR_RESULT, TRUE, SlateportCity_OceanicMuseum_1F_EventScript_AlreadyInterviewed
- * copyvar VAR_0x8009, VAR_0x8006
- * goto_if_set FLAG_OCEANIC_MUSEUM_MET_REPORTER, SlateportCity_OceanicMuseum_1F_EventScript_RequestInterviewShort
- * setflag FLAG_OCEANIC_MUSEUM_MET_REPORTER
- * msgbox SlateportCity_OceanicMuseum_1F_Text_InterviewRequest, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, YES, SlateportCity_OceanicMuseum_1F_EventScript_AcceptInterview
- * goto_if_eq VAR_RESULT, NO, SlateportCity_OceanicMuseum_1F_EventScript_DeclineInterview
- * end
- * ```
- */
-internal object SlateportCity_OceanicMuseum_1F_EventScript_Reporter : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port SlateportCity_OceanicMuseum_1F_EventScript_Reporter")
-}
-
 internal object SlateportCity_OceanicMuseum_1F_EventScript_WhirlpoolExperiment : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.sign(SlateportCity_OceanicMuseum_1F.WhirlpoolExperiment)
@@ -179,10 +128,6 @@ internal val SlateportCity_OceanicMuseum_1FScripts: Map<String, Script> =
             SlateportCity_OceanicMuseum_1F_EventScript_MuseumPatron3,
         "SlateportCity_OceanicMuseum_1F_EventScript_MuseumPatron4" to
             SlateportCity_OceanicMuseum_1F_EventScript_MuseumPatron4,
-        "SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGrunt" to
-            SlateportCity_OceanicMuseum_1F_EventScript_FamiliarGrunt,
-        "SlateportCity_OceanicMuseum_1F_EventScript_Reporter" to
-            SlateportCity_OceanicMuseum_1F_EventScript_Reporter,
         "SlateportCity_OceanicMuseum_1F_EventScript_WhirlpoolExperiment" to
             SlateportCity_OceanicMuseum_1F_EventScript_WhirlpoolExperiment,
         "SlateportCity_OceanicMuseum_1F_EventScript_WaterfallExperiment" to

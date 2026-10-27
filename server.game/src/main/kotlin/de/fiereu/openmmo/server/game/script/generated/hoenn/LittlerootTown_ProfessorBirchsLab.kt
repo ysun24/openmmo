@@ -131,83 +131,6 @@ internal object LittlerootTown_ProfessorBirchsLab_EventScript_Birch : Script {
   }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_eq VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 5, LittlerootTown_ProfessorBirchsLab_EventScript_RivalFuturePlans
- * goto_if_ge VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 6, LittlerootTown_ProfessorBirchsLab_EventScript_RivalHaveYouGoneToBattleFrontier
- * goto_if_ge VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 2, LittlerootTown_ProfessorBirchsLab_EventScript_RivalTakeBreakFromFieldwork
- * checkplayergender
- * call_if_eq VAR_RESULT, MALE, LittlerootTown_ProfessorBirchsLab_EventScript_MayWhereShouldIGoNext
- * call_if_eq VAR_RESULT, FEMALE, LittlerootTown_ProfessorBirchsLab_EventScript_BrendanWhereShouldIGoNext
- * release
- * end
- * ```
- */
-internal object LittlerootTown_ProfessorBirchsLab_EventScript_Rival : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_ProfessorBirchsLab_EventScript_Rival")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * release
- * goto_if_ge VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 6, LittlerootTown_ProfessorBirchsLab_EventScript_AlreadyChoseJohtoStarter
- * applymovement LOCALID_BIRCHS_LAB_BIRCH, Common_Movement_WalkInPlaceFasterRight
- * waitmovement 0
- * showmonpic SPECIES_CYNDAQUIL, 10, 3
- * msgbox LittlerootTown_ProfessorBirchsLab_Text_YoullTakeCyndaquil, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, NO, LittlerootTown_ProfessorBirchsLab_EventScript_TakeYourTime
- * goto LittlerootTown_ProfessorBirchsLab_EventScript_GiveCyndaquil
- * end
- * ```
- */
-internal object LittlerootTown_ProfessorBirchsLab_EventScript_Cyndaquil : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_ProfessorBirchsLab_EventScript_Cyndaquil")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * release
- * goto_if_ge VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 6, LittlerootTown_ProfessorBirchsLab_EventScript_AlreadyChoseJohtoStarter
- * applymovement LOCALID_BIRCHS_LAB_BIRCH, Common_Movement_WalkInPlaceFasterRight
- * waitmovement 0
- * showmonpic SPECIES_TOTODILE, 10, 3
- * msgbox LittlerootTown_ProfessorBirchsLab_Text_YoullTakeTotodile, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, NO, LittlerootTown_ProfessorBirchsLab_EventScript_TakeYourTime
- * goto LittlerootTown_ProfessorBirchsLab_EventScript_GiveTotodile
- * end
- * ```
- */
-internal object LittlerootTown_ProfessorBirchsLab_EventScript_Totodile : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_ProfessorBirchsLab_EventScript_Totodile")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * release
- * goto_if_ge VAR_DEX_UPGRADE_JOHTO_STARTER_STATE, 6, LittlerootTown_ProfessorBirchsLab_EventScript_AlreadyChoseJohtoStarter
- * applymovement LOCALID_BIRCHS_LAB_BIRCH, Common_Movement_WalkInPlaceFasterRight
- * waitmovement 0
- * showmonpic SPECIES_CHIKORITA, 10, 3
- * msgbox LittlerootTown_ProfessorBirchsLab_Text_YoullTakeChikorita, MSGBOX_YESNO
- * goto_if_eq VAR_RESULT, NO, LittlerootTown_ProfessorBirchsLab_EventScript_TakeYourTime
- * goto LittlerootTown_ProfessorBirchsLab_EventScript_GiveChikorita
- * end
- * ```
- */
-internal object LittlerootTown_ProfessorBirchsLab_EventScript_Chikorita : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LittlerootTown_ProfessorBirchsLab_EventScript_Chikorita")
-}
-
 internal object LittlerootTown_ProfessorBirchsLab_EventScript_Machine : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.sign(LittlerootTown_ProfessorBirchsLab.SeriousLookingMachine)
@@ -240,14 +163,6 @@ internal val LittlerootTown_ProfessorBirchsLabScripts: Map<String, Script> =
             LittlerootTown_ProfessorBirchsLab_EventScript_Aide,
         "LittlerootTown_ProfessorBirchsLab_EventScript_Birch" to
             LittlerootTown_ProfessorBirchsLab_EventScript_Birch,
-        "LittlerootTown_ProfessorBirchsLab_EventScript_Rival" to
-            LittlerootTown_ProfessorBirchsLab_EventScript_Rival,
-        "LittlerootTown_ProfessorBirchsLab_EventScript_Cyndaquil" to
-            LittlerootTown_ProfessorBirchsLab_EventScript_Cyndaquil,
-        "LittlerootTown_ProfessorBirchsLab_EventScript_Totodile" to
-            LittlerootTown_ProfessorBirchsLab_EventScript_Totodile,
-        "LittlerootTown_ProfessorBirchsLab_EventScript_Chikorita" to
-            LittlerootTown_ProfessorBirchsLab_EventScript_Chikorita,
         "LittlerootTown_ProfessorBirchsLab_EventScript_Machine" to
             LittlerootTown_ProfessorBirchsLab_EventScript_Machine,
         "LittlerootTown_ProfessorBirchsLab_EventScript_Book" to

@@ -26,22 +26,6 @@ internal object FourIsland_PokemonCenter_1F_EventScript_Gentleman : Script {
       ctx.say(FourIsland_PokemonCenter_1F.NewPokemonJournalHasntArrived)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lockall
- * famechecker FAMECHECKER_DAISY, 5
- * textcolor NPC_TEXT_COLOR_NEUTRAL
- * msgbox PokemonJournal_Text_SpecialFeatureDaisyOak
- * releaseall
- * end
- * ```
- */
-internal object FourIsland_PokemonCenter_1F_EventScript_PokemonJournal : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FourIsland_PokemonCenter_1F_EventScript_PokemonJournal")
-}
-
 internal val FourIsland_PokemonCenter_1FScripts: Map<String, Script> =
     mapOf(
         "FourIsland_PokemonCenter_1F_EventScript_Nurse" to
@@ -52,6 +36,4 @@ internal val FourIsland_PokemonCenter_1FScripts: Map<String, Script> =
             FourIsland_PokemonCenter_1F_EventScript_Woman,
         "FourIsland_PokemonCenter_1F_EventScript_Gentleman" to
             FourIsland_PokemonCenter_1F_EventScript_Gentleman,
-        "FourIsland_PokemonCenter_1F_EventScript_PokemonJournal" to
-            FourIsland_PokemonCenter_1F_EventScript_PokemonJournal,
     )

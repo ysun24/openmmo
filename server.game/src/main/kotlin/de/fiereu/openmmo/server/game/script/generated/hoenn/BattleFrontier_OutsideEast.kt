@@ -63,42 +63,6 @@ internal object BattleFrontier_OutsideEast_EventScript_Man2 : Script {
       ctx.say(BattleFrontier_OutsideEast.GoRackUpSomeWinsForDaddy)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * waitse
- * playmoncry SPECIES_ZIGZAGOON, CRY_MODE_NORMAL
- * msgbox BattleFrontier_OutsideEast_Text_ZigzagoonLooksVacant, MSGBOX_DEFAULT
- * waitmoncry
- * release
- * end
- * ```
- */
-internal object BattleFrontier_OutsideEast_EventScript_Zigzagoon : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port BattleFrontier_OutsideEast_EventScript_Zigzagoon")
-}
-
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * waitse
- * playse SE_SUDOWOODO_SHAKE
- * applymovement LOCALID_FRONTIER_SUDOWOODO, BattleFrontier_OutsideEast_Movement_SudowoodoShake
- * waitmovement 0
- * release
- * end
- * ```
- */
-internal object BattleFrontier_OutsideEast_EventScript_Sudowoodo : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port BattleFrontier_OutsideEast_EventScript_Sudowoodo")
-}
-
 internal object BattleFrontier_OutsideEast_EventScript_Maniac1 : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(BattleFrontier_OutsideEast.HeardPrettyGirlAtBattleArena)
@@ -143,22 +107,6 @@ internal object BattleFrontier_OutsideEast_EventScript_Woman3 : Script {
       ctx.say(BattleFrontier_OutsideEast.PowerOfOurLoveWillOvercome)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * goto_if_set FLAG_DEFEATED_SUDOWOODO, BattleFrontier_OutsideEast_EventScript_OldWomanSudowoodoGone
- * msgbox BattleFrontier_OutsideEast_Text_OddTreeHereSeemsToWiggle, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
-internal object BattleFrontier_OutsideEast_EventScript_OldWoman : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port BattleFrontier_OutsideEast_EventScript_OldWoman")
-}
-
 internal object BattleFrontier_OutsideEast_EventScript_Gentleman : Script {
   override suspend fun run(ctx: ScriptContext) =
       ctx.say(BattleFrontier_OutsideEast.FrontierNotExclusivelyForToughTrainers)
@@ -199,17 +147,6 @@ internal object BattleFrontier_OutsideEast_EventScript_RankingHallSign : Script 
       ctx.sign(BattleFrontier_OutsideEast.RankingHallSign)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * script body not found
- * ```
- */
-internal object Common_EventScript_ShowPokemonCenterSign : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port Common_EventScript_ShowPokemonCenterSign")
-}
-
 internal val BattleFrontier_OutsideEastScripts: Map<String, Script> =
     mapOf(
         "BattleFrontier_OutsideEast_EventScript_NinjaBoy" to
@@ -236,10 +173,6 @@ internal val BattleFrontier_OutsideEastScripts: Map<String, Script> =
             BattleFrontier_OutsideEast_EventScript_Twin,
         "BattleFrontier_OutsideEast_EventScript_Man2" to
             BattleFrontier_OutsideEast_EventScript_Man2,
-        "BattleFrontier_OutsideEast_EventScript_Zigzagoon" to
-            BattleFrontier_OutsideEast_EventScript_Zigzagoon,
-        "BattleFrontier_OutsideEast_EventScript_Sudowoodo" to
-            BattleFrontier_OutsideEast_EventScript_Sudowoodo,
         "BattleFrontier_OutsideEast_EventScript_Maniac1" to
             BattleFrontier_OutsideEast_EventScript_Maniac1,
         "BattleFrontier_OutsideEast_EventScript_Girl" to
@@ -258,8 +191,6 @@ internal val BattleFrontier_OutsideEastScripts: Map<String, Script> =
             BattleFrontier_OutsideEast_EventScript_Maniac2,
         "BattleFrontier_OutsideEast_EventScript_Woman3" to
             BattleFrontier_OutsideEast_EventScript_Woman3,
-        "BattleFrontier_OutsideEast_EventScript_OldWoman" to
-            BattleFrontier_OutsideEast_EventScript_OldWoman,
         "BattleFrontier_OutsideEast_EventScript_Gentleman" to
             BattleFrontier_OutsideEast_EventScript_Gentleman,
         "BattleFrontier_OutsideEast_EventScript_Camper" to
@@ -276,5 +207,4 @@ internal val BattleFrontier_OutsideEastScripts: Map<String, Script> =
             BattleFrontier_OutsideEast_EventScript_ExchangeCornerSign,
         "BattleFrontier_OutsideEast_EventScript_RankingHallSign" to
             BattleFrontier_OutsideEast_EventScript_RankingHallSign,
-        "Common_EventScript_ShowPokemonCenterSign" to Common_EventScript_ShowPokemonCenterSign,
     )

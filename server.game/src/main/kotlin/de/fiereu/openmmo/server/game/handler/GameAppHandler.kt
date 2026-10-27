@@ -136,6 +136,7 @@ constructor(
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
     private val secretBaseService: de.fiereu.openmmo.server.game.services.SecretBaseService,
     private val marketClerks: MarketClerks,
+    private val scriptUi: de.fiereu.openmmo.server.game.script.vm.ScriptUiService,
     scope: CoroutineScope,
 ) : CoroutineProtocolHandler<GameProtocol>(GameProtocol, Side.SERVER, scope) {
 
@@ -172,6 +173,10 @@ constructor(
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
+    // r5-scripts: answers to the script interpreter's menus (c2s 0xCE).
+    onSuspend<de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacket> { event ->
+      scriptUi.onReply(event)
+    }
     onSuspend<ExchangeItemRequestPacket> { event ->
       if (!tradeService.refuseFieldAction(event.session)) shopService.onBuy(event)
     }
