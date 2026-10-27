@@ -77,6 +77,12 @@ class Volatiles {
   var snatching = false
   var transformed = false
   var toxicCounter = 0
+  /** r4: IMPRISON: foes cannot use a move this monster knows (STATUS3_IMPRISONED_OTHERS). */
+  var imprisoning = false
+  /** r4: GRUDGE until this monster moves again (STATUS3_GRUDGE). */
+  var grudge = false
+  /** r4: FOLLOW ME this turn: foes' single-target moves come to this monster. */
+  var followMe = false
 }
 
 /**

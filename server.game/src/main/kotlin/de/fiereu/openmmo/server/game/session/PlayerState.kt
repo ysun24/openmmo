@@ -38,6 +38,8 @@ data class PlayerState(
     @field:Volatile
     var acro: de.fiereu.openmmo.net.game.packets.field.AcroTrick =
         de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE,
+    /** r4: the step's encounter flute (FLAG_SYS_ENC_UP_ITEM / _DOWN_ITEM), cleared on warps. */
+    @field:Volatile var flute: Int = 0,
     /** The last step's running flag, for observers' animation. */
     @field:Volatile var running: Boolean = false,
     /** r4: whose secret base the player is in (character id), null outside a base. */

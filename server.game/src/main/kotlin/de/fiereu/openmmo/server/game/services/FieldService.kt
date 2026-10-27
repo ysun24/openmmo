@@ -178,6 +178,8 @@ constructor(
       state.strength = false
       // PlayerAvatarTransition_AcroBike: BikeClearState
       state.acro = AcroTrick.NONE
+      // ClearTempFieldEventData: the flutes' effect ends with the map.
+      state.flute = 0
     }
     val x = state.x.toInt()
     val y = state.y.toInt()

@@ -87,6 +87,20 @@ constructor(
       for (line in field.get().useVsSeeker(session, state)) session.send(notice(line))
       return
     }
+    // r4: ItemUseOutOfBattle_BlackWhiteFlute (not consumed; the effect lasts until a warp).
+    val flute = items.get(itemId)
+    if (flute == de.fiereu.openmmo.items.generated.Items.WHITE_FLUTE ||
+        flute == de.fiereu.openmmo.items.generated.Items.BLACK_FLUTE) {
+      val stored = characters.getCharacter(charId) ?: return
+      if ((stored.items[itemId] ?: 0) <= 0) return
+      val white = flute == de.fiereu.openmmo.items.generated.Items.WHITE_FLUTE
+      state.flute = if (white) FLUTE_WHITE else FLUTE_BLACK
+      session.send(
+          notice(
+              "${stored.info.name} used the ${flute.name.uppercase()}. Wild POKéMON will be " +
+                  (if (white) "lured." else "repelled.")))
+      return
+    }
     val outcome = use(charId, itemId, pokemonId, state.inDialog, moveSlot, forgetSlot)
     if (outcome.escape) {
       if (!escapeRope.escape(session, state, charId)) {

@@ -228,6 +228,24 @@ class ProgressionTest :
             }
           }
 
+      test("FLAME BODY / MAGMA ARMOR in the party takes two egg cycles off every 255 steps") {
+        runTest {
+          val (store, id) = store()
+          val daycare = daycareService(store)
+          // Slugma (218): MAGMA ARMOR / FLAME BODY; Bulbasaur: OVERGROW.
+          daycare.cyclesToSubtract(listOf(mon(id, 0, 1, 10))) shouldBe 1
+          daycare.cyclesToSubtract(listOf(mon(id, 0, 218, 10))) shouldBe 2
+          daycare.cyclesToSubtract(listOf(mon(id, 0, 218, 10).copy(isEgg = true))) shouldBe 1
+          store.addPokemon(id, mon(id, 0, 218, 10))
+          val egg = mon(id, 1, 172, 5).copy(isEgg = true)
+          store.addPokemon(id, egg)
+          val key = "${ProgressKeys.EGG_STEPS_PREFIX}${egg.id}"
+          store.setStoryVar(id, key, 11) // 10 cycles left
+          repeat(255) { daycare.onStep(id) }
+          store.getCharacter(id)!!.storyVars[key] shouldBe 9
+        }
+      }
+
       test("an egg in the party hatches after its species' egg cycles of 255 steps") {
         runTest {
           val (store, id) = store()

@@ -315,7 +315,26 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
       }
       MoveEffect.FOLLOW_ME -> {
         anim(user, move)
+        // Cmd_setforcedtarget: until the end of the turn.
+        user.volatile.followMe = true
         ctx.say("$who became the center of attention!", user.entityId)
+      }
+      MoveEffect.IMPRISON -> {
+        // Cmd_tryimprison: fails when already imprisoning or no foe shares a move.
+        val shares =
+            ctx.foesOf(userRef).any { r ->
+              val f = ctx.live(r) ?: return@any false
+              f.moves.any { m -> m.id.toInt() != 0 && user.moves.any { it.id == m.id } }
+            }
+        if (user.volatile.imprisoning || !shares) return failed(user, move).let { true }
+        anim(user, move)
+        user.volatile.imprisoning = true
+        ctx.say("$who sealed the opponent's move(s)!", user.entityId)
+      }
+      MoveEffect.GRUDGE -> {
+        anim(user, move)
+        user.volatile.grudge = true
+        ctx.say("$who wants the opponent to bear a GRUDGE!", user.entityId)
       }
       MoveEffect.BATON_PASS -> {
         val party = ctx.party(userRef.side)

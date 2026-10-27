@@ -38,6 +38,7 @@ internal class MoveRunner(private val ctx: BattleCtx) {
         v.helpingHand = false
         v.magicCoat = false
         v.snatching = false
+        v.followMe = false
         v.movedThisTurn = false
         v.physicalDamageTaken = 0
         v.specialDamageTaken = 0
@@ -163,6 +164,8 @@ internal class MoveRunner(private val ctx: BattleCtx) {
     var move = ctx.move(moveId) ?: ctx.move(TACKLE_ID) ?: return
 
     if (!called) {
+      // GRUDGE lasts until the monster moves again.
+      v.grudge = false
       // --- attack canceler: the reasons a monster loses its turn, in the Gen 3 order. ---
       if (v.mustRecharge) {
         v.mustRecharge = false
@@ -220,6 +223,11 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       }
       if (v.tauntTurns > 0 && move.power == 0 && move.effect != MoveEffect.HIT) {
         ctx.say("$who can't use ${move.name} after the TAUNT!", user.entityId)
+        return
+      }
+      // IMPRISON: a foe that imprisons knows this move (CANCELLER_IMPRISONED).
+      if (move.id != STRUGGLE_ID && imprisonedBy(userRef, move.id)) {
+        ctx.say("$who can't use the sealed ${move.name}!", user.entityId)
         return
       }
       if (v.confusionTurns > 0) {
@@ -498,6 +506,13 @@ internal class MoveRunner(private val ctx: BattleCtx) {
 
   // --- targets ---------------------------------------------------------------------------------
 
+  /** IsImprisoned: a live foe of [userRef] imprisons and knows [moveId]. */
+  fun imprisonedBy(userRef: BattlerRef, moveId: Int): Boolean =
+      ctx.foesOf(userRef).any { r ->
+        val f = ctx.live(r) ?: return@any false
+        f.volatile.imprisoning && f.moves.any { it.id.toInt() == moveId }
+      }
+
   fun targetsFor(
       userRef: BattlerRef,
       user: BattleMonState,
@@ -516,6 +531,12 @@ internal class MoveRunner(private val ctx: BattleCtx) {
           if (liveFoes.isEmpty()) emptyList() else listOf(liveFoes[rng.pick(liveFoes.size)])
       MoveTarget.USER_OR_SELECTED -> listOf(userRef)
       MoveTarget.SELECTED -> {
+        // FOLLOW ME: the foe side's center of attention takes every single-target move.
+        liveFoes
+            .firstOrNull { ctx.live(it)?.volatile?.followMe == true }
+            ?.let {
+              return listOf(it)
+            }
         if (chosen != null && chosen != userRef && ctx.live(chosen) != null) listOf(chosen)
         else if (liveFoes.isEmpty()) emptyList()
         else if (chosen != null && chosen.side == userRef.foeSide && ctx.live(chosen) == null)
@@ -833,6 +854,15 @@ internal class MoveRunner(private val ctx: BattleCtx) {
       if (tv.destinyBond && !user.fainted && user !== target) {
         ctx.say("${ctx.name(target)} took ${ctx.name(user)} with it!", user.entityId)
         ctx.setHp(user, 0, "destinybond")
+      }
+      // GRUDGE: the move that knocked it out loses all its PP.
+      if (tv.grudge && user !== target) {
+        val slot = user.moves.indexOfFirst { it.id.toInt() == move.id }
+        if (slot >= 0) {
+          user.moves[slot] = de.fiereu.openmmo.common.PokemonMove(user.moves[slot].id, 0)
+          ctx.say(
+              "${ctx.name(user)}'s ${move.name} lost all its PP due to the GRUDGE!", user.entityId)
+        }
       }
       if (ctx.sideOf(target) == 1 && ctx.sideOf(user) == 0) target.foughtBy += user.entityId
     } else {
