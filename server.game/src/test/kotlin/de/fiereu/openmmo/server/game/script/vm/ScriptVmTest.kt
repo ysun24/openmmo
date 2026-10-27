@@ -37,7 +37,11 @@ class ScriptVmTest :
         val store = CharacterStore(FakeCharacterRepository(), EntityIdService(), backgroundScope)
         val charId = store.createCharacter(1, "Red", CharacterGender.MALE, region).info.id
         val session =
-            FakeSession(characterId = charId, regionId = region.wireValue.toInt(), bankId = bank, mapId = map)
+            FakeSession(
+                characterId = charId,
+                regionId = region.wireValue.toInt(),
+                bankId = bank,
+                mapId = map)
         val state = session.attributes[PLAYER_STATE]!!
         val maps = MapManager()
         val movement = ScriptMovementService(maps, NpcService(maps, store), store)
@@ -52,7 +56,9 @@ class ScriptVmTest :
         while (job.isActive) {
           advanceUntilIdle()
           r.session.attributes.remove(PENDING_DIALOG)?.complete(Unit)
-          r.session.attributes.remove(PENDING_DIALOG_RESPONSE)?.complete(DialogActionResponsePacket(0, 1))
+          r.session.attributes
+              .remove(PENDING_DIALOG_RESPONSE)
+              ?.complete(DialogActionResponsePacket(0, 1))
           advanceUntilIdle()
         }
       }
@@ -138,17 +144,21 @@ class ScriptVmTest :
           val t = vm.state.trainer!!
           t.mode shouldBe ScriptVm.MODE_CONTINUE_SCRIPT
           t.opponentA shouldBe img.const("TRAINER_CALVIN_1")
-          t.scriptRetA shouldBe img.labels["Route102_EventScript_CalvinRegisterMatchCallAfterBattle"]
+          t.scriptRetA shouldBe
+              img.labels["Route102_EventScript_CalvinRegisterMatchCallAfterBattle"]
           img.texts[t.introA]?.label shouldBe "Route102_Text_CalvinIntro"
         }
       }
 
       test("movement scripts map onto the client's steps") {
-        VmMovement.ops("MOVEMENT_ACTION_WALK_FAST_DOWN") shouldBe listOf(MoveOp.Step(MovementStep.FAST_DOWN))
-        VmMovement.ops("MOVEMENT_ACTION_WALK_SLOWER_LEFT") shouldBe listOf(MoveOp.Step(MovementStep.WALK_LEFT))
+        VmMovement.ops("MOVEMENT_ACTION_WALK_FAST_DOWN") shouldBe
+            listOf(MoveOp.Step(MovementStep.FAST_DOWN))
+        VmMovement.ops("MOVEMENT_ACTION_WALK_SLOWER_LEFT") shouldBe
+            listOf(MoveOp.Step(MovementStep.WALK_LEFT))
         VmMovement.ops("MOVEMENT_ACTION_JUMP_2_UP") shouldBe
             listOf(MoveOp.Step(MovementStep.FAST_UP), MoveOp.Step(MovementStep.FAST_UP))
-        VmMovement.ops("MOVEMENT_ACTION_FACE_LEFT_FAST") shouldBe listOf(MoveOp.Step(MovementStep.FACE_LEFT))
+        VmMovement.ops("MOVEMENT_ACTION_FACE_LEFT_FAST") shouldBe
+            listOf(MoveOp.Step(MovementStep.FACE_LEFT))
         VmMovement.ops("MOVEMENT_ACTION_EMOTE_EXCLAMATION_MARK") shouldBe
             listOf(MoveOp.Emote("exclamation_mark"))
         VmMovement.ops("MOVEMENT_ACTION_DISABLE_ANIMATION") shouldBe emptyList()

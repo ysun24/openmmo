@@ -242,7 +242,8 @@ object Dispatcher {
         "cursor" -> g.cursor((m.int("delta") ?: throw bad("delta")).coerceIn(-1, 1))
         "choose" -> g.choose(m.reqInt("index"))
         "script.reply" ->
-            g.scriptReply(m.int("seq") ?: -1, m.int("value") ?: -1, (m.optString("text") ?: "").take(16))
+            g.scriptReply(
+                m.int("seq") ?: -1, m.int("value") ?: -1, (m.optString("text") ?: "").take(16))
         "shop.buy" -> g.shopBuy(m.reqInt("item"), m.qty("qty"))
         "shop.sell" -> g.shopSell(m.reqInt("item"), m.qty("qty"))
         "shop.close" -> g.shopClose()

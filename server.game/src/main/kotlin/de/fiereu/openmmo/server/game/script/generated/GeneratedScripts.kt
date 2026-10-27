@@ -25,18 +25,31 @@ internal object GeneratedScripts {
   private fun MutableMap<String, Script>.chunk0() {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_Corridors_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_Corridors_B1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_HiddenFloorRoomsScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_HiddenFloorRoomsScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_Rooms2_B1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_Rooms_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.AbandonedShip_Rooms_B1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleArenaLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleDomeLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleFactoryLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattlePalaceLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattlePikeLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattlePyramidLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleTowerLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_ExchangeServiceCornerScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleArenaLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleDomeLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .BattleFrontier_BattleFactoryLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .BattleFrontier_BattlePalaceLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattlePikeLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .BattleFrontier_BattlePyramidLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_BattleTowerLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .BattleFrontier_ExchangeServiceCornerScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_Lounge1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_Lounge2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_Lounge3Scripts)
@@ -47,7 +60,8 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_MartScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_OutsideEastScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_OutsideWestScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.BattleFrontier_RankingHallScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.DewfordTownScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.DewfordTown_GymScripts)
@@ -55,12 +69,16 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.DewfordTown_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.DewfordTown_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.EverGrandeCityScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.EverGrandeCity_PokemonCenter_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.EverGrandeCity_PokemonLeague_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.EverGrandeCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.EverGrandeCity_PokemonLeague_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTownScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTown_BattleTentLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTown_BattleTentLobbyScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTown_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTown_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.FallarborTown_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FortreeCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.FortreeCity_DecorationShopScripts)
   }
@@ -79,45 +97,65 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LavaridgeTown_HerbShopScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LavaridgeTown_HouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LavaridgeTown_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LavaridgeTown_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LavaridgeTown_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_ContestHallScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_ContestLobbyScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_CoveLilyMotel_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStoreRooftopScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_3FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_4FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_5FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_CoveLilyMotel_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .LilycoveCity_DepartmentStoreRooftopScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_3FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_4FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_DepartmentStore_5FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_House1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_House4Scripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_LilycoveMuseum_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_LilycoveMuseum_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_LilycoveMuseum_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_LilycoveMuseum_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LilycoveCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTownScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_BrendansHouse_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_BrendansHouse_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_BrendansHouse_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_BrendansHouse_2FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_MaysHouse_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.LittlerootTown_ProfessorBirchsLabScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .LittlerootTown_ProfessorBirchsLabScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_BikeShopScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_GameCornerScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_PokemonCenter_1FScripts)
   }
 
   private fun MutableMap<String, Script>.chunk2() {
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_PokemonCenter_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.MauvilleCity_PokemonCenter_2FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_GameCorner_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_House1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_PokemonCenter_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_PokemonCenter_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_PokemonCenter_2FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_SpaceCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_SpaceCenter_2FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.MossdeepCity_StevensHouseScripts)
@@ -134,27 +172,34 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PacifidlogTown_House3Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PacifidlogTown_House4Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PacifidlogTown_House5Scripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PacifidlogTown_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.PacifidlogTown_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_House1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.PetalburgWoodsScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route101Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route102Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route103Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route104Scripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route104_PrettyPetalFlowerShopScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.Route104_PrettyPetalFlowerShopScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route106Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route109Scripts)
   }
 
   private fun MutableMap<String, Script>.chunk3() {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route110Scripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route110_SeasideCyclingRoadNorthEntranceScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route110_SeasideCyclingRoadSouthEntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .Route110_SeasideCyclingRoadNorthEntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn
+            .Route110_SeasideCyclingRoadSouthEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route111Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route112Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Route113Scripts)
@@ -190,7 +235,8 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_House3Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.RustboroCity_PokemonSchoolScripts)
   }
 
@@ -204,16 +250,22 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SafariZone_SoutheastScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SafariZone_SouthwestScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCityScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_BattleTentLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_BattleTentLobbyScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_HarborScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_HouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_OceanicMuseum_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_OceanicMuseum_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_OceanicMuseum_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_OceanicMuseum_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_PokemonFanClubScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_SternsShipyard_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_SternsShipyard_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_SternsShipyard_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SlateportCity_SternsShipyard_2FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_Gym_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_Gym_B1FScripts)
@@ -222,14 +274,17 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_House5Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_House7Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.SootopolisCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.TrainerHill_EntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.Underwater_SeafloorCavernScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTownScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_BattleTentLobbyScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_BattleTentLobbyScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_HouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VerdanturfTown_WandasHouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.hoenn.VictoryRoad_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCityScripts)
@@ -239,16 +294,28 @@ internal object GeneratedScripts {
 
   private fun MutableMap<String, Script>.chunk5() {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_Condominiums_3FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_Condominiums_RoofScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_Condominiums_RoofRoomScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_2FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_3FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_4FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_5FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_RoofScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_Condominiums_RoofScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CeladonCity_Condominiums_RoofRoomScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_2FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_3FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_4FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_DepartmentStore_5FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CeladonCity_DepartmentStore_RoofScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_GameCornerScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_GameCorner_PrizeRoomScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CeladonCity_GameCorner_PrizeRoomScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_HotelScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeladonCity_House1Scripts)
@@ -260,14 +327,22 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeruleanCity_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeruleanCity_House3Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeruleanCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CeruleanCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CeruleanCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIslandScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_PokemonCenter_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_PokemonLab_EntranceScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_PokemonLab_LoungeScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_PokemonLab_ResearchRoomScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.CinnabarIsland_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CinnabarIsland_PokemonLab_EntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CinnabarIsland_PokemonLab_LoungeScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .CinnabarIsland_PokemonLab_ResearchRoomScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.DiglettsCave_NorthEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.DiglettsCave_SouthEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIslandScripts)
@@ -275,7 +350,8 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_ResortGorgeousScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_ResortGorgeous_HouseScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_ResortGorgeous_HouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FiveIsland_RocketWarehouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FourIslandScripts)
   }
@@ -292,19 +368,25 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_House1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_MartScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_PokemonCenter_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_SafariZone_OfficeScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_SafariZone_OfficeScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.FuchsiaCity_WardensHouseScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.IndigoPlateau_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.IndigoPlateau_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.LavenderTownScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.LavenderTown_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.LavenderTown_PokemonCenter_1FScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.LavenderTown_VolunteerPokemonHouseScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.LavenderTown_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .LavenderTown_VolunteerPokemonHouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.MtMoon_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIslandScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_House1Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_House2Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_KindleRoadScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_KindleRoad_EmberSpaScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_KindleRoad_EmberSpaScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.OneIsland_TreasureBeachScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.PalletTownScripts)
@@ -359,8 +441,12 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route25Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route2_EastBuildingScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route2_HouseScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route2_ViridianForest_NorthEntranceScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route2_ViridianForest_SouthEntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .Route2_ViridianForest_NorthEntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .Route2_ViridianForest_SouthEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route3Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route4Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.Route4_PokemonCenter_1FScripts)
@@ -415,7 +501,9 @@ internal object GeneratedScripts {
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SevenIsland_MartScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SevenIsland_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SevenIsland_SevaultCanyonScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SevenIsland_SevaultCanyon_EntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto
+            .SevenIsland_SevaultCanyon_EntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SevenIsland_TrainerTowerScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SilphCo_10FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.SilphCo_11FScripts)
@@ -453,20 +541,22 @@ internal object GeneratedScripts {
   }
 
   private fun MutableMap<String, Script>.chunk10() {
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.UndergroundPath_SouthEntranceScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.UndergroundPath_SouthEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.UndergroundPath_WestEntranceScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_House3Scripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.VermilionCity_PokemonFanClubScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCityScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCity_GymScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCity_HouseScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCity_MartScripts)
-    putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCity_PokemonCenter_1FScripts)
+    putAll(
+        de.fiereu.openmmo.server.game.script.generated.kanto.ViridianCity_PokemonCenter_1FScripts)
     putAll(de.fiereu.openmmo.server.game.script.generated.kanto.ViridianForestScripts)
   }
-
 }

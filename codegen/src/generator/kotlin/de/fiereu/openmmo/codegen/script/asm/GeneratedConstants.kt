@@ -17,7 +17,8 @@ object GeneratedConstants {
   /** MAP_* = group << 8 | index, LAYOUT_* = 1-based, HEAL_LOCATION_* = 1-based, LOCALID_*. */
   fun all(decomp: File): Map<String, Long> {
     val out = LinkedHashMap<String, Long>()
-    val groups = json.parseToJsonElement(File(decomp, "data/maps/map_groups.json").readText()).jsonObject
+    val groups =
+        json.parseToJsonElement(File(decomp, "data/maps/map_groups.json").readText()).jsonObject
     val order = groups.getValue("group_order").jsonArray.map { it.jsonPrimitive.content }
     for ((g, groupName) in order.withIndex()) {
       val maps = groups[groupName]?.jsonArray ?: continue
@@ -59,7 +60,10 @@ object GeneratedConstants {
     val out = LinkedHashMap<String, String>()
     for ((kind, first) in listOf("TM" to "ITEM_TM01", "HM" to "ITEM_HM01")) {
       val block = text.substringAfter("#define FOREACH_$kind(F)", "").substringBefore("\n\n")
-      val body = block.lineSequence().takeWhile { it.isBlank() || it.trimEnd().endsWith("\\") || it.contains("F(") }
+      val body =
+          block.lineSequence().takeWhile {
+            it.isBlank() || it.trimEnd().endsWith("\\") || it.contains("F(")
+          }
       var i = 0
       for (m in Regex("""F\((\w+)\)""").findAll(body.joinToString("\n"))) {
         out["ITEM_${kind}_${m.groupValues[1]}"] = "($first + $i)"
@@ -72,18 +76,21 @@ object GeneratedConstants {
   /** Per map directory: LOCALID_* name -> 1-based object event index. */
   fun localIds(decomp: File): Map<String, Map<String, Long>> {
     val out = LinkedHashMap<String, Map<String, Long>>()
-    File(decomp, "data/maps").listFiles()?.sortedBy { it.name }?.forEach { dir ->
-      val mapJson = File(dir, "map.json")
-      if (!mapJson.isFile) return@forEach
-      val root = json.parseToJsonElement(mapJson.readText()).jsonObject
-      val objs = root["object_events"]?.jsonArray ?: return@forEach
-      val ids = LinkedHashMap<String, Long>()
-      for ((i, o) in objs.withIndex()) {
-        val id = o.jsonObject["local_id"]?.jsonPrimitive?.content ?: continue
-        ids[id] = (i + 1).toLong()
-      }
-      out[dir.name] = ids
-    }
+    File(decomp, "data/maps")
+        .listFiles()
+        ?.sortedBy { it.name }
+        ?.forEach { dir ->
+          val mapJson = File(dir, "map.json")
+          if (!mapJson.isFile) return@forEach
+          val root = json.parseToJsonElement(mapJson.readText()).jsonObject
+          val objs = root["object_events"]?.jsonArray ?: return@forEach
+          val ids = LinkedHashMap<String, Long>()
+          for ((i, o) in objs.withIndex()) {
+            val id = o.jsonObject["local_id"]?.jsonPrimitive?.content ?: continue
+            ids[id] = (i + 1).toLong()
+          }
+          out[dir.name] = ids
+        }
     return out
   }
 }

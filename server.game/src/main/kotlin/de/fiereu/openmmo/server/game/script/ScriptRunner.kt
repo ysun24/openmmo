@@ -118,7 +118,11 @@ constructor(
    * lock: the decomp's RunScriptImmediately for map ON_LOAD / ON_TRANSITION / ON_RESUME /
    * ON_WARP_INTO scripts, which never wait on the player.
    */
-  fun immediate(session: SessionContext, state: PlayerState, block: suspend (ScriptContext) -> Unit) {
+  fun immediate(
+      session: SessionContext,
+      state: PlayerState,
+      block: suspend (ScriptContext) -> Unit
+  ) {
     val ctx = context(session, state, -1)
     try {
       de.fiereu.openmmo.server.game.script.vm.VmMapScripts.bounded { block(ctx) }
@@ -128,21 +132,21 @@ constructor(
   }
 
   private fun context(session: SessionContext, state: PlayerState, entityId: Long): ScriptContext =
-        ScriptContext(
-            session,
-            state,
-            entityId,
-            dialogService,
-            storyService,
-            movementService,
-            warpService,
-            storyPlayerService,
-            battleService,
-            characterStore,
-            mapManager,
-            entryScripts,
-            shopService,
-            scriptProgress,
-            services,
-        )
+      ScriptContext(
+          session,
+          state,
+          entityId,
+          dialogService,
+          storyService,
+          movementService,
+          warpService,
+          storyPlayerService,
+          battleService,
+          characterStore,
+          mapManager,
+          entryScripts,
+          shopService,
+          scriptProgress,
+          services,
+      )
 }

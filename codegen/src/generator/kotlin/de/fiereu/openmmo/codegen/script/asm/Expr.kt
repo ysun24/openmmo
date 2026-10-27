@@ -43,7 +43,8 @@ object Expr {
         i++
         continue
       }
-      val m = tokenRe.matchAt(s, i) ?: throw ExprException("bad token at '${s.substring(i)}' in '$s'")
+      val m =
+          tokenRe.matchAt(s, i) ?: throw ExprException("bad token at '${s.substring(i)}' in '$s'")
       out += m.groupValues[1]
       i = m.range.last + 1
     }

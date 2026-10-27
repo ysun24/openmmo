@@ -4,7 +4,6 @@ import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.common.enums.Region
-import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.maps.NpcDef
 import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
@@ -12,6 +11,7 @@ import de.fiereu.openmmo.net.game.packets.LocalCharacterDeltaPacket
 import de.fiereu.openmmo.net.game.packets.PokemonContainerPacket
 import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.ItemNames
@@ -97,8 +97,8 @@ private val ScriptContext.charId: Long?
 internal fun ScriptContext.vmCurrentMap() = maps?.getMap(state.regionId, state.bankId, state.mapId)
 
 /**
- * The decomp's object local ids are 1-based (object_events index + 1); the server's npc
- * entityIdx is the 0-based index. Every vm* function below takes the decomp's id.
+ * The decomp's object local ids are 1-based (object_events index + 1); the server's npc entityIdx
+ * is the 0-based index. Every vm* function below takes the decomp's id.
  */
 internal fun npcIdx(localId: Int): Int = localId - 1
 
@@ -106,14 +106,19 @@ internal fun ScriptContext.vmMapNpc(localId: Int): NpcDef? =
     vmCurrentMap()?.npcs?.firstOrNull { it.entityIdx == npcIdx(localId) }
 
 /** The server's bank of decomp map group [group] (Hoenn's groups are numbered from 50). */
-internal fun ScriptContext.vmBank(group: Int): Int = group + if (state.regionId == 1) HOENN_BANK_OFFSET else 0
+internal fun ScriptContext.vmBank(group: Int): Int =
+    group + if (state.regionId == 1) HOENN_BANK_OFFSET else 0
 
 const val HOENN_BANK_OFFSET = 50
 
 internal fun ScriptContext.vmOnMap(group: Int, num: Int) =
     state.bankId == vmBank(group) && state.mapId == num
 
-internal suspend fun ScriptContext.vmMoveNpc(localId: Int, from: ObjPose, steps: List<MovementStep>) {
+internal suspend fun ScriptContext.vmMoveNpc(
+    localId: Int,
+    from: ObjPose,
+    steps: List<MovementStep>
+) {
   moveNpc(npcIdx(localId), *steps.toTypedArray())
 }
 
@@ -178,7 +183,14 @@ internal fun ScriptContext.vmWarpDestination(
   return x to y
 }
 
-internal suspend fun ScriptContext.vmWarp(group: Int, num: Int, warpId: Int, x: Int, y: Int, kind: String) {
+internal suspend fun ScriptContext.vmWarp(
+    group: Int,
+    num: Int,
+    warpId: Int,
+    x: Int,
+    y: Int,
+    kind: String
+) {
   var g = group
   var n = num
   var tx = x
@@ -306,13 +318,19 @@ internal fun ScriptContext.vmMonName(slot: Int): String {
 }
 
 /** givemon / giveegg: 0 to the party, 1 to the PC, 2 nowhere (MON_GIVEN_TO_*). */
-internal suspend fun ScriptContext.vmGiveMon(dex: Int, level: Int, gbaItem: Int, egg: Boolean): Int {
+internal suspend fun ScriptContext.vmGiveMon(
+    dex: Int,
+    level: Int,
+    gbaItem: Int,
+    egg: Boolean
+): Int {
   val c = charId ?: return 2
   val store = characters ?: return 2
   val party = vmParty()
   if (party.size < 6) {
     val mon = givePokemon(dex, level) ?: return 2
-    val held = if (gbaItem != 0) vmItemDef(gbaItem)?.let { services?.items?.idOrNull(it) } ?: 0 else 0
+    val held =
+        if (gbaItem != 0) vmItemDef(gbaItem)?.let { services?.items?.idOrNull(it) } ?: 0 else 0
     if (egg || held != 0) {
       store.updatePokemon(c, mon.copy(isEgg = egg, heldItem = held))
       session.send(
@@ -382,8 +400,14 @@ internal fun ScriptContext.vmAddCoins(delta: Int): Boolean {
 
 private const val MAX_COINS = 9999
 
-internal suspend fun ScriptContext.vmWildBattle(dex: Int, level: Int, gbaItem: Int, legendary: Boolean): BattleResult {
-  val name = if (gbaItem != 0) vm?.img?.nameOf("ITEM_", gbaItem)?.removePrefix("ITEM_") ?: "" else ""
+internal suspend fun ScriptContext.vmWildBattle(
+    dex: Int,
+    level: Int,
+    gbaItem: Int,
+    legendary: Boolean
+): BattleResult {
+  val name =
+      if (gbaItem != 0) vm?.img?.nameOf("ITEM_", gbaItem)?.removePrefix("ITEM_") ?: "" else ""
   val battles = services?.battles ?: return BattleResult.FAILED
   charId?.let { characters?.registerSeen(it, listOf(dex)) }
   return battles.startScriptedWildBattle(session, dex, level, name)

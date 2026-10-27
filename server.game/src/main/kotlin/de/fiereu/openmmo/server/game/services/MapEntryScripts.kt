@@ -23,14 +23,16 @@ class MapEntryScripts
 constructor(
     private val scriptRegistry: ScriptRegistry,
     private val storyService: StoryService,
-    private val vmMapScripts: javax.inject.Provider<de.fiereu.openmmo.server.game.script.vm.VmMapScripts>? =
+    private val vmMapScripts:
+        javax.inject.Provider<de.fiereu.openmmo.server.game.script.vm.VmMapScripts>? =
         null,
 ) {
   fun onEntry(state: PlayerState, map: MapDef): List<Script> {
     val charId = state.characterId
     val vm = vmMapScripts?.get()
-    if (vm != null && de.fiereu.openmmo.server.game.script.vm.ScriptImage.of(
-        if (map.regionId.toInt() == 1) "hoenn" else "kanto") != null) {
+    if (vm != null &&
+        de.fiereu.openmmo.server.game.script.vm.ScriptImage.of(
+            if (map.regionId.toInt() == 1) "hoenn" else "kanto") != null) {
       // r5-scripts: the map's own script table. ON_TRANSITION ran when the map loaded unless it
       // is hand-ported (then it runs here, as it always did).
       return buildList {

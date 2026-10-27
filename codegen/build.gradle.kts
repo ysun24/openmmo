@@ -147,10 +147,15 @@ val generateScriptVm =
         inputs.dir(d.dir("constants"))
         inputs.dir(d.dir("src"))
       }
-      inputs.files(fileTree(dialogDataDir) { include("*.json") ; exclude("*.script.json") })
+      inputs.files(
+          fileTree(dialogDataDir) {
+            include("*.json")
+            exclude("*.script.json")
+          })
       outputs.dir(scriptVmOut)
       // It also refreshes codegen/dialog/<region>.script.json, which is committed source like the
-      // other dialog tables (not declared as an output: generateDialog / generateMaps read that dir).
+      // other dialog tables (not declared as an output: generateDialog / generateMaps read that
+      // dir).
       classpath = sourceSets["generator"].runtimeClasspath
       mainClass.set("de.fiereu.openmmo.codegen.script.asm.ScriptVmMain")
       args(

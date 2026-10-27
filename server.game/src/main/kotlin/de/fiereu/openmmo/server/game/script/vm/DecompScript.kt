@@ -58,7 +58,8 @@ class DecompScript(val label: String) : Script {
     fun approachInterprets(region: String, label: String): Boolean {
       val img = imageFor(region, label) ?: return false
       val a = img.labels[label] ?: return false
-      return img.commands.getOrNull(img.u8(a)) == "trainerbattle" && interpretsTrainer(region, label)
+      return img.commands.getOrNull(img.u8(a)) == "trainerbattle" &&
+          interpretsTrainer(region, label)
     }
 
     /**
@@ -81,7 +82,8 @@ class DecompScript(val label: String) : Script {
       if (ctx.entityId < 0) return 0
       val map = ctx.vmCurrentMap() ?: return 0
       for (npc in map.npcs) {
-        if (ctx.movement.npcEntityId(ctx.state, npc.entityIdx) == ctx.entityId) return npc.entityIdx + 1
+        if (ctx.movement.npcEntityId(ctx.state, npc.entityIdx) == ctx.entityId)
+            return npc.entityIdx + 1
       }
       return 0
     }

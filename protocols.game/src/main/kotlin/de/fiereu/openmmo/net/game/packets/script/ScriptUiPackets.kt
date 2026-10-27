@@ -16,8 +16,8 @@ import de.fiereu.bytecodec.Utf16LeNullTerminated
  * [json] carries its arguments (a JSON object, see PROTOCOL.md "r5-scripts"):
  * - menus that answer with [ScriptUiReplyPacket]: `multichoice`, `party` (ChoosePartyMon and
  *   friends), `elevator`, `trade` (in-game trade scene, answers when it finishes), `number`;
- * - fire and forget: `sound` (se/bgm/fanfare/cry), `fade`, `monpic`, `moneybox`, `coinsbox`,
- *   `fx` (camera shake, flash, weather...), `metatile` (a map tile changed), `close` (hide one).
+ * - fire and forget: `sound` (se/bgm/fanfare/cry), `fade`, `monpic`, `moneybox`, `coinsbox`, `fx`
+ *   (camera shake, flash, weather...), `metatile` (a map tile changed), `close` (hide one).
  *
  * [seq] increases per packet; a reply names the [seq] it answers.
  */
@@ -33,8 +33,8 @@ object ScriptUiPacketCodec : PacketCodec<ScriptUiPacket>() {
 }
 
 /**
- * c2s: the player's answer to the [ScriptUiPacket] [seq]; [value] -1 / 127 means cancelled.
- * [text] answers a `name` prompt (the naming screen).
+ * c2s: the player's answer to the [ScriptUiPacket] [seq]; [value] -1 / 127 means cancelled. [text]
+ * answers a `name` prompt (the naming screen).
  */
 data class ScriptUiReplyPacket(val seq: Int, val value: Int, val text: String = "")
 

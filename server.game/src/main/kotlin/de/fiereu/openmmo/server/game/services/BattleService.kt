@@ -321,7 +321,8 @@ constructor(
     val battle =
         createBattle(
             session,
-            listOf(OpponentSpec(dexId, level, emptyList(), wild = true, heldItemName = heldItemName)),
+            listOf(
+                OpponentSpec(dexId, level, emptyList(), wild = true, heldItemName = heldItemName)),
             catchable = true,
             escapable = true,
         ) ?: return BattleResult.FAILED

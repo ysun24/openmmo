@@ -21,9 +21,10 @@ import kotlinx.serialization.json.put
  * special tables, flags, vars, species, items, multichoice menus, std strings).
  *
  * Args: `<resources-out> <dialog-dir> <region|decompDir>...`. Writes
- * `<resources-out>/scriptvm/<region>.bin` (gzipped, read by server.game's ScriptImage) and refreshes
- * `<dialog-dir>/<region>.script.json`, the decomp text of every script line the ROM-resolved
- * dialog tables have no id for (synthetic ids, committed so the clients can show them).
+ * `<resources-out>/scriptvm/<region>.bin` (gzipped, read by server.game's ScriptImage) and
+ * refreshes `<dialog-dir>/<region>.script.json`, the decomp text of every script line the
+ * ROM-resolved dialog tables have no id for (synthetic ids, committed so the clients can show
+ * them).
  */
 fun main(args: Array<String>) {
   val out = File(args[0], "scriptvm").apply { mkdirs() }
@@ -60,7 +61,8 @@ private fun assignTextIds(
     if (!f.isFile) continue
     for (l in Json.parseToJsonElement(f.readText()).jsonObject.getValue("lines").jsonArray) {
       val o = l.jsonObject
-      known.putIfAbsent(o.getValue("label").jsonPrimitive.content, o.getValue("id").jsonPrimitive.int)
+      known.putIfAbsent(
+          o.getValue("label").jsonPrimitive.content, o.getValue("id").jsonPrimitive.int)
     }
   }
   val labelsAt = HashMap<Int, MutableList<String>>()
@@ -270,7 +272,10 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
         listOf("include/constants/opponents.h", "include/constants/trainers.h").flatMap {
           defines(it, "TRAINER_")
         }
-    names += trainers.map { it.first }.filter { !it.startsWith("TRAINER_CLASS") && !it.startsWith("TRAINER_PIC") }
+    names +=
+        trainers
+            .map { it.first }
+            .filter { !it.startsWith("TRAINER_CLASS") && !it.startsWith("TRAINER_PIC") }
     val out = LinkedHashMap<String, Long>()
     for (n in names.distinct()) out[n] = value(n) ?: continue
     // setrespawn's heal locations -> their map (src/data/heal_locations.json, 1-based).
@@ -282,9 +287,21 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
         value(map)?.let { out["OPENMMO_HEAL_${i + 1}"] = it }
       }
     }
-    for (n in listOf("TRAINER_FLAGS_START", "TRAINER_FLAGS_END", "VARS_START", "VARS_END", "SPECIAL_VARS_START",
-        "SPECIAL_FLAGS_START", "MOVEMENT_ACTION_STEP_END", "VAR_TEXT_COLOR", "ITEM_SILPH_SCOPE",
-        "TRAINER_STEVEN", "SPECIAL_BATTLE_STEVEN", "SPECIES_NONE", "NUM_SPECIES")) value(n)?.let { out[n] = it }
+    for (n in
+        listOf(
+            "TRAINER_FLAGS_START",
+            "TRAINER_FLAGS_END",
+            "VARS_START",
+            "VARS_END",
+            "SPECIAL_VARS_START",
+            "SPECIAL_FLAGS_START",
+            "MOVEMENT_ACTION_STEP_END",
+            "VAR_TEXT_COLOR",
+            "ITEM_SILPH_SCOPE",
+            "TRAINER_STEVEN",
+            "SPECIAL_BATTLE_STEVEN",
+            "SPECIES_NONE",
+            "NUM_SPECIES")) value(n)?.let { out[n] = it }
     out
   }
 
@@ -293,9 +310,11 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
     val dex = HashMap<String, Int>()
     val pokedex = File(decomp, "include/constants/pokedex.h").readText()
     val nat = pokedex.substringAfter("enum {").substringBefore("};")
-    Regex("""\bNATIONAL_DEX_(\w+)""").findAll(nat).map { it.groupValues[1] }.distinct().forEachIndexed { i, n ->
-      dex[n] = i
-    }
+    Regex("""\bNATIONAL_DEX_(\w+)""")
+        .findAll(nat)
+        .map { it.groupValues[1] }
+        .distinct()
+        .forEachIndexed { i, n -> dex[n] = i }
     val out = LinkedHashMap<Int, Int>()
     for ((name, _) in defines("include/constants/species.h", "SPECIES_")) {
       val id = value(name)?.toInt() ?: continue
@@ -308,18 +327,21 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
   /** `const u8 gText_X[] = _("...");` across the C sources. */
   val cStrings: Map<String, String> by lazy {
     val out = LinkedHashMap<String, String>()
-    val re =
-        Regex(
-            """const u8 (\w+)\[\]\s*=\s*_\(((?:\s*"(?:[^"\\]|\\.)*")+)\s*\)""")
-    File(decomp, "src").walkTopDown().filter { it.isFile && (it.extension == "c" || it.extension == "h") }.forEach { f ->
-      val text = f.readText()
-      if (!text.contains("_(\"")) return@forEach
-      for (m in re.findAll(text)) {
-        out.putIfAbsent(
-            m.groupValues[1],
-            Regex(""""((?:[^"\\]|\\.)*)"""").findAll(m.groupValues[2]).joinToString("") { it.groupValues[1] })
-      }
-    }
+    val re = Regex("""const u8 (\w+)\[\]\s*=\s*_\(((?:\s*"(?:[^"\\]|\\.)*")+)\s*\)""")
+    File(decomp, "src")
+        .walkTopDown()
+        .filter { it.isFile && (it.extension == "c" || it.extension == "h") }
+        .forEach { f ->
+          val text = f.readText()
+          if (!text.contains("_(\"")) return@forEach
+          for (m in re.findAll(text)) {
+            out.putIfAbsent(
+                m.groupValues[1],
+                Regex(""""((?:[^"\\]|\\.)*)"""").findAll(m.groupValues[2]).joinToString("") {
+                  it.groupValues[1]
+                })
+          }
+        }
     out
   }
 
@@ -363,16 +385,28 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
     val f = File(decomp, "src/field_specials.c")
     if (!f.isFile) return@lazy out
     val text = f.readText()
-    val re = Regex("""static const u8 \*const (\w+)\[[^\]]*\](\[[^\]]*\])?\s*=\s*\{(.*?)\n\s*\};""", RegexOption.DOT_MATCHES_ALL)
+    val re =
+        Regex(
+            """static const u8 \*const (\w+)\[[^\]]*\](\[[^\]]*\])?\s*=\s*\{(.*?)\n\s*\};""",
+            RegexOption.DOT_MATCHES_ALL)
     for (m in re.findAll(text)) {
       val body = m.groupValues[3]
       val rows = LinkedHashMap<Int, List<String>>()
       if (m.groupValues[2].isEmpty()) {
-        rows[0] = Regex("""(?:\[\w+\]\s*=\s*)?(g\w+)""").findAll(body).map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }.toList()
+        rows[0] =
+            Regex("""(?:\[\w+\]\s*=\s*)?(g\w+)""")
+                .findAll(body)
+                .map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }
+                .toList()
       } else {
-        for (row in Regex("""\[(\w+)\]\s*=\s*\{(.*?)\}""", RegexOption.DOT_MATCHES_ALL).findAll(body)) {
+        for (row in
+            Regex("""\[(\w+)\]\s*=\s*\{(.*?)\}""", RegexOption.DOT_MATCHES_ALL).findAll(body)) {
           val id = value(row.groupValues[1])?.toInt() ?: continue
-          rows[id] = Regex("""\b(g\w+)""").findAll(row.groupValues[2]).map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }.toList()
+          rows[id] =
+              Regex("""\b(g\w+)""")
+                  .findAll(row.groupValues[2])
+                  .map { cStrings[it.groupValues[1]] ?: it.groupValues[1] }
+                  .toList()
         }
       }
       out[m.groupValues[1]] = rows
@@ -385,14 +419,34 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
       if (!tf.isFile) continue
       val rows = LinkedHashMap<Int, List<String>>()
       val tb = tf.readText()
-      for (m in Regex("""\[(INGAME_TRADE_\w+)\]\s*=\s*\{(.*?)\n\s*\}""", RegexOption.DOT_MATCHES_ALL).findAll(tb)) {
+      for (m in
+          Regex("""\[(INGAME_TRADE_\w+)\]\s*=\s*\{(.*?)\n\s*\}""", RegexOption.DOT_MATCHES_ALL)
+              .findAll(tb)) {
         val id = value(m.groupValues[1])?.toInt() ?: continue
         val b = m.groupValues[2]
-        fun str(f: String) = Regex("""\.$f\s*=\s*_\("([^"]*)"\)""").find(b)?.groupValues?.get(1).orEmpty()
-        fun num(f: String) = Regex("""\.$f\s*=\s*([\w+ ]+)""").find(b)?.groupValues?.get(1)?.trim()?.let { value(it) ?: (r.resolve(it) as? Num)?.v ?: it.toLongOrNull() } ?: 0L
-        val ivs = Regex("""\.ivs\s*=\s*\{([^}]*)\}""").find(b)?.groupValues?.get(1)?.split(',')?.map { it.trim() }.orEmpty()
-        rows[id] = listOf(str("nickname"), str("otName"), num("species").toString(), num("requestedSpecies").toString(),
-            num("heldItem").toString(), num("otId").toString(), num("personality").toString()) + ivs
+        fun str(f: String) =
+            Regex("""\.$f\s*=\s*_\("([^"]*)"\)""").find(b)?.groupValues?.get(1).orEmpty()
+        fun num(f: String) =
+            Regex("""\.$f\s*=\s*([\w+ ]+)""").find(b)?.groupValues?.get(1)?.trim()?.let {
+              value(it) ?: (r.resolve(it) as? Num)?.v ?: it.toLongOrNull()
+            } ?: 0L
+        val ivs =
+            Regex("""\.ivs\s*=\s*\{([^}]*)\}""")
+                .find(b)
+                ?.groupValues
+                ?.get(1)
+                ?.split(',')
+                ?.map { it.trim() }
+                .orEmpty()
+        rows[id] =
+            listOf(
+                str("nickname"),
+                str("otName"),
+                num("species").toString(),
+                num("requestedSpecies").toString(),
+                num("heldItem").toString(),
+                num("otId").toString(),
+                num("personality").toString()) + ivs
       }
       out["sIngameTrades"] = rows
     }
@@ -401,13 +455,15 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
 
   /** gStdStrings (bufferstdstring), by index. */
   val stdStrings: List<String> by lazy {
-    val sources = listOf("src/data/script_menu.h", "src/script_menu.c", "src/scrcmd.c", "src/strings.c")
+    val sources =
+        listOf("src/data/script_menu.h", "src/script_menu.c", "src/scrcmd.c", "src/strings.c")
     for (f in sources) {
       val file = File(decomp, f)
       if (!file.isFile) continue
       val text = file.readText()
       // Emerald gStdStrings, FRLG gStdStringPtrs.
-      val decl = listOf("gStdStrings[]", "gStdStringPtrs[]").firstOrNull { text.contains(it) } ?: continue
+      val decl =
+          listOf("gStdStrings[]", "gStdStringPtrs[]").firstOrNull { text.contains(it) } ?: continue
       val body = text.substringAfter(decl).substringAfter("{").substringBefore("};")
       val out = ArrayList<String>()
       for (m in Regex("""(?:\[(\w+)\]\s*=\s*)?(\w+)\s*,""").findAll("$body,")) {
@@ -419,5 +475,4 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
     }
     emptyList()
   }
-
 }

@@ -19,8 +19,8 @@ import javax.inject.Singleton
 
 /**
  * Everything the decomp script interpreter reaches besides what ScriptContext already carries.
- * Providers break the construction cycles (the specials and the battle service reach back into
- * the script runner).
+ * Providers break the construction cycles (the specials and the battle service reach back into the
+ * script runner).
  */
 @Singleton
 class ScriptServices

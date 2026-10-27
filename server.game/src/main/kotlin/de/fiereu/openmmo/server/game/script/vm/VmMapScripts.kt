@@ -36,8 +36,10 @@ constructor(
   /** Map load: per-map state reset, temp flags / vars cleared, then the immediate scripts. */
   fun onLoad(session: SessionContext, state: PlayerState, map: MapDef) {
     val vmState = VmState.of(session)
-    val key = (map.regionId.toInt() shl 16) or ((map.bankId.toInt() and 0xFF) shl 8) or
-        (map.mapId.toInt() and 0xFF)
+    val key =
+        (map.regionId.toInt() shl 16) or
+            ((map.bankId.toInt() and 0xFF) shl 8) or
+            (map.mapId.toInt() and 0xFF)
     // Every load is a fresh map, a warp back onto the same map included (LoadMapFromWarp).
     val changed = true
     vmState.mapKey = -1
@@ -56,7 +58,8 @@ constructor(
           val label = img.labelsAt(ptr).firstOrNull()
           if (label == null || registry.handPorted(label) == null) scripts += ptr
         }
-        MAP_SCRIPT_ON_LOAD, MAP_SCRIPT_ON_RESUME -> scripts += ptr
+        MAP_SCRIPT_ON_LOAD,
+        MAP_SCRIPT_ON_RESUME -> scripts += ptr
       }
     }
     runImmediate(session, state, img, scripts, clearTemps = changed)
@@ -154,6 +157,8 @@ constructor(
     const val MAP_SCRIPT_ON_RESUME = 5
 
     /** Runs [block] to completion now; immediate scripts never wait, so this is bounded. */
-    fun <T> bounded(block: suspend () -> T): T? = runBlocking { withTimeoutOrNull(2000) { block() } }
+    fun <T> bounded(block: suspend () -> T): T? = runBlocking {
+      withTimeoutOrNull(2000) { block() }
+    }
   }
 }

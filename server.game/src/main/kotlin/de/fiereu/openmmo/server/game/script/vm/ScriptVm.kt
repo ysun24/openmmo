@@ -29,9 +29,9 @@ class UnknownScriptCommand(name: String, where: String) :
  * [ScriptImage]. One instance runs one script for one player, with that player's [ScriptContext].
  *
  * Commands that wait in the decomp (waitmessage + waitbuttonpress, waitmovement, waitstate after a
- * special that opens UI, delay) suspend; commands that only start something (applymovement,
- * playse) return at once. [immediate] mode is RunScriptImmediately: map ON_LOAD / ON_TRANSITION /
- * ON_RESUME / ON_WARP_INTO scripts, where nothing may wait.
+ * special that opens UI, delay) suspend; commands that only start something (applymovement, playse)
+ * return at once. [immediate] mode is RunScriptImmediately: map ON_LOAD / ON_TRANSITION / ON_RESUME
+ * / ON_WARP_INTO scripts, where nothing may wait.
  */
 class ScriptVm(
     val ctx: ScriptContext,
@@ -67,7 +67,8 @@ class ScriptVm(
   private val varsEnd = img.const("VARS_END")
   private val specialVarsStart = img.const("SPECIAL_VARS_START")
   private val trainerFlagsStart = img.const("TRAINER_FLAGS_START")
-  private val trainerFlagsEnd = img.constOrNull("TRAINER_FLAGS_END") ?: (trainerFlagsStart + TRAINER_FLAG_COUNT - 1)
+  private val trainerFlagsEnd =
+      img.constOrNull("TRAINER_FLAGS_END") ?: (trainerFlagsStart + TRAINER_FLAG_COUNT - 1)
   private val specialFlagsStart = img.constOrNull("SPECIAL_FLAGS_START") ?: 0x4000
   private val stdTable = img.labels["gStdScripts"] ?: 0
   private val stdEnd = img.labels["gStdScripts_End"] ?: img.labels["gStdScriptsEnd"] ?: stdTable
@@ -98,7 +99,9 @@ class ScriptVm(
   private suspend fun loop() {
     while (!stopped && pc != 0) {
       if (++steps > MAX_STEPS) {
-        log.warn { "${img.region}: script loop at ${img.where(pc)} stopped after $MAX_STEPS commands" }
+        log.warn {
+          "${img.region}: script loop at ${img.where(pc)} stopped after $MAX_STEPS commands"
+        }
         return
       }
       val at = pc
@@ -134,8 +137,7 @@ class ScriptVm(
   private fun flagKeys(id: Int): List<String> {
     if (id in trainerFlagsStart..trainerFlagsEnd) {
       val t = id - trainerFlagsStart
-      return listOf(
-          "${img.region}/TRAINER_DEFEATED_$t", "${img.region}/OPENMMO_TRAINER_$t")
+      return listOf("${img.region}/TRAINER_DEFEATED_$t", "${img.region}/OPENMMO_TRAINER_$t")
     }
     val names = img.flagNames[id]
     return if (names.isNullOrEmpty()) listOf("${img.region}/FLAG_0x%04X".format(id))
@@ -186,8 +188,7 @@ class ScriptVm(
       else -> {
         val keys = flagKeys(id)
         // Trainer flags keep the field service's key; named flags every alias.
-        if (id in trainerFlagsStart..trainerFlagsEnd)
-            ctx.setFlag(keys[0])
+        if (id in trainerFlagsStart..trainerFlagsEnd) ctx.setFlag(keys[0])
         else keys.forEach(ctx::setFlag)
         ctx.onFlagSet(keys.first())
       }
@@ -287,7 +288,8 @@ class ScriptVm(
   fun isPlayer(localId: Int) = localId == OBJ_PLAYER
 
   fun poseOf(localId: Int): ObjPose? {
-    if (isPlayer(localId)) return ObjPose(ctx.state.x.toInt(), ctx.state.y.toInt(), ctx.state.facingDirection)
+    if (isPlayer(localId))
+        return ObjPose(ctx.state.x.toInt(), ctx.state.y.toInt(), ctx.state.facingDirection)
     state.objects[localId]?.let {
       return it
     }
@@ -301,8 +303,7 @@ class ScriptVm(
     val dy = to.y - from.y
     return if (kotlin.math.abs(dx) > kotlin.math.abs(dy))
         (if (dx > 0) Direction.RIGHT else Direction.LEFT)
-    else if (dy < 0) Direction.UP
-    else Direction.DOWN
+    else if (dy < 0) Direction.UP else Direction.DOWN
   }
 
   /** applymovement: starts [localId] walking [ops] and returns at once. */
@@ -362,8 +363,7 @@ class ScriptVm(
 
   private fun advance(p: ObjPose, s: MovementStep): ObjPose =
       if (s.walks) ObjPose(p.x + s.direction.dx, p.y + s.direction.dy, s.direction)
-      else if (s.changesFacing) p.copy(facing = s.direction)
-      else p
+      else if (s.changesFacing) p.copy(facing = s.direction) else p
 
   /** The movement script at [ptr]: MOVEMENT_ACTION_* bytes up to step_end. */
   fun movementAt(ptr: Int): List<MoveOp> {
@@ -389,9 +389,12 @@ class ScriptVm(
   /** Runs one command. False ends the script. */
   private suspend fun exec(name: String, at: Int): Boolean {
     when (name) {
-      "nop", "nop1" -> {}
-      "end", "endram" -> return false
-      "return", "returnram" -> if (!ret()) return false
+      "nop",
+      "nop1" -> {}
+      "end",
+      "endram" -> return false
+      "return",
+      "returnram" -> if (!ret()) return false
       "call" -> call(u32())
       "goto" -> pc = u32()
       "goto_if" -> {
@@ -560,7 +563,11 @@ class ScriptVm(
         sound("bgm", song)
       }
       "savebgm" -> state.savedBgm = u16()
-      "fadedefaultbgm" -> ui("sound") { put("kind", "bgm"); put("default", true) }
+      "fadedefaultbgm" ->
+          ui("sound") {
+            put("kind", "bgm")
+            put("default", true)
+          }
       "fadenewbgm" -> sound("bgm", u16())
       "fadeoutbgm" -> {
         u8()
@@ -570,7 +577,12 @@ class ScriptVm(
         u8()
         ui("sound") { put("kind", "fadein") }
       }
-      "warp", "warpsilent", "warpdoor", "warpteleport", "warpspinenter", "warpmossdeepgym",
+      "warp",
+      "warpsilent",
+      "warpdoor",
+      "warpteleport",
+      "warpspinenter",
+      "warpmossdeepgym",
       "warpwhitefade" -> {
         val g = u8()
         val n = u8()
@@ -589,7 +601,11 @@ class ScriptVm(
         if (dest != null) warp(dest[0], dest[1], 0xFF, dest[2], dest[3], name)
         return false
       }
-      "setwarp", "setdynamicwarp", "setdivewarp", "setholewarp", "setescapewarp" -> {
+      "setwarp",
+      "setdynamicwarp",
+      "setdivewarp",
+      "setholewarp",
+      "setescapewarp" -> {
         val g = u8()
         val n = u8()
         val w = u8()
@@ -748,13 +764,18 @@ class ScriptVm(
           put("facing", dir)
         }
       }
-      "lockall", "lock", "releaseall", "release" -> {
+      "lockall",
+      "lock",
+      "releaseall",
+      "release" -> {
         if (name.startsWith("release")) closeMessage()
       }
       "selectapproachingtrainer" -> {}
       "lockfortrainer" -> {}
-      "message", "messageautoscroll", "messageinstant", "pokenavcall" ->
-          showMessage(textAt(u32()))
+      "message",
+      "messageautoscroll",
+      "messageinstant",
+      "pokenavcall" -> showMessage(textAt(u32()))
       "braillemessage" -> showMessage(textAt(u32()))
       "getbraillestringwidth" -> {
         val t = textAt(u32())
@@ -792,7 +813,9 @@ class ScriptVm(
         val cols = u8()
         result = multichoice(id, 0, ignoreB, cols)
       }
-      "drawbox", "drawboxtext", "erasebox" -> {
+      "drawbox",
+      "drawboxtext",
+      "erasebox" -> {
         u8()
         u8()
         u8()
@@ -979,7 +1002,8 @@ class ScriptVm(
         ctx.vmMart(readItemList(u32()))
         return false
       }
-      "pokemartdecoration", "pokemartdecoration2" -> {
+      "pokemartdecoration",
+      "pokemartdecoration2" -> {
         val ptr = u32()
         ctx.decorationShop(img.labelsAt(ptr).firstOrNull() ?: "")
         return false
@@ -1015,7 +1039,8 @@ class ScriptVm(
         val imp = hv() != 0
         ctx.vmSetMetatile(x, y, tile, imp)
       }
-      "opendoor", "closedoor" -> {
+      "opendoor",
+      "closedoor" -> {
         val x = hv()
         val y = hv()
         ui("fx") {
@@ -1025,16 +1050,18 @@ class ScriptVm(
         }
       }
       "waitdooranim" -> pause(DOOR_MS)
-      "setdooropen", "setdoorclosed" -> {
+      "setdooropen",
+      "setdoorclosed" -> {
         hv()
         hv()
       }
       "setweather" -> state.weather = hv()
       "resetweather" -> state.weather = -1
-      "doweather" -> ui("fx") {
-        put("kind", "weather")
-        put("weather", img.nameOf("WEATHER_", state.weather) ?: "WEATHER_NONE")
-      }
+      "doweather" ->
+          ui("fx") {
+            put("kind", "weather")
+            put("weather", img.nameOf("WEATHER_", state.weather) ?: "WEATHER_NONE")
+          }
       "setstepcallback" -> u8()
       "setmaplayoutindex" -> ctx.vmSetLayout(hv())
       "setflashlevel" -> ctx.vmFlash(hv())
@@ -1076,7 +1103,8 @@ class ScriptVm(
         cmp = compare(ctx.getVar("${img.region}/OPENMMO_GAME_STAT_$stat"), v)
       }
       "setworldmapflag" -> flagSet(u16())
-      "textcolor" -> state.specialVars[(img.constOrNull("VAR_TEXT_COLOR") ?: 0x8013) - 0x8000] = u8()
+      "textcolor" ->
+          state.specialVars[(img.constOrNull("VAR_TEXT_COLOR") ?: 0x8013) - 0x8000] = u8()
       "signmsg" -> state.signBox = true
       "normalmsg" -> state.signBox = false
       "loadhelp" -> u32()
@@ -1085,9 +1113,10 @@ class ScriptVm(
         hv()
         u8()
       }
-      "setmodernfatefulencounter", "setmonmodernfatefulencounter" -> ctx.vmSetFateful(hv())
-      "checkmodernfatefulencounter", "checkmonmodernfatefulencounter" ->
-          result = if (ctx.vmIsFateful(hv())) 1 else 0
+      "setmodernfatefulencounter",
+      "setmonmodernfatefulencounter" -> ctx.vmSetFateful(hv())
+      "checkmodernfatefulencounter",
+      "checkmonmodernfatefulencounter" -> result = if (ctx.vmIsFateful(hv())) 1 else 0
       "getpokenewsactive" -> {
         hv()
         result = 0
@@ -1104,8 +1133,9 @@ class ScriptVm(
         result = elevatorMenu()
       }
       "initrotatingtilepuzzle" -> hv()
-      "moverotatingtileobjects", "turnrotatingtileobjects", "freerotatingtilepuzzle" ->
-          if (name == "moverotatingtileobjects") hv()
+      "moverotatingtileobjects",
+      "turnrotatingtileobjects",
+      "freerotatingtilepuzzle" -> if (name == "moverotatingtileobjects") hv()
       else -> throw UnknownScriptCommand(name, img.where(at))
     }
     return true
@@ -1251,7 +1281,12 @@ class ScriptVm(
   private fun setDynamicWarp(g: Int, n: Int, w: Int, x: Int, y: Int) {
     val dest = ctx.vmWarpDestination(g, n, w, x, y) ?: return
     ctx.setDynamicWarp(
-        region.wireValue.toInt(), ctx.vmBank(g), n, dest.first, dest.second, ctx.state.facingDirection)
+        region.wireValue.toInt(),
+        ctx.vmBank(g),
+        n,
+        dest.first,
+        dest.second,
+        ctx.state.facingDirection)
   }
 
   fun outcome(r: BattleResult): Int =
@@ -1312,17 +1347,20 @@ class ScriptVm(
     var retA = 0
     when (mode) {
       MODE_SINGLE_NO_INTRO -> defeatA = w()
-      MODE_DOUBLE, MODE_REMATCH_DOUBLE -> {
+      MODE_DOUBLE,
+      MODE_REMATCH_DOUBLE -> {
         introA = w()
         defeatA = w()
         cannot = w()
       }
-      MODE_CONTINUE_SCRIPT, MODE_CONTINUE_SCRIPT_NO_MUSIC -> {
+      MODE_CONTINUE_SCRIPT,
+      MODE_CONTINUE_SCRIPT_NO_MUSIC -> {
         introA = w()
         defeatA = w()
         retA = w()
       }
-      MODE_CONTINUE_SCRIPT_DOUBLE, MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC -> {
+      MODE_CONTINUE_SCRIPT_DOUBLE,
+      MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC -> {
         introA = w()
         defeatA = w()
         cannot = w()
@@ -1363,14 +1401,16 @@ class ScriptVm(
     val label =
         when (mode) {
           MODE_SINGLE_NO_INTRO -> "EventScript_DoNoIntroTrainerBattle"
-          MODE_DOUBLE, MODE_CONTINUE_SCRIPT_DOUBLE, MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC ->
-              "EventScript_TryDoDoubleTrainerBattle"
+          MODE_DOUBLE,
+          MODE_CONTINUE_SCRIPT_DOUBLE,
+          MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC -> "EventScript_TryDoDoubleTrainerBattle"
           MODE_REMATCH_DOUBLE -> "EventScript_TryDoDoubleRematchBattle"
           MODE_REMATCH -> "EventScript_TryDoRematchBattle"
           MODE_EARLY_RIVAL_OR_PYRAMID ->
               if (emerald) "EventScript_TryDoNormalTrainerBattle"
               else "EventScript_DoNoIntroTrainerBattle"
-          10, 11 -> if (emerald) return null else "EventScript_TryDoNormalTrainerBattle"
+          10,
+          11 -> if (emerald) return null else "EventScript_TryDoNormalTrainerBattle"
           else -> "EventScript_TryDoNormalTrainerBattle"
         }
     return img.labels[label]

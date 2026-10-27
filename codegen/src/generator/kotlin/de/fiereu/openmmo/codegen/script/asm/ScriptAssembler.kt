@@ -15,9 +15,9 @@ class AsmText(val addr: Int, val braille: Boolean) {
  * scripts with a port of script.c / scrcmd.c instead of hand-ported Kotlin.
  *
  * Only what the script interpreter needs is kept beside the bytes: every label's address, the text
- * behind each `.string` (as raw decomp text, it is never encoded), and the external C symbols a word
- * refers to (callnative functions, the special and command tables). Addresses start at [BASE] so a
- * pointer is never confused with a small number.
+ * behind each `.string` (as raw decomp text, it is never encoded), and the external C symbols a
+ * word refers to (callnative functions, the special and command tables). Addresses start at [BASE]
+ * so a pointer is never confused with a small number.
  */
 class ScriptAssembler(
     private val root: File,
@@ -244,7 +244,8 @@ class ScriptAssembler(
           open(cond, active(cond) && resolve(rest) != null)
           continue
         }
-        ".ifndef", ".ifnotdef" -> {
+        ".ifndef",
+        ".ifnotdef" -> {
           open(cond, active(cond) && resolve(rest) == null)
           continue
         }
@@ -542,7 +543,8 @@ class ScriptAssembler(
           is Num -> v.v
           is Sym -> {
             if (pass == 2) {
-              if (size == 4) externs[addr] = v.name else errors += "unresolved ${v.name} in .${size}byte"
+              if (size == 4) externs[addr] = v.name
+              else errors += "unresolved ${v.name} in .${size}byte"
             }
             0L
           }
@@ -630,7 +632,8 @@ class ScriptAssembler(
     val m = DEFINE.matchEntire(rest) ?: return
     val name = m.groupValues[1]
     val params = m.groups[2]?.value?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-    cdefs[name] = CMacro(if (m.groups[2] != null) params ?: emptyList() else null, m.groupValues[3].trim())
+    cdefs[name] =
+        CMacro(if (m.groups[2] != null) params ?: emptyList() else null, m.groupValues[3].trim())
   }
 
   private fun include(path: String) {

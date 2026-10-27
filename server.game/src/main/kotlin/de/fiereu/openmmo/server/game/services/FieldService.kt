@@ -1256,7 +1256,8 @@ constructor(
           }
       ctx.moveSelf(back)
       val region = if (map.regionId.toInt() == 1) "hoenn" else "kanto"
-      if (de.fiereu.openmmo.server.game.script.vm.DecompScript.approachInterprets(region, npc.script)) {
+      if (de.fiereu.openmmo.server.game.script.vm.DecompScript.approachInterprets(
+          region, npc.script)) {
         de.fiereu.openmmo.server.game.script.vm.DecompScript.runTrainerApproach(
             ctx, npc.script, npc.entityIdx)
       } else trainerBattle(ctx, state, map, npc)

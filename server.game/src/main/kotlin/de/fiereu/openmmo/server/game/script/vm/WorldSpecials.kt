@@ -14,7 +14,12 @@ import kotlinx.serialization.json.put
  */
 @Singleton
 class WorldSpecials @Inject constructor() : SpecialTable() {
-  private suspend fun fx(ctx: ScriptContext, kind: String, ms: Long = 0, extra: Map<String, Int> = emptyMap()) {
+  private suspend fun fx(
+      ctx: ScriptContext,
+      kind: String,
+      ms: Long = 0,
+      extra: Map<String, Int> = emptyMap()
+  ) {
     ctx.ui("fx") {
       put("kind", kind)
       for ((k, v) in extra) put(k, v)
@@ -28,22 +33,52 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       // 0x8004 / 0x8005: vertical / horizontal pan, 0x8006 shakes, 0x8007 delay between them.
       val shakes = ctx.specialVar(6).coerceIn(1, 30)
       val frames = ctx.specialVar(7).coerceIn(1, 30)
-      fx(ctx, "shake", shakes * frames * 1000L / 60, mapOf("x" to ctx.specialVar(5), "y" to ctx.specialVar(4), "ms" to shakes * frames * 1000 / 60))
+      fx(
+          ctx,
+          "shake",
+          shakes * frames * 1000L / 60,
+          mapOf(
+              "x" to ctx.specialVar(5),
+              "y" to ctx.specialVar(4),
+              "ms" to shakes * frames * 1000 / 60))
       0
     }
-    on("DoSealedChamberShakingEffect_Short", "DoSealedChamberShakingEffect_Long", "StartMirageTowerShake",
-        "DoMirageTowerCeilingCrumble", "StartMirageTowerDisintegration", "StartMirageTowerFossilFallAndSink",
+    on(
+        "DoSealedChamberShakingEffect_Short",
+        "DoSealedChamberShakingEffect_Long",
+        "StartMirageTowerShake",
+        "DoMirageTowerCeilingCrumble",
+        "StartMirageTowerDisintegration",
+        "StartMirageTowerFossilFallAndSink",
         "StartPlayerDescendMirageTower") { ctx ->
-      fx(ctx, "shake", 1200, mapOf("x" to 2, "y" to 2, "ms" to 1200))
-      0
-    }
-    noop("DrawWholeMapView", "SpawnCameraObject", "RemoveCameraObject", "Script_ClearHeldMovement",
-        "DisableMsgBoxWalkaway", "WaitWeather", "LoopWingFlapSE", "LoopWingFlapSound",
-        "SetDeoxysRockPalette", "SetDeoxysTrianglePalette", "DestroyMewEmergingGrassSprite",
-        "SetMewAboveGrass", "InitSecretBaseDecorationSprites", "SetMauvilleOldManObjEventGfx",
-        "SetLilycoveLadyGfx", "SetSecretBaseOwnerGfxId", "SpawnLinkPartnerObjectEvent",
-        "UpdateTrainerCardPhotoIcons", "BrailleCursorToggle", "AnimateTeleporterCable",
-        "AnimateTeleporterHousing", "LookThroughPorthole", "DoPicboxCancel", "RemoveRecordsWindow")
+          fx(ctx, "shake", 1200, mapOf("x" to 2, "y" to 2, "ms" to 1200))
+          0
+        }
+    noop(
+        "DrawWholeMapView",
+        "SpawnCameraObject",
+        "RemoveCameraObject",
+        "Script_ClearHeldMovement",
+        "DisableMsgBoxWalkaway",
+        "WaitWeather",
+        "LoopWingFlapSE",
+        "LoopWingFlapSound",
+        "SetDeoxysRockPalette",
+        "SetDeoxysTrianglePalette",
+        "DestroyMewEmergingGrassSprite",
+        "SetMewAboveGrass",
+        "InitSecretBaseDecorationSprites",
+        "SetMauvilleOldManObjEventGfx",
+        "SetLilycoveLadyGfx",
+        "SetSecretBaseOwnerGfxId",
+        "SpawnLinkPartnerObjectEvent",
+        "UpdateTrainerCardPhotoIcons",
+        "BrailleCursorToggle",
+        "AnimateTeleporterCable",
+        "AnimateTeleporterHousing",
+        "LookThroughPorthole",
+        "DoPicboxCancel",
+        "RemoveRecordsWindow")
     on("DoPCTurnOnEffect", "AnimatePcTurnOn") { ctx ->
       fx(ctx, "pc_on")
       0
@@ -74,7 +109,12 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     }
     on("DoLotteryCornerComputerEffect", "EndLotteryCornerComputerEffect") { ctx -> 0 }
     on("ShowMapNamePopup") { ctx ->
-      ctx.vmCurrentMap()?.let { m -> ctx.ui("fx") { put("kind", "map_name"); put("name", m.mapsec) } }
+      ctx.vmCurrentMap()?.let { m ->
+        ctx.ui("fx") {
+          put("kind", "map_name")
+          put("name", m.mapsec)
+        }
+      }
       0
     }
     on("Script_FacePlayer") { ctx ->
@@ -84,8 +124,7 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       val d =
           if (me.x > npc.x) Direction.RIGHT
           else if (me.x < npc.x) Direction.LEFT
-          else if (me.y < npc.y) Direction.UP
-          else Direction.DOWN
+          else if (me.y < npc.y) Direction.UP else Direction.DOWN
       ctx.vmTurnNpc(vm.lastTalked, d)
       0
     }
@@ -110,7 +149,8 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     // Emerald scrollable multichoice: VAR_0x8004 = SCROLL_MULTI_*.
     on("ShowScrollableMultichoice") { ctx ->
       val vm = ctx.vm ?: return@on 0
-      val items = vm.img.stringTables["sScrollableMultichoiceOptions"]?.get(ctx.specialVar(4)).orEmpty()
+      val items =
+          vm.img.stringTables["sScrollableMultichoiceOptions"]?.get(ctx.specialVar(4)).orEmpty()
       ctx.setResult(
           if (items.isEmpty()) ScriptVm.MULTI_B_PRESSED
           else ctx.vmMenu("multichoice", items, 0, ScriptVm.MULTI_B_PRESSED, 1))
@@ -171,18 +211,28 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       0
     }
     on("ScriptMenu_CreateLilycoveSSTidalMultichoice") { ctx ->
-      val names = ctx.vm?.img?.stringTables?.get("sLilycoveSSTidalDestinations")?.get(0)
-          ?: listOf("SLATEPORT CITY", "BATTLE FRONTIER", "SOUTHERN ISLAND", "NAVEL ROCK", "BIRTH ISLAND", "FARAWAY ISLAND")
+      val names =
+          ctx.vm?.img?.stringTables?.get("sLilycoveSSTidalDestinations")?.get(0)
+              ?: listOf(
+                  "SLATEPORT CITY",
+                  "BATTLE FRONTIER",
+                  "SOUTHERN ISLAND",
+                  "NAVEL ROCK",
+                  "BIRTH ISLAND",
+                  "FARAWAY ISLAND")
       val avail = buildList {
         add(0)
         if (ctx.isFlagSet("hoenn/FLAG_SYS_GAME_CLEAR")) add(1)
         if (ctx.isFlagSet("hoenn/FLAG_ENABLE_SHIP_SOUTHERN_ISLAND")) add(2)
       }
-      val pick = ctx.vmMenu("multichoice", avail.map { names.getOrElse(it) { "?" } } + "EXIT", 0, 127, 1)
+      val pick =
+          ctx.vmMenu("multichoice", avail.map { names.getOrElse(it) { "?" } } + "EXIT", 0, 127, 1)
       ctx.vm?.state?.warps?.put("sstidal", intArrayOf(if (pick < avail.size) avail[pick] else 127))
       0
     }
-    on("GetLilycoveSSTidalSelection") { ctx -> ctx.vm?.state?.warps?.get("sstidal")?.firstOrNull() ?: 127 }
+    on("GetLilycoveSSTidalSelection") { ctx ->
+      ctx.vm?.state?.warps?.get("sstidal")?.firstOrNull() ?: 127
+    }
     on("SetSSTidalFlag") { ctx ->
       ctx.setFlag("hoenn/FLAG_SYS_CRUISE_MODE")
       0
@@ -222,7 +272,8 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       0
     }
     on("Special_BeginCyclingRoadChallenge") { ctx ->
-      ctx.setVar("hoenn/OPENMMO_CYCLING_START", (System.currentTimeMillis() / 1000).toInt() and 0xFFFF)
+      ctx.setVar(
+          "hoenn/OPENMMO_CYCLING_START", (System.currentTimeMillis() / 1000).toInt() and 0xFFFF)
       0
     }
     on("FinishCyclingRoadChallenge", "UpdateCyclingRoadState") { ctx -> 0 }
@@ -232,17 +283,28 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     on("SetVermilionTrashCans") { ctx ->
       val first = Random.nextInt(15) + 1
       ctx.setSpecialVar(4, first)
-      ctx.setSpecialVar(5, first + listOf(1, 5, -1, -5).random().let { if (first + it in 1..15) it else 1 })
+      ctx.setSpecialVar(
+          5, first + listOf(1, 5, -1, -5).random().let { if (first + it in 1..15) it else 1 })
       0
     }
-    on("MauvilleGymSetDefaultBarriers", "MauvilleGymPressSwitch", "MauvilleGymDeactivatePuzzle",
-        "PetalburgGymSlideOpenRoomDoors", "PetalburgGymUnlockRoomDoors",
-        "SetSootopolisGymCrackedIceMetatiles", "SetIcefallCaveCrackedIceMetatiles",
-        "RotatingGate_InitPuzzle", "RotatingGate_InitPuzzleAndGraphics", "SetMirageTowerVisibility",
-        "UpdateShoalTideFlag", "TryUpdateRusturfTunnelState", "SetTrickHouseNuggetFlag",
-        "ResetTrickHouseNuggetFlag", "SeafoamIslandsB4F_CurrentDumpsPlayerOnLand") { ctx ->
-      puzzleState(ctx)
-    }
+    on(
+        "MauvilleGymSetDefaultBarriers",
+        "MauvilleGymPressSwitch",
+        "MauvilleGymDeactivatePuzzle",
+        "PetalburgGymSlideOpenRoomDoors",
+        "PetalburgGymUnlockRoomDoors",
+        "SetSootopolisGymCrackedIceMetatiles",
+        "SetIcefallCaveCrackedIceMetatiles",
+        "RotatingGate_InitPuzzle",
+        "RotatingGate_InitPuzzleAndGraphics",
+        "SetMirageTowerVisibility",
+        "UpdateShoalTideFlag",
+        "TryUpdateRusturfTunnelState",
+        "SetTrickHouseNuggetFlag",
+        "ResetTrickHouseNuggetFlag",
+        "SeafoamIslandsB4F_CurrentDumpsPlayerOnLand") { ctx ->
+          puzzleState(ctx)
+        }
     on("IsMirageIslandPresent") { ctx ->
       // Mirage Island shows when a party mon's personality low half matches the day's value.
       val v = ctx.getVar("hoenn/VAR_MIRAGE_RND_H")
@@ -280,19 +342,29 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
       if (loc % 2 == 1) 1 else 0
     }
     on("SetRoute119Weather", "SetRoute123Weather") { ctx -> 0 }
-    on("GetWeekCount") { ctx -> ((System.currentTimeMillis() / 86_400_000L) / 7).toInt().coerceAtMost(9999) }
+    on("GetWeekCount") { ctx ->
+      ((System.currentTimeMillis() / 86_400_000L) / 7).toInt().coerceAtMost(9999)
+    }
     on("GetDaysUntilPacifidlogTMAvailable") { ctx ->
       val day = (System.currentTimeMillis() / 86_400_000L).toInt() and 0xFFFF
       val got = ctx.getVar("hoenn/VAR_PACIFIDLOG_TM_RECEIVED_DAY")
       if (got == 0 || day - got >= 7) 0 else 7 - (day - got)
     }
     on("SetPacifidlogTMReceivedDay") { ctx ->
-      ctx.setVar("hoenn/VAR_PACIFIDLOG_TM_RECEIVED_DAY", (System.currentTimeMillis() / 86_400_000L).toInt() and 0xFFFF)
+      ctx.setVar(
+          "hoenn/VAR_PACIFIDLOG_TM_RECEIVED_DAY",
+          (System.currentTimeMillis() / 86_400_000L).toInt() and 0xFFFF)
       0
     }
     on("ResetHealLocationFromDewford", "InitBirchState") { ctx -> 0 }
-    on("FoundBlackGlasses", "FoundAbandonedShipRoom1Key", "FoundAbandonedShipRoom2Key",
-        "FoundAbandonedShipRoom4Key", "FoundAbandonedShipRoom6Key") { ctx -> 0 }
+    on(
+        "FoundBlackGlasses",
+        "FoundAbandonedShipRoom1Key",
+        "FoundAbandonedShipRoom2Key",
+        "FoundAbandonedShipRoom4Key",
+        "FoundAbandonedShipRoom6Key") { ctx ->
+          0
+        }
 
     // ---- town map, save, clock, diploma, credits, hall of fame
     on("FieldShowRegionMap", "ShowTownMap") { ctx ->
@@ -331,9 +403,16 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     on("OpenPokenavForTutorial", "ScriptMenu_CreateStartMenuForPokenavTutorial") { ctx -> 0 }
 
     // ---- help system and quest log (FRLG): nothing to do on a server.
-    noop("HelpSystem_Enable", "HelpSystem_Disable", "Script_SetHelpContext", "SetHelpContextForMap",
-        "BackupHelpContext", "RestoreHelpContext", "QuestLog_CutRecording",
-        "QuestLog_StartRecordingInputsAfterDeferredEvent", "SetUsedPkmnCenterQuestLogEvent")
+    noop(
+        "HelpSystem_Enable",
+        "HelpSystem_Disable",
+        "Script_SetHelpContext",
+        "SetHelpContextForMap",
+        "BackupHelpContext",
+        "RestoreHelpContext",
+        "QuestLog_CutRecording",
+        "QuestLog_StartRecordingInputsAfterDeferredEvent",
+        "SetUsedPkmnCenterQuestLogEvent")
     on("GetQuestLogState") { ctx -> 0 }
     on("SetFlavorTextFlagFromSpecialVars") { ctx -> 0 }
     on("StickerManGetBragFlags") { ctx ->
@@ -349,7 +428,13 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
   private suspend fun warpByName(ctx: ScriptContext, name: String, x: Int, y: Int) {
     val maps = ctx.maps ?: return
     val m = maps.getMapByName(ctx.state.regionId, name) ?: return
-    ctx.warp(ctx.state.regionId, m.bankId.toInt() and 0xFF, m.mapId.toInt() and 0xFF, x, y, ctx.state.facingDirection)
+    ctx.warp(
+        ctx.state.regionId,
+        m.bankId.toInt() and 0xFF,
+        m.mapId.toInt() and 0xFF,
+        x,
+        y,
+        ctx.state.facingDirection)
     ctx.vm?.stop()
   }
 
@@ -357,8 +442,15 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     const val SCR_MENU_CANCEL = 127
     const val SAILOR_X = 23
     val SEAGALLOP_NAMES =
-        listOf("VERMILION CITY", "ONE ISLAND", "TWO ISLAND", "THREE ISLAND", "FOUR ISLAND",
-            "FIVE ISLAND", "SIX ISLAND", "SEVEN ISLAND")
+        listOf(
+            "VERMILION CITY",
+            "ONE ISLAND",
+            "TWO ISLAND",
+            "THREE ISLAND",
+            "FOUR ISLAND",
+            "FIVE ISLAND",
+            "SIX ISLAND",
+            "SEVEN ISLAND")
     val SEAGALLOP_ARRIVALS =
         listOf(
             Triple("VermilionCity", 23, 32),
@@ -373,7 +465,14 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
             Triple("NavelRock_Harbor", 8, 5),
             Triple("BirthIsland_Harbor", 8, 5))
     val ABNORMAL_ROUTES =
-        listOf("ROUTE 114", "ROUTE 115", "ROUTE 116", "ROUTE 118", "ROUTE 105", "ROUTE 125",
-            "ROUTE 127", "ROUTE 129")
+        listOf(
+            "ROUTE 114",
+            "ROUTE 115",
+            "ROUTE 116",
+            "ROUTE 118",
+            "ROUTE 105",
+            "ROUTE 125",
+            "ROUTE 127",
+            "ROUTE 129")
   }
 }

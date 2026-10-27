@@ -12,6 +12,8 @@ import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
 import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.ScriptProgress
+import de.fiereu.openmmo.server.game.script.vm.ScriptServices
+import de.fiereu.openmmo.server.game.script.vm.ScriptVm
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogPresentation
 import de.fiereu.openmmo.server.game.services.DialogService
@@ -24,8 +26,6 @@ import de.fiereu.openmmo.server.game.services.StoryPlayerService
 import de.fiereu.openmmo.server.game.services.StoryService
 import de.fiereu.openmmo.server.game.session.PlayerState
 import de.fiereu.openmmo.server.game.storage.CharacterStore
-import de.fiereu.openmmo.server.game.script.vm.ScriptServices
-import de.fiereu.openmmo.server.game.script.vm.ScriptVm
 
 /** What a [Script] uses to talk to the player it interacted with and read or write story state. */
 class ScriptContext

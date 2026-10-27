@@ -235,7 +235,8 @@ class OverworldClient(
     val v = de.fiereu.openmmo.client.world.ScriptUiView(p.seq, p.kind, p.json)
     when (p.kind) {
       in menuKinds -> world.overworld.setScriptMenu(v)
-      "metatile", "metatiles" -> {
+      "metatile",
+      "metatiles" -> {
         val o = Json.parseToJsonElement(p.json).jsonObject
         val tiles = o["tiles"]?.jsonArray?.map { it.jsonObject } ?: listOf(o)
         for (t in tiles) {

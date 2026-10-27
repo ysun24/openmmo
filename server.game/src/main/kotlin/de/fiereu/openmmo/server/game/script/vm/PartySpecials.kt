@@ -15,8 +15,8 @@ import kotlinx.serialization.json.put
 
 /**
  * The party / pokedex / day care / trade / PC specials (party_menu.c, daycare.c, trade.c,
- * pokedex.c, field_specials.c, script_pokemon_util.c). The party picker and the in-game trade
- * scene are browser UI over the 0xCE channel ("party", "trade").
+ * pokedex.c, field_specials.c, script_pokemon_util.c). The party picker and the in-game trade scene
+ * are browser UI over the 0xCE channel ("party", "trade").
  */
 @Singleton
 class PartySpecials @Inject constructor() : SpecialTable() {
@@ -46,14 +46,17 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       val slot = ctx.specialVar(4)
       val moveSlot = ctx.specialVar(5)
       val mon = ctx.vmParty().getOrNull(slot) ?: return@on 0
-      val moves = mon.moves.filterIndexed { i, _ -> i != moveSlot } + mon.moves.getOrNull(moveSlot)?.copy(id = 0, pp = 0)
+      val moves =
+          mon.moves.filterIndexed { i, _ -> i != moveSlot } +
+              mon.moves.getOrNull(moveSlot)?.copy(id = 0, pp = 0)
       update(ctx, mon.copy(moves = moves.filterNotNull().take(4)))
       0
     }
     on("BufferMoveDeleterNicknameAndMove") { ctx ->
       val mon = ctx.vmParty().getOrNull(ctx.specialVar(4))
       ctx.bufferString(1, ctx.vmMonName(ctx.specialVar(4)))
-      ctx.bufferString(2, mon?.moves?.getOrNull(ctx.specialVar(5))?.let { ctx.vmMoveName(it.id.toInt()) } ?: "")
+      ctx.bufferString(
+          2, mon?.moves?.getOrNull(ctx.specialVar(5))?.let { ctx.vmMoveName(it.id.toInt()) } ?: "")
       0
     }
     on("GetNumMovesSelectedMonHas") { ctx ->
@@ -158,7 +161,8 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     on("IsLastMonThatKnowsSurf") { ctx ->
       val party = ctx.vmParty()
       val slot = ctx.specialVar(4)
-      val others = party.filterIndexed { i, m -> i != slot && m.moves.any { it.id.toInt() == SURF } }
+      val others =
+          party.filterIndexed { i, m -> i != slot && m.moves.any { it.id.toInt() == SURF } }
       ctx.setResult(if (others.isEmpty() && ctx.vmItemCount(0) == 0) 1 else 0)
       0
     }
@@ -166,8 +170,10 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       val species = ctx.services?.species
       ctx.setResult(
           if (ctx.vmParty().any { m ->
-            species?.get(m.dexId)?.let { it.type1.name == "GRASS" || it.type2.name == "GRASS" } == true
-          }) 1
+            species?.get(m.dexId)?.let { it.type1.name == "GRASS" || it.type2.name == "GRASS" } ==
+                true
+          })
+              1
           else 0)
       0
     }
@@ -182,7 +188,11 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     }
     on("IsLeadMonNicknamedOrNotEnglish") { ctx ->
       val m = ctx.vmParty().firstOrNull { !it.isEgg }
-      if (m != null && m.nickname.isNotBlank() && !m.nickname.equals(ctx.services?.species?.get(m.dexId)?.name, true)) 1 else 0
+      if (m != null &&
+          m.nickname.isNotBlank() &&
+          !m.nickname.equals(ctx.services?.species?.get(m.dexId)?.name, true))
+          1
+      else 0
     }
     on("DoesPartyHaveEnigmaBerry") { ctx -> 0 }
     on("EggHatch") { ctx ->
@@ -211,11 +221,15 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       ctx.setSpecialVar(5, seen.size)
       ctx.setSpecialVar(6, caught.size)
       if (ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX") ||
-          ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX_FRLG")) 1 else 0
+          ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX_FRLG"))
+          1
+      else 0
     }
     on("IsNationalPokedexEnabled") { ctx ->
       if (ctx.getVar("${ctx.regionName}/VAR_NATIONAL_DEX") != 0 ||
-          ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX")) 1 else 0
+          ctx.isFlagSet("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX"))
+          1
+      else 0
     }
     on("EnableNationalPokedex") { ctx ->
       ctx.setFlag("${ctx.regionName}/FLAG_SYS_NATIONAL_DEX")
@@ -224,12 +238,14 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     }
     on("SetUnlockedPokedexFlags") { ctx -> 0 }
     on("HasAllHoennMons", "HasAllMons", "HasAllKantoMons") { ctx ->
-      val caught = ctx.state.characterId?.let { ctx.characters?.getCharacter(it) }?.dexCaught.orEmpty()
+      val caught =
+          ctx.state.characterId?.let { ctx.characters?.getCharacter(it) }?.dexCaught.orEmpty()
       ctx.setResult(if (caught.size >= KANTO_DEX_COUNT) 1 else 0)
       0
     }
     on("GetProfOaksRatingMessage", "ShowPokedexRatingMessage") { ctx ->
-      val caught = ctx.state.characterId?.let { ctx.characters?.getCharacter(it) }?.dexCaught?.size ?: 0
+      val caught =
+          ctx.state.characterId?.let { ctx.characters?.getCharacter(it) }?.dexCaught?.size ?: 0
       ctx.bufferString(1, caught.toString())
       0
     }
@@ -275,14 +291,20 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       val c = ctx.state.characterId ?: return@on 0
       val mon = ctx.vmParty().getOrNull(ctx.specialVar(4)) ?: return@on 0
       ctx.bufferString(1, monName(ctx, mon))
-      ctx.progress?.daycare?.deposit(c, mon.id, route5 = ctx.vm?.isFrlg == true && it(ctx) == "PutMonInRoute5Daycare")
+      ctx.progress
+          ?.daycare
+          ?.deposit(
+              c, mon.id, route5 = ctx.vm?.isFrlg == true && it(ctx) == "PutMonInRoute5Daycare")
       pushParty(ctx)
       0
     }
     on("TakePokemonFromDaycare", "TakePokemonFromRoute5Daycare") { ctx ->
       val c = ctx.state.characterId ?: return@on 0
       val stored = ctx.characters?.getCharacter(c) ?: return@on 0
-      val route5 = ctx.vm?.isFrlg == true && ctx.progress?.daycare?.route5(stored) != null && ctx.progress?.daycare?.main(stored).isNullOrEmpty()
+      val route5 =
+          ctx.vm?.isFrlg == true &&
+              ctx.progress?.daycare?.route5(stored) != null &&
+              ctx.progress?.daycare?.main(stored).isNullOrEmpty()
       val idx = if (route5) 0 else ctx.specialVar(4)
       val mon = ctx.progress?.daycare?.mons(stored, route5)?.getOrNull(idx)
       ctx.progress?.daycare?.withdraw(c, idx, route5)
@@ -291,9 +313,10 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     }
     on("GetNumLevelsGainedFromDaycare", "GetNumLevelsGainedForRoute5DaycareMon") { ctx ->
       val stored = ctx.state.characterId?.let { ctx.characters?.getCharacter(it) } ?: return@on 0
-      val mons = ctx.progress?.daycare?.main(stored).orEmpty().ifEmpty {
-        listOfNotNull(ctx.progress?.daycare?.route5(stored))
-      }
+      val mons =
+          ctx.progress?.daycare?.main(stored).orEmpty().ifEmpty {
+            listOfNotNull(ctx.progress?.daycare?.route5(stored))
+          }
       val mon = mons.getOrNull(ctx.specialVar(4)) ?: mons.firstOrNull() ?: return@on 0
       val rate = ctx.services?.species?.get(mon.dexId)?.growthRate ?: return@on 0
       val n = DaycareRules.levelsGained(stored, mon, rate)
@@ -301,11 +324,13 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       ctx.bufferString(2, n.toString())
       n
     }
-    on("GetDaycareCost", "GetDaycareCostAndPrepareString", "GetCostToWithdrawRoute5DaycareMon") { ctx ->
+    on("GetDaycareCost", "GetDaycareCostAndPrepareString", "GetCostToWithdrawRoute5DaycareMon") {
+        ctx ->
       val stored = ctx.state.characterId?.let { ctx.characters?.getCharacter(it) } ?: return@on 0
-      val mons = ctx.progress?.daycare?.main(stored).orEmpty().ifEmpty {
-        listOfNotNull(ctx.progress?.daycare?.route5(stored))
-      }
+      val mons =
+          ctx.progress?.daycare?.main(stored).orEmpty().ifEmpty {
+            listOfNotNull(ctx.progress?.daycare?.route5(stored))
+          }
       val mon = mons.getOrNull(ctx.specialVar(4)) ?: mons.firstOrNull() ?: return@on 0
       val rate = ctx.services?.species?.get(mon.dexId)?.growthRate ?: return@on 0
       val fee = DaycareRules.fee(DaycareRules.levelsGained(stored, mon, rate))
@@ -357,24 +382,34 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     }
     on("GetPCBoxToSendMon") { ctx -> 0 }
     on("ShouldShowBoxWasFullMessage") { ctx -> 0 }
-    on("ShowPokemonStorageSystemPC", "PlayerPC", "BedroomPC", "AccessHallOfFamePC", "CreatePCMenu",
+    on(
+        "ShowPokemonStorageSystemPC",
+        "PlayerPC",
+        "BedroomPC",
+        "AccessHallOfFamePC",
+        "CreatePCMenu",
         "ScriptMenu_CreatePCMultichoice") { ctx ->
-      // The PC is a browser panel (r3-items); the script only shows that it opened.
-      ctx.ui("pc") { put("open", true) }
-      ctx.setResult(0)
-      0
-    }
+          // The PC is a browser panel (r3-items); the script only shows that it opened.
+          ctx.ui("pc") { put("open", true) }
+          ctx.setResult(0)
+          0
+        }
 
     // Size records (Seedot / Lotad / Magikarp / Heracross).
-    on("GetSeedotSizeRecordInfo", "GetLotadSizeRecordInfo", "GetMagikarpSizeRecordInfo",
+    on(
+        "GetSeedotSizeRecordInfo",
+        "GetLotadSizeRecordInfo",
+        "GetMagikarpSizeRecordInfo",
         "GetHeracrossSizeRecordInfo") { ctx ->
-      val rec = ctx.getVar("${ctx.regionName}/OPENMMO_SIZE_${it(ctx)}")
-      ctx.bufferString(2, "%d.%d".format(rec / 10, rec % 10))
-      0
-    }
-    on("CompareSeedotSize", "CompareLotadSize", "CompareMagikarpSize", "CompareHeracrossSize") { ctx ->
+          val rec = ctx.getVar("${ctx.regionName}/OPENMMO_SIZE_${it(ctx)}")
+          ctx.bufferString(2, "%d.%d".format(rec / 10, rec % 10))
+          0
+        }
+    on("CompareSeedotSize", "CompareLotadSize", "CompareMagikarpSize", "CompareHeracrossSize") { ctx
+      ->
       val mon = ctx.vmParty().getOrNull(ctx.specialVar(4)) ?: return@on 0
-      val key = "${ctx.regionName}/OPENMMO_SIZE_${it(ctx).replace("Compare", "Get").replace("Size", "SizeRecordInfo")}"
+      val key =
+          "${ctx.regionName}/OPENMMO_SIZE_${it(ctx).replace("Compare", "Get").replace("Size", "SizeRecordInfo")}"
       val size = (mon.seed.toLong() and 0xFFFF).toInt() % 100 + 100
       ctx.bufferString(2, "%d.%d".format(size / 10, size % 10))
       val best = ctx.getVar(key)
@@ -392,12 +427,15 @@ class PartySpecials @Inject constructor() : SpecialTable() {
       0
     }
     on("ChooseStarter") { ctx ->
-      ctx.setVar("hoenn/VAR_STARTER_MON", listOf(252, 255, 258).indexOf(ctx.chooseHoennStarter()).coerceAtLeast(0))
+      ctx.setVar(
+          "hoenn/VAR_STARTER_MON",
+          listOf(252, 255, 258).indexOf(ctx.chooseHoennStarter()).coerceAtLeast(0))
       0
     }
     on("CheckRelicanthWailord") { ctx ->
       val party = ctx.vmParty()
-      ctx.setResult(if (party.firstOrNull()?.dexId == 369 && party.lastOrNull()?.dexId == 321) 1 else 0)
+      ctx.setResult(
+          if (party.firstOrNull()?.dexId == 369 && party.lastOrNull()?.dexId == 321) 1 else 0)
       0
     }
     on("SampleResortGorgeousMonAndReward") { ctx -> 0 }
@@ -476,7 +514,13 @@ class PartySpecials @Inject constructor() : SpecialTable() {
     val row = ctx.vm?.img?.stringTables?.get("sIngameTrades")?.get(id) ?: return null
     fun n(i: Int) = row.getOrNull(i)?.toLongOrNull() ?: 0L
     return Trade(
-        row[0], row[1], n(2).toInt(), n(3).toInt(), n(4).toInt(), n(5), n(6),
+        row[0],
+        row[1],
+        n(2).toInt(),
+        n(3).toInt(),
+        n(4).toInt(),
+        n(5),
+        n(6),
         row.drop(7).map { it.toIntOrNull() ?: 0 })
   }
 

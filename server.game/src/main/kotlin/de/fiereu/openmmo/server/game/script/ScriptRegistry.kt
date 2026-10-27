@@ -11,8 +11,7 @@ class ScriptRegistry(
     private val byLabel: Map<String, Script>,
     private val interpret: Boolean = true,
 ) {
-  fun forLabel(scriptLabel: String): Script? =
-      byLabel[scriptLabel] ?: interpreted(scriptLabel)
+  fun forLabel(scriptLabel: String): Script? = byLabel[scriptLabel] ?: interpreted(scriptLabel)
 
   /** The hand port of [scriptLabel] only, without falling back to the interpreter. */
   fun handPorted(scriptLabel: String): Script? = byLabel[scriptLabel]

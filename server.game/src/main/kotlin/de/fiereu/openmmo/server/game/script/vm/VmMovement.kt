@@ -85,8 +85,9 @@ object VmMovement {
         }
       }
       a.startsWith("JUMP_") || a.startsWith("JUMP_SPECIAL_") -> steps(walk(d, true))
-      a.startsWith("WALK_SLOW") || a.startsWith("WALK_NORMAL") || a.startsWith("PLAYER_RUN") &&
-          a.endsWith("_SLOW") -> steps(walk(d, false))
+      a.startsWith("WALK_SLOW") ||
+          a.startsWith("WALK_NORMAL") ||
+          a.startsWith("PLAYER_RUN") && a.endsWith("_SLOW") -> steps(walk(d, false))
       a.startsWith("WALK_") && a.contains("AFFINE") -> steps(walk(d, false))
       a.startsWith("WALK_FAST") ||
           a.startsWith("PLAYER_RUN") ||

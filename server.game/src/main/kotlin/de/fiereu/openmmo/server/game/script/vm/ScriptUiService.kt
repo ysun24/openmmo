@@ -13,8 +13,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
 /**
@@ -40,8 +40,8 @@ class ScriptUiService @Inject constructor() {
   }
 
   /**
-   * Shows a menu and waits for the answer: the chosen value, or [cancelled] when the player
-   * backed out, disconnected or did not answer within [TIMEOUT].
+   * Shows a menu and waits for the answer: the chosen value, or [cancelled] when the player backed
+   * out, disconnected or did not answer within [TIMEOUT].
    */
   suspend fun ask(
       session: SessionContext,
@@ -61,7 +61,12 @@ class ScriptUiService @Inject constructor() {
   }
 
   /** A text prompt (`name`, the naming screen): the entered text, or null when cancelled. */
-  suspend fun askText(session: SessionContext, kind: String, current: String, maxLength: Int): String? {
+  suspend fun askText(
+      session: SessionContext,
+      kind: String,
+      current: String,
+      maxLength: Int
+  ): String? {
     val s = seq.incrementAndGet()
     val p = Pending(s, CompletableDeferred())
     pending(session)[s] = p

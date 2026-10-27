@@ -37,8 +37,8 @@ data class DialogView(
 data class ShopOffer(val itemId: Int, val name: String, val price: Int)
 
 /**
- * r5-scripts: one ScriptUiPacket: a menu the server waits on, or an effect. [json] is the
- * packet's argument object as sent; [n] numbers effects for the whole session.
+ * r5-scripts: one ScriptUiPacket: a menu the server waits on, or an effect. [json] is the packet's
+ * argument object as sent; [n] numbers effects for the whole session.
  */
 data class ScriptUiView(val seq: Int, val kind: String, val json: String, val n: Int = 0)
 

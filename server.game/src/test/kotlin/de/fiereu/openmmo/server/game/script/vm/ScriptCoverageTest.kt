@@ -10,19 +10,23 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Walks every script both decomps can reach (std scripts, every map's script table and object /
- * bg / coord event scripts, and every other *EventScript* label) through the assembled bytecode
- * and asserts each command reached is one the interpreter implements and each special is claimed:
- * by this lane's handlers, or by the lane that owns its system (R5 brief table).
+ * Walks every script both decomps can reach (std scripts, every map's script table and object / bg
+ * / coord event scripts, and every other *EventScript* label) through the assembled bytecode and
+ * asserts each command reached is one the interpreter implements and each special is claimed: by
+ * this lane's handlers, or by the lane that owns its system (R5 brief table).
  */
 class ScriptCoverageTest :
     FunSpec({
-      val root = generateSequence(File("").absoluteFile) { it.parentFile }.first { File(it, "decomp").isDirectory }
+      val root =
+          generateSequence(File("").absoluteFile) { it.parentFile }
+              .first { File(it, "decomp").isDirectory }
 
       // The command names ScriptVm.exec handles, read from its source.
       val implemented: Set<String> by lazy {
         val src =
-            File(root, "server.game/src/main/kotlin/de/fiereu/openmmo/server/game/script/vm/ScriptVm.kt")
+            File(
+                    root,
+                    "server.game/src/main/kotlin/de/fiereu/openmmo/server/game/script/vm/ScriptVm.kt")
                 .readText()
         val body = src.substringAfter("private suspend fun exec(").substringBefore("// ---")
         Regex(""""(\w+)"(?=[,\s]*(?:->|,))""").findAll(body).map { it.groupValues[1] }.toSet()
@@ -71,8 +75,11 @@ class ScriptCoverageTest :
               (d.specials.keys + d.natives.keys).filter {
                 it !in ours && !SpecialOwners.otherLane(it)
               }
-          println("[coverage] $region: other lanes' specials: " +
-              (d.specials.keys + d.natives.keys).filter { it !in ours && SpecialOwners.otherLane(it) }.sorted())
+          println(
+              "[coverage] $region: other lanes' specials: " +
+                  (d.specials.keys + d.natives.keys)
+                      .filter { it !in ours && SpecialOwners.otherLane(it) }
+                      .sorted())
           println("[coverage] $region: unclaimed specials ${unclaimed.size}: ${unclaimed.sorted()}")
           d.errors.shouldBeEmpty()
           unclaimed.sorted().shouldBeEmpty()

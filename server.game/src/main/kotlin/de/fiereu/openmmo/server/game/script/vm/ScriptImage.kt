@@ -71,12 +71,12 @@ private constructor(
   /** The first constant named `<prefix>...` whose value is [value], e.g. ("SE_", 21). */
   fun nameOf(prefix: String, value: Int): String? =
       synchronized(byValue) {
-            byValue.getOrPut(prefix) {
-              val m = HashMap<Int, String>()
-              for ((n, v) in constants) if (n.startsWith(prefix)) m.putIfAbsent(v.toInt(), n)
-              m
-            }
-          }[value]
+        byValue.getOrPut(prefix) {
+          val m = HashMap<Int, String>()
+          for ((n, v) in constants) if (n.startsWith(prefix)) m.putIfAbsent(v.toInt(), n)
+          m
+        }
+      }[value]
 
   companion object {
     private const val MAGIC = 0x4F4D5356

@@ -5,7 +5,9 @@ import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.enums.Direction
 import java.util.concurrent.ConcurrentHashMap
 
-/** Where the decomp keeps an object event: its tile and facing, as this player's scripts left it. */
+/**
+ * Where the decomp keeps an object event: its tile and facing, as this player's scripts left it.
+ */
 data class ObjPose(val x: Int, val y: Int, val facing: Direction)
 
 /**
@@ -30,9 +32,9 @@ data class TrainerBattleSetup(
 )
 
 /**
- * A player's script engine state that lives outside a single script run, like the decomp's
- * globals: gSpecialVar_* (0x8000+), the special flags (0x4000+), the configured trainer / wild
- * battle, per-map object positions and template overrides, and the last battle outcome.
+ * A player's script engine state that lives outside a single script run, like the decomp's globals:
+ * gSpecialVar_* (0x8000+), the special flags (0x4000+), the configured trainer / wild battle,
+ * per-map object positions and template overrides, and the last battle outcome.
  */
 class VmState {
   val specialVars = IntArray(0x100)

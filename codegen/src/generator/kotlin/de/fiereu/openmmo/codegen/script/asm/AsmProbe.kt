@@ -14,7 +14,11 @@ object AsmProbe {
         "bytes=${result.bytes.size} labels=${result.labels.size} texts=${result.texts.size} " +
             "externs=${result.externs.size} errors=${result.errors.size} in ${System.currentTimeMillis() - t0} ms")
     result.errors.take(60).forEach { println("  ERR $it") }
-    result.externs.values.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }
+    result.externs.values
+        .groupingBy { it }
+        .eachCount()
+        .entries
+        .sortedByDescending { it.value }
         .take(30)
         .forEach { println("  EXT ${it.key} x${it.value}") }
   }

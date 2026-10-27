@@ -13,10 +13,10 @@ import de.fiereu.openmmo.server.game.services.social.ExtraNpcSource
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.serialization.json.put
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.put
 
 private val log = KotlinLogging.logger {}
 

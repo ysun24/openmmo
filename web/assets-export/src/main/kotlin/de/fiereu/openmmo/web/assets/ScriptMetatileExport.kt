@@ -11,14 +11,15 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * r5-scripts: the metatiles map scripts swap in at run time (`setmetatile`: opened barriers,
- * doors, gym puzzles, cut grass...). The maps are pre-rendered images, so per map an atlas of every
+ * r5-scripts: the metatiles map scripts swap in at run time (`setmetatile`: opened barriers, doors,
+ * gym puzzles, cut grass...). The maps are pre-rendered images, so per map an atlas of every
  * metatile its scripts can set, drawn with that map's tilesets: cells of 16x16, row 0 the bottom
- * layer and row 1 the top layer (like the secret base atlases). Manifest `scriptTiles`:
- * `{"<map key>": {"atlas": png, "ids": [metatile ids in atlas order]}}`.
+ * layer and row 1 the top layer (like the secret base atlases). Manifest `scriptTiles`: `{"<map
+ * key>": {"atlas": png, "ids": [metatile ids in atlas order]}}`.
  */
 class ScriptMetatileExport(private val decompRoot: File, private val out: Output) {
-  private val setmetatile = Regex("""^\s*setmetatile\s+[^,]+,\s*[^,]+,\s*(\w+)""", RegexOption.MULTILINE)
+  private val setmetatile =
+      Regex("""^\s*setmetatile\s+[^,]+,\s*[^,]+,\s*(\w+)""", RegexOption.MULTILINE)
 
   private fun metatileIds(game: GbaGame): Map<String, Int> {
     val f = File(decompRoot, "${game.dir}/include/constants/metatile_labels.h")

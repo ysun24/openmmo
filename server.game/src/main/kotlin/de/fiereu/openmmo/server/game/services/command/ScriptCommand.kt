@@ -24,7 +24,8 @@ constructor(
     private val story: StoryService,
 ) : ChatCommand {
   override val name = "script"
-  override val usage = "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal | item <ITEM_X> [qty] | trainer <TRAINER_X> [on|off]"
+  override val usage =
+      "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal | item <ITEM_X> [qty] | trainer <TRAINER_X> [on|off]"
   override val description = "runs a decomp script / reads or sets its flags and vars"
   override val permission = CharacterPermissions.DEVELOPER
 
@@ -39,9 +40,11 @@ constructor(
         runner.run(ctx.session, ctx.state, DecompScript(label), entityId = -1)
         ctx.reply("Running $label.")
       }
-      "item", "hasitem" -> {
-        val n = a.getOrNull(1)?.uppercase()?.let { if (it.startsWith("ITEM_")) it else "ITEM_$it" }
-            ?: return ctx.reply(usage)
+      "item",
+      "hasitem" -> {
+        val n =
+            a.getOrNull(1)?.uppercase()?.let { if (it.startsWith("ITEM_")) it else "ITEM_$it" }
+                ?: return ctx.reply(usage)
         val id = img.constOrNull(n) ?: return ctx.reply("No item $n in $region.")
         val q = if (a[0] == "item") a.getOrNull(2)?.toIntOrNull() ?: 1 else 0
         runner.run(
@@ -62,7 +65,11 @@ constructor(
         if (q != 0) ctx.reply("Gave $q $n.")
       }
       "heal" -> {
-        runner.run(ctx.session, ctx.state, de.fiereu.openmmo.server.game.script.Script { it.healParty() }, -1)
+        runner.run(
+            ctx.session,
+            ctx.state,
+            de.fiereu.openmmo.server.game.script.Script { it.healParty() },
+            -1)
         ctx.reply("Party healed.")
       }
       "flag" -> {

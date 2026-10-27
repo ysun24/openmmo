@@ -1,8 +1,8 @@
 package de.fiereu.openmmo.server.game.script.vm
 
 /**
- * A static walk over a [ScriptImage]'s bytecode: from entry points it follows every jump, call,
- * std script and trainer battle continuation, and reports each command and special reached. The
+ * A static walk over a [ScriptImage]'s bytecode: from entry points it follows every jump, call, std
+ * script and trainer battle continuation, and reports each command and special reached. The
  * coverage test uses it to prove every command and special the two games' scripts can reach is
  * implemented; the operand layouts are scrcmd.c's ScriptRead* sequences.
  */
@@ -73,13 +73,17 @@ class ScriptDisasm(private val img: ScriptImage) {
       fun h() = img.u16(pc).also { pc += 2 }
       fun w() = img.u32(pc).also { pc += 4 }
       when (name) {
-        "end", "endram", "return", "returnram" -> return
+        "end",
+        "endram",
+        "return",
+        "returnram" -> return
         "goto" -> {
           enqueue(w())
           return
         }
         "call" -> enqueue(w())
-        "goto_if", "call_if" -> {
+        "goto_if",
+        "call_if" -> {
           b()
           enqueue(w())
         }
@@ -88,7 +92,8 @@ class ScriptDisasm(private val img: ScriptImage) {
           return
         }
         "callstd" -> std(b())
-        "gotostd_if", "callstd_if" -> {
+        "gotostd_if",
+        "callstd_if" -> {
           b()
           std(b())
         }
@@ -97,7 +102,8 @@ class ScriptDisasm(private val img: ScriptImage) {
           h()
           specials.merge(img.specials.getOrNull(h()) ?: "?", 1, Int::plus)
         }
-        "callnative", "gotonative" -> {
+        "callnative",
+        "gotonative" -> {
           natives.merge(img.externs[pc] ?: "?", 1, Int::plus)
           w()
           if (name == "gotonative") return
@@ -106,7 +112,12 @@ class ScriptDisasm(private val img: ScriptImage) {
           trainerBattle(pc)
           return
         }
-        "warp", "warpsilent", "warpdoor", "warpteleport", "warpspinenter", "warpmossdeepgym",
+        "warp",
+        "warpsilent",
+        "warpdoor",
+        "warpteleport",
+        "warpspinenter",
+        "warpmossdeepgym",
         "warpwhitefade" -> {
           pc += 7
           return
@@ -115,11 +126,14 @@ class ScriptDisasm(private val img: ScriptImage) {
           pc += 2
           return
         }
-        "pokemart", "pokemartdecoration", "pokemartdecoration2" -> {
+        "pokemart",
+        "pokemartdecoration",
+        "pokemartdecoration2" -> {
           w()
           return
         }
-        "gotopostbattlescript", "gotobeatenscript" -> return
+        "gotopostbattlescript",
+        "gotobeatenscript" -> return
         else -> {
           val layout = LAYOUTS[name]
           if (layout == null) {
@@ -150,9 +164,12 @@ class ScriptDisasm(private val img: ScriptImage) {
     val words =
         when (mode) {
           ScriptVm.MODE_SINGLE_NO_INTRO -> 1
-          ScriptVm.MODE_DOUBLE, ScriptVm.MODE_REMATCH_DOUBLE -> 3
-          ScriptVm.MODE_CONTINUE_SCRIPT, ScriptVm.MODE_CONTINUE_SCRIPT_NO_MUSIC -> 3
-          ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE, ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC -> 4
+          ScriptVm.MODE_DOUBLE,
+          ScriptVm.MODE_REMATCH_DOUBLE -> 3
+          ScriptVm.MODE_CONTINUE_SCRIPT,
+          ScriptVm.MODE_CONTINUE_SCRIPT_NO_MUSIC -> 3
+          ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE,
+          ScriptVm.MODE_CONTINUE_SCRIPT_DOUBLE_NO_MUSIC -> 4
           else -> 2
         }
     val ptrs = List(words) { img.u32(p + 4 * it) }

@@ -10,9 +10,10 @@ import javax.inject.Singleton
 import kotlinx.serialization.json.put
 
 /**
- * battle_setup.c's script side: the trainer battle std scripts (EventScript_TryDoNormalTrainerBattle
- * and friends) call these with the battle `trainerbattle` configured, and the story's scripted
- * battles (legendaries, the Regis, Lati@s, Marowak's ghost, the catching tutorials).
+ * battle_setup.c's script side: the trainer battle std scripts
+ * (EventScript_TryDoNormalTrainerBattle and friends) call these with the battle `trainerbattle`
+ * configured, and the story's scripted battles (legendaries, the Regis, Lati@s, Marowak's ghost,
+ * the catching tutorials).
  */
 @Singleton
 class TrainerSpecials @Inject constructor() : SpecialTable() {
@@ -27,7 +28,8 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
     on("ShowTrainerIntroSpeech") { ctx ->
       val vm = vm(ctx)
       val t = vm.state.trainer ?: return@on 0
-      vm.showMessage(vm.textAt(if (t.introB != 0 && t.opponentB != 0 && t.introA == 0) t.introB else t.introA))
+      vm.showMessage(
+          vm.textAt(if (t.introB != 0 && t.opponentB != 0 && t.introA == 0) t.introB else t.introA))
       0
     }
     on("ShowTrainerCantBattleSpeech") { ctx ->
@@ -45,7 +47,11 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
       }
       0
     }
-    noop("SetTrainerFacingDirection", "SetUpTrainerMovement", "DoTrainerApproach", "EndTrainerApproach")
+    noop(
+        "SetTrainerFacingDirection",
+        "SetUpTrainerMovement",
+        "DoTrainerApproach",
+        "EndTrainerApproach")
     on("TryPrepareSecondApproachingTrainer") { ctx ->
       ctx.setResult(0)
       0
@@ -138,7 +144,8 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
       val vm = vm(ctx)
       if (ctx.specialVar(4) == SPECIAL_BATTLE_STEVEN) {
         val r = ctx.trainerBattle(vm.img.constOrNull("TRAINER_STEVEN") ?: STEVEN_PARTNER_FALLBACK)
-        val magma = listOf("TRAINER_GRUNT_MOSSDEEP", "TRAINER_TABITHA_MOSSDEEP", "TRAINER_MAXIE_MOSSDEEP")
+        val magma =
+            listOf("TRAINER_GRUNT_MOSSDEEP", "TRAINER_TABITHA_MOSSDEEP", "TRAINER_MAXIE_MOSSDEEP")
         var outcome = vm.outcome(r)
         if (r == BattleResult.VICTORY) {
           for (t in magma.mapNotNull { vm.img.constOrNull(it) }) {
@@ -161,12 +168,19 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
       ctx.setResult(0)
       0
     }
-    noop("SetCB2WhiteOut", "OffsetCameraForBattle", "VsSeekerFreezeObjectsAfterChargeComplete",
+    noop(
+        "SetCB2WhiteOut",
+        "OffsetCameraForBattle",
+        "VsSeekerFreezeObjectsAfterChargeComplete",
         "VsSeekerResetObjectMovementAfterChargeComplete")
     on("OverworldWhiteOutGetMoneyLoss") { ctx -> 0 }
     // Secret base battles (r4 owns the bases; the battle bookkeeping is script flags).
-    noop("PrepSecretBaseBattleFlags", "DeclinedSecretBaseBattle", "WonSecretBaseBattle",
-        "LostSecretBaseBattle", "DrewSecretBaseBattle")
+    noop(
+        "PrepSecretBaseBattleFlags",
+        "DeclinedSecretBaseBattle",
+        "WonSecretBaseBattle",
+        "LostSecretBaseBattle",
+        "DrewSecretBaseBattle")
   }
 
   private suspend fun wildBattle(ctx: ScriptContext) {
@@ -196,9 +210,7 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
       return it
     }
     val entry = RematchTable.byFirst(vm.region, first) ?: return null
-    return Rematches.emeraldRematchTrainer(entry) {
-      ctx.flagGet(trainerFlag(ctx, it))
-    }
+    return Rematches.emeraldRematchTrainer(entry) { ctx.flagGet(trainerFlag(ctx, it)) }
   }
 
   private companion object {

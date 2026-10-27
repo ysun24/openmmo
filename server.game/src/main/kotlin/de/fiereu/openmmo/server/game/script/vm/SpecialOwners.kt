@@ -2,11 +2,11 @@ package de.fiereu.openmmo.server.game.script.vm
 
 /**
  * Which round-5 lane owns a decomp special (R5 brief "Lanes" table): contests (contests,
- * Pokeblocks, the Berry Blender, berry trees, the museum, ribbons and contest conditions),
- * the Battle Frontier lane (frontier facilities, Trainer Tower / Hill, tents, battle points) and
- * minigames (slots, roulette, coins, Berry Crush, Dodrio, Pokemon Jump, the Fame Checker, the
- * Union Room, record mixing, Mystery Gift, easy chat, trendy phrases, interviews). Everything
- * else is r5-scripts', implemented by the handlers of [StoryScriptModule].
+ * Pokeblocks, the Berry Blender, berry trees, the museum, ribbons and contest conditions), the
+ * Battle Frontier lane (frontier facilities, Trainer Tower / Hill, tents, battle points) and
+ * minigames (slots, roulette, coins, Berry Crush, Dodrio, Pokemon Jump, the Fame Checker, the Union
+ * Room, record mixing, Mystery Gift, easy chat, trendy phrases, interviews). Everything else is
+ * r5-scripts', implemented by the handlers of [StoryScriptModule].
  */
 object SpecialOwners {
   private val contests =

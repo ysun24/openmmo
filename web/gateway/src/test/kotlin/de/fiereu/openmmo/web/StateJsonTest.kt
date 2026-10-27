@@ -186,7 +186,7 @@ class StateJsonTest {
                "bag":[{"item":5017,"name":"Potion","qty":3,"pocket":"items","desc":"Restores 20 HP.",
                        "use":"mon"}],
                "registered":null,
-               "locked":true,"notice":null}"""),
+               "locked":true,"script":{"menu":null,"fx":[],"metatiles":[]},"notice":null}"""),
         ui)
   }
 
