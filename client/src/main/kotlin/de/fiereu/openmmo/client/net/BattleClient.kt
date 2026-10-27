@@ -148,6 +148,8 @@ data class BattleMon(
     val revealed: Boolean = true,
     /** Total experience points, when the server told us (own monsters only). */
     val xp: Int? = null,
+    /** Gen 3 shiny, as the battle block carries it. */
+    val shiny: Boolean = false,
 ) {
   val name: String
     get() = BattleNames.species(species)
@@ -379,6 +381,7 @@ class BattleClient(
               hp = b.currentHp.toInt(),
               maxHp = b.maxHp.toInt(),
               xp = xps[b.entityId],
+              shiny = b.shiny,
               moves =
                   b.moveIds.mapIndexedNotNull { i, id ->
                     if (id.toInt() == 0) null
@@ -399,7 +402,8 @@ class BattleClient(
               b.level.toInt(),
               b.currentHp.toInt(),
               b.maxHp.toInt(),
-              revealed = b.revealed)
+              revealed = b.revealed,
+              shiny = b.shiny)
         }
     val wild = p.opposing == OpposingSide.WILD
     val invitedBy = snapshot().pendingInviteFrom
@@ -587,7 +591,8 @@ class BattleClient(
                     b.species.toInt(),
                     b.level.toInt(),
                     b.currentHp.toInt(),
-                    b.maxHp.toInt())
+                    b.maxHp.toInt(),
+                    shiny = b.shiny)
             else existing
         val list = s.opponent.toMutableList()
         val i = list.indexOfFirst { it.slot == p.newSlot }
@@ -663,7 +668,8 @@ class BattleClient(
           "name" to m.name,
           "level" to m.level,
           "hp" to m.hp.coerceAtLeast(0),
-          "maxHp" to m.maxHp)
+          "maxHp" to m.maxHp,
+          "shiny" to m.shiny)
 
   private fun onBulk(p: BattleBulkStatePacket) {
     if (p.flag != BATTLE_END_FLAG) return

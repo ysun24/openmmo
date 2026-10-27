@@ -17,6 +17,7 @@ import de.fiereu.openmmo.net.game.packets.battle.itemStacksPacket
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.StatCalculator
+import de.fiereu.openmmo.server.game.battle.Shininess
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.battle.acquiredMonsterDelta
 import de.fiereu.openmmo.server.game.session.PlayerState
@@ -55,6 +56,8 @@ constructor(
             containerSlot = stored.pokemon.size.toShort(),
             ot = stored.info.name,
             moves = paddedMoves(moveIds),
+            // gift monsters use the player's OT id (CreateMon with OT_ID_PLAYER_ID)
+            isShiny = Shininess.isShiny(rolled.seed, Shininess.otId(characterId)),
         )
     // Only tell the client about it once the database has it.
     if (!characters.addPokemon(characterId, pokemon)) return null

@@ -65,6 +65,7 @@ class BattleMonState(
           gender = gender,
           maxHp = stats.hp.toShort(),
           currentHp = currentHp.toShort(),
+          shiny = source.isShiny,
       )
 
   fun toBlock(slot: Int, movesPresent: Boolean): BattleMonBlock =
@@ -79,5 +80,6 @@ class BattleMonState(
           currentHp = currentHp.toShort(),
           movesPresent = movesPresent,
           moveIds = List(BattleMonBlock.MOVE_SLOTS) { moves.getOrNull(it)?.id ?: 0 },
+          shiny = source.isShiny,
       )
 }

@@ -4,6 +4,7 @@ import de.fiereu.openmmo.common.CharacterPermissions
 import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.net.game.packets.PokemonContainerPacket
 import de.fiereu.openmmo.server.game.battle.BattleRng
+import de.fiereu.openmmo.server.game.battle.Shininess
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import javax.inject.Inject
@@ -20,7 +21,7 @@ constructor(
     private val wildMons: WildMonFactory,
 ) : ChatCommand {
   override val name = "givemon"
-  override val usage = "/givemon <dexId> [level]"
+  override val usage = "/givemon <dexId> [level] [shiny]"
   override val description = "adds a monster of the given species to your party"
   override val permission = CharacterPermissions.DEVELOPER
 
@@ -42,8 +43,16 @@ constructor(
       return
     }
     val slot = ((stored.pokemon.maxOfOrNull { it.containerSlot } ?: -1) + 1).toShort()
+    // A third argument "shiny" forces a shiny personality (same nature), for testing.
+    val otId = Shininess.otId(ctx.characterId)
+    val seed =
+        if (ctx.args.getOrNull(2).equals("shiny", ignoreCase = true))
+            Shininess.shinyPersonality(otId, rolled.nature.ordinal, java.util.Random())
+        else rolled.seed
     val mon =
         rolled.copy(
+            seed = seed,
+            isShiny = Shininess.isShiny(seed, otId),
             ownerId = ctx.characterId,
             container = PokemonContainer.PARTY,
             containerSlot = slot,

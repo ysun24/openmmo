@@ -13,7 +13,16 @@ class PokemonExport(decompRoot: File, val gameDir: String) {
   val failures: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
 
   /** The three images of one species, all ARGB with colour 0 transparent. */
-  class Images(val front: BufferedImage?, val back: BufferedImage?, val icon: BufferedImage?)
+  class Images(
+      val front: BufferedImage?,
+      val back: BufferedImage?,
+      val icon: BufferedImage?,
+      /** Same pictures with the species' shiny palette (`gMonShinyPaletteTable`). */
+      val shinyFront: BufferedImage? = null,
+      val shinyBack: BufferedImage? = null,
+      /** Both party icon frames stacked (32x64), as `gMonIconTable` stores them. */
+      val iconAnim: BufferedImage? = null,
+  )
 
   /** `SPECIES_X` suffix -> internal species id. */
   private val speciesIds: Map<String, Int> by lazy {
@@ -75,6 +84,9 @@ class PokemonExport(decompRoot: File, val gameDir: String) {
   private val palettes by lazy {
     macroTable("src/data/pokemon_graphics/palette_table.h", "SPECIES_PAL")
   }
+  private val shinyPalettes by lazy {
+    macroTable("src/data/pokemon_graphics/shiny_palette_table.h", "SPECIES_SHINY_PAL")
+  }
   private val icons by lazy { designatedTable("src/pokemon_icon.c", "gMonIconTable") }
   private val iconPalIndex by lazy {
     designatedTable("src/pokemon_icon.c", "gMonIconPaletteIndices")
@@ -121,10 +133,17 @@ class PokemonExport(decompRoot: File, val gameDir: String) {
               ?.let { d.symbols[it]?.firstOrNull() }
               ?.let { Decomp.readPalette(d.file(it)) }
       val iconPal = iconPalIndex[name]?.toIntOrNull()?.let { iconPalettes.getOrNull(it) }
+      val shiny =
+          shinyPalettes[name]
+              ?.let { d.symbols[it]?.firstOrNull() }
+              ?.let { Decomp.readPalette(d.file(it)) }
       Images(
           image(fronts[name], palette, 64, 64),
           image(backs[name], palette, 64, 64),
-          image(icons[name], iconPal, 32, 32))
+          image(icons[name], iconPal, 32, 32),
+          shiny?.let { image(fronts[name], it, 64, 64) },
+          shiny?.let { image(backs[name], it, 64, 64) },
+          image(icons[name], iconPal, 32, 64)?.takeIf { it.height == 64 })
     } catch (e: Exception) {
       failures += "$gameDir #$dex $name: ${e.javaClass.simpleName}: ${e.message}"
       null

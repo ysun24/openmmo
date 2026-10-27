@@ -19,6 +19,7 @@ import de.fiereu.openmmo.net.login.packets.LoginResponsePacket
 import de.fiereu.openmmo.net.login.packets.PasswordLogin
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacket
 import de.fiereu.openmmo.net.login.packets.SentCredentialsPacket
+import de.fiereu.openmmo.net.login.packets.TokenLogin
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.ChannelHandlerContext
@@ -33,7 +34,16 @@ import java.util.concurrent.TimeUnit
 private val log = KotlinLogging.logger {}
 
 /** What the login server hands over for the game server connection. */
-data class GameTicket(val host: String, val port: Int, val data: GameServerData)
+data class GameTicket(
+    val host: String,
+    val port: Int,
+    val data: GameServerData,
+    /**
+     * Remember-me token (base64) the login server handed out with this login: on a password login
+     * with `remember = true`, and on every token login (sliding expiry). Null when none was sent.
+     */
+    val rememberToken: String? = null,
+)
 
 class LoginException(message: String) : RuntimeException(message)
 
@@ -53,9 +63,23 @@ class LoginClient(
       username: String,
       password: String,
       timeoutSeconds: Long = 15,
+  ): GameTicket = login(host, port, username, password, null, false, timeoutSeconds)
+
+  /**
+   * Logs in with a remember-me [token] (base64, from an earlier [GameTicket.rememberToken]) when it
+   * is set, else with [password]. [remember] asks the server for a token on a password login.
+   */
+  fun login(
+      host: String,
+      port: Int,
+      username: String,
+      password: String?,
+      token: String?,
+      remember: Boolean,
+      timeoutSeconds: Long = 15,
   ): GameTicket {
     val result = CompletableFuture<GameTicket>()
-    val handler = Handler(username, password, host, result)
+    val handler = Handler(username, password, token, remember, host, result)
     val channel =
         Bootstrap()
             .group(group)
@@ -82,7 +106,9 @@ class LoginClient(
 
   private class Handler(
       private val username: String,
-      private val password: String,
+      private val password: String?,
+      private val token: String?,
+      private val remember: Boolean,
       private val host: String,
       private val result: CompletableFuture<GameTicket>,
   ) : TypedProtocolHandler<LoginProtocol>(LoginProtocol, Side.CLIENT) {
@@ -101,8 +127,11 @@ class LoginClient(
               username = username,
               manualLogin = true,
               hwid = ByteArray(16),
-              // The retail client sends the SHA-1 hex digest, and that is what the server stores.
-              method = PasswordLogin(sha1Hex(password), stayLoggedIn = false),
+              method =
+                  if (token != null) TokenLogin(java.util.Base64.getDecoder().decode(token))
+                  // The retail client sends the SHA-1 hex digest, and that is what the server
+                  // stores.
+                  else PasswordLogin(sha1Hex(password ?: ""), stayLoggedIn = remember),
               language = Language.EN,
               clientRevision = 0,
               installationRevision = 0,
@@ -110,6 +139,9 @@ class LoginClient(
               hardwareInfoCache = ByteArray(0),
           ))
     }
+
+    /** Remember-me token from SentCredentials, if the server sent one. */
+    @Volatile private var issued: String? = null
 
     init {
       on<LoginResponsePacket> { event ->
@@ -121,7 +153,7 @@ class LoginClient(
         log.info { "Authenticated, requesting server list" }
         event.session.send(RequestGameServerListPacket())
       }
-      on<SentCredentialsPacket> {}
+      on<SentCredentialsPacket> { event -> issued = event.packet.key.takeIf { it.isNotEmpty() } }
       on<GameServerListPacket> { event ->
         val server =
             event.packet.gameServers.firstOrNull { it.joinable }
@@ -142,7 +174,7 @@ class LoginClient(
         }
         // A loopback node is only meaningful relative to the host we reached the login server
         // on, so keep that host and take the port from the ticket.
-        result.complete(GameTicket(host, node.port.toInt(), data))
+        result.complete(GameTicket(host, node.port.toInt(), data, issued))
       }
       on<LoginKickPacket> { event ->
         result.completeExceptionally(LoginException("kicked by login server: ${event.packet}"))

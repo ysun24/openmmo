@@ -335,3 +335,238 @@ body.landscape #sysbtns { left: max(10px, env(safe-area-inset-left)); top: 8px; 
   #dpad { transform: scale(.82); transform-origin: left bottom; }
   #abtns { transform: scale(.82); transform-origin: right bottom; }
 }
+
+/* ================================================================== pixel theme (r3-present)
+   The games' fonts (js/font.js registers them from the manifest) and window frames (border-image
+   from ui.windows). --u = CSS px per GBA px inside the game overlay; --pu = the same for the HTML
+   panels, always a whole number of device pixels (set in main.js layout()), so glyph pixels stay
+   square and crisp. Characters the pixel fonts lack fall back to the system font. */
+:root {
+  --pu: 2px;
+  --fnt: "OpenMMO FRLG";
+  --fnt-small: "OpenMMO Small";
+  --font-ui: var(--fnt), "OpenMMO RSE", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-small: var(--fnt-small), var(--fnt), system-ui, -apple-system, sans-serif;
+  --paper: #f8f8f8;
+  --ink: #404040;
+  --ink-sh: #d0d0c8;
+  --ink-muted: #707888;
+  --sel: #e05838;
+  --win-frame: var(--win-frame-0);
+  --win-dialog: var(--win-dialog-0);
+  --win-dialog-slice: var(--win-dialog-slice-0);
+  --win-dialog-w: var(--win-dialog-w-0);
+  --pix-shadow: var(--pu) 0 0 var(--ink-sh), 0 var(--pu) 0 var(--ink-sh), var(--pu) var(--pu) 0 var(--ink-sh);
+}
+body.region-1 {
+  --fnt: "OpenMMO RSE";
+  --win-frame: var(--win-frame-1);
+  --win-dialog: var(--win-dialog-1);
+  --win-dialog-slice: var(--win-dialog-slice-1);
+  --win-dialog-w: var(--win-dialog-w-1);
+}
+html.fonts-ready body { font-family: var(--font-ui); }
+html.fonts-ready #ov { font-family: var(--font-ui); font-weight: 400; }
+
+/* frame helper: GBA standard window frame scaled by --pu (panels) */
+html.frames-ready .pframe, html.frames-ready .panel, html.frames-ready #login-form, html.frames-ready #toast,
+html.frames-ready #splash .card, html.frames-ready #connbanner {
+  border: calc(var(--pu) * 8) solid transparent; border-radius: 0;
+  border-image: var(--win-frame) 8 fill / calc(var(--pu) * 8) round;
+  image-rendering: pixelated; background: transparent; box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ dialog (GBA geometry) */
+html.frames-ready #dialog .box {
+  left: 0; right: 0; bottom: 0; height: calc(var(--u) * 48); border-radius: 0; box-shadow: none; background: transparent;
+  border: calc(var(--u) * 8) solid transparent;
+  border-image-source: var(--win-dialog); border-image-slice: var(--win-dialog-slice) fill;
+  border-image-width: var(--win-dialog-w); border-image-repeat: round; image-rendering: pixelated;
+  padding: calc(var(--u) * 1) calc(var(--u) * 8) 0 calc(var(--u) * 8);
+}
+html.fonts-ready #dialog .box {
+  font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 16);
+  color: #606060; text-shadow: var(--u) 0 0 var(--ink-sh), 0 var(--u) 0 var(--ink-sh), var(--u) var(--u) 0 var(--ink-sh);
+  white-space: nowrap; overflow: hidden;
+}
+html.fonts-ready #dialog .speaker {
+  font-family: var(--font-small); font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 12);
+  top: calc(var(--u) * -20); left: calc(var(--u) * -4); padding: calc(var(--u) * 1) calc(var(--u) * 4) 0; border-radius: 0;
+  text-shadow: var(--u) 0 0 #283860, 0 var(--u) 0 #283860, var(--u) var(--u) 0 #283860;
+}
+html.frames-ready #dialog .more {
+  right: calc(var(--u) * 2); bottom: calc(var(--u) * -2); width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+  font-size: 0; color: transparent; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated;
+}
+html.frames-ready #dialog .choices {
+  right: 0; bottom: calc(var(--u) * 48); border-radius: 0; box-shadow: none; background: transparent;
+  border: calc(var(--u) * 8) solid transparent; border-image: var(--win-frame) 8 fill / calc(var(--u) * 8) round; image-rendering: pixelated;
+  padding: 0; min-width: calc(var(--u) * 56);
+}
+html.fonts-ready #dialog .choices button {
+  font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 16);
+  min-height: calc(var(--u) * 16); padding: 0 calc(var(--u) * 2) 0 calc(var(--u) * 10); color: #606060;
+  text-shadow: var(--u) 0 0 var(--ink-sh), 0 var(--u) 0 var(--ink-sh), var(--u) var(--u) 0 var(--ink-sh);
+}
+html.fonts-ready #dialog .choices button.sel::before { left: 0; color: #606060; }
+
+/* ------------------------------------------------------------------ battle text in the game fonts */
+html.fonts-ready #battle .text {
+  font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 16);
+  text-shadow: var(--u) 0 0 #685870, 0 var(--u) 0 #685870, var(--u) var(--u) 0 #685870;
+}
+html.fonts-ready #battle .menu button, html.fonts-ready #battle .sheet button {
+  font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 16);
+  text-shadow: var(--u) 0 0 var(--ink-sh), 0 var(--u) 0 var(--ink-sh), var(--u) var(--u) 0 var(--ink-sh);
+}
+html.fonts-ready #battle .menu .pp, html.fonts-ready #battle .info, html.fonts-ready #battle .tchip, html.fonts-ready #battle .bbadge,
+html.fonts-ready #battle .expbar, html.fonts-ready #battle .sheet .title {
+  font-family: var(--font-small); font-weight: 400;
+}
+html.fonts-ready #battle .info { font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 11); }
+html.fonts-ready #battle .info .hp { font-size: calc(var(--u) * 8); }
+html.fonts-ready #battle .info .hpnum { font-size: calc(var(--u) * 16); line-height: calc(var(--u) * 10); }
+html.fonts-ready #battle .result { font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--u) * 16); }
+html.frames-ready #battle .result, html.frames-ready #battle .sheet, html.frames-ready #battle .menu {
+  border: calc(var(--u) * 8) solid transparent; border-radius: 0; box-shadow: none; background: transparent;
+  border-image: var(--win-frame) 8 fill / calc(var(--u) * 8) round; image-rendering: pixelated;
+}
+html.frames-ready #battle .menu { padding: 0; margin: 0; }
+html.frames-ready #battle .sheet { padding: 0; }
+
+/* ------------------------------------------------------------------ HTML panels in the pixel theme */
+html.fonts-ready .panel, html.fonts-ready #login-form, html.fonts-ready #splash, html.fonts-ready #toast, html.fonts-ready #connbanner {
+  font-family: var(--font-small); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 13);
+  -webkit-font-smoothing: none;
+}
+html.frames-ready .panel {
+  color: var(--ink); text-shadow: var(--pix-shadow);
+  top: calc(var(--topbar) + 6px); max-height: calc(100% - var(--topbar) - 12px);
+}
+html.frames-ready .panel > header { border-bottom: var(--pu) solid #c8c8d0; padding: 0 0 calc(var(--pu) * 2) calc(var(--pu) * 2); }
+html.frames-ready .panel > header h2 { font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 16); }
+html.frames-ready .panel .body { padding: calc(var(--pu) * 3) calc(var(--pu) * 1); gap: calc(var(--pu) * 4); }
+html.frames-ready .panel .muted, html.frames-ready .panel h3, html.frames-ready .item .nm small,
+html.frames-ready .panel .rulegroup .rulelabel { color: var(--ink-muted); font-size: inherit; font-weight: 400; }
+html.frames-ready .panel h3 { font-family: var(--font-ui); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 16); }
+html.frames-ready .panel button, html.frames-ready button.primary, html.frames-ready #topbar button.small {
+  font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 16);
+  background: #e8ecf4; color: var(--ink); text-shadow: var(--pix-shadow);
+  border: var(--pu) solid #6870a0; border-radius: 0; box-shadow: inset 0 calc(var(--pu) * -2) 0 #c0c8dc;
+  padding: calc(var(--pu) * 3) calc(var(--pu) * 6) calc(var(--pu) * 4); min-height: calc(var(--pu) * 22);
+}
+html.frames-ready .panel button:hover:not(:disabled) { background: #f8f8ff; }
+html.frames-ready .panel button.close { min-height: calc(var(--pu) * 20); padding: 0 calc(var(--pu) * 5); }
+html.frames-ready .panel .nav-focus, html.frames-ready .panel button:focus-visible, html.frames-ready .panel input:focus-visible,
+html.frames-ready .panel select:focus-visible, html.frames-ready button.primary:focus-visible, html.frames-ready #login-form input:focus-visible {
+  outline: calc(var(--pu) * 2) solid var(--sel); outline-offset: 0;
+}
+html.frames-ready .panel .go { background: #c8f0c8 !important; border-color: #389048 !important; box-shadow: inset 0 calc(var(--pu) * -2) 0 #98d098 !important; }
+html.frames-ready .panel .danger { background: #f8d0c8 !important; border-color: #b04838 !important; box-shadow: inset 0 calc(var(--pu) * -2) 0 #e0a090 !important; }
+html.frames-ready .panel .tabs button.on, html.frames-ready .panel .rulegroup button.go { background: #f8e070 !important; border-color: #b08818 !important; color: var(--ink); }
+html.frames-ready .panel input, html.frames-ready .panel select, html.frames-ready #login-form input, html.frames-ready #login-form select {
+  font-family: var(--font-ui); font-size: max(16px, calc(var(--pu) * 16)); line-height: calc(var(--pu) * 16);
+  background: #fff; color: var(--ink); border: var(--pu) solid #6870a0; border-radius: 0; padding: calc(var(--pu) * 3) calc(var(--pu) * 4);
+}
+html.frames-ready .panel input[type=range] { padding: 0; border: 0; background: none; }
+html.frames-ready .item { background: #eef0f6; border: var(--pu) solid #d0d4e0; border-radius: 0; min-height: calc(var(--pu) * 22); }
+html.frames-ready .item.sel, html.frames-ready .item.on { background: #fff4c0; border-color: #c8a030; }
+html.frames-ready .item .price, html.frames-ready .panel .totals .price { color: #a06010; }
+html.frames-ready .item .ic.ph { background: #d8dce8; color: #607080; border-radius: 0; }
+html.frames-ready .offer { background: #eef0f6; border: var(--pu) solid #d0d4e0; border-radius: 0; }
+html.frames-ready .offer .stage { background: #c8ccd8; border-radius: 0; }
+html.frames-ready .panel .chip { border: var(--pu) solid #b0b8c8; border-radius: 0; }
+html.frames-ready .panel .stat { border-bottom: var(--pu) dotted #c0c4d0; }
+html.frames-ready .chips button.on { background: #fff4c0 !important; border-color: #c8a030 !important; }
+html.frames-ready .hpbar { border-radius: 0; background: #506058; }
+html.frames-ready .hpbar i { border-radius: 0; }
+
+/* login card + toast + topbar */
+html.frames-ready #login-form { color: var(--ink); text-shadow: var(--pix-shadow); padding: calc(var(--pu) * 4); gap: calc(var(--pu) * 5); width: min(calc(var(--pu) * 200), 100%); }
+html.frames-ready #login-form h1 { font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--pu) * 32); line-height: calc(var(--pu) * 28); letter-spacing: 0; color: #303858; }
+html.frames-ready #login-form h1 span { color: #d05030; }
+html.frames-ready #login-form label { color: var(--ink-muted); font-size: inherit; gap: var(--pu); }
+html.frames-ready #login-form .status { color: var(--ink-muted); font-size: inherit; }
+html.frames-ready #login-form .status.err { color: #c03028; }
+html.frames-ready button.primary { background: #f8d048; border-color: #a07818; box-shadow: inset 0 calc(var(--pu) * -2) 0 #d0a028; }
+html.frames-ready #toast { color: var(--ink); text-shadow: var(--pix-shadow); padding: calc(var(--pu) * 2) calc(var(--pu) * 4); }
+html.fonts-ready #topbar { font-family: var(--font-small); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 13); }
+html.fonts-ready #topbar button.small { min-height: 26px; padding: 0 calc(var(--pu) * 4); line-height: 22px; }
+html.fonts-ready #chat-log { font-family: var(--font-small); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 11); max-height: calc(var(--pu) * 11 * 8 + 8px); }
+html.fonts-ready #chat-input { font-family: var(--font-ui); font-size: max(16px, calc(var(--pu) * 16)); line-height: calc(var(--pu) * 16); padding: calc(var(--pu) * 3) calc(var(--pu) * 4); }
+html.fonts-ready .pill { font-family: var(--font-small); font-weight: 400; font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 10); }
+html.fonts-ready .round { font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--pu) * 32); }
+
+/* party icons: the two-frame GBA icon sheet (32x64) cycled like the party menu does */
+img.anim2, .item img.ic.anim2, #battle .sheet img.anim2 { object-fit: cover; object-position: 0 0; animation: monicon .2s steps(1) infinite; }
+img.anim2.slow, .item img.ic.anim2.slow { animation-duration: .47s; }
+@keyframes monicon { 0% { object-position: 0 0; } 50% { object-position: 0 100%; } }
+.shinystar { color: #e8a010; }
+
+/* ------------------------------------------------------------------ loading screen */
+#splash { display: grid; place-items: center; background: #101018; z-index: 50; padding: 16px; }
+#splash .card { width: min(calc(var(--pu) * 180), 100%); display: grid; gap: calc(var(--pu) * 6); padding: calc(var(--pu) * 6); text-align: center; color: var(--ink); }
+#splash .logo { margin: 0; font-size: 32px; color: #303858; font-weight: 400; }
+html.fonts-ready #splash .logo { font-family: var(--font-ui); font-size: calc(var(--pu) * 32); line-height: calc(var(--pu) * 28); }
+#splash .logo span { color: #d05030; }
+#splash .sbar { height: calc(var(--pu) * 6); background: #283048; border: var(--pu) solid #182030; }
+#splash .sbar i { display: block; height: 100%; width: 0; background: linear-gradient(#78e078, #40b848); transition: width .15s; }
+#splash .status { color: var(--ink-muted); }
+#splash:not(.ready) .card { background: #f8f8f8; border: 4px solid #4060a0; }
+html.frames-ready #splash .card { background: transparent; border: calc(var(--pu) * 8) solid transparent; }
+#splash.err .status { color: #c03028; }
+
+/* ------------------------------------------------------------------ connection lost banner */
+#connbanner {
+  position: absolute; left: 50%; top: calc(var(--topbar) + 8px); transform: translateX(-50%); z-index: 45;
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #f8f8f8; color: var(--ink); max-width: calc(100% - 16px);
+  border: 3px solid #c04030;
+}
+html.frames-ready #connbanner { padding: 0 calc(var(--pu) * 2); text-shadow: var(--pix-shadow); }
+#connbanner b { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#connbanner button.small { flex: none; }
+#connbanner.ok b { color: #287838; }
+body.offline #stage { filter: grayscale(.7) brightness(.7); transition: filter .4s; }
+
+/* ------------------------------------------------------------------ help / onboarding overlay */
+#help { position: absolute; inset: 0; z-index: 35; background: #000a; display: grid; place-items: center; padding: 10px; }
+#help .card {
+  width: min(calc(var(--pu) * 230), 100%); max-height: calc(100% - 20px); overflow: auto; color: var(--ink); text-shadow: var(--pix-shadow);
+  display: grid; gap: calc(var(--pu) * 4); padding: calc(var(--pu) * 2);
+  font-family: var(--font-small); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 13);
+  border: calc(var(--pu) * 8) solid transparent; border-image: var(--win-frame) 8 fill / calc(var(--pu) * 8) round; image-rendering: pixelated;
+}
+#help h2 { margin: 0; font-family: var(--font-ui); font-weight: 400; font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 16); }
+#help dl { margin: 0; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: calc(var(--pu) * 2) calc(var(--pu) * 6); }
+#help dt { font-family: var(--font-ui); color: #303858; }
+#help dd { margin: 0; color: var(--ink-muted); }
+#help button { justify-self: center; }
+/* callouts pointing at the touch controls (positioned by main.js) */
+#help .callout {
+  position: fixed; z-index: 36; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
+  background: #f8e070; color: #403010; border: var(--pu) solid #806010; padding: 0 calc(var(--pu) * 3);
+  font-family: var(--font-small); font-size: calc(var(--pu) * 16); line-height: calc(var(--pu) * 13);
+}
+#help .callout::after { content: ""; position: absolute; left: 50%; bottom: calc(var(--pu) * -5); border: calc(var(--pu) * 4) solid transparent; border-top-color: #806010; transform: translateX(-50%); }
+body.touch #help.onboard { background: #000c; place-items: start center; padding-top: calc(var(--topbar) + 8px); }
+
+/* settings panel */
+.panel .setrow { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; gap: 8px; align-items: center; }
+.panel .setrow .val { min-width: 3.5em; text-align: right; }
+.panel .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.panel .seg button { flex: 1; min-width: 0; }
+.panel .seg button[aria-pressed=true] { background: #f8e070 !important; border-color: #b08818 !important; }
+.panel .keys { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; }
+.panel .keys button.listening { background: #f8d0c8 !important; }
+.panel .frameprev { width: calc(var(--pu) * 40); height: calc(var(--pu) * 20); border: calc(var(--pu) * 8) solid transparent; border-image: var(--win-frame) 8 fill / calc(var(--pu) * 8) round; image-rendering: pixelated; }
+#login-form label.check { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+#login-form label.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#screen:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#dialog.typing .more, #dialog.typing .choices { visibility: hidden; }
+html.frames-ready .panel .chip { font-size: inherit; padding: 0 calc(var(--pu) * 3); }
+/* toasts below the panels' headers, near the bottom of the game */
+html.frames-ready #toast { top: auto; bottom: calc(var(--pu) * 40); z-index: 41; }
+body.touch.portrait #toast { bottom: auto; top: calc(var(--topbar) + 8px); }
+.panel .setrow .row { flex-wrap: nowrap; gap: 4px; }
+.panel .setrow .row button { min-width: 0; padding-left: 8px; padding-right: 8px; }

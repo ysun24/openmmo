@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
@@ -160,9 +161,18 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     fun field(k: String) = (msg[k] as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()
     val user = field("user")
     val pass = (msg["pass"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    // r3-present: remember-me resume. `token` (base64, from an earlier login reply) replaces the
+    // password; `remember: true` asks for one on a password login.
+    val token =
+        (msg["token"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotEmpty() }
+    val remember = (msg["remember"] as? JsonPrimitive)?.booleanOrNull ?: false
     val name = field("name")?.takeIf { it.isNotEmpty() } ?: user
     val region = (msg["region"] as? JsonPrimitive)?.intOrNull ?: 0
-    if (user.isNullOrEmpty() || user.length > 32 || pass.isNullOrEmpty() || pass.length > 128) {
+    if (user.isNullOrEmpty() || user.length > 32) return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
+    if (token != null) {
+      if (token.length > 512 || runCatching { java.util.Base64.getDecoder().decode(token) }.isFailure)
+          return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
+    } else if (pass.isNullOrEmpty() || pass.length > 128) {
       return sendLoginFailure("BAD_CREDENTIALS_FORMAT")
     }
     if (name == null || name.length > 16 || region !in 0..1) {
@@ -171,19 +181,26 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     if (!loginBusy.compareAndSet(false, true)) return sendError("login already in progress")
     shared.blocking.execute {
       try {
-        doLogin(user, pass, name, region)
+        doLogin(user, pass, token, remember, name, region)
       } finally {
         loginBusy.set(false)
       }
     }
   }
 
-  private fun doLogin(user: String, pass: String, name: String, region: Int) {
+  private fun doLogin(
+      user: String,
+      pass: String?,
+      token: String?,
+      remember: Boolean,
+      name: String,
+      region: Int,
+  ) {
     val cfg = shared.config
     val ticket =
         try {
           LoginClient(shared.gameGroup, shared.rootPublic)
-              .login(cfg.loginHost, cfg.loginPort, user, pass)
+              .login(cfg.loginHost, cfg.loginPort, user, pass, token, remember)
         } catch (e: LoginException) {
           log.info { "login for '$user' refused: ${e.message}" }
           return sendLoginFailure(loginErrorCode(e.message))
@@ -249,6 +266,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
             put("ok", true)
             put("selfId", snap.selfId?.toString())
             put("name", snap.characterName)
+            ticket.rememberToken?.let { put("token", it) }
           })
       differ.reset()
       flush()

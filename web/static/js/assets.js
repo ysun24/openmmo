@@ -142,9 +142,12 @@ export const assets = {
     return d;
   },
 
-  pokemon(dex, kind) {
+  /** Sprite url: kind front|back|icon|iconAnim; `shiny` picks the shiny palette (front/back). */
+  pokemon(dex, kind, shiny = false) {
     const p = this.manifest && this.manifest.pokemon && this.manifest.pokemon[String(dex)];
-    return p && p[kind] ? BASE + p[kind] : null;
+    if (!p) return null;
+    if (shiny && p.shiny && p.shiny[kind]) return BASE + p.shiny[kind];
+    return p[kind] ? BASE + p[kind] : null;
   },
 };
 

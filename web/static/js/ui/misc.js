@@ -4,6 +4,8 @@ import { panels, rerender, setFocus } from './panels.js';
 import { monImg, itemIc } from './common.js';
 import * as market from './market.js';
 import { openChallenge, describeRules } from './battle.js';
+import { frameStyles } from '../font.js';
+import { ACTIONS, keyLabel } from '../settings.js';
 
 let app, lastParty = null, lastInvite = null;
 
@@ -62,7 +64,8 @@ function renderParty(state) {
   rerender(p.body, () => [
     useItem ? h('p.muted', useItem.desc || '') : null,
     h('div.list', party.length ? party.map((m, i) => h('div.item.mon', { 'data-mon': m.id },
-      monImg(m.dex),
+      // party menu icons bob slower when the monster is low on HP, and stop when it fainted
+      monImg(m.dex, 'icon', '.ic', { still: m.hp <= 0, slow: m.hp > 0 && m.hp * 4 < m.maxHp }),
       h('span.nm', m.nick ? `${m.nick} (${m.name})` : m.name,
         h('small', `Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.hp <= 0 ? ' · FNT' : ''}`), hpBar(m.hp, m.maxHp)),
       h('span.act', useItem
@@ -97,9 +100,9 @@ function renderSummary(state) {
   if (!m) return panels.close('summary');
   p.title.textContent = m.nick || m.name;
   rerender(p.body, () => [
-    h('div.row.sumhead', monImg(m.dex, 'front', '.big'),
+    h('div.row.sumhead', monImg(m.dex, 'front', '.big', { shiny: m.shiny }),
       h('div.grow',
-        h('div', h('b', m.nick ? `${m.nick} (${m.name})` : m.name), m.shiny ? ' ★' : ''),
+        h('div', h('b', m.nick ? `${m.nick} (${m.name})` : m.name), m.shiny ? h('span.shinystar', { title: 'shiny', 'aria-label': 'shiny' }, ' ★') : ''),
         h('div.muted', `Lv${m.level} · #${m.dex}${m.types ? ' · ' + m.types.join('/') : ''}`),
         h('div', `HP ${m.hp}/${m.maxHp}`), hpBar(m.hp, m.maxHp),
         h('div.muted', `OT ${m.ot || '?'} · EXP ${m.xp ?? 0}`))),
@@ -148,7 +151,10 @@ function renderBag(state) {
 let lastPc = null;
 
 export function openPc() {
+  // SE_PC_ON then the log-in beep, SE_PC_OFF on the way out (as the PC menu does)
+  app.sfx.play('pcOn', app.region()).then(() => app.sfx.play('pcLogin', app.region()));
   const p = panels.open('pc', 'PC');
+  p.onClose = () => app.sfx.play('pcOff', app.region());
   lastPc = null;
   renderPc(app.net.state);
   setFocus(p.body, p.body.querySelector('.item button'));
@@ -196,7 +202,8 @@ export function openMenu() {
     item('Trade with…', 'trade', () => askName('Trade with', (n) => app.send({ t: 'trade.request', name: n }))),
     item('Duel…', 'duel', () => askName('Duel', (n) => openChallenge(n))),
     item('Chat', 'chat', () => app.openChat()),
-    item('Sound & display', 'sound', openSettings),
+    item('Settings', 'sound', openSettings),
+    item('Help', 'help', () => app.showHelp(false)),
     item(app.showFps ? 'Hide FPS' : 'Show FPS', 'fps', () => app.toggleFps()),
     item('Log out', 'logout', () => app.logout()),
   ]);
@@ -204,31 +211,112 @@ export function openMenu() {
   setFocus(p.body, p.body.querySelector('button'));
 }
 
-/** Music volume / mute and name tag toggles (all remembered in localStorage by their owners). */
+/**
+ * Settings: sound (music / effects volume, mute), text speed, battle animations, window frame,
+ * name tags, keyboard controls (remap) and help. Stored in localStorage by their owners.
+ */
 export function openSettings() {
-  const p = panels.open('settings', 'Sound & display');
+  const p = panels.open('settings', 'Settings');
   const s = app.settings;
-  const pct = h('span.muted', Math.round(s.volume() * 100) + '%');
-  const range = h('input', {
-    type: 'range', min: 0, max: 100, step: 5, value: Math.round(s.volume() * 100), 'aria-label': 'Music volume', 'data-k': 'vol',
-    on: { input: (e) => { s.setVolume(e.target.value / 100); pct.textContent = e.target.value + '%'; } },
-  });
-  range.style.flex = '1';
+  const st = s.store;
+  const slider = (label, k, get, set) => {
+    const pct = h('span.val', Math.round(get() * 100) + '%');
+    const range = h('input', {
+      type: 'range', min: 0, max: 100, step: 5, value: Math.round(get() * 100), 'aria-label': label + ' volume', 'data-k': k,
+      on: {
+        input: (e) => { set(e.target.value / 100); pct.textContent = e.target.value + '%'; },
+        change: () => k === 'sfx' && app.sfx.play('select', app.region(), 0),
+      },
+    });
+    return h('div.setrow', h('label', label), range, pct);
+  };
   const toggle = (label, k, get, set) => {
-    const b = h('button', { type: 'button', 'data-k': k, 'aria-pressed': String(get()) }, `${label}: ${get() ? 'ON' : 'OFF'}`);
+    const b = h('button', { type: 'button', 'data-k': k, 'aria-pressed': String(get()) }, get() ? 'ON' : 'OFF');
     b.addEventListener('click', () => {
       set(!get());
-      b.textContent = `${label}: ${get() ? 'ON' : 'OFF'}`;
+      b.textContent = get() ? 'ON' : 'OFF';
       b.setAttribute('aria-pressed', String(get()));
     });
-    return b;
+    return h('div.setrow', h('span', label), b, h('span'));
   };
+  const seg = (label, k, options, get, set) => {
+    const btns = options.map(([v, l]) => {
+      const b = h('button', { type: 'button', 'data-k': k + '-' + v, 'aria-pressed': String(get() === v) }, l);
+      b.addEventListener('click', () => {
+        set(v);
+        for (const x of btns) x.setAttribute('aria-pressed', String(x === b));
+      });
+      return b;
+    });
+    return h('div.setrow', h('span', { id: 'lbl-' + k }, label), h('div.seg', { role: 'group', 'aria-labelledby': 'lbl-' + k }, btns), h('span'));
+  };
+  const frames = frameStyles(app.region());
+  const frameBtn = (d) => h('button', { type: 'button', 'data-k': 'frame' + (d < 0 ? 'prev' : 'next'), 'aria-label': d < 0 ? 'previous frame' : 'next frame',
+    on: { click: () => { st.set('frame', (st.get('frame') + d + frames) % Math.max(1, frames)); frameNo.textContent = 'Type ' + (st.get('frame') + 1); } } }, d < 0 ? '◀' : '▶');
+  const frameNo = h('span.val', 'Type ' + (st.get('frame') + 1));
   rerender(p.body, () => [
-    h('div.row', h('b', 'Music'), range, pct),
-    h('div.row', toggle('Mute', 'mute', s.muted, s.setMuted)),
-    h('div.row', toggle('Name tags', 'tags', s.tags, s.setTags), toggle('My name tag', 'selftag', s.selfTag, s.setSelfTag)),
+    h('h3', 'Sound'),
+    slider('Music', 'vol', s.volume, s.setVolume),
+    slider('Effects', 'sfx', s.sfxVolume, s.setSfxVolume),
+    toggle('Mute all', 'mute', s.muted, s.setMuted),
+    h('h3', 'Game'),
+    seg('Text speed', 'ts', [['slow', 'Slow'], ['mid', 'Mid'], ['fast', 'Fast'], ['instant', 'Instant']], () => st.get('textSpeed'), (v) => st.set('textSpeed', v)),
+    toggle('Battle animations', 'banim', () => st.get('battleAnims'), (v) => st.set('battleAnims', v)),
+    frames ? h('div.setrow', h('span', 'Window frame'), h('div.row', frameBtn(-1), h('span.frameprev', { 'aria-hidden': 'true' }), frameBtn(1)), frameNo) : null,
+    toggle('Name tags', 'tags', s.tags, s.setTags),
+    toggle('My name tag', 'selftag', s.selfTag, s.setSelfTag),
+    h('h3', 'Controls'),
+    h('div.row', h('button', { type: 'button', 'data-k': 'keys', on: { click: openKeys } }, 'Keyboard keys…'),
+      h('button', { type: 'button', 'data-k': 'help', on: { click: () => { panels.close('settings'); app.showHelp(false); } } }, 'Show controls help')),
   ]);
-  setFocus(p.body, p.body.querySelector('[data-k=mute]'));
+  setFocus(p.body, p.body.querySelector('[data-k=vol]'));
+}
+
+/** Keyboard remap: click an action, press the new key (Esc cancels); two keys per action. */
+function openKeys() {
+  const p = panels.open('keys', 'Keyboard keys');
+  const st = app.settings.store;
+  let listening = null; // {action, slot, btn}
+  const onKey = (e) => {
+    if (!listening) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const { action, slot } = listening;
+    listening = null;
+    window.removeEventListener('keydown', onKey, true);
+    if (e.code !== 'Escape') {
+      const map = st.keys();
+      // a key does one thing: take it away from other actions
+      for (const a of Object.keys(map)) map[a] = map[a].filter((c) => c !== e.code);
+      const cur = [...(map[action] || [])];
+      cur[slot] = e.code;
+      for (const [a, codes] of Object.entries(map)) if (a !== action) st.bind(a, codes);
+      st.bind(action, cur.filter(Boolean));
+    }
+    draw();
+  };
+  const draw = () => {
+    const map = st.keys();
+    rerender(p.body, () => [
+      h('p.muted', 'Select a key slot, then press the new key. Esc cancels.'),
+      h('div.keys', Object.entries(ACTIONS).map(([a, [label]]) => [
+        h('span', label),
+        ...[0, 1].map((slot) => h('button', {
+          type: 'button', 'data-k': `k-${a}-${slot}`, 'aria-label': `${label} key ${slot + 1}: ${keyLabel((map[a] || [])[slot])}`,
+          on: { click: (e) => {
+            listening = { action: a, slot, btn: e.currentTarget };
+            e.currentTarget.textContent = 'press a key…';
+            e.currentTarget.classList.add('listening');
+            window.addEventListener('keydown', onKey, true);
+          } },
+        }, keyLabel((map[a] || [])[slot]))),
+      ])),
+      h('div.row', h('button.danger', { type: 'button', 'data-k': 'reset', on: { click: () => { st.resetKeys(); draw(); } } }, 'Reset to defaults')),
+    ]);
+  };
+  p.onClose = () => window.removeEventListener('keydown', onKey, true);
+  draw();
+  setFocus(p.body, p.body.querySelector('[data-k^=k-]'));
 }
 
 export function askName(title, fn, initial = '') {
