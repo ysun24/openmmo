@@ -149,8 +149,9 @@ class Story:
         choices = list(choices or [])
         texts = []
         end = time.time() + timeout
+        hard_end = time.time() + timeout * 3
         last_busy = time.time()
-        while time.time() < end:
+        while time.time() < min(end, hard_end):
             u = self.ui
             d = u.get("dialog")
             m = (u.get("script") or {}).get("menu")
@@ -211,20 +212,29 @@ class Story:
 
 
 def fight(story, max_turns=40):
-    """Plays a battle out with the first move until it ends."""
+    """Plays a battle out with the strongest usable move until it ends."""
     p = story.p
+    banned = set()
     for _ in range(max_turns * 3):
         b = p.state.get("battle")
         if not b or b.get("phase") == "ENDED":
             break
-        if b.get("phase") == "ACTION":
-            p.send(t="battle.fight", move=0)
+        if b.get("learn"):
+            p.send(t="battle.learn", slot=None)
+        elif b.get("phase") == "ACTION":
+            moves = (b.get("me") or {}).get("moves") or []
+            order = sorted(range(len(moves)), key=lambda i: -(moves[i].get("power") or 0))
+            order = [i for i in order if moves[i]["pp"] > 0 and i not in banned] or [0]
+            p.send(t="battle.fight", move=order[0])
+            time.sleep(0.8)
+            log = (p.state.get("battle") or {}).get("log") or []
+            if log and "can't use" in " ".join(log[-2:]):
+                banned.add(order[0])
+            continue
         elif b.get("phase") == "FORCED_SWITCH":
             party = story.party()
             alive = next((i for i, m in enumerate(party) if m["hp"] > 0), 0)
             p.send(t="battle.switch", slot=alive)
-        elif b.get("learn"):
-            p.send(t="battle.learn", slot=None)
         time.sleep(0.5)
     time.sleep(0.5)
     if p.state.get("battle"):
@@ -463,6 +473,87 @@ def scene_sevii(s):
     check("OneIsland" in s.map_name(), f"arrived: {s.map_name()}")
 
 
+@scene(1, "woods")
+def scene_woods(s):
+    """Petalburg Woods: the Aqua grunt cornering the Devon researcher (coord event), the battle."""
+    s.var("VAR_PETALBURG_WOODS_STATE", 0)
+    for f in ("FLAG_HIDE_PETALBURG_WOODS_AQUA_GRUNT", "FLAG_HIDE_PETALBURG_WOODS_DEVON_EMPLOYEE"):
+        s.flag(f, False)
+    give_team(s)
+    s.tp("PetalburgWoods", 26, 22, "down")
+    s.step("down")
+    texts = s.settle(timeout=90)
+    check(s.var("VAR_PETALBURG_WOODS_STATE") == 1, f"the grunt is beaten, woods state 1: {texts[-1:]}")
+
+
+@scene(1, "devon")
+def scene_devon(s):
+    """Rustboro: Devon Corp 3F's ON_TRANSITION / ON_WARP_INTO / ON_FRAME: meeting Mr. Stone,
+    the LETTER and the POKéNAV."""
+    s.var("VAR_DEVON_CORP_3F_STATE", 0)
+    s.flag("FLAG_RECEIVED_POKENAV", False)
+    s.flag("FLAG_HIDE_RUSTBORO_CITY_DEVON_CORP_3F_EMPLOYEE", False)
+    w = map_json(1, "RustboroCity_DevonCorp_3F")["warp_events"][0]
+    s.tp("RustboroCity_DevonCorp_3F", w["x"], w["y"] + 1, "down")
+    texts = s.settle(timeout=120, quiet=3)
+    check(s.flag("FLAG_RECEIVED_POKENAV"), f"Mr. Stone gave the POKéNAV (ON_FRAME cutscene): {texts[-2:]}")
+    check(s.var("VAR_DEVON_CORP_3F_STATE") == 1, "Devon 3F state 1")
+    check(has_item(s, "LETTER"), "the LETTER for Steven")
+
+
+@scene(1, "chimney")
+def scene_chimney(s):
+    """Mt Chimney: Maxie at the summit (trainerbattle_no_intro), Magma leaves, Archie comes up."""
+    s.flag("FLAG_HIDE_MT_CHIMNEY_TEAM_MAGMA", False)
+    s.flag("FLAG_HIDE_MT_CHIMNEY_TEAM_AQUA", False)
+    give_team(s)
+    mx, my = npc(1, "MtChimney", "LOCALID_MT_CHIMNEY_MAXIE")
+    s.stand_by("MtChimney", mx, my, "down")
+    texts = s.talk(timeout=120)
+    check(s.flag("FLAG_HIDE_MT_CHIMNEY_TEAM_MAGMA"), f"Maxie beaten, Team Magma gone: {texts[-1:]}")
+
+
+@scene(1, "weather")
+def scene_weather(s):
+    """Weather Institute 2F: Shelly (trainerbattle_single with an event script), then the
+    scientist's gift CASTFORM (givemon)."""
+    s.flag("FLAG_HIDE_ROUTE_119_TEAM_AQUA", False)
+    s.flag("FLAG_RECEIVED_CASTFORM", False)
+    s.var("VAR_WEATHER_INSTITUTE_STATE", 0)
+    give_team(s)
+    party = len(s.party())
+    if party >= 6:
+        raise AssertionError("party full")
+    shx, shy = npc(1, "Route119_WeatherInstitute_2F", "LOCALID_WEATHER_INSTITUTE_2F_SHELLY")
+    s.stand_by("Route119_WeatherInstitute_2F", shx, shy, "right")
+    texts = s.talk(timeout=120)
+    check(s.var("VAR_WEATHER_INSTITUTE_STATE") == 1, f"Shelly beaten, the event script ran: {texts[-1:]}")
+    sx, sy = npc(1, "Route119_WeatherInstitute_2F", "LOCALID_WEATHER_INSTITUTE_2F_SCIENTIST")
+    s.stand_by("Route119_WeatherInstitute_2F", sx, sy, "left")
+    s.talk(choices=[False], timeout=40)
+    check(s.flag("FLAG_RECEIVED_CASTFORM"), "the scientist gave CASTFORM")
+    check(any(m["dex"] == 351 for m in s.party()), "CASTFORM is in the party")
+
+
+@scene(1, "regirock")
+def scene_regirock(s):
+    """Desert Ruins: ON_LOAD seals the chamber until the braille puzzle is solved; Regirock
+    (setwildbattle + StartRegiBattle + GetBattleOutcome)."""
+    s.flag("FLAG_SYS_REGIROCK_PUZZLE_COMPLETED", False)
+    s.tp("DesertRuins", 8, 27, "up")
+    sealed = s.script_ui().get("metatiles") or []
+    check(any(t["y"] == 19 and t["impassable"] for t in sealed), f"ON_LOAD sealed the chamber: {sealed[:2]}")
+    s.flag("FLAG_SYS_REGIROCK_PUZZLE_COMPLETED", True)
+    s.flag("FLAG_HIDE_REGIROCK", False)
+    s.flag("FLAG_DEFEATED_REGIROCK", False)
+    give_team(s)
+    rx, ry = npc_by_script(1, "DesertRuins", "DesertRuins_EventScript_Regirock")
+    s.stand_by("DesertRuins", rx, ry, "down")
+    check(not (s.script_ui().get("metatiles") or []), "solved: the entrance stays open")
+    texts = s.talk(timeout=120)
+    check(s.flag("FLAG_DEFEATED_REGIROCK"), f"REGIROCK fought and defeated: {texts[-1:]}")
+
+
 def dev():
     """DEVELOPER permission for the slash commands (as e2e.py's setup does)."""
     os.system(
@@ -485,14 +576,14 @@ def main():
         by_region.setdefault(SCENES[n][0], []).append(n)
     for region, names in by_region.items():
         p = Player(a.ws, f"{user}/{region}")
-        name = {0: "Ash", 1: "May"}[region]
+        name = "Ash"
         p.send(t="login", user=user, **{"pass": pw}, name=name, region=region)
         p.wait(lambda q: q.message("login"), 30, "login")
         p.wait(lambda q: q.world.get("inWorld"), 20, "in world")
         dev()
         time.sleep(1)
         s = Story(p, region)
-        s.settle(2)
+        s.settle(3, timeout=60)
         for n in names:
             print(f"== {n}", flush=True)
             SCENES[n][1](s)
