@@ -4,6 +4,7 @@ import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.LoginClient
 import de.fiereu.openmmo.client.net.LoginException
 import de.fiereu.openmmo.client.net.NewCharacter
+import de.fiereu.openmmo.net.login.packets.RegisterResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
@@ -64,6 +65,16 @@ class SerialExecutor(private val backing: Executor) : Executor {
   }
 }
 
+/** Per-key [RateLimiter]s, for limits shared by every socket from one client address. */
+class KeyedRateLimiter(private val max: Int, private val windowMs: Long) {
+  private val byKey = java.util.concurrent.ConcurrentHashMap<String, RateLimiter>()
+
+  fun tryAcquire(key: String, nowMs: Long): Boolean {
+    if (byKey.size > 50_000) byKey.clear()
+    return byKey.computeIfAbsent(key) { RateLimiter(max, windowMs) }.tryAcquire(nowMs)
+  }
+}
+
 /** Per-socket login attempts: at most [max] in any [windowMs]. */
 class RateLimiter(private val max: Int, private val windowMs: Long) {
   private val times = ArrayDeque<Long>()
@@ -90,6 +101,9 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
   private val closed = AtomicBoolean(false)
   @Volatile private var upgraded = false
 
+  /** The browser's address: the tunnel's last X-Forwarded-For hop when that is trusted. */
+  @Volatile private var clientAddress = "?"
+
   @Volatile private var game: GameSession? = null
 
   // Owned by the event loop.
@@ -109,7 +123,13 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     when (evt) {
       is WebSocketServerProtocolHandler.HandshakeComplete -> {
         upgraded = true
-        log.info { "ws open ${channel.remoteAddress()}" }
+        clientAddress =
+            clientAddress(
+                evt.requestHeaders().get("X-Forwarded-For"),
+                (channel.remoteAddress() as? java.net.InetSocketAddress)?.address?.hostAddress
+                    ?: channel.remoteAddress().toString(),
+                shared.config.trustForwarded)
+        log.info { "ws open ${channel.remoteAddress()} client $clientAddress" }
       }
       is IdleStateEvent -> {
         if (!upgraded) return ctx.fireUserEventTriggered(evt).let {}
@@ -141,6 +161,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
             })
       }
       "login" -> login(msg)
+      "register" -> register(msg)
       else -> {
         val g = game ?: return sendError("not logged in")
         serial.execute {
@@ -155,7 +176,8 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
 
   private fun login(msg: JsonObject) {
     if (game != null) return sendError("already logged in")
-    if (!loginLimiter.tryAcquire(System.currentTimeMillis())) {
+    val now = System.currentTimeMillis()
+    if (!loginLimiter.tryAcquire(now) || !shared.loginsPerClient.tryAcquire(clientAddress, now)) {
       return sendLoginFailure("RATE_LIMITED")
     }
     fun field(k: String) = (msg[k] as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()
@@ -194,6 +216,63 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     }
   }
 
+  /**
+   * OpenMMO-only (PROTOCOL.md 2.1a): creates an account with an invite code, then logs in exactly
+   * as `login` would. Replies `{t:"register", ok}`; on success the usual `login` reply follows.
+   */
+  private fun register(msg: JsonObject) {
+    if (game != null) return sendRegisterFailure("ALREADY_LOGGED_IN")
+    val now = System.currentTimeMillis()
+    if (!loginLimiter.tryAcquire(now) ||
+        !shared.registersPerClient.tryAcquire(clientAddress, now)) {
+      return sendRegisterFailure("RATE_LIMITED")
+    }
+    fun str(k: String) = (msg[k] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    val user = str("user")?.trim().orEmpty()
+    val pass = str("pass").orEmpty()
+    val invite = str("invite")?.trim().orEmpty()
+    val name = str("name")?.trim()?.takeIf { it.isNotEmpty() } ?: user
+    val region = (msg["region"] as? JsonPrimitive)?.intOrNull ?: 0
+    val gender = ((msg["gender"] as? JsonPrimitive)?.intOrNull ?: 0).coerceIn(0, 1)
+    val remember = (msg["remember"] as? JsonPrimitive)?.booleanOrNull ?: false
+    if (!USERNAME.matches(user)) return sendRegisterFailure("BAD_USERNAME")
+    if (pass.length < MIN_PASSWORD || pass.length > 128) return sendRegisterFailure("BAD_PASSWORD")
+    if (invite.isEmpty() || invite.length > 32) return sendRegisterFailure("BAD_INVITE")
+    if (name.length > 16 || region !in 0..1) return sendRegisterFailure("BAD_CHARACTER")
+    if (!loginBusy.compareAndSet(false, true)) return sendError("login already in progress")
+    shared.blocking.execute {
+      try {
+        val cfg = shared.config
+        val result =
+            try {
+              LoginClient(shared.gameGroup, shared.rootPublic)
+                  .register(cfg.loginHost, cfg.loginPort, user, pass, invite)
+            } catch (e: Exception) {
+              log.warn { "registration for '$user' failed: ${e::class.simpleName}: ${e.message}" }
+              return@execute sendRegisterFailure("LOGIN_SERVER_UNREACHABLE")
+            }
+        log.info { "registration for '$user' from $clientAddress: $result" }
+        if (result != RegisterResult.OK) return@execute sendRegisterFailure(result.name)
+        send(
+            buildJsonObject {
+              put("t", "register")
+              put("ok", true)
+            })
+        if (!closed.get()) doLogin(user, pass, null, remember, name, region, gender)
+      } finally {
+        loginBusy.set(false)
+      }
+    }
+  }
+
+  private fun sendRegisterFailure(error: String) =
+      send(
+          buildJsonObject {
+            put("t", "register")
+            put("ok", false)
+            put("error", error)
+          })
+
   private fun doLogin(
       user: String,
       pass: String?,
@@ -204,7 +283,7 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
       gender: Int = 0,
   ) {
     val cfg = shared.config
-    val ticket =
+    val loginTicket =
         try {
           LoginClient(shared.gameGroup, shared.rootPublic)
               .login(cfg.loginHost, cfg.loginPort, user, pass, token, remember)
@@ -222,6 +301,9 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
           log.warn { "login server unreachable: ${e::class.simpleName}: ${e.message}" }
           return sendLoginFailure("LOGIN_SERVER_UNREACHABLE")
         }
+    // The client keeps the login host for the game connection; in a compose network the game
+    // server is another host, so --game-host overrides it.
+    val ticket = cfg.gameHost?.let { loginTicket.copy(host = it) } ?: loginTicket
     if (closed.get()) return
     val client =
         GameClient(
@@ -374,6 +456,19 @@ class WsSession(private val shared: Gateway) : SimpleChannelInboundHandler<WebSo
     const val FRAME_MS = 33L
     const val FRAME_NANOS = FRAME_MS * 1_000_000
     const val LOGIN_ATTEMPTS = 5
+    const val MIN_PASSWORD = 8
+    private val USERNAME = Regex("^[A-Za-z0-9_]{3,16}\$")
+
+    /**
+     * With a trusted proxy in front, the last X-Forwarded-For hop is the one the proxy added (any
+     * earlier ones came from the browser and are ignored); otherwise the socket's own address.
+     */
+    fun clientAddress(xff: String?, remote: String, trustForwarded: Boolean): String {
+      if (!trustForwarded || xff.isNullOrBlank()) return remote
+      val last = xff.split(',').map(String::trim).lastOrNull { it.isNotEmpty() } ?: return remote
+      return last.take(64)
+    }
+
     const val ENTER_TIMEOUT_MS = 20_000L
 
     /** "login refused: INVALID_PASSWORD" -> INVALID_PASSWORD; prose -> NO_JOINABLE_GAME_SERVER. */

@@ -45,6 +45,13 @@ data class GatewayConfig(
     val decomp: File = File("decomp"),
     /** Extra origins allowed besides the gateway's own host, e.g. a reverse proxy's. */
     val allowedOrigins: Set<String> = emptySet(),
+    /**
+     * Host for the game connection instead of the login host (the client's default). Needed when
+     * login and game run as separate hosts, e.g. compose services.
+     */
+    val gameHost: String? = null,
+    /** Read the client address from X-Forwarded-For (only behind a proxy that sets it). */
+    val trustForwarded: Boolean = false,
     val idleSeconds: Int = 30,
     val maxFrameBytes: Int = 64 * 1024,
 )
@@ -58,6 +65,10 @@ class Gateway(val config: GatewayConfig, val rootPublic: ECPublicKey) : AutoClos
 
   /** Blocking client calls (login handshake, connect) run here, never on a netty loop. */
   val blocking: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
+
+  /** Shared by every socket from one client address (see [WsSession.clientAddress]). */
+  val loginsPerClient = KeyedRateLimiter(30, 60_000)
+  val registersPerClient = KeyedRateLimiter(5, 3_600_000)
 
   val stateJson = StateJson(CodegenNames(config.decomp))
   val files = StaticFiles(config.staticRoot.toPath())
@@ -79,7 +90,7 @@ class Gateway(val config: GatewayConfig, val rootPublic: ECPublicKey) : AutoClos
                             IdleStateHandler(config.idleSeconds.toLong(), 0L, 0L, TimeUnit.SECONDS))
                         .addLast(HttpServerCodec(4096, 8192, 8192))
                         .addLast(HttpObjectAggregator(config.maxFrameBytes))
-                        .addLast(OriginGuard(config.allowedOrigins))
+                        .addLast(OriginGuard(config.allowedOrigins, config.trustForwarded))
                         .addLast(
                             WebSocketServerProtocolHandler(
                                 WebSocketServerProtocolConfig.newBuilder()
@@ -121,12 +132,19 @@ class Gateway(val config: GatewayConfig, val rootPublic: ECPublicKey) : AutoClos
  * Refuses a WebSocket upgrade whose `Origin` is neither the gateway's own `Host` nor an allowed
  * origin, so another site cannot drive a player's session from their browser.
  */
-class OriginGuard(private val allowed: Set<String>) : ChannelInboundHandlerAdapter() {
+class OriginGuard(
+    private val allowed: Set<String>,
+    private val trustForwarded: Boolean = false,
+) : ChannelInboundHandlerAdapter() {
   override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
     if (msg is FullHttpRequest && msg.uri().substringBefore('?') == Gateway.WS_PATH) {
       val origin = msg.headers().get(HttpHeaderNames.ORIGIN)
       val host = msg.headers().get(HttpHeaderNames.HOST)
-      if (!originAllowed(origin, host, allowed)) {
+      val forwardedHost =
+          if (trustForwarded) msg.headers().get("X-Forwarded-Host")?.substringBefore(',')?.trim()
+          else null
+      if (!originAllowed(origin, host, allowed) &&
+          (forwardedHost == null || !originAllowed(origin, forwardedHost, allowed))) {
         ReferenceCountUtil.release(msg)
         log.warn { "refused ws upgrade from origin '$origin' (host '$host')" }
         val body = "403 Forbidden: origin not allowed\n".toByteArray()
@@ -142,16 +160,37 @@ class OriginGuard(private val allowed: Set<String>) : ChannelInboundHandlerAdapt
   }
 
   companion object {
-    /** No Origin (a non-browser client) is allowed; a browser's must match the Host it used. */
+    /**
+     * No Origin (a non-browser client) is allowed; a browser's must match the Host it used or an
+     * allowed origin. An allowed entry whose host starts with a `*.` label (scheme, colon, two
+     * slashes, then `*.a.pinggy.link`) accepts any one subdomain of it, for a tunnel whose URL
+     * changes on every start.
+     */
     fun originAllowed(origin: String?, host: String?, allowed: Set<String>): Boolean {
       if (origin == null) return true
       if (origin in allowed) return true
+      if (allowed.any { wildcardMatches(it, origin) }) return true
       val authority =
           runCatching { URI(origin) }
               .getOrNull()
               ?.takeIf { it.scheme == "http" || it.scheme == "https" }
               ?.rawAuthority ?: return false
       return host != null && authority.equals(host, ignoreCase = true)
+    }
+
+    private val SUBDOMAIN_LABEL = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?\$")
+
+    private fun wildcardMatches(pattern: String, origin: String): Boolean {
+      val scheme = pattern.substringBefore("://*.", "")
+      if (scheme.isEmpty()) return false
+      val suffix = pattern.substringAfter("://*.").lowercase()
+      val uri = runCatching { URI(origin) }.getOrNull() ?: return false
+      if (!uri.scheme.equals(scheme, ignoreCase = true) || uri.rawAuthority == null) return false
+      val authority = uri.rawAuthority.lowercase()
+      if (!authority.endsWith(".$suffix")) return false
+      // Exactly one more label, so `*.a.pinggy.link` does not also cover `x.y.a.pinggy.link`.
+      val label = authority.removeSuffix(".$suffix")
+      return SUBDOMAIN_LABEL.matches(label)
     }
   }
 }

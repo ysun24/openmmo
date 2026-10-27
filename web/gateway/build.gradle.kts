@@ -14,6 +14,8 @@ dependencies {
   implementation(project(":client"))
   implementation(project(":network"))
   implementation(project(":protocols.game"))
+  // RegisterResult for the OpenMMO-only register message.
+  implementation(project(":protocols.login"))
   implementation(project(":common"))
   // Species, move and item tables, the same ones the desktop client names things with.
   implementation(project(":codegen"))

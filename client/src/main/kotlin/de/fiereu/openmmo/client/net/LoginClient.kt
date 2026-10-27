@@ -17,6 +17,9 @@ import de.fiereu.openmmo.net.login.packets.LoginKickPacket
 import de.fiereu.openmmo.net.login.packets.LoginRequestPacket
 import de.fiereu.openmmo.net.login.packets.LoginResponsePacket
 import de.fiereu.openmmo.net.login.packets.PasswordLogin
+import de.fiereu.openmmo.net.login.packets.RegisterRequestPacket
+import de.fiereu.openmmo.net.login.packets.RegisterResponsePacket
+import de.fiereu.openmmo.net.login.packets.RegisterResult
 import de.fiereu.openmmo.net.login.packets.RequestGameServerListPacket
 import de.fiereu.openmmo.net.login.packets.SentCredentialsPacket
 import de.fiereu.openmmo.net.login.packets.TokenLogin
@@ -101,6 +104,62 @@ class LoginClient(
       return result.get(timeoutSeconds, TimeUnit.SECONDS)
     } finally {
       channel.close()
+    }
+  }
+
+  /**
+   * OpenMMO-only: creates [username] with an [invite] code on its own login connection. Log in
+   * afterwards with [login] as usual. The password is sent as its SHA-1 hex, like a login.
+   */
+  fun register(
+      host: String,
+      port: Int,
+      username: String,
+      password: String,
+      invite: String,
+      timeoutSeconds: Long = 15,
+  ): RegisterResult {
+    val result = CompletableFuture<RegisterResult>()
+    val handler =
+        RegisterHandler(RegisterRequestPacket(username, sha1Hex(password), invite), result)
+    val channel =
+        Bootstrap()
+            .group(group)
+            .channel(NioSocketChannel::class.java)
+            .option(ChannelOption.TCP_NODELAY, true)
+            .installNetwork(
+                identity = SessionIdentity.ClientTrust(rootPublic),
+                applicationProtocol = LoginProtocol,
+                applicationHandlerFactory = { handler },
+                options = PipelineOptions(),
+            )
+            .connect(host, port)
+            .sync()
+            .channel()
+    channel.closeFuture().addListener {
+      result.completeExceptionally(LoginException("login connection closed before a reply"))
+    }
+    try {
+      return result.get(timeoutSeconds, TimeUnit.SECONDS)
+    } finally {
+      channel.close()
+    }
+  }
+
+  private class RegisterHandler(
+      private val request: RegisterRequestPacket,
+      private val result: CompletableFuture<RegisterResult>,
+  ) : TypedProtocolHandler<LoginProtocol>(LoginProtocol, Side.CLIENT) {
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+      super.handlerAdded(ctx)
+      session.onPhase(SessionPhase.ESTABLISHED) { session.send(request) }
+    }
+
+    init {
+      on<RegisterResponsePacket> { event -> result.complete(event.packet.result) }
+      on<LoginKickPacket> { event ->
+        result.completeExceptionally(LoginException("kicked by login server: ${event.packet}"))
+      }
     }
   }
 
