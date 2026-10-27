@@ -59,7 +59,7 @@ One commit per item, all on `own-client`:
   cutscene), `--only feebas,link` **ALL OK**; `frontier_e2e.py` every section **ALL OK** over three runs on a
   fresh character (tower…pike; pyramid, ttower, hill, tents, exchange; rest, multi — the first run's Pyramid
   battle hung on a refused move, fixed in the driver, `0774607`).
-- Home bundle: `deploy/home/dist/openmmo-home-20261027-3bc89dfb.zip` (248 MB, image `openmmo:20261027-3bc89dfb`)
+- Home bundle: `deploy/home/dist/openmmo-home-20261027-df93e9d9.zip` (248 MB, image `openmmo:20261027-3bc89dfb`)
   built with `build-bundle.sh --skip-gradle` from `3bc89df` (the last code commit). Smoke test: unzip,
   `sha256sum -c` OK, `docker load`, compose project `omfinal` with `TUNNEL=off` (+ `TUNNEL_DRY_RUN=1`) on
   127.0.0.1:8090, all services healthy, the tunnel container only printed "no public URL"; invites from
