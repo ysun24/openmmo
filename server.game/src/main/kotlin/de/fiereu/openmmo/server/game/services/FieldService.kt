@@ -863,7 +863,7 @@ constructor(
     return true
   }
 
-  /** Developer teleport (/fieldtp): warp to map [name] (decomp dir name) at (x, y). */
+  /** Developer teleport (`/tp <MapName> x y`): warp to map [name] (decomp dir name) at (x, y). */
   fun devWarp(session: SessionContext, state: PlayerState, name: String, x: Int, y: Int): Boolean {
     val target = mapManager.getMapByName(state.regionId, name) ?: return false
     flyTo(session, state, target, x, y)
