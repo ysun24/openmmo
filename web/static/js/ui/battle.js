@@ -379,6 +379,39 @@ function setVisible(k, vis, withInfo = true) {
   el.style.opacity = vis ? '1' : '0';
   el.style.transform = '';
   if (withInfo) infoEl(k).el.classList.toggle('gone', !vis);
+  if (vis && view && view[k] && view[k].shiny) shinySparkle(k);
+}
+
+// Integration: the Gen 3 shiny sparkle (battle_anim_effects Anim_Shiny / gBattleAnimSpriteGfx_Sparkle)
+// when a shiny monster comes out, once per monster per battle.
+const sparkled = new Set();
+function shinySparkle(k) {
+  const id = String(view[k].id ?? k + ':' + view[k].dex);
+  if (sparkled.has(id) || !sk) return;
+  sparkled.add(id);
+  const m = assets.manifest && assets.manifest.battle && assets.manifest.battle.anims;
+  const s = m && m.sparkle;
+  if (!s) return;
+  const c = P(k);
+  // Four stars around the monster, then one in the middle, like the GBA's sparkle cycle.
+  const spots = [[-14, -18], [14, -10], [-10, 10], [16, 14], [0, -2]];
+  spots.forEach(([dx, dy], i) => setTimeout(() => {
+    if (!sk) return;
+    const el = h('div.animspr.sparkle');
+    const size = s.frame;
+    el.style.width = el.style.height = `calc(var(--u) * ${size})`;
+    el.style.backgroundImage = `url("${assets.url(s.file)}")`;
+    el.style.backgroundSize = `100% ${s.frames * 100}%`;
+    place(el, c.cx + dx - size / 2, c.cy + dy - size / 2);
+    sk.fxLayer.append(el);
+    let frame = 0;
+    const n = Math.max(1, s.frames);
+    const iv = setInterval(() => {
+      frame++;
+      if (frame >= n) { clearInterval(iv); el.remove(); return; }
+      el.style.backgroundPositionY = `${(frame / (n - 1)) * 100}%`;
+    }, 60);
+  }, 300 + i * 130));
 }
 
 function setInfo(i, m, mine) {
@@ -454,6 +487,7 @@ async function play(f) {
 }
 
 async function playStart(f) {
+  sparkled.clear();
   for (const k of keysInUse()) {
     view[k] = copyMon(stateMon(k)) || view[k];
     view[k + 'Vis'] = false;

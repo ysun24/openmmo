@@ -717,14 +717,24 @@ function wantedSong() {
   const s = net.state;
   const region = world.map ? world.map.region : 0;
   const bm = (assets.manifest && assets.manifest.battleMusic && assets.manifest.battleMusic[region]) || {};
+  // r3-battle's music key (wild|trainer|gym|elite|champion|rival|team|pvp) picks the theme.
+  const bx = (assets.manifest && assets.manifest.battleMusicExtra && assets.manifest.battleMusicExtra[region]) || {};
   const b = s.battle;
   if (b) {
+    const key = b.music || (b.wild ? 'wild' : 'trainer');
     if (b.phase === 'ENDED') {
-      if (b.result === 'VICTORY') return [region, b.wild ? bm.victoryWild : bm.victoryTrainer, 0.2];
+      if (b.result === 'VICTORY') {
+        if (b.wild) return [region, bm.victoryWild, 0.2];
+        if (key === 'gym') return [region, bm.victoryGym || bm.victoryTrainer, 0.2];
+        if (key === 'elite' || key === 'champion') return [region, bx.victoryElite || bm.victoryGym || bm.victoryTrainer, 0.2];
+        return [region, bm.victoryTrainer, 0.2];
+      }
       if (b.result === 'CAUGHT') return [region, bm.caught || bm.victoryWild, 0.2];
       return [region, null, 0.6];
     }
-    return [region, b.wild ? bm.wild : bm.trainer, 0.15];
+    const theme = { wild: bm.wild, trainer: bm.trainer, gym: bm.gym, elite: bx.elite, champion: bx.champion,
+      rival: bx.rival, team: bx.team, pvp: bx.pvp }[key];
+    return [region, theme || (b.wild ? bm.wild : bm.trainer), 0.15];
   }
   const info = world.res && world.res.info;
   return [region, info ? info.music : null, 0.9];
