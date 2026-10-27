@@ -74,6 +74,38 @@ the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sect
 - Battle Frontier: attendants → desks (frontier_e2e).
 
 
+## Story playthroughs (`web/gateway/test/story.py`, real stack, gateway WebSocket)
+- Kanto (one run, ALL OK): smoke (interpreted sign), Bill / S.S. TICKET, Mt Moon (Miguel + fossil),
+  S.S. Anne (captain, HM01), Rocket Hideout (poster switch, Giovanni, SILPH SCOPE), Pokémon Tower (Marowak
+  ghost, Mr. Fuji, POKé FLUTE), Silph Co (elevator ListMenu, CARD KEY door, Giovanni, MASTER BALL), Route 2
+  in-game trade, Seagallop to One Island, Celadon Game Corner (coins + `playslotmachine`).
+- Hoenn: Petalburg Woods (Aqua grunt), Devon Corp 3F (Mr. Stone ON_FRAME cutscene, POKéNAV, LETTER), Mt
+  Chimney (Maxie), Weather Institute (Shelly, CASTFORM), Regirock (braille-sealed chamber, legendary
+  battle), Sootopolis Gym (Juan, RAIN BADGE, TM WATER PULSE), Eon Ticket → Lilycove ferry → Southern
+  Island → Lati@s battle. Each passed on the live stack; see "Final verification" for the last full run.
+- Driver fixes: replies read after the capped chat window's tail (long runs read stale replies before),
+  waits for the scripted legendary battles to start (cutscenes have seconds without a message), the live
+  db container name.
+
+## Not done (with reasons)
+- **Frontier "Rest"** (save mid-challenge): a challenge is a running coroutine per facility in
+  `FrontierChallenges` (1.8k lines of in-memory state machines); resuming one needs each facility's state
+  serialised and re-entered at the right step. Leaving still ends the streak, as before.
+- **Frontier trainer texts**: brains now say their decomp lines; the regular trainers already use their
+  decomp easy-chat speech (that is the decomp's own data). The Dome info screens and record windows are
+  still not reproduced (lane report).
+- **Contest receptionist through the interpreter**: kept as a hand port (see above); the decomp hall
+  cutscene (`startcontest`, walk-ins, audience) does not run.
+- **FRLG Mystic / Aurora Ticket at Vermilion** was not driven by a scene (the item and flag path is the
+  same as the verified Eon Ticket one).
+- **Fame Checker from the bag**: the FAME CHECKER is a key item now, but using it from the bag does not
+  open the UI (it opens from the Link menu); only the Wailmer Pail got a bag hook.
+- **Browser starter pick**: the screenshot run shows the Oak's Lab starter scene (FireRed's
+  ChooseStarterScene) but not the ball chosen; picking it is covered by the existing Kanto e2e and the
+  story driver's party setup, not a browser shot.
+- The lanes' own "Not done" lists stand otherwise (docs/reports/r5-*.md).
+
+
 ---
 
 # Round 3 integration (branch `own-client`)
