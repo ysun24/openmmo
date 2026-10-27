@@ -34,9 +34,14 @@ private fun mon(
     cool: Int = 0,
     sheen: Int = 0,
     ai: Long = 0,
-) = ContestMon(25, name, "T$name", moves, cool, 0, 0, 0, 0, sheen, aiFlags = ai, isPlayer = ai == 0L)
+) =
+    ContestMon(
+        25, name, "T$name", moves, cool, 0, 0, 0, 0, sheen, aiFlags = ai, isPlayer = ai == 0L)
 
-/** r5-contests: src/contest.c, contest_effect.c, contest_ai.c, berry.c, pokeblock*.c, berry_blender.c. */
+/**
+ * r5-contests: src/contest.c, contest_effect.c, contest_ai.c, berry.c, pokeblock*.c,
+ * berry_blender.c.
+ */
 class ContestRulesTest :
     FunSpec({
       val data = ContestData.instance
@@ -53,19 +58,23 @@ class ContestRulesTest :
         data.pokeblockNames[2] shouldBe "BLUE POKéBLOCK"
       }
 
-      test("round 1 points: main stat + (two neighbours + sheen) / 2 (CalculateContestantRound1Points)") {
-        val m = ContestMon(25, "A", "T", listOf(POUND), 100, 40, 0, 0, 20, 60)
-        val e = ContestEngine(Contest.COOL, 0, listOf(m, m, m, m), TestRng())
-        // cool + (tough + beauty + sheen) / 2
-        e.round1Points[0] shouldBe 100 + (20 + 40 + 60) / 2
-        ContestEngine(Contest.BEAUTY, 0, listOf(m, m, m, m), TestRng()).round1Points[0] shouldBe
-            40 + (100 + 0 + 60) / 2
-      }
+      test(
+          "round 1 points: main stat + (two neighbours + sheen) / 2 (CalculateContestantRound1Points)") {
+            val m = ContestMon(25, "A", "T", listOf(POUND), 100, 40, 0, 0, 20, 60)
+            val e = ContestEngine(Contest.COOL, 0, listOf(m, m, m, m), TestRng())
+            // cool + (tough + beauty + sheen) / 2
+            e.round1Points[0] shouldBe 100 + (20 + 40 + 60) / 2
+            ContestEngine(Contest.BEAUTY, 0, listOf(m, m, m, m), TestRng()).round1Points[0] shouldBe
+                40 + (100 + 0 + 60) / 2
+          }
 
       test("the first round's order follows the condition round, highest first") {
         val mons =
-            listOf(mon("A", listOf(POUND), cool = 10), mon("B", listOf(POUND), cool = 200),
-                mon("C", listOf(POUND), cool = 50), mon("D", listOf(POUND), cool = 100))
+            listOf(
+                mon("A", listOf(POUND), cool = 10),
+                mon("B", listOf(POUND), cool = 200),
+                mon("C", listOf(POUND), cool = 50),
+                mon("D", listOf(POUND), cool = 100))
         val e = ContestEngine(Contest.COOL, 0, mons, TestRng())
         e.turnOrder.toList() shouldBe listOf(3, 0, 2, 1)
       }
@@ -116,8 +125,11 @@ class ContestRulesTest :
         val jam = data.effects[10].jam
         // the condition round puts A first, B second
         val mons =
-            listOf(mon("A", listOf(POUND), cool = 200), mon("B", listOf(startle), cool = 150),
-                mon("C", listOf(POUND), cool = 100), mon("D", listOf(POUND), cool = 50))
+            listOf(
+                mon("A", listOf(POUND), cool = 200),
+                mon("B", listOf(startle), cool = 150),
+                mon("C", listOf(POUND), cool = 100),
+                mon("D", listOf(POUND), cool = 50))
         val e = ContestEngine(Contest.COOL, 0, mons, TestRng(9))
         e.turnOrder[0] shouldBe 0
         e.turnOrder[1] shouldBe 1
@@ -130,8 +142,18 @@ class ContestRulesTest :
         val ops = data.opponents.filter { it.rank == 0 && it.pools[0] }.take(3)
         val mons =
             ops.map {
-              ContestMon(it.dex, it.nickname, it.trainer, it.moves, it.stats[0], it.stats[1],
-                  it.stats[2], it.stats[3], it.stats[4], it.stats[5], aiFlags = it.aiFlags)
+              ContestMon(
+                  it.dex,
+                  it.nickname,
+                  it.trainer,
+                  it.moves,
+                  it.stats[0],
+                  it.stats[1],
+                  it.stats[2],
+                  it.stats[3],
+                  it.stats[4],
+                  it.stats[5],
+                  aiFlags = it.aiFlags)
             } + mon("PIKA", listOf(POUND, TACKLE, GROWL, SCRATCH), cool = 80, sheen = 30)
         val e = ContestEngine(Contest.COOL, 0, mons, TestRng(11))
         for (r in 0 until 5) e.playRound(mapOf(3 to r % 4))
@@ -139,30 +161,34 @@ class ContestRulesTest :
         e.finalStandings.toList() shouldContainExactlyInAnyOrder listOf(0, 1, 2, 3)
         for (i in 0 until 4) e.totalPoints[i] shouldBe e.round1Points[i] + e.round2Points[i]
         for (i in 0 until 4) e.round2Points[i] shouldBe e.status[i].pointTotal * 2
-        for (i in 0 until 3) for (h in e.moveHistory) (h[i] in ops[i].moves || h[i] == 0) shouldBe true
+        for (i in 0 until 3) for (h in e.moveHistory) (h[i] in ops[i].moves || h[i] == 0) shouldBe
+            true
       }
 
       test("the AI never picks an empty move slot") {
         val op = data.opponents.first()
         val mons =
-            listOf(ContestMon(op.dex, "X", "Y", listOf(POUND), 0, 0, 0, 0, 0, 0, aiFlags = op.aiFlags)) +
+            listOf(
+                ContestMon(
+                    op.dex, "X", "Y", listOf(POUND), 0, 0, 0, 0, 0, 0, aiFlags = op.aiFlags)) +
                 List(3) { mon("M$it", listOf(POUND)) }
         val e = ContestEngine(Contest.COOL, 0, mons, TestRng(13))
         repeat(20) { e.aiChoice(0) shouldBe 0 }
       }
 
-      test("feeding a Pokéblock: liked flavour boosted a tenth, sheen grows by feel (use_pokeblock.c)") {
-        // Lonely likes spicy (+1) and dislikes sour (-1)
-        val block = Pokeblock(1, 30, 0, 0, 0, 0, 20)
-        val fed = PokeblockRules.feed(MonContest(), PokemonNature.LONELY, block)!!
-        fed.cool shouldBe 33
-        fed.sheen shouldBe 20
-        PokeblockRules.gain(PokemonNature.LONELY, block) shouldBe 30
-        // A neutral nature eats it plainly
-        PokeblockRules.feed(MonContest(), PokemonNature.HARDY, block)!!.cool shouldBe 30
-        // A maxed sheen refuses more
-        PokeblockRules.feed(MonContest(sheen = 255), PokemonNature.HARDY, block) shouldBe null
-      }
+      test(
+          "feeding a Pokéblock: liked flavour boosted a tenth, sheen grows by feel (use_pokeblock.c)") {
+            // Lonely likes spicy (+1) and dislikes sour (-1)
+            val block = Pokeblock(1, 30, 0, 0, 0, 0, 20)
+            val fed = PokeblockRules.feed(MonContest(), PokemonNature.LONELY, block)!!
+            fed.cool shouldBe 33
+            fed.sheen shouldBe 20
+            PokeblockRules.gain(PokemonNature.LONELY, block) shouldBe 30
+            // A neutral nature eats it plainly
+            PokeblockRules.feed(MonContest(), PokemonNature.HARDY, block)!!.cool shouldBe 30
+            // A maxed sheen refuses more
+            PokeblockRules.feed(MonContest(sheen = 255), PokemonNature.HARDY, block) shouldBe null
+          }
 
       test("CalculatePokeblock: Cheri + Chesto at 0 RPM makes a level 9 blue block, feel 23") {
         val b = BlenderEngine.calculatePokeblock(listOf(1, 2), 0, FixedRng())

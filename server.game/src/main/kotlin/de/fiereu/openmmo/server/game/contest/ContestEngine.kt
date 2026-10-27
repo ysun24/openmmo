@@ -5,7 +5,9 @@ fun interface ContestRng {
   fun next(): Int
 }
 
-/** gContestMons[i]: a contestant as the contest sees it (src/contest.c CreateContestMonFromParty). */
+/**
+ * gContestMons[i]: a contestant as the contest sees it (src/contest.c CreateContestMonFromParty).
+ */
 data class ContestMon(
     val dex: Int,
     val nickname: String,
@@ -103,11 +105,12 @@ object JudgeSymbol {
 }
 
 /**
- * One Hoenn contest's appeal phase and final scoring, a port of src/contest.c (CalculateRound1Points,
- * SortContestants, CalculateAppealMoveImpact, Task_DoAppeals, RankContestants, SetAttentionLevels,
- * SetContestantStatusesForNextRound, ApplyNextTurnOrder, CalculateFinalScores) and
- * src/contest_effect.c (every gContestEffectFuncs entry). The NPC opponents pick their moves with
- * [ContestAi] (src/contest_ai.c). Human contestants pass their move slot to [playRound].
+ * One Hoenn contest's appeal phase and final scoring, a port of src/contest.c
+ * (CalculateRound1Points, SortContestants, CalculateAppealMoveImpact, Task_DoAppeals,
+ * RankContestants, SetAttentionLevels, SetContestantStatusesForNextRound, ApplyNextTurnOrder,
+ * CalculateFinalScores) and src/contest_effect.c (every gContestEffectFuncs entry). The NPC
+ * opponents pick their moves with [ContestAi] (src/contest_ai.c). Human contestants pass their move
+ * slot to [playRound].
  */
 class ContestEngine(
     val category: Int,
@@ -421,8 +424,12 @@ class ContestEngine(
         me.resistant = true
         setString(c, ContestString.STOPPED_CARING)
       }
-      8, 10, 12 -> startleFrontMon()
-      9, 11, 13 -> startlePrevMons()
+      8,
+      10,
+      12 -> startleFrontMon()
+      9,
+      11,
+      13 -> startlePrevMons()
       14 -> {
         val r = random() % 10
         jam = if (r < 2) 20 else if (r < 8) 40 else 60
@@ -486,8 +493,7 @@ class ContestEngine(
       41 -> nextAppealLater()
       42 -> {} // MAKE_SCRAMBLING_TURN_ORDER_EASIER, dummied out
       43 -> scrambleNextTurnOrder()
-      44 ->
-          if (data.move(me.currMove).category != category) me.overrideCategoryExcitementMod = true
+      44 -> if (data.move(me.currMove).category != category) me.overrideCategoryExcitementMod = true
       45 -> badlyStartleMonsWithGoodAppeals()
       46 -> betterWhenAudienceExcited()
       47 ->
@@ -713,7 +719,8 @@ class ContestEngine(
     val a = currentAppealer
     var appeal = 0
     if (turnOrder[a] != 0)
-        for (i in 0 until Contest.COUNT) if (turnOrder[a] - 1 == turnOrder[i]) appeal = status[i].appeal
+        for (i in 0 until Contest.COUNT) if (turnOrder[a] - 1 == turnOrder[i])
+            appeal = status[i].appeal
     if (turnOrder[a] == 0 || appeal <= 0) setString(a, ContestString.APPEAL_NOT_WELL2)
     else {
       status[a].appeal += appeal
@@ -1091,7 +1098,8 @@ class ContestEngine(
       3 -> ev += ContestEvent("judge", c, a = JudgeSymbol.QUESTION_MARK)
     }
     ev += ContestEvent("hearts", c, a = 0, b = s.appeal)
-    if (s.conditionMod == Contest.CONDITION_GAIN) ev += ContestEvent("judge", c, a = JudgeSymbol.STAR)
+    if (s.conditionMod == Contest.CONDITION_GAIN)
+        ev += ContestEvent("judge", c, a = JudgeSymbol.STAR)
     updateStars(c, ev)
     ev += statusEvent(c)
     // APPEALSTATE_UPDATE_OPPONENT: in box (turn) order, every other contestant with a message.
@@ -1139,7 +1147,9 @@ class ContestEngine(
                   nick,
                   moveName(s.currMove),
                   mons[excitementFreezer].nickname))
-      ev += ContestEvent("text", c, expand(misc("gText_MonsMoveIsIgnored"), nick, moveName(s.currMove)))
+      ev +=
+          ContestEvent(
+              "text", c, expand(misc("gText_MonsMoveIsIgnored"), nick, moveName(s.currMove)))
     } else {
       var r = moveExcitement
       val v3: String

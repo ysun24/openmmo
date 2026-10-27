@@ -70,8 +70,7 @@ data class InitialBerryTree(val tree: Int, val item: String, val stage: Int)
  * Every decomp table of round 5's contest lane, loaded once from the resource that
  * codegen/tools/gen_contest_data.py writes.
  */
-class ContestData
-private constructor(root: JsonObject) {
+class ContestData private constructor(root: JsonObject) {
   val moves: Map<Int, ContestMoveDef>
   val effects: List<ContestEffectDef>
   val comboStarterLookup: List<Boolean>
@@ -115,7 +114,8 @@ private constructor(root: JsonObject) {
         root.getValue("moves").jsonObject.entries.associate { (k, v) ->
           val o = v.jsonObject
           k.toInt() to
-              ContestMoveDef(o.i("effect"), o.i("category"), o.i("starter"), o.getValue("combos").ints())
+              ContestMoveDef(
+                  o.i("effect"), o.i("category"), o.i("starter"), o.getValue("combos").ints())
         }
     effects =
         root.getValue("effects").jsonArray.map {
@@ -208,8 +208,7 @@ private constructor(root: JsonObject) {
   fun effectOf(move: Int): ContestEffectDef = effects[move(move).effect]
 
   /** GetBerryInfo: type 1..43, out-of-range falls back to Cheri like the decomp. */
-  fun berry(type: Int): BerryDef =
-      if (type in 1..berries.size) berries[type - 1] else berries[0]
+  fun berry(type: Int): BerryDef = if (type in 1..berries.size) berries[type - 1] else berries[0]
 
   fun berryByItem(item: String): BerryDef? = berries.firstOrNull { it.item == item }
 

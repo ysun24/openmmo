@@ -149,10 +149,10 @@ function contestFrame(d, body) {
   const boxes = h('div.r5c-boxes', order.map((c) => h(`div.r5c-box#r5c-box-${c.index}`, { class: c.you ? 'you' : '' },
     icon(c.dex),
     h('div.names', h('b', c.name), h('span', '/' + c.trainer)),
-    h('div.round', hearts(0)),
+    h('div.r5c-round', hearts(0)),
     h('div.total', `♥${c.hearts}`),
     h('div.stars', '★'.repeat(c.condition)),
-    h('div.status', statusIcon(c.status, c.attention)),
+    h('div.r5c-status', statusIcon(c.status, c.attention)),
     h('div.turn', String(c.turn + 1)))));
   const meter = h('div.r5c-applause', [0, 1, 2, 3, 4].map((i) => h('i', { class: i < d.applause ? 'on' : '' })));
   return screen('r5c-contest', { style: `--cat:${CAT_COLOR[d.category]}` },
@@ -216,7 +216,7 @@ function playAppeals(d) {
   const setBox = (who) => {
     const b = root.querySelector(`#r5c-box-${who}`);
     if (!b) return;
-    b.querySelector('.round').replaceChildren(heartsSigned(Math.trunc(round[who] / 10)));
+    b.querySelector('.r5c-round').replaceChildren(heartsSigned(Math.trunc(round[who] / 10)));
     b.querySelector('.total').textContent = `♥${total[who]}`;
   };
   for (const c of d.contestants) setBox(c.index);
@@ -258,7 +258,7 @@ function playAppeals(d) {
         wait = 700;
         break;
       case 'stars': if (box) box.querySelector('.stars').textContent = '★'.repeat(e.a); wait = 250; break;
-      case 'status': if (box) box.querySelector('.status').textContent = statusIcon(e.text); break;
+      case 'status': if (box) box.querySelector('.r5c-status').textContent = statusIcon(e.text); break;
       case 'crowd': {
         const m = root.querySelectorAll('.r5c-applause i');
         m.forEach((x, k) => x.classList.toggle('on', k < e.a));
@@ -431,7 +431,7 @@ function drawBlender() {
     const [px, py] = corners[s.arrow];
     g.fillStyle = x.score === 'best' ? '#ff5050' : x.score === 'good' ? '#40c040' : '#808080';
     g.font = 'bold 12px sans-serif';
-    g.fillText(x.score === 'best' ? '★BEST' : x.score === 'good' ? '○GOOD' : '×MISS', px, py + 26 - (now - x.t) / 40);
+    g.fillText(x.score === 'best' ? '★BEST' : x.score === 'good' ? '○GOOD' : '×MISS', px, py + (s.arrow < 2 ? 36 : -14) - (now - x.t) / 40);
   }
   blend.raf = requestAnimationFrame(drawBlender);
 }

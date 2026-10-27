@@ -68,13 +68,20 @@ constructor(
     }
   }
 
-  private suspend fun pokeblockAction(session: SessionContext, charId: Long, t: String, msg: JsonObject) {
+  private suspend fun pokeblockAction(
+      session: SessionContext,
+      charId: Long,
+      t: String,
+      msg: JsonObject
+  ) {
     when (t) {
       "pokeblocks.open" -> {
         if (!lane.trees.hasItem(charId, "POKEBLOCK_CASE"))
             return lane.docs.send(session, "pokeblocks") {
               put("open", kotlinx.serialization.json.JsonPrimitive(false))
-              put("message", kotlinx.serialization.json.JsonPrimitive("You don't have a POKéBLOCK CASE."))
+              put(
+                  "message",
+                  kotlinx.serialization.json.JsonPrimitive("You don't have a POKéBLOCK CASE."))
             }
         lane.pokeblocks.sendCase(session, charId, open = true)
       }
@@ -87,7 +94,8 @@ constructor(
       "pokeblocks.toss" -> {
         val slot = msg.int("slot") ?: return
         lane.pokeblocks.toss(charId, slot)
-        lane.pokeblocks.sendCase(session, charId, open = true, message = "The POKéBLOCK was thrown away.")
+        lane.pokeblocks.sendCase(
+            session, charId, open = true, message = "The POKéBLOCK was thrown away.")
       }
       else ->
           // pokeblocks.close / pokeblocks.give answer a script that opened the case
@@ -115,9 +123,9 @@ fun interface MonBeauty {
 }
 
 /**
- * Developer shortcuts for testing the contest lane: `/contestdev kit` (case, pail, berries),
- * `stats c b cu s t sheen` (the lead monster's conditions), `ribbon cat rank`, `block spicy dry
- * sweet bitter sour feel`, `grow hours` (berry trees), `goto lobby|museum|route104|route123`.
+ * Developer shortcuts for testing the contest lane: `/contestdev kit` (case, pail, berries), `stats
+ * c b cu s t sheen` (the lead monster's conditions), `ribbon cat rank`, `block spicy dry sweet
+ * bitter sour feel`, `grow hours` (berry trees), `goto lobby|museum|route104|route123`.
  */
 @Singleton
 class ContestDevCommand
@@ -139,7 +147,11 @@ constructor(
     val charId = ctx.characterId
     val a = ctx.args
     val lead =
-        characters.getCharacter(charId)?.pokemon?.sortedBy { it.containerSlot }?.firstOrNull { !it.isEgg }
+        characters
+            .getCharacter(charId)
+            ?.pokemon
+            ?.sortedBy { it.containerSlot }
+            ?.firstOrNull { !it.isEgg }
     when (a.firstOrNull()) {
       "kit" -> {
         val give =
@@ -148,7 +160,9 @@ constructor(
         for ((n, q) in give) {
           val def = ItemNames.byDecompName(n) ?: continue
           val id = items.idOrNull(def) ?: continue
-          if (n.endsWith("BERRY") || n == "RARE_CANDY" || (characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0)
+          if (n.endsWith("BERRY") ||
+              n == "RARE_CANDY" ||
+              (characters.getCharacter(charId)?.items?.get(id) ?: 0) == 0)
               characters.addItem(charId, id, q)
         }
         characters.getCharacter(charId)?.items?.let { ctx.session.send(storyItemStacksPacket(it)) }
@@ -158,9 +172,19 @@ constructor(
       "stats" -> {
         val m = lead ?: return ctx.reply("No monster.")
         val n = a.drop(1).map { it.toIntOrNull()?.coerceIn(0, 255) ?: 0 } + List(6) { 0 }
-        val c = lane.stats.get(m.id).copy(cool = n[0], beauty = n[1], cute = n[2], smart = n[3], tough = n[4], sheen = n[5])
+        val c =
+            lane.stats
+                .get(m.id)
+                .copy(
+                    cool = n[0],
+                    beauty = n[1],
+                    cute = n[2],
+                    smart = n[3],
+                    tough = n[4],
+                    sheen = n[5])
         lane.stats.set(m.id, c)
-        ctx.reply("${m.nickname}: cool ${c.cool} beauty ${c.beauty} cute ${c.cute} smart ${c.smart} tough ${c.tough} sheen ${c.sheen}")
+        ctx.reply(
+            "${m.nickname}: cool ${c.cool} beauty ${c.beauty} cute ${c.cute} smart ${c.smart} tough ${c.tough} sheen ${c.sheen}")
       }
       "ribbon" -> {
         val m = lead ?: return ctx.reply("No monster.")
@@ -192,7 +216,13 @@ constructor(
             }
         val x = a.getOrNull(2)?.toIntOrNull() ?: x0
         val y = a.getOrNull(3)?.toIntOrNull() ?: y0
-        val facing = when (a.getOrNull(4)) { "down" -> Direction.DOWN; "left" -> Direction.LEFT; "right" -> Direction.RIGHT; else -> Direction.UP }
+        val facing =
+            when (a.getOrNull(4)) {
+              "down" -> Direction.DOWN
+              "left" -> Direction.LEFT
+              "right" -> Direction.RIGHT
+              else -> Direction.UP
+            }
         val def = maps.getMapByName(1, map) ?: return ctx.reply("No map $map")
         warp.executeWarp(
             ctx.session,
@@ -224,6 +254,8 @@ interface ContestModule {
   companion object {
     @Provides
     @Singleton
-    fun monBeauty(stats: ContestStatsService): MonBeauty = MonBeauty { stats.getBlocking(it).beauty }
+    fun monBeauty(stats: ContestStatsService): MonBeauty = MonBeauty {
+      stats.getBlocking(it).beauty
+    }
   }
 }

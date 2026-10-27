@@ -183,7 +183,13 @@ constructor(
       if (s in slots.indices)
           slots[s] =
               Pokeblock(
-                  r.color.i(), r.spicy.i(), r.dry.i(), r.sweet.i(), r.bitter.i(), r.sour.i(), r.feel.i())
+                  r.color.i(),
+                  r.spicy.i(),
+                  r.dry.i(),
+                  r.sweet.i(),
+                  r.bitter.i(),
+                  r.sour.i(),
+                  r.feel.i())
     }
     slots
   }

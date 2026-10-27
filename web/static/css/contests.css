@@ -1,5 +1,5 @@
 /* r5-contests: contest, blender, POKéBLOCK case, berry pocket and painting overlays. */
-#r5c-root { position: fixed; inset: var(--topbar) 0 0 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 10, 20, 0.86); overflow: auto; padding: 8px; }
+#r5c-root { position: fixed; inset: var(--topbar) 0 0 0; z-index: 400; display: grid; place-items: center; background: rgba(8, 10, 20, 0.86); overflow: auto; padding: 8px; }
 .r5c-screen { width: min(760px, 100%); background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; color: var(--fg); }
 .r5c-screen h2 { margin: 0; font-size: 18px; letter-spacing: 1px; text-align: center; }
 .r5c-screen button { background: #2a2f46; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
@@ -48,10 +48,10 @@
 .r5c-box .r5c-icon { grid-area: img; }
 .r5c-box .names { grid-area: names; overflow: hidden; white-space: nowrap; }
 .r5c-box .names span { color: var(--muted); margin-left: 2px; }
-.r5c-box .round { grid-area: round; }
+.r5c-box .r5c-round { grid-area: round; }
 .r5c-box .total { grid-area: total; color: #f8a0b0; }
 .r5c-box .stars { grid-area: stars; color: #f8d030; }
-.r5c-box .status { grid-area: status; }
+.r5c-box .r5c-status { grid-area: status; }
 .r5c-box .turn { grid-area: turn; background: #12141f; border-radius: 50%; width: 18px; text-align: center; }
 .r5c-box.flash-up { animation: r5c-up 0.5s; }
 .r5c-box.flash-down { animation: r5c-down 0.5s; }
@@ -130,3 +130,4 @@
 
 .r5c-icon { display: inline-block; width: 32px; height: 32px; background-size: 32px 32px; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; }
 .r5c-blender .r5c-res-row { grid-template-columns: 40px 120px 1fr; }
+.r5c-res-row .pts { white-space: nowrap; }

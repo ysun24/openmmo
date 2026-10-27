@@ -41,12 +41,12 @@ private class BlendRoom(val key: String, val npcOpponents: Int, val berryMaster:
 }
 
 /**
- * The Berry Blender with other online players: whoever uses the same blender (map + its NPC
- * count, VAR_0x8004 of DoBerryBlending) within [JOIN_WINDOW_MS] blends together, up to four;
- * NPCs (sBlenderOpponentsNames) fill the seats the blender's script asks for. Each player picks a
- * berry first (the blender's berry menu); then [BlenderEngine] runs at the GBA's 60 frames per
- * second on the server, the browser presses A with the arrow position it saw, and everybody gets
- * the Pokéblock CalculatePokeblock makes.
+ * The Berry Blender with other online players: whoever uses the same blender (map + its NPC count,
+ * VAR_0x8004 of DoBerryBlending) within [JOIN_WINDOW_MS] blends together, up to four; NPCs
+ * (sBlenderOpponentsNames) fill the seats the blender's script asks for. Each player picks a berry
+ * first (the blender's berry menu); then [BlenderEngine] runs at the GBA's 60 frames per second on
+ * the server, the browser presses A with the arrow position it saw, and everybody gets the
+ * Pokéblock CalculatePokeblock makes.
  */
 @Singleton
 class BlenderService
@@ -101,13 +101,12 @@ constructor(
       docs.send(session, "blender") {
         put("phase", "choose")
         putJsonArray("berries") {
-          for ((b, _, q) in berries)
-              add(
-                  buildJsonObject {
-                    put("berry", b.type)
-                    put("name", b.name)
-                    put("qty", q)
-                  })
+          for ((b, _, q) in berries) add(
+              buildJsonObject {
+                put("berry", b.type)
+                put("name", b.name)
+                put("qty", q)
+              })
         }
       }
       val pick = docs.await(session, "blender") ?: break
@@ -145,12 +144,13 @@ constructor(
   }
 
   private fun waitingDoc(r: BlendRoom) {
-    for (p in r.players.toList())
-        docs.send(p.session, "blender") {
-          put("phase", "wait")
-          put("waitMs", joinWindowMs)
-          putJsonArray("players") { r.players.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.name)) } }
-        }
+    for (p in r.players.toList()) docs.send(p.session, "blender") {
+      put("phase", "wait")
+      put("waitMs", joinWindowMs)
+      putJsonArray("players") {
+        r.players.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.name)) }
+      }
+    }
   }
 
   /** The host may start before the window ends. */
@@ -180,7 +180,8 @@ constructor(
   private suspend fun play(r: BlendRoom, humans: List<BlendPlayer>) {
     // A single player blends with the blender's NPCs (InitLocalPlayers); a group of players fills
     // the NPC seats the blender has beyond them.
-    val npcSeats = (r.npcOpponents - (humans.size - 1)).coerceAtLeast(0).coerceAtMost(4 - humans.size)
+    val npcSeats =
+        (r.npcOpponents - (humans.size - 1)).coerceAtLeast(0).coerceAtMost(4 - humans.size)
     val seats = (humans.size + npcSeats).coerceAtLeast(2)
     val npcCount = seats - humans.size
     val npcNames =
@@ -188,7 +189,8 @@ constructor(
           npcCount == 1 && humans.size == 1 ->
               listOf(data.blenderNames.getValue(if (r.berryMaster) "MASTER" else "MISTER"))
           npcCount == 1 -> listOf(data.blenderNames.getValue("MISTER"))
-          npcCount == 2 -> listOf(data.blenderNames.getValue("DUDE"), data.blenderNames.getValue("LASSIE"))
+          npcCount == 2 ->
+              listOf(data.blenderNames.getValue("DUDE"), data.blenderNames.getValue("LASSIE"))
           npcCount == 3 ->
               listOf(
                   data.blenderNames.getValue("MISS"),
@@ -203,7 +205,8 @@ constructor(
     // SetOpponentsBerryData from the first player's berry
     val npcBerries =
         if (npcCount > 0)
-            BlenderEngine.opponentBerries(humans[0].berry, npcCount + 1, r.berryMaster && humans.size == 1)
+            BlenderEngine.opponentBerries(
+                    humans[0].berry, npcCount + 1, r.berryMaster && humans.size == 1)
                 .take(npcCount)
         else emptyList()
     val berries = humans.map { it.berry } + npcBerries
@@ -243,18 +246,17 @@ constructor(
           put("rpm", BlenderEngine.arrowSpeedToRPM(engine.speed))
           put("maxRpm", engine.maxRPM)
           putJsonArray("hits") {
-            for ((s, c) in batch)
-                add(
-                    buildJsonObject {
-                      put("seat", s)
-                      put(
-                          "score",
-                          when (c) {
-                            BlenderEngine.SCORE_BEST -> "best"
-                            BlenderEngine.SCORE_GOOD -> "good"
-                            else -> "miss"
-                          })
-                    })
+            for ((s, c) in batch) add(
+                buildJsonObject {
+                  put("seat", s)
+                  put(
+                      "score",
+                      when (c) {
+                        BlenderEngine.SCORE_BEST -> "best"
+                        BlenderEngine.SCORE_GOOD -> "good"
+                        else -> "miss"
+                      })
+                })
           }
         }
       }
@@ -286,15 +288,14 @@ constructor(
         put("block", pokeblocks.blockJson(-1, block))
         put("received", got)
         putJsonArray("ranking") {
-          for (s in order)
-              add(
-                  buildJsonObject {
-                    put("seat", s)
-                    put("name", names[s])
-                    put("best", engine.scores[s][0])
-                    put("good", engine.scores[s][1])
-                    put("miss", engine.scores[s][2])
-                  })
+          for (s in order) add(
+              buildJsonObject {
+                put("seat", s)
+                put("name", names[s])
+                put("best", engine.scores[s][0])
+                put("good", engine.scores[s][1])
+                put("miss", engine.scores[s][2])
+              })
         }
       }
     }
@@ -307,19 +308,21 @@ constructor(
       engine: BlenderEngine,
   ) =
       kotlinx.serialization.json.buildJsonArray {
-        for (i in names.indices)
-            add(
-                buildJsonObject {
-                  put("name", names[i])
-                  put("npc", kinds[i] != 0)
-                  put("berry", berries[i])
-                  put("berryName", data.berry(berries[i]).name)
-                  put("arrow", engine.arrowIdOf(i))
-                  put("hitStart", data.arrowHitRangeStart[engine.arrowIdOf(i)])
-                })
+        for (i in names.indices) add(
+            buildJsonObject {
+              put("name", names[i])
+              put("npc", kinds[i] != 0)
+              put("berry", berries[i])
+              put("berryName", data.berry(berries[i]).name)
+              put("arrow", engine.arrowIdOf(i))
+              put("hitStart", data.arrowHitRangeStart[engine.arrowIdOf(i)])
+            })
       }
 
-  private fun broadcast(humans: List<BlendPlayer>, body: kotlinx.serialization.json.JsonObjectBuilder.(Int) -> Unit) {
+  private fun broadcast(
+      humans: List<BlendPlayer>,
+      body: kotlinx.serialization.json.JsonObjectBuilder.(Int) -> Unit
+  ) {
     humans.forEachIndexed { seat, p -> if (!p.gone) docs.send(p.session, "blender") { body(seat) } }
   }
 

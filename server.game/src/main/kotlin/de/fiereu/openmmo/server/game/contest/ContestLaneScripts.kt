@@ -15,8 +15,8 @@ import javax.inject.Singleton
  * interpreter (r5-scripts) reaches them: the Lilycove contest reception and hall
  * (data/scripts/contest_hall.inc, LilycoveCity_ContestLobby), BerryTreeScript
  * (data/scripts/berry_tree.inc), the three Berry Blenders and the link blender
- * (data/scripts/berry_blender.inc), the lobby's hall paintings, the blender records and the museum's
- * exhibition hall (LilycoveCity_LilycoveMuseum_2F). Every special they call goes through
+ * (data/scripts/berry_blender.inc), the lobby's hall paintings, the blender records and the
+ * museum's exhibition hall (LilycoveCity_LilycoveMuseum_2F). Every special they call goes through
  * [ContestSpecials], the same handlers the interpreter calls. Once the interpreter runs these
  * labels, GameServerModule can drop [byLabel].
  */
@@ -51,10 +51,12 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     var entry: ContestEntry
     while (true) {
       ctx.say(Lobby.EnterWhichRank)
-      entry = lane.contests.chooseEntry(ctx.session, ctx.state) ?: run {
-        ctx.say(Lobby.ParticipateAnotherTime)
-        return@Script
-      }
+      entry =
+          lane.contests.chooseEntry(ctx.session, ctx.state)
+              ?: run {
+                ctx.say(Lobby.ParticipateAnotherTime)
+                return@Script
+              }
       v.set(ctx, v.CONTEST_RANK, entry.rank)
       v.set(ctx, v.CONTEST_CATEGORY, entry.category)
       v.set(ctx, v.V8004, entry.slot)
@@ -131,7 +133,9 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     }
   }
 
-  /** The hall paintings above the lobby (LilycoveCity_ContestLobby_EventScript_ContestWinner1-6). */
+  /**
+   * The hall paintings above the lobby (LilycoveCity_ContestLobby_EventScript_ContestWinner1-6).
+   */
   private fun hallWinner(n: Int) = Script { ctx ->
     v.set(ctx, v.V8004, n)
     special(ctx, "ShowContestPainting")
@@ -285,15 +289,28 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
         lane.item("PECHA_BERRY")?.let { ctx.giveItem(it) }
         v.setFlag(ctx, FLAG_DAILY_CONTEST_LOBBY_RECEIVED_BERRY)
       } else {
-        ctx.say(if (npcs == 2) BerryBlender.DontHaveAnyBerries2 else BerryBlender.DontHaveAnyBerries3)
+        ctx.say(
+            if (npcs == 2) BerryBlender.DontHaveAnyBerries2 else BerryBlender.DontHaveAnyBerries3)
         return@Script
       }
     } else if (npcs == 1) ctx.say(BerryBlender.Excellent)
     val (know, explain, start) =
         when (npcs) {
-          1 -> Triple(BerryBlender.KnowHowToMakePokeblocks, BerryBlender.ExplainBerryBlending, BerryBlender.LetsBerryBlender)
-          2 -> Triple(BerryBlender.KnowHowToMakePokeblocks2, BerryBlender.ExplainBerryBlending2, BerryBlender.LetsBerryBlender2)
-          else -> Triple(BerryBlender.KnowHowToMakePokeblocks3, BerryBlender.ExplainBerryBlending3, BerryBlender.LetsBerryBlender3)
+          1 ->
+              Triple(
+                  BerryBlender.KnowHowToMakePokeblocks,
+                  BerryBlender.ExplainBerryBlending,
+                  BerryBlender.LetsBerryBlender)
+          2 ->
+              Triple(
+                  BerryBlender.KnowHowToMakePokeblocks2,
+                  BerryBlender.ExplainBerryBlending2,
+                  BerryBlender.LetsBerryBlender2)
+          else ->
+              Triple(
+                  BerryBlender.KnowHowToMakePokeblocks3,
+                  BerryBlender.ExplainBerryBlending3,
+                  BerryBlender.LetsBerryBlender3)
         }
     if (!ctx.askYesNo(know)) ctx.say(explain)
     ctx.say(start)
@@ -342,22 +359,21 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     special(ctx, "ShowContestPainting")
   }
 
-  val byLabel: Map<String, Script> =
-      buildMap {
-        put("LilycoveCity_ContestLobby_EventScript_ContestReceptionist", receptionist)
-        put("LilycoveCity_ContestLobby_EventScript_LinkContestReceptionist", receptionist)
-        for (n in 1..6) put("LilycoveCity_ContestLobby_EventScript_ContestWinner$n", hallWinner(n))
-        put("LilycoveCity_ContestLobby_EventScript_BerryBlenderSpeedRecords", blenderRecords)
-        put("BerryTreeScript", berryTree)
-        put("BerryTree_EventScript_ItemUseWailmerPail", itemUseWailmerPail)
-        put("BerryBlender_EventScript_BerryBlender1", blender(1))
-        put("BerryBlender_EventScript_BerryBlender2", blender(2))
-        put("BerryBlender_EventScript_BerryBlender3", blender(3))
-        put("BerryBlender_EventScript_BerryBlenderLink", linkBlender)
-        listOf("Cool", "Beauty", "Cute", "Smart", "Tough").forEachIndexed { i, c ->
-          put("LilycoveCity_LilycoveMuseum_2F_EventScript_${c}Painting", museumPainting(i))
-        }
-      }
+  val byLabel: Map<String, Script> = buildMap {
+    put("LilycoveCity_ContestLobby_EventScript_ContestReceptionist", receptionist)
+    put("LilycoveCity_ContestLobby_EventScript_LinkContestReceptionist", receptionist)
+    for (n in 1..6) put("LilycoveCity_ContestLobby_EventScript_ContestWinner$n", hallWinner(n))
+    put("LilycoveCity_ContestLobby_EventScript_BerryBlenderSpeedRecords", blenderRecords)
+    put("BerryTreeScript", berryTree)
+    put("BerryTree_EventScript_ItemUseWailmerPail", itemUseWailmerPail)
+    put("BerryBlender_EventScript_BerryBlender1", blender(1))
+    put("BerryBlender_EventScript_BerryBlender2", blender(2))
+    put("BerryBlender_EventScript_BerryBlender3", blender(3))
+    put("BerryBlender_EventScript_BerryBlenderLink", linkBlender)
+    listOf("Cool", "Beauty", "Cute", "Smart", "Tough").forEachIndexed { i, c ->
+      put("LilycoveCity_LilycoveMuseum_2F_EventScript_${c}Painting", museumPainting(i))
+    }
+  }
 
   companion object {
     const val FLAG_RECEIVED_POKEBLOCK_CASE = "FLAG_RECEIVED_POKEBLOCK_CASE"

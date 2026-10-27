@@ -65,7 +65,8 @@ object GameServerModule {
       contests: de.fiereu.openmmo.server.game.contest.ContestLaneScripts
   ): ScriptRegistry =
       ScriptRegistry(
-          de.fiereu.openmmo.server.game.script.generated.GeneratedScripts.byLabel + contests.byLabel)
+          de.fiereu.openmmo.server.game.script.generated.GeneratedScripts.byLabel +
+              contests.byLabel)
 
   @Provides
   @Singleton

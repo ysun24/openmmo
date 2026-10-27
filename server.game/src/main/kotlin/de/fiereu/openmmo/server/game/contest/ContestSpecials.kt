@@ -11,8 +11,7 @@ import javax.inject.Singleton
 /**
  * The decomp's special variables as this lane reads and writes them. They go through
  * [ScriptContext.getVar] / [ScriptContext.setVar] under their decomp names (VAR_0x8004,
- * VAR_CONTEST_CATEGORY, …), the one place to change if the interpreter keeps temporaries
- * elsewhere.
+ * VAR_CONTEST_CATEGORY, …), the one place to change if the interpreter keeps temporaries elsewhere.
  */
 object SpecialVars {
   const val V8004 = "VAR_0x8004"
@@ -58,7 +57,10 @@ constructor(
   fun charId(ctx: ScriptContext): Long? = ctx.state.characterId
 
   fun party(ctx: ScriptContext) =
-      charId(ctx)?.let { characters.getCharacter(it)?.pokemon }.orEmpty().sortedBy { it.containerSlot }
+      charId(ctx)
+          ?.let { characters.getCharacter(it)?.pokemon }
+          .orEmpty()
+          .sortedBy { it.containerSlot }
 
   /** GetLeadMonIndex: the first party monster that is not an egg. */
   fun leadMon(ctx: ScriptContext) = party(ctx).firstOrNull { !it.isEgg } ?: party(ctx).firstOrNull()
@@ -154,8 +156,6 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
           "DoWateringBerryTreeAnim",
           "PlayerHasBerries",
           "HasAtLeastOneBerry",
-          "IsEnigmaBerryValid",
-          "DoesPartyHaveEnigmaBerry",
           "IncrementDailyPlantedBerries",
           "IncrementDailyPickedBerries",
           // museum paintings
@@ -195,9 +195,10 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       "GetContestMonConditionRanking" -> {
         val view = l.view(ctx) ?: return 0
         val who = view.fromView(v.get(ctx, v.V8006))
-        val rank = (0 until Contest.COUNT).count {
-          view.engine.round1Points[who] < view.engine.round1Points[it]
-        }
+        val rank =
+            (0 until Contest.COUNT).count {
+              view.engine.round1Points[who] < view.engine.round1Points[it]
+            }
         v.set(ctx, v.V8004, rank)
         0
       }
@@ -262,7 +263,10 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
         0
       }
       "ShouldReadyContestArtist" -> {
-        v.set(ctx, v.V8004, if (l.view(ctx)?.let { l.contests.shouldReadyArtist(it) } == true) 1 else 0)
+        v.set(
+            ctx,
+            v.V8004,
+            if (l.view(ctx)?.let { l.contests.shouldReadyArtist(it) } == true) 1 else 0)
         0
       }
       "CountPlayerMuseumPaintings" ->
@@ -280,12 +284,11 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
         l.contests.showPainting(ctx.session, charId, v.get(ctx, v.V8004))
         0
       }
-      "GiveMonArtistRibbon" -> if (l.view(ctx)?.let { l.contests.giveArtistRibbon(it) } == true) 1 else 0
+      "GiveMonArtistRibbon" ->
+          if (l.view(ctx)?.let { l.contests.giveArtistRibbon(it) } == true) 1 else 0
       "IsContestDebugActive",
       "IsWirelessContest",
       "IsContestWithRSPlayer",
-      "IsEnigmaBerryValid",
-      "DoesPartyHaveEnigmaBerry",
       "ShouldContestLadyShowGoOnAir" -> 0
       "ShowContestEntryMonPic" -> 0
       "GetContestMultiplayerId" -> 4 // MAX_LINK_PLAYERS: not a 4-player G-mode link
@@ -308,7 +311,8 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       }
       "OpenPokeblockCaseForContestLady" -> {
         // the case opens to pick one block (VAR_RESULT = the slot, 0xFFFF for none)
-        l.pokeblocks.sendCase(ctx.session, charId, open = true, message = "Choose a POKéBLOCK to give.")
+        l.pokeblocks.sendCase(
+            ctx.session, charId, open = true, message = "Choose a POKéBLOCK to give.")
         val a = l.docs.await(ctx.session, "pokeblocks")
         l.docs.close(ctx.session, "pokeblocks")
         val slot = a?.takeIf { it.str("t") == "pokeblocks.give" }?.int("slot")
@@ -322,14 +326,18 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
         0
       }
       "GetContestLadyMonSpecies" -> {
-        v.set(ctx, v.V8005, LADY_MONS.getOrElse(SpecialVars.get(ctx, LADY_CATEGORY_VAR)) { LADY_MONS[0] }.first)
+        v.set(
+            ctx,
+            v.V8005,
+            LADY_MONS.getOrElse(SpecialVars.get(ctx, LADY_CATEGORY_VAR)) { LADY_MONS[0] }.first)
         0
       }
       "GetContestLadyCategory" -> {
         v.set(ctx, v.V8004, SpecialVars.get(ctx, LADY_CATEGORY_VAR))
         SpecialVars.get(ctx, LADY_CATEGORY_VAR)
       }
-      "GetFirstFreePokeblockSlot" -> l.pokeblocks.firstFreeSlot(charId).let { if (it < 0) 0xFFFF else it }
+      "GetFirstFreePokeblockSlot" ->
+          l.pokeblocks.firstFreeSlot(charId).let { if (it < 0) 0xFFFF else it }
       "OpenPokeblockCaseOnFeeder" -> {
         l.pokeblocks.sendCase(ctx.session, charId, open = true)
         l.docs.await(ctx.session, "pokeblocks")
@@ -348,7 +356,8 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       }
       "DoBerryBlending" -> {
         val npc = v.get(ctx, v.V8004).coerceIn(0, 3)
-        val master = npc == 1 && !SpecialVars.flag(ctx, "FLAG_HIDE_LILYCOVE_CONTEST_HALL_BLEND_MASTER")
+        val master =
+            npc == 1 && !SpecialVars.flag(ctx, "FLAG_HIDE_LILYCOVE_CONTEST_HALL_BLEND_MASTER")
         l.blender.blend(ctx.session, ctx.state, npc, master)
         0
       }
@@ -359,7 +368,8 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       "ObjectEventInteractionGetBerryTreeData" -> {
         val id = l.treeId(ctx) ?: return 0
         // AllowBerryTreeGrowth
-        val t = l.trees.update(charId, id) { it.copy(stopGrowth = false) } ?: l.trees.tree(charId, id)
+        val t =
+            l.trees.update(charId, id) { it.copy(stopGrowth = false) } ?: l.trees.tree(charId, id)
         v.set(ctx, v.V8004, t.stage)
         v.set(ctx, v.V8005, t.wateredCount)
         v.set(ctx, v.V8006, t.berryYield)
@@ -482,15 +492,14 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       put(
           "berries",
           kotlinx.serialization.json.buildJsonArray {
-            for ((b, id, q) in list)
-                add(
-                    kotlinx.serialization.json.buildJsonObject {
-                      put("item", id)
-                      put("berry", b.type)
-                      put("name", b.name)
-                      put("qty", q)
-                      put("description", b.description.joinToString(" "))
-                    })
+            for ((b, id, q) in list) add(
+                kotlinx.serialization.json.buildJsonObject {
+                  put("item", id)
+                  put("berry", b.type)
+                  put("name", b.name)
+                  put("qty", q)
+                  put("description", b.description.joinToString(" "))
+                })
           })
     }
     val a = lane.docs.await(ctx.session, "berryChoose")
@@ -499,7 +508,8 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
     return if (list.any { it.second == item }) item else 0
   }
 
-  private suspend fun refreshTrees(ctx: ScriptContext) = lane.trees.sendMapTrees(ctx.session, ctx.state)
+  private suspend fun refreshTrees(ctx: ScriptContext) =
+      lane.trees.sendMapTrees(ctx.session, ctx.state)
 
   companion object {
     const val LOCALID_CONTESTANT_1 = 3

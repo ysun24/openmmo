@@ -397,15 +397,16 @@ class BlenderEngine(
             intArrayOf(NO_PLAYER, 0, 1, 2),
             intArrayOf(0, 1, 2, 3))
     // sArrowStartPos / sArrowStartPosIds (the arrow points at the first player's mark)
-    private val START_POS = intArrayOf(0, MAX_ARROW_POS / 4 * 3, MAX_ARROW_POS / 4, MAX_ARROW_POS / 4 * 2)
+    private val START_POS =
+        intArrayOf(0, MAX_ARROW_POS / 4 * 3, MAX_ARROW_POS / 4, MAX_ARROW_POS / 4 * 2)
     private val START_POS_IDS = intArrayOf(1, 1, 0)
 
     /** ArrowSpeedToRPM (hundredths of an RPM). */
     fun arrowSpeedToRPM(speed: Int): Int = 60 * 60 * 100 * speed / MAX_ARROW_POS
 
     /**
-     * CalculatePokeblock: the block every player receives. [berries] are berry types (1-based),
-     * one per seat; [maxRPM] in hundredths.
+     * CalculatePokeblock: the block every player receives. [berries] are berry types (1-based), one
+     * per seat; [maxRPM] in hundredths.
      */
     fun calculatePokeblock(
         berries: List<Int>,
@@ -455,8 +456,8 @@ class BlenderEngine(
     fun pokeblockColor(berries: List<Int>, flavors: IntArray, negatives: Int): Int {
       val zero = (0 until 5).count { flavors[it] == 0 }
       if (zero == 5 || negatives > 3) return Pokeblock.BLACK
-      for (i in berries.indices) for (j in berries.indices)
-          if (i != j && berries[i] == berries[j]) return Pokeblock.BLACK
+      for (i in berries.indices) for (j in berries.indices) if (i != j && berries[i] == berries[j])
+          return Pokeblock.BLACK
       val present = (0 until 5).filter { flavors[it] > 0 }
       if (present.size > 3) return 13 // WHITE
       if (present.size == 3) return 11 // GRAY
@@ -531,7 +532,9 @@ object BerryTreeRules {
   fun plant(berry: Int, stage: Int, allowGrowth: Boolean, rng: ContestRng): BerryTree {
     var t = BerryTree(berry = berry, stage = stage, minutesUntilNextStage = stageMinutes(berry))
     if (stage == BerryTree.STAGE_BERRIES)
-        t = t.copy(berryYield = yieldOf(t, rng), minutesUntilNextStage = t.minutesUntilNextStage * 4)
+        t =
+            t.copy(
+                berryYield = yieldOf(t, rng), minutesUntilNextStage = t.minutesUntilNextStage * 4)
     if (!allowGrowth) t = t.copy(stopGrowth = true)
     return t
   }
@@ -569,11 +572,7 @@ object BerryTreeRules {
         val n = t.regrowthCount + 1
         if (n == 10) BerryTree.BLANK
         else
-            t.copy(
-                watered = 0,
-                berryYield = 0,
-                stage = BerryTree.STAGE_SPROUTED,
-                regrowthCount = n)
+            t.copy(watered = 0, berryYield = 0, stage = BerryTree.STAGE_SPROUTED, regrowthCount = n)
       }
       else -> null
     }

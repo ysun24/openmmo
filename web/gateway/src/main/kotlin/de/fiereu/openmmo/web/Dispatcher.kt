@@ -393,7 +393,15 @@ object Dispatcher {
 
   /** r5-contests: the message type prefixes forwarded to the server as ContestActionPacket. */
   val CONTEST_KINDS =
-      setOf("contest", "contestEntry", "blender", "pokeblocks", "berry", "berryChoose", "painting", "conditions")
+      setOf(
+          "contest",
+          "contestEntry",
+          "blender",
+          "pokeblocks",
+          "berry",
+          "berryChoose",
+          "painting",
+          "conditions")
 
   /** `secretbase.action` values, the SecretBaseAction names in lower case without "_". */
   val SECRET_BASE_ACTIONS =

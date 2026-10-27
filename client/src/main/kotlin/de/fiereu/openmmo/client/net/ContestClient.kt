@@ -33,6 +33,5 @@ class ContestClient(private val send: (Any) -> Unit, private val onChange: () ->
   /** Sends one action, a JSON object with its `t`. */
   fun action(json: String) = send(ContestActionPacket(json))
 
-  fun reset() =
-      synchronized(lock) { state = State(seq = state.seq + 1) }
+  fun reset() = synchronized(lock) { state = State(seq = state.seq + 1) }
 }

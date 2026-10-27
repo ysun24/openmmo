@@ -87,21 +87,20 @@ class StateJson(private val names: Names) {
       ) + progressJson.sections(s)
 
   /** r5-contests: the documents are the server's JSON, passed through. */
-  fun contests(c: de.fiereu.openmmo.client.net.ContestClient.State): JsonElement =
-      buildJsonObject {
-        put("seq", c.seq)
-        putJsonObject("docs") {
-          for ((k, json) in c.docs) {
-            val doc =
-                try {
-                  kotlinx.serialization.json.Json.parseToJsonElement(json)
-                } catch (e: Exception) {
-                  JsonNull
-                }
-            put(k, doc)
-          }
-        }
+  fun contests(c: de.fiereu.openmmo.client.net.ContestClient.State): JsonElement = buildJsonObject {
+    put("seq", c.seq)
+    putJsonObject("docs") {
+      for ((k, json) in c.docs) {
+        val doc =
+            try {
+              kotlinx.serialization.json.Json.parseToJsonElement(json)
+            } catch (e: Exception) {
+              JsonNull
+            }
+        put(k, doc)
       }
+    }
+  }
 
   fun world(s: Sources): JsonElement {
     val w = s.world

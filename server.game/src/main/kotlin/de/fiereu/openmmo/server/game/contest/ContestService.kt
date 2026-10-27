@@ -136,12 +136,12 @@ constructor(
     val charId = state.characterId ?: return null
     val party = party(charId)
     stats.preload(party.map { it.id })
-    val rows = party.map { m ->
-      val c = stats.get(m.id)
-      val elig =
-          (0..4).map { cat -> (0..3).map { r -> eligibility(m, cat, r) } }
-      Triple(m, c, elig)
-    }
+    val rows =
+        party.map { m ->
+          val c = stats.get(m.id)
+          val elig = (0..4).map { cat -> (0..3).map { r -> eligibility(m, cat, r) } }
+          Triple(m, c, elig)
+        }
     docs.send(session, "contestEntry") {
       put("open", true)
       putJsonArray("party") {
@@ -152,7 +152,8 @@ constructor(
                 put(
                     "eligible",
                     buildJsonArray {
-                      for (cat in elig) add(buildJsonArray { cat.forEach { add(JsonPrimitive(it)) } })
+                      for (cat in elig) add(
+                          buildJsonArray { cat.forEach { add(JsonPrimitive(it)) } })
                     })
               })
         }
@@ -171,8 +172,8 @@ constructor(
   // ------------------------------------------------------------------ matchmaking
 
   /**
-   * startcontest: enters the chosen monster and suspends until the contest (and its results
-   * screen) is over. Returns the player's view of the result, or null if it could not run.
+   * startcontest: enters the chosen monster and suspends until the contest (and its results screen)
+   * is over. Returns the player's view of the result, or null if it could not run.
    */
   suspend fun runContest(
       session: SessionContext,
@@ -210,15 +211,14 @@ constructor(
   }
 
   private fun lobbyStatus(l: Lobby) {
-    for (h in l.humans.toList())
-        docs.send(h.session, "contest") {
-          put("phase", "waiting")
-          put("category", l.category)
-          put("rank", l.rank)
-          put("players", l.humans.size)
-          put("waitMs", joinWindowMs)
-          putJsonArray("names") { l.humans.forEach { add(it.contestMon.trainerName) } }
-        }
+    for (h in l.humans.toList()) docs.send(h.session, "contest") {
+      put("phase", "waiting")
+      put("category", l.category)
+      put("rank", l.rank)
+      put("players", l.humans.size)
+      put("waitMs", joinWindowMs)
+      putJsonArray("names") { l.humans.forEach { add(it.contestMon.trainerName) } }
+    }
   }
 
   private suspend fun startWhenReady(key: Pair<Int, Int>, l: Lobby) {
@@ -245,7 +245,8 @@ constructor(
   fun contestMonOf(mon: Pokemon, c: MonContest, trainer: String): ContestMon {
     val held = de.fiereu.openmmo.server.game.battle.ItemNames
     fun scarf(name: String) =
-        held.byDecompName(name)?.let { def -> mon.heldItem != 0 && heldIs(mon.heldItem, def) } == true
+        held.byDecompName(name)?.let { def -> mon.heldItem != 0 && heldIs(mon.heldItem, def) } ==
+            true
     var cool = c.cool
     var beauty = c.beauty
     var cute = c.cute
@@ -332,12 +333,14 @@ constructor(
       broadcast(humans, humanIndex) { _, me -> selectDoc(e, me) }
       val deadline = System.currentTimeMillis() + moveTimeoutMs
       while (System.currentTimeMillis() < deadline &&
-          humans.any { !it.gone && it.choice == null && !e.isTurnDisabled(humanIndex.getValue(it)) })
-          delay(100)
-      val choices = humans.associate { h ->
-        val me = humanIndex.getValue(h)
-        me to (h.choice ?: e.mons[me].moves.indexOfFirst { it != 0 }.coerceAtLeast(0))
-      }
+          humans.any {
+            !it.gone && it.choice == null && !e.isTurnDisabled(humanIndex.getValue(it))
+          }) delay(100)
+      val choices =
+          humans.associate { h ->
+            val me = humanIndex.getValue(h)
+            me to (h.choice ?: e.mons[me].moves.indexOfFirst { it != 0 }.coerceAtLeast(0))
+          }
       val round = e.appealNumber
       val events = e.playRound(choices)
       for (h in humans) h.ready = false
@@ -354,8 +357,7 @@ constructor(
     while (System.currentTimeMillis() < until && humans.any { !it.gone && !it.ready }) delay(100)
     for (h in humans) {
       docs.close(h.session, "contest")
-      val view =
-          ContestResultView(e, humanIndex.getValue(h), h.mon.id, l.category, l.rank)
+      val view = ContestResultView(e, humanIndex.getValue(h), h.mon.id, l.category, l.rank)
       results[h.charId] = view
       h.done.complete(view)
     }
@@ -435,7 +437,9 @@ constructor(
               put("jam", eff.jam / 10)
               put("description", data.effectDescriptions.getOrElse(def.effect) { "" })
               // DrawMoveSelectScreen: a combo finisher is highlighted, a repeat greyed
-              put("combo", s.prevMove != 0 && e.areMovesCombo(s.prevMove, id) != 0 && s.hasJudgesAttention)
+              put(
+                  "combo",
+                  s.prevMove != 0 && e.areMovesCombo(s.prevMove, id) != 0 && s.hasJudgesAttention)
               put("repeat", id == s.prevMove && def.effect != REPETITION_NOT_BORING)
             })
       }
@@ -592,11 +596,20 @@ constructor(
           CONTEST_WINNER_ARTIST ->
               results[charId]?.let { v ->
                 val m = v.engine.mons[v.me]
-                ContestPainting(v.category, v.monId, m.dex, m.shiny, m.nickname, m.trainerName, v.rank,
+                ContestPainting(
+                    v.category,
+                    v.monId,
+                    m.dex,
+                    m.shiny,
+                    m.nickname,
+                    m.trainerName,
+                    v.rank,
                     LocalDateTime.now())
               }
           in CONTEST_WINNER_MUSEUM_COOL..CONTEST_WINNER_MUSEUM_COOL + 4 ->
-              repo.paintings(charId).firstOrNull { it.category == which - CONTEST_WINNER_MUSEUM_COOL }
+              repo.paintings(charId).firstOrNull {
+                it.category == which - CONTEST_WINNER_MUSEUM_COOL
+              }
           else -> null
         }
     if (p == null) return false
@@ -652,9 +665,11 @@ constructor(
   }
 }
 
-internal fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.takeIf { it.isString }?.content
+internal fun JsonObject.str(k: String): String? =
+    (this[k] as? JsonPrimitive)?.takeIf { it.isString }?.content
 
-internal fun JsonObject.int(k: String): Int? = (this[k] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt()
+internal fun JsonObject.int(k: String): Int? =
+    (this[k] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt()
 
-internal fun JsonObject.long(k: String): Long? = (this[k] as? JsonPrimitive)?.content?.toLongOrNull()
-
+internal fun JsonObject.long(k: String): Long? =
+    (this[k] as? JsonPrimitive)?.content?.toLongOrNull()

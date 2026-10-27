@@ -14,7 +14,8 @@ import de.fiereu.openmmo.net.game.packets.battle.Utf8Long
 
 /**
  * c2s 0xD5: one player action as a JSON object `{"t":"<kind>.<verb>", ...}`, for example
- * `{"t":"contest.move","slot":2}` or `{"t":"blender.press","pos":12345}` (PROTOCOL.md "r5-contests").
+ * `{"t":"contest.move","slot":2}` or `{"t":"blender.press","pos":12345}` (PROTOCOL.md
+ * "r5-contests").
  */
 data class ContestActionPacket(val json: String)
 

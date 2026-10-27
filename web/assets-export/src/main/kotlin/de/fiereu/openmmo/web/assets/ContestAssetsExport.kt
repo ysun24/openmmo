@@ -9,11 +9,12 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * r5-contests: the berry tree sprites (pokeemerald src/data/object_events/berry_tree_graphics_tables.h).
- * Per berry one 9-frame sheet of 16x32 cells: frame 0 the dirt pile, 1-2 the sprout, 3-8 the tree,
- * each in the palette its growth stage uses (gBerryTreePaletteSlotTable_*: PALSLOT_NPC_1..4 =
- * npc_1..4.pal); the 16x16 frames sit at the cell's bottom. sAnim_BerryTreeStage0-4 give the
- * frames per stage. Manifest `contest.berryTrees` (PROTOCOL.md "r5-contests").
+ * r5-contests: the berry tree sprites (pokeemerald
+ * src/data/object_events/berry_tree_graphics_tables.h). Per berry one 9-frame sheet of 16x32 cells:
+ * frame 0 the dirt pile, 1-2 the sprout, 3-8 the tree, each in the palette its growth stage uses
+ * (gBerryTreePaletteSlotTable_*: PALSLOT_NPC_1..4 = npc_1..4.pal); the 16x16 frames sit at the
+ * cell's bottom. sAnim_BerryTreeStage0-4 give the frames per stage. Manifest `contest.berryTrees`
+ * (PROTOCOL.md "r5-contests").
  */
 class ContestAssetsExport(private val decomp: File, private val out: Output) {
   private val em = File(decomp, "pokeemerald")
@@ -29,21 +30,30 @@ class ContestAssetsExport(private val decomp: File, private val out: Output) {
             .findAll(graphics)
             .associate { it.groupValues[1] to it.groupValues[2] + ".png" }
     val palettes =
-        (0..3).map { Decomp.readPalette(File(em, "graphics/object_events/palettes/npc_${it + 1}.pal")) }
+        (0..3).map {
+          Decomp.readPalette(File(em, "graphics/object_events/palettes/npc_${it + 1}.pal"))
+        }
     val picTables =
-        Regex("""static const struct SpriteFrameImage (sPicTable_\w+)\[\]\s*=\s*\{(.*?)\};""", RegexOption.DOT_MATCHES_ALL)
+        Regex(
+                """static const struct SpriteFrameImage (sPicTable_\w+)\[\]\s*=\s*\{(.*?)\};""",
+                RegexOption.DOT_MATCHES_ALL)
             .findAll(tables)
             .associate { m ->
               m.groupValues[1] to
                   Regex("""overworld_frame\((\w+),\s*(\d+),\s*(\d+),\s*(\d+)\)""")
                       .findAll(m.groupValues[2])
-                      .map { Triple(it.groupValues[1], it.groupValues[3].toInt(), it.groupValues[4].toInt()) }
+                      .map {
+                        Triple(
+                            it.groupValues[1], it.groupValues[3].toInt(), it.groupValues[4].toInt())
+                      }
                       .toList()
             }
     val palSlots =
         Regex("""const u8 (gBerryTreePaletteSlotTable_\w+)\[\]\s*=\s*\{([^}]*)\}""")
             .findAll(tables)
-            .associate { m -> m.groupValues[1] to m.groupValues[2].split(",").map { it.trim().toInt() } }
+            .associate { m ->
+              m.groupValues[1] to m.groupValues[2].split(",").map { it.trim().toInt() }
+            }
     val berryOrder =
         Regex("""\[(ITEM_\w+) - FIRST_BERRY_INDEX\]\s*=\s*(sPicTable_\w+)""")
             .findAll(tables.substringAfter("gBerryTreePicTablePointers[]").substringBefore("};"))
@@ -51,7 +61,8 @@ class ContestAssetsExport(private val decomp: File, private val out: Output) {
             .toList()
     val palOrder =
         Regex("""\[(ITEM_\w+) - FIRST_BERRY_INDEX\]\s*=\s*(gBerryTreePaletteSlotTable_\w+)""")
-            .findAll(tables.substringAfter("gBerryTreePaletteSlotTablePointers[]").substringBefore("};"))
+            .findAll(
+                tables.substringAfter("gBerryTreePaletteSlotTablePointers[]").substringBefore("};"))
             .associate { it.groupValues[1] to it.groupValues[2] }
     val sheets = buildJsonObject {
       berryOrder.forEachIndexed { i, (item, table) ->
@@ -84,12 +95,11 @@ class ContestAssetsExport(private val decomp: File, private val out: Output) {
           put(
               "${s + 1}",
               buildJsonArray {
-                for ((f, d) in frames)
-                    add(
-                        buildJsonArray {
-                          add(kotlinx.serialization.json.JsonPrimitive(f))
-                          add(kotlinx.serialization.json.JsonPrimitive(d))
-                        })
+                for ((f, d) in frames) add(
+                    buildJsonArray {
+                      add(kotlinx.serialization.json.JsonPrimitive(f))
+                      add(kotlinx.serialization.json.JsonPrimitive(d))
+                    })
               })
         }
       }

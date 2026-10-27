@@ -41,7 +41,8 @@ object LiveRng : ContestRng {
 /** Sends r5-contests documents (s2c 0xC6) and waits for UI answers (c2s 0xD5). */
 @Singleton
 class ContestDocs @Inject constructor() {
-  private val waits = ConcurrentHashMap<Pair<SessionContext, String>, CompletableDeferred<JsonObject>>()
+  private val waits =
+      ConcurrentHashMap<Pair<SessionContext, String>, CompletableDeferred<JsonObject>>()
 
   fun send(session: SessionContext, kind: String, body: JsonObjectBuilder.() -> Unit) {
     val doc = buildJsonObject {
@@ -58,7 +59,11 @@ class ContestDocs @Inject constructor() {
    * Suspends until the player answers the UI [kind] (an action `<kind>.*` routed to [answer]), or
    * returns null after [timeoutMs] / when the player leaves.
    */
-  suspend fun await(session: SessionContext, kind: String, timeoutMs: Long = 15 * 60_000L): JsonObject? {
+  suspend fun await(
+      session: SessionContext,
+      kind: String,
+      timeoutMs: Long = 15 * 60_000L
+  ): JsonObject? {
     val d = CompletableDeferred<JsonObject>()
     waits[session to kind]?.cancel()
     waits[session to kind] = d
@@ -86,7 +91,8 @@ constructor(private val repo: ContestRepository, private val names: ContestNames
   private val cache = ConcurrentHashMap<Long, MonContest>()
 
   suspend fun get(monId: Long): MonContest =
-      cache[monId] ?: (repo.monContest(listOf(monId))[monId] ?: MonContest()).also { cache[monId] = it }
+      cache[monId]
+          ?: (repo.monContest(listOf(monId))[monId] ?: MonContest()).also { cache[monId] = it }
 
   suspend fun preload(monIds: Collection<Long>) {
     val missing = monIds.filter { !cache.containsKey(it) }
@@ -107,11 +113,7 @@ constructor(private val repo: ContestRepository, private val names: ContestNames
   suspend fun conditionsJson(party: List<Pokemon>): JsonObjectBuilder.() -> Unit {
     preload(party.map { it.id })
     val rows = party.sortedBy { it.containerSlot }.map { it to get(it.id) }
-    return {
-      putJsonArray("mons") {
-        for ((m, c) in rows) add(monJson(m, c, names))
-      }
-    }
+    return { putJsonArray("mons") { for ((m, c) in rows) add(monJson(m, c, names)) } }
   }
 
   companion object {
@@ -130,7 +132,9 @@ constructor(private val repo: ContestRepository, private val names: ContestNames
       put("smart", c.smart)
       put("tough", c.tough)
       put("sheen", c.sheen)
-      putJsonArray("rankRibbons") { c.rankRibbons.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+      putJsonArray("rankRibbons") {
+        c.rankRibbons.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+      }
       put("ribbons", c.ribbons)
     }
   }
@@ -179,8 +183,8 @@ constructor(
       }
 
   /**
-   * Feeds the block in [slot] to party monster [monId]: the new stats, or a refusal text (the
-   * sheen is maxed: "won't eat any more").
+   * Feeds the block in [slot] to party monster [monId]: the new stats, or a refusal text (the sheen
+   * is maxed: "won't eat any more").
    */
   suspend fun feed(charId: Long, slot: Int, monId: Long): Pair<String, MonContest?> =
       lock(charId).withLock {
@@ -193,12 +197,13 @@ constructor(
         val before = stats.get(monId)
         val after =
             PokeblockRules.feed(before, mon.nature, block)
-                ?: return@withLock "${mon.nickname.ifBlank { names.species(mon.dexId) }} won't eat any more…" to null
+                ?: return@withLock "${mon.nickname.ifBlank { names.species(mon.dexId) }} won't eat any more…" to
+                    null
         c[slot] = null
         repo.savePokeblocks(charId, c)
         stats.set(monId, after)
-        PokeblockRules.ateText(mon.nickname.ifBlank { names.species(mon.dexId) }, block, mon.nature) to
-            after
+        PokeblockRules.ateText(
+            mon.nickname.ifBlank { names.species(mon.dexId) }, block, mon.nature) to after
       }
 
   fun blockJson(slot: Int, b: Pokeblock) = buildJsonObject {
@@ -256,7 +261,9 @@ constructor(
   private fun lock(charId: Long) = locks.getOrPut(charId) { Mutex() }
 
   private suspend fun load(charId: Long): MutableMap<Int, StoredBerryTree> {
-    trees[charId]?.let { return it }
+    trees[charId]?.let {
+      return it
+    }
     val m = repo.berryTrees(charId).toMutableMap()
     if (!repo.treesInitialized(charId)) {
       // data/scripts/new_game.inc setberrytree: planted, growth stopped until the player sees them
@@ -283,7 +290,9 @@ constructor(
     val now = clock()
     val minutes = Duration.between(s.updatedAt, now).toMinutes()
     if (minutes <= 0) return s.tree
-    val t = BerryTreeRules.advance(s.tree, minutes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), LiveRng)
+    val t =
+        BerryTreeRules.advance(
+            s.tree, minutes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), LiveRng)
     val updated = StoredBerryTree(t, s.updatedAt.plusMinutes(minutes))
     m[treeId] = updated
     repo.saveBerryTree(charId, treeId, updated)
@@ -320,9 +329,12 @@ constructor(
     val npc =
         map.npcs.firstOrNull {
           it.script == "BerryTreeScript" &&
-              npcs.getNpcEntityId(state.regionId, state.bankId, state.mapId, it.entityIdx) == entityId
+              npcs.getNpcEntityId(state.regionId, state.bankId, state.mapId, it.entityIdx) ==
+                  entityId
         } ?: return null
-    return data.berryTrees.firstOrNull { it.map == map.name && it.x == npc.x && it.y == npc.y }?.tree
+    return data.berryTrees
+        .firstOrNull { it.map == map.name && it.x == npc.x && it.y == npc.y }
+        ?.tree
   }
 
   /** The tree the player faces, for the Wailmer Pail used from the bag. */
@@ -408,7 +420,8 @@ constructor(
    * FLAG_RECEIVED_POKEBLOCK_CASE, which the contest reception sets when it hands the case over.
    */
   fun hasCase(charId: Long): Boolean =
-      characters.getCharacter(charId)?.storyFlags?.contains("hoenn/FLAG_RECEIVED_POKEBLOCK_CASE") == true
+      characters.getCharacter(charId)?.storyFlags?.contains("hoenn/FLAG_RECEIVED_POKEBLOCK_CASE") ==
+          true
 
   fun hasItem(charId: Long, decompName: String): Boolean {
     if (decompName == "POKEBLOCK_CASE") return hasCase(charId)

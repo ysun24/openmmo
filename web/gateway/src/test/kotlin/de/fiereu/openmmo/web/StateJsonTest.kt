@@ -149,6 +149,7 @@ class StateJsonTest {
             "trade",
             "market",
             "social",
+            "contests", // r5-contests
             "dex",
             "trainer",
             "daycare",
