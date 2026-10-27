@@ -339,6 +339,7 @@ class MusicExport(decompRoot: File, private val game: GbaGame, private val out: 
             "victoryWild" to "MUS_VICTORY_WILD",
             "victoryTrainer" to "MUS_VICTORY_TRAINER",
             "victoryGym" to "MUS_VICTORY_GYM_LEADER",
+            "caught" to "MUS_CAUGHT",
         )
   }
 }

@@ -304,3 +304,9 @@ body.landscape #sysbtns { top: auto; bottom: 8px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------------------------------ loading bar + settings */
+#loadbar { position: fixed; left: 0; right: 0; top: 0; height: 4px; z-index: 100; background: #0008; pointer-events: none; }
+#loadbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; box-shadow: 0 0 6px var(--accent); }
+.panel input[type=range] { padding: 0; accent-color: var(--accent); min-height: 32px; }
+body.landscape #topbar { opacity: .92; }

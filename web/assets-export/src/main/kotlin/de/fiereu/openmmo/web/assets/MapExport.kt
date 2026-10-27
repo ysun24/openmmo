@@ -30,6 +30,8 @@ data class MapEntry(
     val music: String?,
     /** (direction, offset, target key) for the four seamless edge connections. */
     val connections: List<Triple<String, Int, String>>,
+    /** Warp tiles (x, y) from map.json `warp_events`: doors, stairs, arrows. */
+    val warps: List<Pair<Int, Int>> = emptyList(),
 ) {
   val key = "$region:$bank:$map"
 }
@@ -90,7 +92,20 @@ class MapExport(private val decompRoot: File, private val out: Output) {
                   }
                   Triple(c.direction, c.offset, "$region:${addr.first}:${addr.second}")
                 }
-            entries += MapEntry(region, bank, map, name, layoutId, layout, music, conns)
+            val warps =
+                (mapJson["warp_events"] as? kotlinx.serialization.json.JsonArray)
+                    .orEmpty()
+                    .mapNotNull { w ->
+                      val o = w as? JsonObject ?: return@mapNotNull null
+                      val x =
+                          o["x"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                              ?: return@mapNotNull null
+                      val y =
+                          o["y"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                              ?: return@mapNotNull null
+                      x to y
+                    }
+            entries += MapEntry(region, bank, map, name, layoutId, layout, music, conns, warps)
           }
         } catch (e: Exception) {
           failures += "$key $name: ${e.javaClass.simpleName}: ${e.message}"
@@ -169,6 +184,14 @@ class MapExport(private val decompRoot: File, private val out: Output) {
           }
         })
     put("music", e.music?.let(::JsonPrimitive) ?: JsonNull)
+    put(
+        "warps",
+        buildJsonArray {
+          e.warps.forEach { (x, y) ->
+            add(JsonPrimitive(x))
+            add(JsonPrimitive(y))
+          }
+        })
     put("anim", files.anim?.let(::JsonPrimitive) ?: JsonNull)
   }
 

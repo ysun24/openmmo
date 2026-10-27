@@ -13,6 +13,7 @@ import * as battle from './ui/battle.js';
 import * as trade from './ui/trade.js';
 import * as market from './ui/market.js';
 import * as misc from './ui/misc.js';
+import { music } from './audio.js';
 
 const DIRS = ['up', 'down', 'left', 'right'];
 const net = new Net(defaultWsUrl());
@@ -24,8 +25,31 @@ let creds = null; // in-memory only (password never persisted)
 let inGame = false;
 let reconnecting = false;
 
+// display settings (name tags), remembered like the audio ones
+const DISPLAY = 'openmmo.display';
+(() => {
+  try {
+    const d = JSON.parse(localStorage.getItem(DISPLAY) || '{}');
+    if (typeof d.tags === 'boolean') renderer.tags = d.tags;
+    if (typeof d.selfTag === 'boolean') renderer.selfTag = d.selfTag;
+  } catch {}
+})();
+const saveDisplay = () => localStorage.setItem(DISPLAY, JSON.stringify({ tags: renderer.tags, selfTag: renderer.selfTag }));
+music.init();
+const assetsReady = assets.load();
+
 const app = {
   net, send, world, assets, showFps: false,
+  settings: {
+    volume: () => music.volume,
+    setVolume: (v) => music.setVolume(v),
+    muted: () => music.muted,
+    setMuted: (m) => music.setMuted(m),
+    tags: () => renderer.tags,
+    setTags: (v) => ((renderer.tags = v), saveDisplay()),
+    selfTag: () => renderer.selfTag,
+    setSelfTag: (v) => ((renderer.selfTag = v), saveDisplay()),
+  },
   openChat: (pre) => chat.open(pre),
   setHighlight: (id) => (renderer.highlight = id),
   toggleFps: () => {
@@ -36,6 +60,7 @@ const app = {
     creds = null;
     inGame = false;
     net.close();
+    music.play(0, null);
     showLogin('Logged out.');
   },
 };
@@ -57,11 +82,26 @@ function layout() {
   const portrait = touchDevice && H >= W;
   document.body.classList.toggle('portrait', portrait);
   document.body.classList.toggle('landscape', touchDevice && !portrait);
-  const availW = W;
-  const availH = portrait ? Math.max(160, H - top - 230) : H - top;
-  // integer scale in DEVICE pixels -> crisp pixels at any devicePixelRatio
-  const k = Math.max(1, Math.floor(Math.min((availW * dpr) / VW, (availH * dpr) / VH)));
-  const cw = (VW * k) / dpr, ch = (VH * k) / dpr;
+  let cw, ch, k;
+  if (portrait) {
+    // full width; integer device-pixel scale when it is (nearly) as wide, else crisp fractional
+    const minCtl = 200; // px kept for the controls below
+    const fit = Math.min(W / VW, Math.max(160, H - top - minCtl) / VH);
+    const ki = Math.floor((fit * dpr) + 1e-6);
+    const s = ki / dpr >= fit * 0.94 ? ki / dpr : fit;
+    cw = VW * s;
+    ch = VH * s;
+    // snap the CSS size to whole device pixels
+    cw = Math.round(cw * dpr) / dpr;
+    ch = Math.round(ch * dpr) / dpr;
+    k = s * dpr;
+  } else {
+    const availH = H - top;
+    // integer scale in DEVICE pixels -> crisp pixels at any devicePixelRatio
+    k = Math.max(1, Math.floor(Math.min((W * dpr) / VW, (availH * dpr) / VH)));
+    cw = (VW * k) / dpr;
+    ch = (VH * k) / dpr;
+  }
   const stage = $('#stage');
   const sh = portrait ? ch : H - top;
   stage.style.bottom = portrait ? 'auto' : '0';
@@ -84,6 +124,18 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 120));
 // block pinch / double-tap zoom on the game surfaces
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault());
 $('#stage').addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+{
+  // iOS ignores user-scalable=no: swallow the second tap of a quick double tap outside text fields
+  let lastTap = 0;
+  document.addEventListener('touchend', (e) => {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+    const now = e.timeStamp;
+    if (now - lastTap < 320 && e.cancelable) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+}
 
 // ------------------------------------------------------------------ connection + login
 function setConn(s) {
@@ -118,6 +170,7 @@ function showGame() {
 }
 
 async function doLogin() {
+  await assetsReady; // map keys resolve through the manifest
   if (net.status !== 'online') await net.connect();
   net.resetState();
   world.reset();
@@ -262,13 +315,56 @@ $('#screen').addEventListener('pointerdown', (e) => {
   }
 });
 
+// ------------------------------------------------------------------ music + loading bar
+let musicCheck = 0;
+/** The song the GBA would play now: battle theme / victory jingle in battles, else the map's. */
+function wantedSong() {
+  if (!inGame) return [0, null, 0.8];
+  const s = net.state;
+  const region = world.map ? world.map.region : 0;
+  const bm = (assets.manifest && assets.manifest.battleMusic && assets.manifest.battleMusic[region]) || {};
+  const b = s.battle;
+  if (b) {
+    if (b.phase === 'ENDED') {
+      if (b.result === 'VICTORY') return [region, b.wild ? bm.victoryWild : bm.victoryTrainer, 0.2];
+      if (b.result === 'CAUGHT') return [region, bm.caught || bm.victoryWild, 0.2];
+      return [region, null, 0.6];
+    }
+    return [region, b.wild ? bm.wild : bm.trainer, 0.15];
+  }
+  const info = world.res && world.res.info;
+  return [region, info ? info.music : null, 0.9];
+}
+function updateMusic(now) {
+  if (now - musicCheck < 200) return;
+  musicCheck = now;
+  const [r, name, fade] = wantedSong();
+  music.play(r, name || null, fade);
+}
+
+let barShown = false;
+function updateLoadBar() {
+  let f = assets.progress.manifest < 1 ? assets.progress.manifest * 0.5 : null;
+  if (f === null) {
+    const waiting = !inGame ? false : !world.hasSelf || !!world.fadeWaiting || !(world.res && world.res.ready);
+    const lf = assets.loadFraction();
+    f = waiting ? (lf === null ? 0.9 : 0.5 + lf * 0.5) : null;
+  }
+  const show = f !== null;
+  if (show !== barShown) {
+    barShown = show;
+    $('#loadbar').classList.toggle('hidden', !show);
+  }
+  if (show) $('#loadbar i').style.width = Math.round(Math.max(0.04, f) * 100) + '%';
+}
+
 // ------------------------------------------------------------------ main loop + fps probe
 const fpsBuf = new Float32Array(120);
 const workBuf = new Float32Array(120);
 let fpsI = 0, fpsN = 0, fpsShown = 0;
 const fps = { fps: 0, avgMs: 0, maxMs: 0, workAvgMs: 0, workMaxMs: 0, frames: 0 };
 window.__fps = fps;
-window.__game = { world, net, input, renderer, assets };
+window.__game = { world, net, input, renderer, assets, music };
 
 let last = performance.now();
 function frame(now) {
@@ -280,6 +376,8 @@ function frame(now) {
     if (considered) input.consumeTap();
     if (!battle.isOpen()) renderer.draw(world, now);
   }
+  updateMusic(now);
+  updateLoadBar();
   const work = performance.now() - now;
   fpsBuf[fpsI] = dt;
   workBuf[fpsI] = work;
@@ -305,9 +403,9 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-assets.load().then(() => {
+assetsReady.then(() => {
   layout();
-  requestAnimationFrame(frame);
 });
+requestAnimationFrame(frame);
 layout();
 if (/[?&]fps=1/.test(location.search)) app.toggleFps();

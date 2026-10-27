@@ -43,6 +43,7 @@ export class World {
     this.ackSeq = 0;
     this.turnWait = 0;
     this.lastLocalAct = 0;
+    this.lastBump = 0;
     this.conns = []; // [{key, ox, oy, info, res}]
     this.fade = 0; // 1 = black
     this.fadeHoldUntil = 0;
@@ -198,12 +199,22 @@ export class World {
   }
 
   // ------------------------------------------------------------------ collision
+  /** A warp tile of the current map (manifest `warps`): pushing against a wall there still steps. */
+  isWarp(x, y) {
+    const wp = this.res && this.res.info && this.res.info.warps;
+    if (!wp) return false;
+    for (let i = 0; i < wp.length; i += 2) if (wp[i] === x && wp[i + 1] === y) return true;
+    return false;
+  }
+
   blocked(x, y) {
     const r = this.res;
     const w = this.map ? this.map.width : r && r.info ? r.info.width : 0;
     const hgt = this.map ? this.map.height : r && r.info ? r.info.height : 0;
     if (x >= 0 && y >= 0 && x < w && y < hgt) {
-      if (r && r.col && r.info && (r.col[y * r.info.width + x] & 1)) return true;
+      // collision not loaded yet (just warped): predict nothing until it is
+      if (!r || !r.col || !r.info) return true;
+      if (r.col[y * r.info.width + x] & 1) return true;
     } else {
       const c = this.conns.find((c) => x >= c.ox && y >= c.oy && x < c.ox + c.info.width && y < c.oy + c.info.height);
       if (!c || !c.res.col) return true;
@@ -273,6 +284,13 @@ export class World {
         me.facing = dir;
         this.send({ t: 'face', dir });
         this.lastLocalAct = performance.now();
+      } else if (this.res && this.res.col && !this.entityAt(nx, ny) && (this.isWarp(me.x, me.y) || this.isWarp(nx, ny)) && performance.now() - this.lastBump > STEP_WALK) {
+        // Walking into a wall still goes to the server (unpredicted): stair warps and the like
+        // trigger on a step against them, as on the GBA.
+        this.lastBump = performance.now();
+        const seq = ++this.seq;
+        this.pending.push({ seq, x: me.x, y: me.y });
+        this.send({ t: 'step', dir, run: !!input.run, seq });
       }
       return;
     }
