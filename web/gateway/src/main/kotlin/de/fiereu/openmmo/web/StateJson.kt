@@ -98,6 +98,10 @@ class StateJson(private val names: Names) {
       put("ackSeq", s.ackSeq)
       w.field?.let { put("field", field(it, w.map)) }
       w.secretBase?.let { put("secretBase", secretBase(it)) }
+      // r5-frontier: the battle facility screen, as the server sent it.
+      w.frontier?.let { f ->
+        runCatching { kotlinx.serialization.json.Json.parseToJsonElement(f) }.getOrNull()?.let { put("frontier", it) }
+      }
       // r4: the Pokénav Match Call list, when asked for (`seq` grows per answer).
       w.matchCall?.let { mc ->
         putJsonObject("matchCall") {

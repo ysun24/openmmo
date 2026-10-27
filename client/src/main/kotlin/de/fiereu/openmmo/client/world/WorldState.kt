@@ -70,6 +70,8 @@ class WorldState {
       /** r4: the last Match Call list and how many lists came so far. */
       val matchCall: de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket? = null,
       val matchCallSeq: Int = 0,
+      /** r5-frontier: the last FrontierStatePacket JSON. */
+      val frontier: String? = null,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -105,8 +107,13 @@ class WorldState {
             characterGender,
             secretBase,
             matchCall,
-            matchCallSeq)
+            matchCallSeq,
+            frontier)
       }
+
+  private var frontier: String? = null
+
+  fun setFrontier(json: String) = synchronized(lock) { frontier = json }
 
   private var matchCall: de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket? = null
   private var matchCallSeq = 0

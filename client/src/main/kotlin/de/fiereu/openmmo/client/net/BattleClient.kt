@@ -284,13 +284,21 @@ data class BattleState(
     val evolution: EvolutionScene? = null,
     /** Bag items usable in this battle, from the server. */
     val bag: List<BattleBagItem> = emptyList(),
+    /** r5-frontier: positions another player (or an NPC partner) picks for in a multi battle. */
+    val notMine: List<Int> = emptyList(),
 ) {
   /** The position whose action the player picks next, or null when all picked. */
   val choosingPos: Int?
     get() =
         actives.indices.firstOrNull { pos ->
-          pos !in chosen && party.getOrNull(actives[pos])?.let { !it.fainted } == true
+          pos !in chosen &&
+              pos !in notMine &&
+              party.getOrNull(actives[pos])?.let { !it.fainted } == true
         }
+
+  /** r5-frontier: the replacements this player owes (not the partner's). */
+  val myOwedSwitches: List<Int>
+    get() = owedSwitches.filter { it !in notMine }
 
   /** The monster out at [pos] on our side. */
   fun mine(pos: Int): BattleMon? = actives.getOrNull(pos)?.let { party.getOrNull(it) }
@@ -314,6 +322,8 @@ class BattleClient(
     private val onChange: () -> Unit,
     private val myName: () -> String?,
     private val regionId: () -> Int = { 0 },
+    /** r5-frontier: this player's character id, for the positions of a multi battle. */
+    private val myId: () -> Long? = { null },
 ) {
   private val lock = Any()
   private var state = BattleState()
@@ -382,13 +392,22 @@ class BattleClient(
       is BattleFieldStatePacket -> onStart(p)
       is BattleQueuedEventPacket ->
           if (p.flag) {
-            update { it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1, chosen = emptyList()) }
+            update {
+              val next = it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1, chosen = emptyList())
+              // r5-frontier: in a multi battle the partner's position is not ours to pick.
+              if (next.notMine.isNotEmpty() && next.choosingPos == null)
+                  next.copy(phase = BattlePhase.WAITING)
+              else next
+            }
             snapshot().me?.let { say("What will ${it.name} do?", animate = false) }
           }
       is BattleSlotFlagEventPacket ->
           if (!p.immediate) {
-            update { it.copy(phase = BattlePhase.FORCED_SWITCH) }
-            say("Choose a monster to send out.", animate = false)
+            val mine = snapshot().let { it.notMine.isEmpty() || it.myOwedSwitches.isNotEmpty() }
+            if (mine) {
+              update { it.copy(phase = BattlePhase.FORCED_SWITCH) }
+              say("Choose a monster to send out.", animate = false)
+            } else update { it.copy(phase = BattlePhase.WAITING) }
           }
       is DuelRulesPacket -> {
         synchronized(lock) { pendingDuelRules = p.rules }
@@ -912,7 +931,7 @@ class BattleClient(
     if (mon.fainted) return "${mon.name} has fainted"
     if (partyIndex in s.actives) return "${mon.name} is already out"
     val pos =
-        if (s.phase == BattlePhase.FORCED_SWITCH) s.owedSwitches.firstOrNull() ?: 0
+        if (s.phase == BattlePhase.FORCED_SWITCH) s.myOwedSwitches.firstOrNull() ?: 0
         else s.choosingPos ?: 0
     if (s.phase == BattlePhase.FORCED_SWITCH) {
       update { it.copy(phase = BattlePhase.WAITING) }
@@ -986,6 +1005,11 @@ class BattleClient(
                 maxHp = m.int("maxHp") ?: b.maxHp)
           }
       val owed = o["owedSwitches"]?.jsonArray?.map { it.jsonPrimitive.int }.orEmpty()
+      val myCid = myId()
+      val notMine =
+          o["posOwners"]?.jsonArray?.mapIndexedNotNull { pos, v ->
+            pos.takeIf { v.jsonPrimitive.longOrNull != myCid }
+          } ?: s.notMine
       val chosen = o["chosen"]?.jsonArray?.map { it.jsonPrimitive.int }.orEmpty()
       val acts = actives(me) ?: s.actives
       s.copy(
@@ -1001,6 +1025,7 @@ class BattleClient(
           activeSlot = acts.firstOrNull { it >= 0 } ?: s.activeSlot,
           opponentSlot = actives(foe)?.firstOrNull { it >= 0 } ?: s.opponentSlot,
           owedSwitches = owed,
+          notMine = notMine,
           chosen = if (s.phase == BattlePhase.ACTION) (s.chosen + chosen).distinct() else chosen,
           party = merge(s.party),
           opponent = merge(s.opponent),

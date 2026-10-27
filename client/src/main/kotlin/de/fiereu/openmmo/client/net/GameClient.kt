@@ -80,6 +80,7 @@ class GameClient(
           onChange = { onChange() },
           myName = { world.snapshot().characterName },
           regionId = { world.snapshot().map?.regionId ?: 0 },
+          myId = { world.snapshot().selfId },
       )
 
   /** Trading, plus the party, bag and money it shows. */
@@ -320,6 +321,11 @@ class GameClient(
       }
       on<de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket> { event ->
         world.setMatchCall(event.packet)
+        onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.frontier.FrontierStatePacket> { event ->
+        // r5-frontier: the battle facility screen (JSON, PROTOCOL.md "r5-frontier").
+        world.setFrontier(event.packet.json)
         onChange()
       }
       on<de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket> { event ->
