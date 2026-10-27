@@ -17,6 +17,7 @@ import * as progress from './ui/progress.js';
 import * as field from './ui/field.js';
 import * as sbui from './ui/secretbase.js';
 import * as social from './ui/social.js';
+import * as contests from './ui/contests.js'; // r5-contests
 import * as typer from './ui/typewriter.js';
 import { music } from './audio.js';
 import { fonts, setFrameStyle } from './font.js';
@@ -112,7 +113,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui, contests];
 UIS.forEach((u) => u.init(app));
 typer.init();
 
@@ -544,7 +545,7 @@ function stateSounds(state, changed) {
 // ------------------------------------------------------------------ input routing
 function canMove() {
   const s = net.state;
-  return inGame && !sbui.placing() && !panels.any() && !dialog.isOpen() && !battle.isOpen() && !(s.ui && (s.ui.locked || s.ui.shop))
+  return inGame && !contests.isOpen() && !sbui.placing() && !panels.any() && !dialog.isOpen() && !battle.isOpen() && !(s.ui && (s.ui.locked || s.ui.shop))
     && !(document.activeElement && document.activeElement.id === 'chat-input');
 }
 
@@ -570,6 +571,8 @@ function onPress(btn, repeat = false) {
   }
   const isDir = DIRS.includes(btn);
   if (repeat && !isDir) return;
+  // r5-contests: the contest / blender / case overlays take the buttons
+  if (contests.isOpen() && contests.onPress(btn)) return;
   // r4: the secret base decoration cursor takes the buttons
   if (sbui.placing() && !panels.any() && !dialog.isOpen()) return void sbui.onPress(btn);
   const top = panels.top();

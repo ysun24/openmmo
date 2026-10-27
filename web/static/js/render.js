@@ -4,6 +4,7 @@
 import { assets, stepAnim, GBA_HZ } from './assets.js';
 import { fonts } from './font.js';
 import { overlay as sbOverlay, openSpots as sbOpenSpots } from './secretbase.js';
+import { drawBerryTree } from './ui/contests.js'; // r5-contests
 
 export const VW = 240;
 export const VH = 160;
@@ -251,6 +252,8 @@ export class Renderer {
     const bx = Math.round(e.px) - camX;
     const by = Math.round(e.py) - camY;
     if (bx < -32 || by < -32 || bx > VW + 16 || by > VH + 32) return;
+    // r5-contests: berry trees are drawn by their growth stage
+    if (e.kind === 'npc' && e.gfx === 60) return void (!reflect && drawBerryTree(ctx, e, bx, by, now, region));
     let refl = null;
     if (reflect) {
       if (!d || !d._img || !d._img.ready || e.mode === 'surf' || e.mode === 'underwater') return;
