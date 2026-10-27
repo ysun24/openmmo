@@ -123,6 +123,8 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
         vm.state.wild = Triple(MAROWAK, 30, 0)
         wildBattle(ctx)
       }
+      // CB2_EndMarowakBattle: FALSE once the ghost is beaten, TRUE pushes the player back.
+      ctx.setResult(if (vm.state.battleOutcome == ScriptVm.B_OUTCOME_WON) 0 else 1)
       0
     }
     // The catching tutorials (the old man in Viridian, Wally on Route 102): shown, not fought.

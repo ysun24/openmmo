@@ -24,7 +24,7 @@ constructor(
     private val story: StoryService,
 ) : ChatCommand {
   override val name = "script"
-  override val usage = "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal | item <ITEM_X> [qty]"
+  override val usage = "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal | item <ITEM_X> [qty] | trainer <TRAINER_X> [on|off]"
   override val description = "runs a decomp script / reads or sets its flags and vars"
   override val permission = CharacterPermissions.DEVELOPER
 
@@ -73,6 +73,17 @@ constructor(
           "off" -> names.forEach { story.clearFlag(ctx.characterId, "$region/$it") }
         }
         val set = names.any { story.isFlagSet(ctx.characterId, "$region/$it") }
+        ctx.reply("$n is ${if (set) "set" else "clear"}.")
+      }
+      "trainer" -> {
+        val n = a.getOrNull(1)?.uppercase() ?: return ctx.reply(usage)
+        val id = img.constOrNull(n) ?: return ctx.reply("No trainer $n in $region.")
+        val keys = listOf("$region/TRAINER_DEFEATED_$id", "$region/OPENMMO_TRAINER_$id")
+        when (a.getOrNull(2)) {
+          "on" -> story.setFlag(ctx.characterId, keys[0])
+          "off" -> keys.forEach { story.clearFlag(ctx.characterId, it) }
+        }
+        val set = keys.any { story.isFlagSet(ctx.characterId, it) }
         ctx.reply("$n is ${if (set) "set" else "clear"}.")
       }
       "var" -> {

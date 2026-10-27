@@ -76,6 +76,9 @@ class Story:
         r = self.cmd(f"/script flag {name}" + ("" if value is None else (" on" if value else " off")))
         return " is set" in r
 
+    def trainer(self, name, value):
+        self.cmd(f"/script trainer {name} " + ("on" if value else "off"))
+
     def var(self, name, value=None):
         r = self.cmd(f"/script var {name}" + ("" if value is None else f" {value}"))
         try:
@@ -225,11 +228,15 @@ def fight(story, max_turns=40):
             moves = (b.get("me") or {}).get("moves") or []
             order = sorted(range(len(moves)), key=lambda i: -(moves[i].get("power") or 0))
             order = [i for i in order if moves[i]["pp"] > 0 and i not in banned] or [0]
+            before = list((b.get("log") or []))
             p.send(t="battle.fight", move=order[0])
             time.sleep(0.8)
             log = (p.state.get("battle") or {}).get("log") or []
-            if log and "can't use" in " ".join(log[-2:]):
+            new = log[len(before):] if log[:len(before)] == before else log[-2:]
+            if any("can't use" in line for line in new):
                 banned.add(order[0])
+            if os.environ.get("STORY_DEBUG"):
+                print("   battle:", moves[order[0]]["name"] if moves else "?", new, flush=True)
             continue
         elif b.get("phase") == "FORCED_SWITCH":
             party = story.party()
@@ -248,12 +255,19 @@ def check(cond, msg):
     ok(msg)
 
 
-def give_team(s, dex=150, level=100):
-    """A party that wins the scenes' battles quickly."""
-    if not any(m["level"] >= level - 1 for m in s.party()):
+def give_team(s, dex=384, level=100):
+    """A party that wins the scenes' battles quickly (RAYQUAZA leads: no type it cannot hit)."""
+    party = s.party()
+    if not any(m["dex"] == dex for m in party):
         s.cmd(f"/givemon {dex} {level}", 2)
-        s.p.wait(lambda q: any(m["level"] >= level - 1 for m in q.state.get("party") or []), 8, "strong mon")
+        s.p.wait(lambda q: any(m["dex"] == dex for m in q.state.get("party") or []), 8, "strong mon")
+    party = s.party()
+    i = next(i for i, m in enumerate(party) if m["dex"] == dex)
+    if i != 0:
+        s.p.send(t="party.move", **{"from": i, "to": 0})
+        s.p.wait(lambda q: (q.state.get("party") or [{}])[0].get("dex") == dex, 8, "lead")
     s.cmd("/script heal", 1)
+    time.sleep(0.5)
 
 
 # ------------------------------------------------------------------ scenes
@@ -277,11 +291,11 @@ def scene_smoke_kanto(s):
 
 def has_item(s, name):
     """In the bag, or (items the wire catalogue lacks: SILPH SCOPE...) in the server's own count."""
-    if any(name in k for k in s.bag()):
+    if any(name in k.replace("é", "E") for k in s.bag()):
         return True
-    r = s.cmd(f"/script hasitem {name.replace(' ', '_').replace('.', '')}", 2)
+    r = s.cmd(f"/script hasitem {name.replace(' ', '_').replace('.', '')}", 3)
     try:
-        return int(r.rsplit("x", 1)[1]) > 0
+        return int(r.rsplit(" x", 1)[1]) > 0
     except (IndexError, ValueError):
         return False
 
@@ -294,8 +308,12 @@ def scene_bill(s):
     s.flag("FLAG_HIDE_BILL_HUMAN_SEA_COTTAGE", True)
     give_team(s)
     s.tp("Route25_SeaCottage", 10, 7, "up")
-    ents = s.p.world.get("entities", [])
-    check(any(e["kind"] == "npc" and e["x"] == 10 and e["y"] == 6 for e in ents),
+    try:
+        s.p.wait(lambda q: any(e["kind"] == "npc" and e["x"] == 10 and e["y"] == 6
+                               for e in q.world.get("entities", [])), 6, "clefairy")
+    except AssertionError:
+        print("   entities:", [(e["kind"], e["x"], e["y"]) for e in s.p.world.get("entities", [])], s.map_name())
+    check(any(e["kind"] == "npc" and e["x"] == 10 and e["y"] == 6 for e in s.p.world.get("entities", [])),
           "ON_TRANSITION shows Bill the CLEFAIRY at (10, 6)")
     texts = s.talk(choices=[True], timeout=25)
     check(any("BILL" in t.upper() for t in texts if isinstance(t, str)), f"Bill asks for help: {texts[:1]}")
@@ -320,6 +338,7 @@ def scene_mtmoon(s):
     s.flag("FLAG_GOT_FOSSIL_FROM_MT_MOON", False)
     s.flag("FLAG_GOT_DOME_FOSSIL", False)
     s.var("VAR_MAP_SCENE_MT_MOON_B2F", 0)
+    s.trainer("TRAINER_SUPER_NERD_MIGUEL", False)
     give_team(s)
     mx, my = npc(0, "MtMoon_B2F", "LOCALID_MIGUEL")
     s.stand_by("MtMoon_B2F", mx, my, "up")
@@ -358,6 +377,7 @@ def scene_hideout(s):
     tiles = s.script_ui().get("metatiles") or []
     check(any(t["x"] == 16 and t["y"] == 2 for t in tiles), f"stairs metatiles changed: {tiles[:3]}")
     s.flag("FLAG_HIDE_HIDEOUT_GIOVANNI", False)
+    s.trainer("TRAINER_BOSS_GIOVANNI", False)
     s.flag("FLAG_DEFEATED_ROCKET_HIDEOUT_GIOVANNI", False) if False else None
     gx, gy = npc(0, "RocketHideout_B4F", "LOCALID_HIDEOUT_GIOVANNI")
     s.stand_by("RocketHideout_B4F", gx, gy, "down")
@@ -424,6 +444,7 @@ def scene_silph(s):
     tiles = s.script_ui().get("metatiles") or []
     check(any(t["y"] in (16, 17) for t in tiles), f"the CARD KEY opened the door (setmetatile): {tiles[:2]}")
     s.var("VAR_MAP_SCENE_SILPH_CO_11F", 0)
+    s.trainer("TRAINER_BOSS_GIOVANNI_2", False)
     s.flag("FLAG_HIDE_SILPH_ROCKETS", False)
     s.tp("SilphCo_11F", 5, 14, "down")
     s.step("down")
@@ -477,6 +498,7 @@ def scene_sevii(s):
 def scene_woods(s):
     """Petalburg Woods: the Aqua grunt cornering the Devon researcher (coord event), the battle."""
     s.var("VAR_PETALBURG_WOODS_STATE", 0)
+    s.trainer("TRAINER_GRUNT_PETALBURG_WOODS", False)
     for f in ("FLAG_HIDE_PETALBURG_WOODS_AQUA_GRUNT", "FLAG_HIDE_PETALBURG_WOODS_DEVON_EMPLOYEE"):
         s.flag(f, False)
     give_team(s)
@@ -506,6 +528,7 @@ def scene_chimney(s):
     """Mt Chimney: Maxie at the summit (trainerbattle_no_intro), Magma leaves, Archie comes up."""
     s.flag("FLAG_HIDE_MT_CHIMNEY_TEAM_MAGMA", False)
     s.flag("FLAG_HIDE_MT_CHIMNEY_TEAM_AQUA", False)
+    s.trainer("TRAINER_MAXIE_MT_CHIMNEY", False)
     give_team(s)
     mx, my = npc(1, "MtChimney", "LOCALID_MT_CHIMNEY_MAXIE")
     s.stand_by("MtChimney", mx, my, "down")
@@ -520,6 +543,7 @@ def scene_weather(s):
     s.flag("FLAG_HIDE_ROUTE_119_TEAM_AQUA", False)
     s.flag("FLAG_RECEIVED_CASTFORM", False)
     s.var("VAR_WEATHER_INSTITUTE_STATE", 0)
+    s.trainer("TRAINER_SHELLY_WEATHER_INSTITUTE", False)
     give_team(s)
     party = len(s.party())
     if party >= 6:
