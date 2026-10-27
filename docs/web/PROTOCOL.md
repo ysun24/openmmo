@@ -267,6 +267,43 @@ Top level gains:
 `web/static/app.webmanifest` + `icons/` make the client installable (fullscreen). The gateway
 serves `.mid` as `audio/midi`.
 
+### 4.2 r3-present (all optional / additive)
+
+WebSocket:
+- `login` gains `token` (base64 remember-me token from an earlier reply; replaces `pass`),
+  `remember` (bool: ask the login server for a token on a password login; maps to
+  `PasswordLogin.stayLoggedIn`) and `gender` (0 boy, 1 girl; only used when the character is
+  created). The `login` reply gains `token` (base64) whenever the login server sent one
+  (`SentCredentialsPacket`: password login with `remember`, and every token login — sliding
+  expiry). A rejected token fails with `INVALID_SAVED_CREDENTIALS`. The browser stores only the
+  token (`localStorage openmmo.session`), never the password.
+- `world` gains `female` (bool): the own character's gender (`CharacterInfo.rivalSex`), so the
+  browser picks the region's female player sheet. Other players' gender is not known yet.
+- Battle `me` / `foe` / `party` entries gain `shiny` (bool). It travels in the battle mon blocks
+  (byte after the gender, formerly padding, so non-shiny blocks are byte-identical).
+
+Static assets (manifest):
+- `pokemon[dex]` gains `"shiny": {"front", "back"}` (same picture, `gMonShinyPaletteTable`
+  palette) and `"iconAnim"` (both party-icon frames, 32x64; cycled every ~0.2 s).
+- `"sfx": {"<region>": {"select": "SE_SELECT", "door", "exit", "bump", "ledge", "pcOn", "pcLogin",
+  "pcOff", "shop", "save", "shiny", "failure", "success", "itemGet", "keyItemGet", "levelUp",
+  "heal"}}` — role → song constant. SE_* songs are in the music index like the MUS_* ones.
+- Music index: songs gain `rev` (`midi.cfg -R`, m4a reverb amount). Index gains `"samples":
+  {"DirectSoundWaveData_x": profile}` and DirectSound voices gain `"sample": "<that key>"`. A
+  profile is measured from the decomp's `.wav`: `dur`, `loop`, `loopAt`, `envDur`, `env` (48-point
+  amplitude curve), `pitch60` (Hz at MIDI note 60), and either `re`/`im` (24 harmonics, tonal) +
+  `gain`, or `bands` (20 log-spaced band energies, noisy) + `level`. No sample data is shipped.
+- `ui.fonts`: `{"pokefirered/normal" | "pokeemerald/normal" | "pokeemerald/narrow" |
+  "pokeemerald/small": {"json", "image", "ttf", "family", "baseline", "lineHeight"}}`. `ttf` is a
+  TrueType of the glyph pixels (64 units per pixel, 16 px em); `image` an atlas (16x16 cells,
+  16 per row, red = glyph pixel, green = shadow pixel); `json`: `{"cell", "baseline",
+  "lineHeight", "glyphs": {"<code point>": [glyph index, advance px]}}`. Code points come from the
+  decomp charmap; every glyph is also at U+E000 + byte (PK = U+E053, MN = U+E054).
+- `ui.windows`: `{"<region>": {"dialog": png, "dialogSlice": [t, r, b, l], "frames": [png...],
+  "frameSlice": 8, "arrow": png, "arrowSize": "WxH", "arrowSteps": [[x, y]...]}}` — 9-slice
+  `border-image` sources composed from the games' frame tiles; `arrowSteps` are the source
+  offsets of the bobbing "more" arrow, one step per 8 frames.
+
 ## 5. Smoothness requirements (browser)
 
 - Render at display refresh with `requestAnimationFrame`, integer-scaled GBA viewport (240×160

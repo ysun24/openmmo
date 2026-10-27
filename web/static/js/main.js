@@ -226,6 +226,7 @@ const hideSplash = () => {
 };
 
 function showLogin(msg, err = false) {
+  if (!performance.getEntriesByName('openmmo:login-ready').length) performance.mark('openmmo:login-ready');
   hideSplash();
   $('#game').classList.add('hidden');
   $('#login').classList.remove('hidden');
@@ -608,7 +609,20 @@ document.addEventListener('focusin', (e) => {
   }
 });
 window.addEventListener('keydown', (e) => {
-  // Tab inside a panel / the help / the login form is focus navigation, not the menu key
+  // Esc on a slider / checkbox closes the panel like everywhere else (they are not text fields)
+  if (e.code === 'Escape' && document.activeElement && document.activeElement.matches('input[type=range], input[type=checkbox]') &&
+      document.activeElement.closest('#panels')) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    panels.back();
+    return;
+  }
+  // Enter on a focused control in a panel activates it (native button behaviour), not the chat
+  if (e.code === 'Enter' && document.activeElement && document.activeElement.matches('button, input[type=range], select') &&
+      document.activeElement.closest('#panels, #help, #login, #connbanner, #battle, #dialog')) {
+    e.stopImmediatePropagation();
+    return;
+  }
   if (e.code === 'Tab' && document.activeElement && document.activeElement.closest('#panels, #help, #login, #connbanner, #battle')) {
     e.stopImmediatePropagation();
     // keep focus inside the topmost panel (modal)
@@ -643,7 +657,7 @@ function showHelp(onboard) {
   const kl = (a) => (keys[a] || []).map((c) => keyLabel(c)).join(' / ');
   const card = h('div.card',
     h('h2#help-title', touchDevice ? 'Touch controls' : 'Controls'),
-    touchDevice ? h('dl',
+    touchDevice && onboard ? h('p', 'Welcome! The labels show what each button does. Tap a player to duel, trade or chat.') : touchDevice ? h('dl',
       h('dt', 'D-pad'), h('dd', 'Walk. Slide your thumb to turn.'),
       h('dt', 'A'), h('dd', 'Talk, read signs, confirm.'),
       h('dt', 'B'), h('dd', 'Back, cancel. Speeds up text.'),
@@ -659,24 +673,29 @@ function showHelp(onboard) {
         h('dt', kl('menu')), h('dd', 'Menu'),
         h('dt', kl('chat')), h('dd', 'Chat ( / for commands)'),
         h('dt', 'Click a player'), h('dd', 'Duel, trade or chat')),
-    h('p.muted', 'You can change keys, text speed and sound in Menu → Settings.'),
+    onboard ? null : h('p.muted', 'You can change keys, text speed and sound in Menu → Settings.'),
     h('button.primary', { type: 'button', on: { click: closeHelp } }, 'Got it!'));
   el.replaceChildren(card);
   el.classList.toggle('onboard', !!onboard);
   el.classList.remove('hidden');
+  $('#toast').classList.add('hidden');
   if (onboard && touchDevice) {
     // callouts over the real controls
     const at = (sel, label) => {
       const t = $(sel);
       if (!t || !t.offsetParent) return;
       const r = t.getBoundingClientRect();
-      el.append(h('span.callout', { style: `left:${r.left + r.width / 2}px;top:${r.top - 4}px` }, label));
+      const c = h('span.callout', { style: `left:${r.left + r.width / 2}px;top:${r.top - 4}px` }, label);
+      el.append(c);
+      const half = c.offsetWidth / 2 + 4;
+      c.style.left = Math.max(half, Math.min(innerWidth - half, r.left + r.width / 2)) + 'px';
     };
-    at('#dpad', 'Move');
-    at('#t-a', 'A');
-    at('#t-b', 'B');
+    at('#dpad', 'Walk');
+    at('#t-a', 'A: talk / OK');
+    at('#t-b', 'B: back');
     at('#t-run', 'Run');
     at('#t-menu', 'Menu');
+    at('#t-chat', 'Chat');
   }
   setTimeout(() => card.querySelector('button').focus({ preventScroll: true }), 0);
 }
@@ -735,9 +754,10 @@ const workBuf = new Float32Array(120);
 let fpsI = 0, fpsN = 0, fpsShown = 0;
 const fps = { fps: 0, avgMs: 0, maxMs: 0, workAvgMs: 0, workMaxMs: 0, frames: 0 };
 window.__fps = fps;
-window.__game = { world, net, input, renderer, assets, music };
+window.__game = { world, net, input, renderer, assets, music, sfx, settings, fonts };
 
 let last = performance.now();
+let worldPainted = false;
 function frame(now) {
   const dt = Math.min(100, now - last);
   last = now;
@@ -751,6 +771,11 @@ function frame(now) {
       if (world.res && world.res.col && world.blocked(bx, by) && !world.isWarp(bx, by) && !world.isWarp(world.self.x, world.self.y)) sfx.play('bump', app.region(), 270);
     }
     if (!battle.isOpen()) renderer.draw(world, now);
+    // first frame that shows the world (performance budget: first meaningful paint)
+    if (!worldPainted && world.hasSelf && world.res && world.res.ready && world.fade < 1) {
+      worldPainted = true;
+      performance.mark('openmmo:world-ready');
+    }
   }
   updateMusic(now);
   updateLoadBar();

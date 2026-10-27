@@ -260,7 +260,7 @@ export function openSettings() {
     slider('Effects', 'sfx', s.sfxVolume, s.setSfxVolume),
     toggle('Mute all', 'mute', s.muted, s.setMuted),
     h('h3', 'Game'),
-    seg('Text speed', 'ts', [['slow', 'Slow'], ['mid', 'Mid'], ['fast', 'Fast'], ['instant', 'Instant']], () => st.get('textSpeed'), (v) => st.set('textSpeed', v)),
+    seg('Text speed', 'ts', [['slow', 'Slow'], ['mid', 'Mid'], ['fast', 'Fast'], ['instant', 'Max']], () => st.get('textSpeed'), (v) => st.set('textSpeed', v)),
     toggle('Battle animations', 'banim', () => st.get('battleAnims'), (v) => st.set('battleAnims', v)),
     frames ? h('div.setrow', h('span', 'Window frame'), h('div.row', frameBtn(-1), h('span.frameprev', { 'aria-hidden': 'true' }), frameBtn(1)), frameNo) : null,
     toggle('Name tags', 'tags', s.tags, s.setTags),

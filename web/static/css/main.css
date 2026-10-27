@@ -583,3 +583,13 @@ html.frames-ready #dialog .more {
   position: relative; display: inline-block; right: auto; bottom: auto; vertical-align: top;
   width: calc(var(--u) * 8); height: calc(var(--u) * 16); margin-left: 0;
 }
+/* settings rows never overflow narrow phones */
+.panel .setrow { grid-template-columns: minmax(0, 36%) minmax(0, 1fr) auto; }
+.panel .setrow > * { min-width: 0; }
+.panel .seg button { padding-left: 2px !important; padding-right: 2px !important; }
+.panel .body { overflow-x: hidden; }
+/* mobile onboarding: a compact card over the game, the controls below stay visible and labelled */
+#help.onboard { background: transparent; pointer-events: none; }
+#help.onboard .card { pointer-events: auto; }
+body.touch #help.onboard { place-items: start center; padding-top: calc(var(--topbar) + 6px); background: linear-gradient(#0008, #0003); }
+#help.onboard .callout { font-size: calc(var(--pu) * 16); }
