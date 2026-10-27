@@ -57,6 +57,9 @@ data class Sources(
     val social: SocialClient.State = SocialClient.State(),
     /** When (epoch ms) a pending trade request lapses, or 0. */
     val tradeExpiresAt: Long = 0,
+    /** r5-contests: the last document per kind. */
+    val contests: de.fiereu.openmmo.client.net.ContestClient.State =
+        de.fiereu.openmmo.client.net.ContestClient.State(),
 )
 
 /** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
@@ -79,7 +82,26 @@ class StateJson(private val names: Names) {
           "trade" to trade(s.trade, s.tradeExpiresAt),
           "market" to market(s),
           "social" to socialJson.social(s.social),
+          // r5-contests: {seq, docs: {kind: document}} (PROTOCOL.md "r5-contests")
+          "contests" to contests(s.contests),
       ) + progressJson.sections(s)
+
+  /** r5-contests: the documents are the server's JSON, passed through. */
+  fun contests(c: de.fiereu.openmmo.client.net.ContestClient.State): JsonElement =
+      buildJsonObject {
+        put("seq", c.seq)
+        putJsonObject("docs") {
+          for ((k, json) in c.docs) {
+            val doc =
+                try {
+                  kotlinx.serialization.json.Json.parseToJsonElement(json)
+                } catch (e: Exception) {
+                  JsonNull
+                }
+            put(k, doc)
+          }
+        }
+      }
 
   fun world(s: Sources): JsonElement {
     val w = s.world

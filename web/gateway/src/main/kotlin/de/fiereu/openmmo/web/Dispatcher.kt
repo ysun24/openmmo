@@ -18,6 +18,12 @@ interface GameActions : SocialActions {
   /** A field move / item: [action] is a lower-case FieldAction name without underscores. */
   fun field(action: String, arg: Int, arg2: Int): String? = "field moves are not supported"
 
+  /**
+   * r5-contests: one contest / blender / Pokéblock / berry action, forwarded as its JSON object
+   * (c2s 0xD5); [t] is its type, e.g. "contest.move".
+   */
+  fun contestAction(t: String, json: String): String? = "contests are not supported"
+
   /** r4: the Pokénav Match Call: [id] -1 asks for the list, a trainer id calls them. */
   fun matchCall(id: Int): String? = "match call is not supported"
 
@@ -377,8 +383,17 @@ object Dispatcher {
                   (m.int("arg") ?: m.int("bank") ?: 0).coerceIn(0, 255),
                   (m.int("arg2") ?: m.int("map") ?: 0).coerceIn(0, 255))
         }
-        else -> "unknown message type: $t"
+        else ->
+            // r5-contests (PROTOCOL.md "r5-contests"): the server validates the fields.
+            if (t.substringBefore('.') in CONTEST_KINDS) {
+              val json = m.toString()
+              if (json.length > 4096) "message too long" else g.contestAction(t, json)
+            } else "unknown message type: $t"
       }
+
+  /** r5-contests: the message type prefixes forwarded to the server as ContestActionPacket. */
+  val CONTEST_KINDS =
+      setOf("contest", "contestEntry", "blender", "pokeblocks", "berry", "berryChoose", "painting", "conditions")
 
   /** `secretbase.action` values, the SecretBaseAction names in lower case without "_". */
   val SECRET_BASE_ACTIONS =

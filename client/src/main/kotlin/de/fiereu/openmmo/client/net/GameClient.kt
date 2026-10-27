@@ -94,6 +94,9 @@ class GameClient(
   /** r3-items: pokedex, badges, trainer card, day care, decorations, item-on-move use. */
   val progress = ProgressClient({ session?.send(it) }, { onChange() })
 
+  /** r5-contests: contests, blender, Pokéblock case, berry trees, paintings. */
+  val contests = ContestClient({ session?.send(it) }, { onChange() })
+
   /** Npcs, dialog, shop and scripted movement. */
   val overworld = OverworldClient(world, { session?.send(it) }, onChange)
 
@@ -317,6 +320,9 @@ class GameClient(
           else it.copy(travel = p.mode, running = p.running, female = p.female, acro = p.acro)
         }
         onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.contest.ContestStatePacket> { event ->
+        contests.onPacket(event.packet)
       }
       on<de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket> { event ->
         world.setMatchCall(event.packet)
