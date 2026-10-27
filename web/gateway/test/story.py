@@ -261,6 +261,203 @@ def scene_smoke_kanto(s):
     check(any(isinstance(t, str) and t for t in texts), f"interpreted sign text shown: {texts[:2]}")
 
 
+def has_item(s, name):
+    """In the bag, or (items the wire catalogue lacks: SILPH SCOPE...) in the server's own count."""
+    if any(name in k for k in s.bag()):
+        return True
+    r = s.cmd(f"/script hasitem {name.replace(' ', '_').replace('.', '')}", 2)
+    try:
+        return int(r.rsplit("x", 1)[1]) > 0
+    except (IndexError, ValueError):
+        return False
+
+
+@scene(0, "bill")
+def scene_bill(s):
+    """Cerulean: Bill as a Clefairy, the Cell Separator, the S.S. TICKET (Route25_SeaCottage)."""
+    for f in ("FLAG_HELPED_BILL_IN_SEA_COTTAGE", "FLAG_GOT_SS_TICKET"):
+        s.flag(f, False)
+    s.flag("FLAG_HIDE_BILL_HUMAN_SEA_COTTAGE", True)
+    give_team(s)
+    s.tp("Route25_SeaCottage", 10, 7, "up")
+    ents = s.p.world.get("entities", [])
+    check(any(e["kind"] == "npc" and e["x"] == 10 and e["y"] == 6 for e in ents),
+          "ON_TRANSITION shows Bill the CLEFAIRY at (10, 6)")
+    texts = s.talk(choices=[True], timeout=25)
+    check(any("BILL" in t.upper() for t in texts if isinstance(t, str)), f"Bill asks for help: {texts[:1]}")
+    # Walk to the PC: a warp would clear the temp flag that says Bill is in the teleporter.
+    s.step("left", 6)
+    s.step("up")
+    s.face("up")
+    texts = s.talk(timeout=40)
+    check(s.flag("FLAG_HELPED_BILL_IN_SEA_COTTAGE"), "the Cell Separator ran: FLAG_HELPED_BILL_IN_SEA_COTTAGE")
+    # Leave and come back: Bill stands on his template tile again (the map reloads its objects).
+    s.tp("Route25", 51, 6)
+    bx, by = npc(0, "Route25_SeaCottage", "LOCALID_BILL_HUMAN")
+    s.stand_by("Route25_SeaCottage", bx, by, "down")
+    s.talk(timeout=25)
+    check(s.flag("FLAG_GOT_SS_TICKET"), "Bill gave the ticket: FLAG_GOT_SS_TICKET")
+    check(has_item(s, "TICKET"), f"S.S. TICKET in the bag: {sorted(s.bag())}")
+
+
+@scene(0, "mtmoon")
+def scene_mtmoon(s):
+    """Mt Moon B2F: Miguel's battle, then the fossil choice (yes/no, removeobject, giveitem)."""
+    s.flag("FLAG_GOT_FOSSIL_FROM_MT_MOON", False)
+    s.flag("FLAG_GOT_DOME_FOSSIL", False)
+    s.var("VAR_MAP_SCENE_MT_MOON_B2F", 0)
+    give_team(s)
+    mx, my = npc(0, "MtMoon_B2F", "LOCALID_MIGUEL")
+    s.stand_by("MtMoon_B2F", mx, my, "up")
+    texts = s.talk(timeout=60)
+    check(s.var("VAR_MAP_SCENE_MT_MOON_B2F") == 1, f"Miguel beaten (trainerbattle_no_intro), scene var 1: {texts[-1:]}")
+    fx, fy = npc(0, "MtMoon_B2F", "LOCALID_DOME_FOSSIL")
+    s.stand_by("MtMoon_B2F", fx, fy, "down")
+    s.talk(choices=[True], timeout=30)
+    check(s.flag("FLAG_GOT_FOSSIL_FROM_MT_MOON") and s.flag("FLAG_GOT_DOME_FOSSIL"), "took the DOME FOSSIL")
+    check(has_item(s, "DOME"), f"DOME FOSSIL in the bag")
+
+
+@scene(0, "ssanne")
+def scene_ssanne(s):
+    """S.S. Anne: the seasick captain gives HM01 CUT (message + fanfare + giveitem_msg)."""
+    s.flag("FLAG_GOT_HM01", False)
+    cx, cy = npc(0, "SSAnne_CaptainsOffice", "LOCALID_SS_ANNE_CAPTAIN")
+    s.stand_by("SSAnne_CaptainsOffice", cx, cy, "down")
+    texts = s.talk(timeout=40)
+    check(s.flag("FLAG_GOT_HM01"), f"FLAG_GOT_HM01 set: {[t for t in texts if 'HM01' in str(t)][:1]}")
+    check(has_item(s, "HM01"), "HM01 in the bag")
+    check(s.var("VAR_MAP_SCENE_VERMILION_CITY") == 1, "Vermilion scene var advanced")
+
+
+@scene(0, "hideout")
+def scene_hideout(s):
+    """Game Corner poster opens the hideout (setmetatile), Giovanni on B4F, the SILPH SCOPE."""
+    s.flag("FLAG_OPENED_ROCKET_HIDEOUT", False)
+    give_team(s)
+    s.stand_by("CeladonCity_GameCorner", 9, 9, "down") if False else None
+    poster = next(b for b in map_json(0, "CeladonCity_GameCorner")["bg_events"]
+                  if b.get("script") == "CeladonCity_GameCorner_EventScript_Poster")
+    s.stand_by("CeladonCity_GameCorner", poster["x"], poster["y"], "down")
+    s.talk(timeout=60)
+    check(s.flag("FLAG_OPENED_ROCKET_HIDEOUT"), "the switch behind the poster: FLAG_OPENED_ROCKET_HIDEOUT")
+    tiles = s.script_ui().get("metatiles") or []
+    check(any(t["x"] == 16 and t["y"] == 2 for t in tiles), f"stairs metatiles changed: {tiles[:3]}")
+    s.flag("FLAG_HIDE_HIDEOUT_GIOVANNI", False)
+    s.flag("FLAG_DEFEATED_ROCKET_HIDEOUT_GIOVANNI", False) if False else None
+    gx, gy = npc(0, "RocketHideout_B4F", "LOCALID_HIDEOUT_GIOVANNI")
+    s.stand_by("RocketHideout_B4F", gx, gy, "down")
+    s.talk(timeout=90)
+    check(s.flag("FLAG_HIDE_HIDEOUT_GIOVANNI"), "Giovanni beaten and gone (removeobject sets his flag)")
+    sx, sy = npc(0, "RocketHideout_B4F", "LOCALID_SILPH_SCOPE")
+    s.stand_by("RocketHideout_B4F", sx, sy, "down")
+    s.talk(timeout=20)
+    check(has_item(s, "SILPH SCOPE"), "SILPH SCOPE picked up")
+
+
+@scene(0, "tower")
+def scene_tower(s):
+    """Pokemon Tower: the Marowak ghost (coord event, Silph Scope), Mr. Fuji, the POKé FLUTE."""
+    if not has_item(s, "SILPH SCOPE"):
+        s.cmd("/script item SILPH_SCOPE", 2)
+    give_team(s)
+    s.var("VAR_MAP_SCENE_POKEMON_TOWER_6F", 0)
+    s.tp("PokemonTower_6F", 11, 14, "down")
+    s.step("down")
+    texts = s.settle(timeout=90)
+    check(s.var("VAR_MAP_SCENE_POKEMON_TOWER_6F") == 1, f"the ghost was MAROWAK and is laid to rest: {texts[-2:]}")
+    for f in ("FLAG_HIDE_TOWER_ROCKET_1", "FLAG_HIDE_TOWER_ROCKET_2", "FLAG_HIDE_TOWER_ROCKET_3"):
+        s.flag(f, True)
+    s.flag("FLAG_HIDE_TOWER_FUJI", False)
+    s.flag("FLAG_RESCUED_MR_FUJI", False)
+    s.flag("FLAG_GOT_POKE_FLUTE", False)
+    fx, fy = npc_by_script(0, "PokemonTower_7F", "PokemonTower_7F_EventScript_MrFuji")
+    s.stand_by("PokemonTower_7F", fx, fy, "down")
+    s.talk(timeout=40)
+    check(s.flag("FLAG_RESCUED_MR_FUJI"), f"Mr. Fuji rescued, now on {s.map_name()}")
+    if s.map_name() != "LavenderTown_VolunteerPokemonHouse":
+        s.tp("LavenderTown_VolunteerPokemonHouse", 3, 5, "up")
+    fx, fy = npc_by_script(0, "LavenderTown_VolunteerPokemonHouse", "LavenderTown_VolunteerPokemonHouse_EventScript_MrFuji")
+    s.stand_by("LavenderTown_VolunteerPokemonHouse", fx, fy, "down")
+    s.talk(timeout=30)
+    check(s.flag("FLAG_GOT_POKE_FLUTE") and has_item(s, "POKE FLUTE"), "Mr. Fuji gave the POKé FLUTE")
+
+
+@scene(0, "silph")
+def scene_silph(s):
+    """Silph Co.: the elevator (ListMenu, dynamic warp), a CARD KEY door (setmetatile), Giovanni,
+    the president's MASTER BALL."""
+    give_team(s)
+    s.tp("SilphCo_Elevator", 1, 3, "up") if False else None
+    bg = map_json(0, "SilphCo_Elevator")["bg_events"][0]
+    s.stand_by("SilphCo_Elevator", bg["x"], bg["y"], "down")
+    seen = []
+    s.talk(timeout=30, menu=lambda m: (seen.append(m), 0)[1])  # 11F is the first floor listed
+    check(seen and seen[0]["kind"] == "multichoice" and "11F" in seen[0]["args"]["items"][0],
+          f"floor list shown: {seen[0]['args']['items'][:3] if seen else None}")
+    # step out of the elevator through its door: MAP_DYNAMIC takes us to 11F
+    warp = map_json(0, "SilphCo_Elevator")["warp_events"][0]
+    s.tp("SilphCo_Elevator", warp["x"], warp["y"] - 1, "down")
+    s.step("down")
+    s.p.wait(lambda q: (q.world.get("map") or {}).get("name") == "SilphCo_11F", 10, "arrive on 11F")
+    check(s.map_name() == "SilphCo_11F", "the elevator's dynamic warp leads to 11F")
+    s.cmd("/script item CARD_KEY", 2)
+    for f in ("FLAG_SILPH_11F_DOOR",):
+        s.flag(f, False)
+    s.stand_by("SilphCo_11F", 5, 16, "up")
+    s.talk(timeout=20)
+    tiles = s.script_ui().get("metatiles") or []
+    check(any(t["y"] in (16, 17) for t in tiles), f"the CARD KEY opened the door (setmetatile): {tiles[:2]}")
+    s.var("VAR_MAP_SCENE_SILPH_CO_11F", 0)
+    s.flag("FLAG_HIDE_SILPH_ROCKETS", False)
+    s.tp("SilphCo_11F", 5, 14, "down")
+    s.step("down")
+    s.settle(timeout=90)
+    check(s.var("VAR_MAP_SCENE_SILPH_CO_11F") == 1, "Giovanni beaten in Silph Co.")
+    s.flag("FLAG_GOT_MASTER_BALL_FROM_SILPH", False)
+    px, py = npc_by_script(0, "SilphCo_11F", "SilphCo_11F_EventScript_President")
+    s.stand_by("SilphCo_11F", px, py, "down")
+    s.talk(timeout=30)
+    check(s.flag("FLAG_GOT_MASTER_BALL_FROM_SILPH") and has_item(s, "MASTER BALL"), "the MASTER BALL")
+
+
+@scene(0, "trade")
+def scene_trade(s):
+    """Route 2: Reyley trades his MR. MIME (MIMIEN) for an ABRA (in-game trade + party picker)."""
+    s.flag("FLAG_DID_MIMIEN_TRADE", False)
+    if not any(m["dex"] == 63 for m in s.party()):
+        s.cmd("/givemon 63 10", 2)
+        s.p.wait(lambda q: any(m["dex"] == 63 for m in q.state.get("party") or []), 8, "abra")
+    abra = next(i for i, m in enumerate(s.party()) if m["dex"] == 63)
+    rx, ry = npc_by_script(0, "Route2_House", "Route2_House_EventScript_Reyley")
+    s.stand_by("Route2_House", rx, ry, "down")
+    kinds = []
+
+    def answer(m):
+        kinds.append(m["kind"])
+        return abra if m["kind"] == "party" else 0
+    s.talk(choices=[True], menu=answer, timeout=40)
+    check("party" in kinds and "trade" in kinds, f"party picker and trade scene shown: {kinds}")
+    check(any(m["dex"] == 122 for m in s.party()), "MR. MIME (MIMIEN) is in the party")
+    mm = next(m for m in s.party() if m["dex"] == 122)
+    check((mm.get("nick") or mm["name"]) == "MIMIEN" and mm.get("ot") == "REYLEY", f"nickname and OT: {mm.get('nick')} / {mm.get('ot')}")
+
+
+@scene(0, "sevii")
+def scene_sevii(s):
+    """Vermilion harbor: the Seagallop (destination menu, ferry scene) to One Island."""
+    s.flag("FLAG_SYS_SEVII_MAP_123", True)
+    s.cmd("/script item TRI_PASS", 2)
+    sx, sy = npc(0, "VermilionCity", "LOCALID_VERMILION_FERRY_SAILOR")
+    s.flag("FLAG_SYS_GAME_CLEAR", True)
+    s.stand_by("VermilionCity", sx, sy, "up")
+    menus = []
+    s.talk(choices=[True], menu=lambda m: (menus.append(m), 0)[1], timeout=40)
+    check(menus, f"destination menu shown: {[m['args'].get('items') for m in menus][:1]}")
+    s.p.wait(lambda q: "OneIsland" in ((q.world.get("map") or {}).get("name") or ""), 20, "arrive on One Island")
+    check("OneIsland" in s.map_name(), f"arrived: {s.map_name()}")
+
+
 def dev():
     """DEVELOPER permission for the slash commands (as e2e.py's setup does)."""
     os.system(

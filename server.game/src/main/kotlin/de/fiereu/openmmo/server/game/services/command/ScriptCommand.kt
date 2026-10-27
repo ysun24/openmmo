@@ -4,6 +4,8 @@ import de.fiereu.openmmo.common.CharacterPermissions
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.script.vm.DecompScript
 import de.fiereu.openmmo.server.game.script.vm.ScriptImage
+import de.fiereu.openmmo.server.game.script.vm.vmAddItem
+import de.fiereu.openmmo.server.game.script.vm.vmItemCount
 import de.fiereu.openmmo.server.game.services.StoryService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,7 +24,7 @@ constructor(
     private val story: StoryService,
 ) : ChatCommand {
   override val name = "script"
-  override val usage = "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal"
+  override val usage = "/script run <label> | flag <FLAG_X> [on|off] | var <VAR_X> [value] | heal | item <ITEM_X> [qty]"
   override val description = "runs a decomp script / reads or sets its flags and vars"
   override val permission = CharacterPermissions.DEVELOPER
 
@@ -36,6 +38,28 @@ constructor(
         if (!DecompScript.exists(label)) return ctx.reply("No script $label.")
         runner.run(ctx.session, ctx.state, DecompScript(label), entityId = -1)
         ctx.reply("Running $label.")
+      }
+      "item", "hasitem" -> {
+        val n = a.getOrNull(1)?.uppercase()?.let { if (it.startsWith("ITEM_")) it else "ITEM_$it" }
+            ?: return ctx.reply(usage)
+        val id = img.constOrNull(n) ?: return ctx.reply("No item $n in $region.")
+        val q = if (a[0] == "item") a.getOrNull(2)?.toIntOrNull() ?: 1 else 0
+        runner.run(
+            ctx.session,
+            ctx.state,
+            de.fiereu.openmmo.server.game.script.Script { sc ->
+              val vm = de.fiereu.openmmo.server.game.script.vm.ScriptVm(sc, img)
+              sc.vm = vm
+              try {
+                if (a.getOrNull(0) == "item") sc.vmAddItem(id, q)
+                sc.session.send(
+                    de.fiereu.openmmo.server.game.services.notice("$n x${sc.vmItemCount(id)}"))
+              } finally {
+                sc.vm = null
+              }
+            },
+            -1)
+        if (q != 0) ctx.reply("Gave $q $n.")
       }
       "heal" -> {
         runner.run(ctx.session, ctx.state, de.fiereu.openmmo.server.game.script.Script { it.healParty() }, -1)

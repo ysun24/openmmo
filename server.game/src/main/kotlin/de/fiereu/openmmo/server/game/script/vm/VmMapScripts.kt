@@ -38,7 +38,9 @@ constructor(
     val vmState = VmState.of(session)
     val key = (map.regionId.toInt() shl 16) or ((map.bankId.toInt() and 0xFF) shl 8) or
         (map.mapId.toInt() and 0xFF)
-    val changed = vmState.mapKey != key
+    // Every load is a fresh map, a warp back onto the same map included (LoadMapFromWarp).
+    val changed = true
+    vmState.mapKey = -1
     vmState.enterMap(key)
     val img = ScriptImage.of(regionOf(map)) ?: return
     val table = img.labels["${map.name}_MapScripts"] ?: return

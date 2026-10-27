@@ -96,8 +96,14 @@ private val ScriptContext.charId: Long?
 
 internal fun ScriptContext.vmCurrentMap() = maps?.getMap(state.regionId, state.bankId, state.mapId)
 
+/**
+ * The decomp's object local ids are 1-based (object_events index + 1); the server's npc
+ * entityIdx is the 0-based index. Every vm* function below takes the decomp's id.
+ */
+internal fun npcIdx(localId: Int): Int = localId - 1
+
 internal fun ScriptContext.vmMapNpc(localId: Int): NpcDef? =
-    vmCurrentMap()?.npcs?.firstOrNull { it.entityIdx == localId }
+    vmCurrentMap()?.npcs?.firstOrNull { it.entityIdx == npcIdx(localId) }
 
 /** The server's bank of decomp map group [group] (Hoenn's groups are numbered from 50). */
 internal fun ScriptContext.vmBank(group: Int): Int = group + if (state.regionId == 1) HOENN_BANK_OFFSET else 0
@@ -108,13 +114,13 @@ internal fun ScriptContext.vmOnMap(group: Int, num: Int) =
     state.bankId == vmBank(group) && state.mapId == num
 
 internal suspend fun ScriptContext.vmMoveNpc(localId: Int, from: ObjPose, steps: List<MovementStep>) {
-  moveNpc(localId, *steps.toTypedArray())
+  moveNpc(npcIdx(localId), *steps.toTypedArray())
 }
 
 internal suspend fun ScriptContext.vmEmote(localId: Int, kind: String) {
   val id =
       if (localId == ScriptVm.OBJ_PLAYER) state.characterId ?: return
-      else movement.npcEntityId(state, localId) ?: return
+      else movement.npcEntityId(state, npcIdx(localId)) ?: return
   session.send(FieldAvatarPacket(id, TravelMode.WALK, exclaim = true))
   services?.ui?.send(session, "emote") {
     put("entity", id.toString())
@@ -126,29 +132,29 @@ internal suspend fun ScriptContext.vmEmote(localId: Int, kind: String) {
 private const val EMOTE_MS = 600L
 
 internal fun ScriptContext.vmShowObject(localId: Int, pose: ObjPose) {
-  state.removedObjects.remove(localId)
-  showNpcAt(localId, pose.x, pose.y)
+  state.removedObjects.remove(npcIdx(localId))
+  showNpcAt(npcIdx(localId), pose.x, pose.y)
 }
 
 internal suspend fun ScriptContext.vmHideObject(localId: Int) {
-  moveNpc(localId, MovementStep.SET_INVISIBLE)
+  moveNpc(npcIdx(localId), MovementStep.SET_INVISIBLE)
 }
 
 /** removeobject: despawns the npc and sets its map.json flag, like the decomp. */
 internal fun ScriptContext.vmRemoveObject(localId: Int, immediate: Boolean) {
   val npc = vmMapNpc(localId)
   if (npc != null && npc.hideFlag.isNotBlank()) setFlag(npc.hideFlag)
-  if (!immediate) removeNpc(localId)
+  if (!immediate) removeNpc(npcIdx(localId))
 }
 
 internal fun ScriptContext.vmSetObjectFlag(group: Int, num: Int, localId: Int) {
   val map = maps?.getMap(state.regionId, vmBank(group), num) ?: return
-  val npc = map.npcs.firstOrNull { it.entityIdx == localId } ?: return
+  val npc = map.npcs.firstOrNull { it.entityIdx == npcIdx(localId) } ?: return
   if (npc.hideFlag.isNotBlank()) setFlag(npc.hideFlag)
 }
 
 internal suspend fun ScriptContext.vmTurnNpc(localId: Int, d: Direction) {
-  moveNpc(localId, de.fiereu.openmmo.server.game.script.vm.VmMovement.faceStep(d))
+  moveNpc(npcIdx(localId), de.fiereu.openmmo.server.game.script.vm.VmMovement.faceStep(d))
 }
 
 internal fun ScriptContext.vmTurnSelf(d: Direction) {
@@ -215,19 +221,30 @@ internal fun ScriptContext.vmItemDef(gbaItem: Int): ItemDef? {
       ?: ItemNames.byGbaId(gbaItem)
 }
 
+/**
+ * Items the wire catalogue (the Gen 5 table the clients speak) has no entry for, FRLG's SILPH
+ * SCOPE, LIFT KEY, TRI-PASS... live in a story var per item, so scripts still find them.
+ */
+private fun ScriptContext.offCatalogueKey(gbaItem: Int): String? =
+    vm?.img?.nameOf("ITEM_", gbaItem)?.let { "${vm!!.img.region}/OPENMMO_${it}" }
+
 internal suspend fun ScriptContext.vmAddItem(gbaItem: Int, qty: Int): Boolean {
   if (qty == 0) return true
   val def = vmItemDef(gbaItem)
   if (def == null) {
-    log.warn { "no catalogue item for GBA item $gbaItem" }
-    return qty > 0
+    val key = offCatalogueKey(gbaItem) ?: return false
+    val have = getVar(key)
+    if (have + qty < 0) return false
+    setVar(key, have + qty)
+    log.info { "off-catalogue item $key now ${have + qty}" }
+    return true
   }
   if (qty < 0 && vmItemCount(gbaItem) < -qty) return false
   return giveItem(def, qty)
 }
 
 internal fun ScriptContext.vmItemCount(gbaItem: Int): Int {
-  val def = vmItemDef(gbaItem) ?: return 0
+  val def = vmItemDef(gbaItem) ?: return offCatalogueKey(gbaItem)?.let(::getVar) ?: 0
   val items = services?.items ?: return 0
   val stored = charId?.let { characters?.getCharacter(it) } ?: return 0
   return items.idsOf(def).sumOf { stored.items[it] ?: 0 }

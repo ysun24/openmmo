@@ -292,7 +292,7 @@ class ScriptVm(
       return it
     }
     val npc = ctx.vmMapNpc(localId) ?: return null
-    val tp = state.templatePos[localId]
+    val tp = state.templatePos[npcIdx(localId)]
     return ObjPose(tp?.first ?: npc.x, tp?.second ?: npc.y, npc.facing)
   }
 
@@ -703,15 +703,15 @@ class ScriptVm(
         val id = localIdOf(u16())
         val x = hv()
         val y = hv()
-        state.templatePos[id] = x to y
+        state.templatePos[npcIdx(id)] = x to y
       }
       "copyobjectxytoperm" -> {
         val id = localIdOf(u16())
-        poseOf(id)?.let { state.templatePos[id] = it.x to it.y }
+        poseOf(id)?.let { state.templatePos[npcIdx(id)] = it.x to it.y }
       }
       "setobjectmovementtype" -> {
         val id = localIdOf(u16())
-        state.templateMovement[id] = u8()
+        state.templateMovement[npcIdx(id)] = u8()
       }
       "setobjectsubpriority" -> {
         u16()
@@ -1223,7 +1223,7 @@ class ScriptVm(
     }
     val prev = poseOf(localId)
     state.objects[localId] = ObjPose(x, y, prev?.facing ?: Direction.DOWN)
-    if (!immediate) ctx.repositionNpc(localId, x, y)
+    if (!immediate) ctx.repositionNpc(npcIdx(localId), x, y)
   }
 
   private suspend fun facePlayer() {

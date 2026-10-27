@@ -401,13 +401,14 @@ class DecompTables(private val decomp: File, private val r: Resolver) {
 
   /** gStdStrings (bufferstdstring), by index. */
   val stdStrings: List<String> by lazy {
-    val sources = listOf("src/data/script_menu.h", "src/scrcmd.c", "src/strings.c", "src/data/strings.h")
+    val sources = listOf("src/data/script_menu.h", "src/script_menu.c", "src/scrcmd.c", "src/strings.c")
     for (f in sources) {
       val file = File(decomp, f)
       if (!file.isFile) continue
       val text = file.readText()
-      if (!text.contains("gStdStrings[]")) continue
-      val body = text.substringAfter("gStdStrings[]").substringAfter("{").substringBefore("};")
+      // Emerald gStdStrings, FRLG gStdStringPtrs.
+      val decl = listOf("gStdStrings[]", "gStdStringPtrs[]").firstOrNull { text.contains(it) } ?: continue
+      val body = text.substringAfter(decl).substringAfter("{").substringBefore("};")
       val out = ArrayList<String>()
       for (m in Regex("""(?:\[(\w+)\]\s*=\s*)?(\w+)\s*,""").findAll("$body,")) {
         val idx = m.groups[1]?.value?.let { value(it)?.toInt() } ?: out.size

@@ -183,14 +183,14 @@ class TrainerSpecials @Inject constructor() : SpecialTable() {
     val t = vm.state.trainer ?: return false
     if (vm.region != Region.HOENN) {
       // FRLG: the VS Seeker marks trainers ready (FieldService.rematchReady per object).
-      return ctx.state.rematchReady.containsKey(t.localId)
+      return ctx.state.rematchReady.containsKey(npcIdx(t.localId))
     }
     return ctx.isFlagSet(Rematches.readyFlag(Region.HOENN, t.opponentA))
   }
 
   private fun rematchTrainer(ctx: ScriptContext, first: Int): Int? {
     val vm = ctx.vm ?: return null
-    ctx.state.rematchReady[vm.state.trainer?.localId ?: -1]?.let {
+    ctx.state.rematchReady[npcIdx(vm.state.trainer?.localId ?: 0)]?.let {
       return it
     }
     val entry = RematchTable.byFirst(vm.region, first) ?: return null
