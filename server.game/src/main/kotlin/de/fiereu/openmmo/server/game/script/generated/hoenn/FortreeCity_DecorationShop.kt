@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.FortreeCity_DecorationShop
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -28,8 +29,10 @@ internal object FortreeCity_DecorationShop_EventScript_Girl : Script {
  * ```
  */
 internal object FortreeCity_DecorationShop_EventScript_ClerkDesks : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FortreeCity_DecorationShop_EventScript_ClerkDesks")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("FortreeCity_DecorationShop_PokemartDecor_Desks")
+  }
 }
 
 /**
@@ -46,8 +49,10 @@ internal object FortreeCity_DecorationShop_EventScript_ClerkDesks : Script {
  * ```
  */
 internal object FortreeCity_DecorationShop_EventScript_ClerkChairs : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FortreeCity_DecorationShop_EventScript_ClerkChairs")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("FortreeCity_DecorationShop_PokemartDecor_Chairs")
+  }
 }
 
 internal val FortreeCity_DecorationShopScripts: Map<String, Script> =

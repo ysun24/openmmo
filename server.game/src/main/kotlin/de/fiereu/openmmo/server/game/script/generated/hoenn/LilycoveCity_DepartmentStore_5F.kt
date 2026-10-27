@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.LilycoveCity_DepartmentStore_5F
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -28,8 +29,10 @@ internal object LilycoveCity_DepartmentStore_5F_EventScript_PokefanF : Script {
  * ```
  */
 internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarLeft : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarLeft")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("LilycoveCity_DepartmentStore_5F_Pokemart_Dolls")
+  }
 }
 
 /**
@@ -46,8 +49,10 @@ internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarLeft : Scrip
  * ```
  */
 internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidLeft : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidLeft")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("LilycoveCity_DepartmentStore_5F_Pokemart_Cushions")
+  }
 }
 
 /**
@@ -64,8 +69,10 @@ internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidLeft : Scrip
  * ```
  */
 internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidRight : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidRight")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("LilycoveCity_DepartmentStore_5F_Pokemart_Posters")
+  }
 }
 
 /**
@@ -82,8 +89,10 @@ internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkMidRight : Scri
  * ```
  */
 internal object LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarRight : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_5F_EventScript_ClerkFarRight")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("LilycoveCity_DepartmentStore_5F_Pokemart_Mats")
+  }
 }
 
 /**

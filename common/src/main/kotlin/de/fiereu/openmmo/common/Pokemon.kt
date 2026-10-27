@@ -32,7 +32,11 @@ data class Pokemon(
     val isFatefulEncounter: Boolean,
     val isRaidEncounter: Boolean,
     val caughtAt: LocalDateTime,
-    val isEgg: Boolean = false
+    val isEgg: Boolean = false,
+    /** Gen 3 non-volatile status bits ([MonStatus]); 0 is healthy. Survives a battle. */
+    val status: Int = 0,
+    /** PP Up / PP Max count per move slot, two bits each, slot 0 lowest (the decomp's ppBonuses). */
+    val ppBonuses: Int = 0,
 ) {
   // seed is an unsigned 32-bit value on the wire, so mask before the modulo to avoid a negative
   // index when the high bit is set.

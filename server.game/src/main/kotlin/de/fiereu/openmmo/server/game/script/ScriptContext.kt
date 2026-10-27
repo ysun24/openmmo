@@ -17,6 +17,7 @@ import de.fiereu.openmmo.server.game.services.DialogService
 import de.fiereu.openmmo.server.game.services.MapEntryScripts
 import de.fiereu.openmmo.server.game.services.ScriptMovementService
 import de.fiereu.openmmo.server.game.services.ScriptWarpService
+import de.fiereu.openmmo.server.game.progression.ScriptProgress
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.StoryClientState
 import de.fiereu.openmmo.server.game.services.StoryPlayerService
@@ -41,6 +42,8 @@ internal constructor(
     private val maps: MapManager? = null,
     private val entryScripts: MapEntryScripts? = null,
     private val shops: ShopService? = null,
+    /** r3-items: day care, decoration shops, badges. */
+    internal val progress: ScriptProgress? = null,
 ) {
   private val characterId: Long?
     get() = state.characterId
@@ -187,6 +190,15 @@ internal constructor(
    */
   fun pokemart(vararg items: ItemDef) =
       checkNotNull(shops) { "Shop service is unavailable" }.open(session, entityId, items.toList())
+
+  /**
+   * Opens a decoration mart on the decomp stock list [label] (pokemartdecoration). Like [pokemart]
+   * it does not wait; "Please come again!" follows when the player closes it.
+   */
+  fun decorationShop(label: String) {
+    val charId = state.characterId ?: return
+    checkNotNull(progress) { "Progress service is unavailable" }.decorations.open(charId, label)
+  }
 
   /** Run a non-catchable, non-escapable story battle and wait for its result. */
   suspend fun battle(dexId: Int, level: Int, vararg moveIds: Int): BattleResult =

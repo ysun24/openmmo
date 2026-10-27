@@ -1,5 +1,12 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.dialog.generated.kanto.CinnabarIsland_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
+import de.fiereu.openmmo.story.generated.kanto.KantoVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -12,7 +19,10 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Quinn : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Quinn")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BURGLAR_QUINN
+    ctx.gymTrainer(213, CinnabarIsland_Gym.QuinnIntro, CinnabarIsland_Gym.QuinnDefeat, CinnabarIsland_Gym.QuinnPostBattle)
+  }
 }
 
 /**
@@ -24,7 +34,10 @@ internal object CinnabarIsland_Gym_EventScript_Quinn : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Erik : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Erik")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SUPER_NERD_ERIK
+    ctx.gymTrainer(177, CinnabarIsland_Gym.ErikIntro, CinnabarIsland_Gym.ErikDefeat, CinnabarIsland_Gym.ErikPostBattle)
+  }
 }
 
 /**
@@ -36,7 +49,10 @@ internal object CinnabarIsland_Gym_EventScript_Erik : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Avery : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Avery")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SUPER_NERD_AVERY
+    ctx.gymTrainer(178, CinnabarIsland_Gym.AveryIntro, CinnabarIsland_Gym.AveryDefeat, CinnabarIsland_Gym.AveryPostBattle)
+  }
 }
 
 /**
@@ -48,7 +64,10 @@ internal object CinnabarIsland_Gym_EventScript_Avery : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Ramon : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Ramon")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BURGLAR_RAMON
+    ctx.gymTrainer(214, CinnabarIsland_Gym.RamonIntro, CinnabarIsland_Gym.RamonDefeat, CinnabarIsland_Gym.RamonPostBattle)
+  }
 }
 
 /**
@@ -61,7 +80,10 @@ internal object CinnabarIsland_Gym_EventScript_Ramon : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Derek : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Derek")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SUPER_NERD_DEREK
+    ctx.gymTrainer(179, CinnabarIsland_Gym.DerekIntro, CinnabarIsland_Gym.DerekDefeat, CinnabarIsland_Gym.DerekPostBattle)
+  }
 }
 
 /**
@@ -73,7 +95,10 @@ internal object CinnabarIsland_Gym_EventScript_Derek : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Dusty : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Dusty")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BURGLAR_DUSTY
+    ctx.gymTrainer(215, CinnabarIsland_Gym.DustyIntro, CinnabarIsland_Gym.DustyDefeat, CinnabarIsland_Gym.DustyPostBattle)
+  }
 }
 
 /**
@@ -85,7 +110,10 @@ internal object CinnabarIsland_Gym_EventScript_Dusty : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Zac : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Zac")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_SUPER_NERD_ZAC
+    ctx.gymTrainer(180, CinnabarIsland_Gym.ZacIntro, CinnabarIsland_Gym.ZacDefeat, CinnabarIsland_Gym.ZacPostBattle)
+  }
 }
 
 /**
@@ -100,7 +128,29 @@ internal object CinnabarIsland_Gym_EventScript_Zac : Script {
  * ```
  */
 internal object CinnabarIsland_Gym_EventScript_Blaine : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port CinnabarIsland_Gym_EventScript_Blaine")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LEADER_BLAINE: badge 7, TM38
+    val giveTm: suspend () -> Unit = giveTm@{
+      ctx.say(CinnabarIsland_Gym.ExplainVolcanoBadge)
+      if (!ctx.giveItem(Items.TM38)) return@giveTm
+      ctx.say(CinnabarIsland_Gym.ReceivedTM38FromBlaine)
+      ctx.setFlag(KantoFlags.FLAG_GOT_TM38_FROM_BLAINE)
+      ctx.say(CinnabarIsland_Gym.FireBlastIsUltimateFireMove)
+    }
+    if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_BLAINE)) {
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM38_FROM_BLAINE)) giveTm() else ctx.say(CinnabarIsland_Gym.BlainePostBattle)
+      return
+    }
+    ctx.say(CinnabarIsland_Gym.BlaineIntro)
+    if (ctx.trainerBattle(419) != BattleResult.VICTORY) return
+    ctx.say(CinnabarIsland_Gym.BlaineDefeat)
+    ctx.setFlag(KantoFlags.FLAG_DEFEATED_BLAINE)
+    ctx.setFlag(KantoFlags.FLAG_BADGE07_GET)
+    ctx.setVar(KantoVars.VAR_MAP_SCENE_CINNABAR_ISLAND, 1)
+    ctx.clearFlag(KantoFlags.FLAG_HIDE_CINNABAR_BILL)
+    giveTm()
+    ctx.badgeAwarded(7)
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.LilycoveCity_DepartmentStoreRooftop
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -40,8 +41,10 @@ internal object LilycoveCity_DepartmentStoreRooftop_EventScript_ThirstyMan : Scr
  * ```
  */
 internal object LilycoveCity_DepartmentStoreRooftop_EventScript_SaleWoman : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStoreRooftop_EventScript_SaleWoman")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.decorationShop("LilycoveCity_DepartmentStoreRooftop_PokemartDecor_ClearOutSale")
+  }
 }
 
 /**

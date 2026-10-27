@@ -48,7 +48,7 @@ constructor(
         }
     val state = session.attributes[PLAYER_STATE] ?: return
     session.attributes[OPEN_SHOP] =
-        OpenShop(state.regionId, state.bankId, state.mapId, offered.toMap())
+        OpenShop(state.regionId, state.bankId, state.mapId, offered.toMap(), npcEntityId)
     session.send(ShopCatalogPacket.open(MART_SHOP_ID, npcEntityId, offered.map { it.second }))
   }
 

@@ -1,5 +1,12 @@
 package de.fiereu.openmmo.server.game.script.generated.kanto
 
+import de.fiereu.openmmo.dialog.generated.kanto.ViridianCity_Gym
+import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
+import de.fiereu.openmmo.story.generated.kanto.KantoVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -12,7 +19,10 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Takashi : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Takashi")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BLACK_BELT_TAKASHI
+    ctx.gymTrainer(324, ViridianCity_Gym.TakashiIntro, ViridianCity_Gym.TakashiDefeat, ViridianCity_Gym.TakashiPostBattle)
+  }
 }
 
 /**
@@ -24,7 +34,10 @@ internal object ViridianCity_Gym_EventScript_Takashi : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Yuji : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Yuji")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_COOLTRAINER_YUJI
+    ctx.gymTrainer(400, ViridianCity_Gym.YujiIntro, ViridianCity_Gym.YujiDefeat, ViridianCity_Gym.YujiPostBattle)
+  }
 }
 
 /**
@@ -36,7 +49,10 @@ internal object ViridianCity_Gym_EventScript_Yuji : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Atsushi : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Atsushi")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BLACK_BELT_ATSUSHI
+    ctx.gymTrainer(322, ViridianCity_Gym.AtsushiIntro, ViridianCity_Gym.AtsushiDefeat, ViridianCity_Gym.AtsushiPostBattle)
+  }
 }
 
 /**
@@ -48,7 +64,10 @@ internal object ViridianCity_Gym_EventScript_Atsushi : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Jason : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Jason")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_TAMER_JASON
+    ctx.gymTrainer(296, ViridianCity_Gym.JasonIntro, ViridianCity_Gym.JasonDefeat, ViridianCity_Gym.JasonPostBattle)
+  }
 }
 
 /**
@@ -60,7 +79,10 @@ internal object ViridianCity_Gym_EventScript_Jason : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Cole : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Cole")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_TAMER_COLE
+    ctx.gymTrainer(297, ViridianCity_Gym.ColeIntro, ViridianCity_Gym.ColeDefeat, ViridianCity_Gym.ColePostBattle)
+  }
 }
 
 /**
@@ -72,7 +94,10 @@ internal object ViridianCity_Gym_EventScript_Cole : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Kiyo : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Kiyo")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_BLACK_BELT_KIYO
+    ctx.gymTrainer(323, ViridianCity_Gym.KiyoIntro, ViridianCity_Gym.KiyoDefeat, ViridianCity_Gym.KiyoPostBattle)
+  }
 }
 
 /**
@@ -84,7 +109,10 @@ internal object ViridianCity_Gym_EventScript_Kiyo : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Samuel : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Samuel")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_COOLTRAINER_SAMUEL
+    ctx.gymTrainer(392, ViridianCity_Gym.SamuelIntro, ViridianCity_Gym.SamuelDefeat, ViridianCity_Gym.SamuelPostBattle)
+  }
 }
 
 /**
@@ -103,7 +131,28 @@ internal object ViridianCity_Gym_EventScript_Samuel : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Giovanni : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Giovanni")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_LEADER_GIOVANNI: badge 8, TM26
+    val giveTm: suspend () -> Unit = giveTm@{
+      ctx.say(ViridianCity_Gym.ExplainEarthBadgeTakeThis)
+      if (!ctx.giveItem(Items.TM26)) return@giveTm
+      ctx.say(ViridianCity_Gym.ReceivedTM26FromGiovanni)
+      ctx.setFlag(KantoFlags.FLAG_GOT_TM26_FROM_GIOVANNI)
+      ctx.say(ViridianCity_Gym.ExplainTM26)
+    }
+    if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_LEADER_GIOVANNI)) {
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM26_FROM_GIOVANNI)) giveTm() else ctx.say(ViridianCity_Gym.GiovanniPostBattle)
+      return
+    }
+    ctx.say(ViridianCity_Gym.GiovanniIntro)
+    if (ctx.trainerBattle(350) != BattleResult.VICTORY) return
+    ctx.setFlag(KantoFlags.FLAG_HIDE_MISC_KANTO_ROCKETS)
+    ctx.setFlag(KantoFlags.FLAG_DEFEATED_LEADER_GIOVANNI)
+    ctx.setFlag(KantoFlags.FLAG_BADGE08_GET)
+    ctx.setVar(KantoVars.VAR_MAP_SCENE_ROUTE22, 3)
+    giveTm()
+    ctx.badgeAwarded(8)
+  }
 }
 
 /**
@@ -115,7 +164,10 @@ internal object ViridianCity_Gym_EventScript_Giovanni : Script {
  * ```
  */
 internal object ViridianCity_Gym_EventScript_Warren : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port ViridianCity_Gym_EventScript_Warren")
+  override suspend fun run(ctx: ScriptContext) {
+    // TRAINER_COOLTRAINER_WARREN
+    ctx.gymTrainer(401, ViridianCity_Gym.WarrenIntro, ViridianCity_Gym.WarrenDefeat, ViridianCity_Gym.WarrenPostBattle)
+  }
 }
 
 /**

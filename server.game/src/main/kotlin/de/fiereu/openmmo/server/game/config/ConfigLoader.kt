@@ -24,6 +24,13 @@ object ConfigLoader {
         rootKeyFile = config.stringOrNull("server.rootKeyFile"),
         sessionSecret = secret.toByteArray(Charsets.UTF_8),
         sessionTokenMaxAge = tokenMaxAge,
+        adminUserIds =
+            config
+                .stringOrNull("server.adminUserIds")
+                .orEmpty()
+                .split(',')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet(),
         db =
             DbConfig(
                 host = config.getString("db.host"),

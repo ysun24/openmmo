@@ -8,6 +8,7 @@ import de.fiereu.openmmo.server.game.services.command.ChatCommand
 import de.fiereu.openmmo.server.game.services.command.GiveItemCommand
 import de.fiereu.openmmo.server.game.services.command.GiveMonCommand
 import de.fiereu.openmmo.server.game.services.command.GiveMoneyCommand
+import de.fiereu.openmmo.server.game.services.command.GrantCommand
 import de.fiereu.openmmo.server.game.services.command.HelpCommand
 import de.fiereu.openmmo.server.game.services.command.PosCommand
 import de.fiereu.openmmo.server.game.services.command.StoryCommand
@@ -37,4 +38,6 @@ interface ChatCommandModule {
   @Binds @IntoSet fun giveItemCommand(command: GiveItemCommand): ChatCommand
 
   @Binds @IntoSet fun giveMoneyCommand(command: GiveMoneyCommand): ChatCommand
+
+  @Binds @IntoSet fun grantCommand(command: GrantCommand): ChatCommand
 }

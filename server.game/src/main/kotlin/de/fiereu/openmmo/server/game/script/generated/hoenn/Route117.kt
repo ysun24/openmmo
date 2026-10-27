@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.Route117
+import de.fiereu.openmmo.server.game.progression.DaycareScripts
+import de.fiereu.openmmo.server.game.progression.HOENN_DAYCARE
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -28,7 +30,7 @@ internal object Route117_EventScript_LittleBoy : Script {
  * ```
  */
 internal object Route117_EventScript_DaycareMan : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port Route117_EventScript_DaycareMan")
+  override suspend fun run(ctx: ScriptContext) = DaycareScripts.man(ctx, HOENN_DAYCARE)
 }
 
 /**

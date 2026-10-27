@@ -309,6 +309,8 @@ constructor(
       "Starting battle for char=$charId (${stored.info.name}) against " +
           enemies.joinToString { "${it.species.name} level ${it.level}" }
     }
+    // r3-items: the lead is seen as it comes out (GetSetPokedexFlag FLAG_SET_SEEN).
+    characterStore.registerSeen(charId, listOf(enemies.first().species.id))
     val battle =
         battles.create(
             charId, session, party, enemies, rng, BattleRules(catchable, escapable, trainer))
@@ -384,6 +386,7 @@ constructor(
     val oldSlot = battle.opponentSlot
     battle.opponentSlot = next
     battle.opponentSeen.add(next)
+    characterStore.registerSeen(battle.charId, listOf(battle.opponent[next].species.id))
     log.info { "Opponent sends out slot $next for char=${battle.charId}" }
     emitter.sendOpponentSwitchIn(battle, oldSlot, fullBlock)
   }

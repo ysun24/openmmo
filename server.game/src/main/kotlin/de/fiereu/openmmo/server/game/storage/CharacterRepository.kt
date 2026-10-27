@@ -12,6 +12,7 @@ import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.common.enums.SkinSlot
 import de.fiereu.openmmo.db.game.tables.records.CharacterFlagsRecord
 import de.fiereu.openmmo.db.game.tables.records.CharacterItemsRecord
+import de.fiereu.openmmo.db.game.tables.records.CharacterPokedexRecord
 import de.fiereu.openmmo.db.game.tables.records.CharacterSkinsRecord
 import de.fiereu.openmmo.db.game.tables.records.CharacterVarsRecord
 import de.fiereu.openmmo.db.game.tables.records.CharactersRecord
@@ -19,6 +20,7 @@ import de.fiereu.openmmo.db.game.tables.records.PokemonRecord
 import de.fiereu.openmmo.db.game.tables.references.CHARACTERS
 import de.fiereu.openmmo.db.game.tables.references.CHARACTER_FLAGS
 import de.fiereu.openmmo.db.game.tables.references.CHARACTER_ITEMS
+import de.fiereu.openmmo.db.game.tables.references.CHARACTER_POKEDEX
 import de.fiereu.openmmo.db.game.tables.references.CHARACTER_SKINS
 import de.fiereu.openmmo.db.game.tables.references.CHARACTER_VARS
 import de.fiereu.openmmo.db.game.tables.references.POKEMON
@@ -114,10 +116,14 @@ constructor(
       val id = current.info.id
       val adjusted =
           previous?.let { prev ->
-            val kept = (prev.pokemon + prev.pcStorage).filter { it.id !in movedOut[id].orEmpty() }
+            val kept =
+                (prev.pokemon + prev.pcStorage + prev.daycare).filter {
+                  it.id !in movedOut[id].orEmpty()
+                }
             prev.copy(
                 pokemon = (kept + movedIn[id].orEmpty().values).toMutableList(),
                 pcStorage = mutableListOf(),
+                daycare = mutableListOf(),
             )
           }
       writeChanges(tx, adjusted, current)
@@ -169,6 +175,12 @@ constructor(
         { key, value -> CharacterVarsRecord(id, key, value) },
     )
     tx.writeDelta(
+        CHARACTER_POKEDEX,
+        rowDelta(previous?.pokedexRows().orEmpty(), current.pokedexRows()),
+        { CHARACTER_POKEDEX.CHARACTER_ID.eq(id).and(CHARACTER_POKEDEX.DEX_ID.eq(it.toShort())) },
+        { dexId, caught -> CharacterPokedexRecord(id, dexId.toShort(), caught) },
+    )
+    tx.writeDelta(
         CHARACTER_SKINS,
         rowDelta(previous?.skins.orEmpty(), current.skins),
         { CHARACTER_SKINS.CHARACTER_ID.eq(id).and(CHARACTER_SKINS.SLOT.eq(it.name)) },
@@ -177,11 +189,16 @@ constructor(
   }
 
   private fun StoredCharacter?.monstersById(): Map<Long, Pokemon> =
-      this?.let { (it.pokemon + it.pcStorage).associateBy { monster -> monster.id } }.orEmpty()
+      this?.let { (it.pokemon + it.pcStorage + it.daycare).associateBy { monster -> monster.id } }
+          .orEmpty()
+
+  /** One row per seen species, caught or not. */
+  private fun StoredCharacter.pokedexRows(): Map<Int, Boolean> =
+      (dexSeen + dexCaught).associateWith { it in dexCaught }
 
   private fun insert(tx: DSLContext, stored: StoredCharacter) {
     tx.insertInto(CHARACTERS).set(stored.info.toRecord()).execute()
-    val monsters = stored.pokemon + stored.pcStorage
+    val monsters = stored.pokemon + stored.pcStorage + stored.daycare
     if (monsters.isNotEmpty()) {
       tx.batchInsert(monsters.map { it.toRecord() }).execute()
     }
@@ -203,6 +220,11 @@ constructor(
           .set(CHARACTER_VARS.CHARACTER_ID, stored.info.id)
           .set(CHARACTER_VARS.VAR_KEY, key)
           .set(CHARACTER_VARS.VAR_VALUE, value)
+          .execute()
+    }
+    val dex = stored.pokedexRows()
+    if (dex.isNotEmpty()) {
+      tx.batchInsert(dex.map { (dexId, caught) -> CharacterPokedexRecord(stored.info.id, dexId.toShort(), caught) })
           .execute()
     }
     if (stored.skins.isNotEmpty()) {
@@ -242,6 +264,11 @@ constructor(
             .fetch()
             .groupBy({ it.characterId }, { it.varKey to it.varValue })
             .mapValues { (_, pairs) -> pairs.toMap() }
+    val dexByOwner: Map<Long, List<CharacterPokedexRecord>> =
+        dsl.selectFrom(CHARACTER_POKEDEX)
+            .where(CHARACTER_POKEDEX.CHARACTER_ID.`in`(ids))
+            .fetch()
+            .groupBy { it.characterId }
     val skinsByOwner: Map<Long, Map<SkinSlot, Skin>> =
         dsl.selectFrom(CHARACTER_SKINS)
             .where(CHARACTER_SKINS.CHARACTER_ID.`in`(ids))
@@ -250,7 +277,9 @@ constructor(
             .mapValues { (_, skins) -> skins.associateBy { it.slot } }
     return rows.map { row ->
       val monsters = monstersByOwner[row.id].orEmpty()
-      val (party, pc) = monsters.partition { it.container == PokemonContainer.PARTY }
+      val (party, rest) = monsters.partition { it.container == PokemonContainer.PARTY }
+      val (daycare, pc) = rest.partition { it.container == PokemonContainer.DAYCARE }
+      val dex = dexByOwner[row.id].orEmpty()
       StoredCharacter(
           info = row.toInfo(),
           pokemon = party.toMutableList(),
@@ -259,6 +288,9 @@ constructor(
           storyFlags = flagsByOwner[row.id].orEmpty().toMutableSet(),
           storyVars = varsByOwner[row.id].orEmpty().toMutableMap(),
           skins = skinsByOwner[row.id].orEmpty(),
+          daycare = daycare.toMutableList(),
+          dexSeen = dex.map { it.dexId.toInt() }.toSet(),
+          dexCaught = dex.filter { it.caught == true }.map { it.dexId.toInt() }.toSet(),
       )
     }
   }
@@ -402,6 +434,8 @@ constructor(
           isRaidEncounter = isRaidEncounter,
           isEgg = isEgg,
           caughtAt = caughtAt,
+          status = status.toShort().takeIf { it.toInt() != 0 },
+          ppBonuses = ppBonuses.toShort(),
       )
 
   private fun PokemonRecord.toPokemon(): Pokemon =
@@ -434,6 +468,8 @@ constructor(
           isRaidEncounter = isRaidEncounter ?: false,
           isEgg = isEgg ?: false,
           caughtAt = caughtAt,
+          status = status?.toInt() ?: 0,
+          ppBonuses = ppBonuses?.toInt() ?: 0,
       )
 
   private fun PokemonRecord.hydrateEvs(): EVs =

@@ -30,6 +30,7 @@ import de.fiereu.openmmo.net.game.packets.SelectedCharacterPacket
 import de.fiereu.openmmo.net.game.packets.ViewScalePacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleRatingBulkPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleStateBytePacket
+import de.fiereu.openmmo.server.game.progression.ProgressActionService
 import de.fiereu.openmmo.server.game.session.PENDING_MAP_LOAD
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.PlayerState
@@ -38,6 +39,7 @@ import de.fiereu.openmmo.server.game.storage.CharacterStore
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.LocalDateTime
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 private val log = KotlinLogging.logger {}
@@ -60,6 +62,7 @@ constructor(
     private val mapScriptService: MapScriptService,
     private val tokenVerifier: SessionTokenVerifier,
     private val worldStateService: WorldStateService,
+    private val progressActions: Provider<ProgressActionService>,
 ) {
 
   fun onJoinGame(event: PacketEvent<JoinPacket>) {
@@ -224,6 +227,7 @@ constructor(
         ))
 
     preloadMapAndJoin(ctx, state, info)
+    progressActions.get().onJoin(ctx, charId)
   }
 
   // Small state packets the real server sends in the join flow. The battle-state byte and menu
