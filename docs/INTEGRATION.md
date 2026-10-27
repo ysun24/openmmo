@@ -1,3 +1,80 @@
+# Round 5 integration (branch `own-client`)
+
+Backup tag before the merge: `pre-r5`. Lane reports: `docs/reports/r5-{scripts,contests,frontier,minigames}.md`
+(r5-scripts left no REPORT.md; its summary was written from its commits). Screenshots:
+`docs/reports/r5-integration/`.
+
+## Merged
+`feat/r5-scripts` → `feat/r5-contests` → `feat/r5-frontier` → `feat/r5-minigames`, each `--no-ff`, with the
+full build + test set and `check-opcodes.py` after every merge (all green, 0 opcode clashes). Conflicts were
+additive (both sides kept): GameProtocol registrations, the component's module list, GameAppHandler handlers,
+the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sections, `index.html` styles,
+`:web.assets` manifest entries. PROTOCOL.md sections renumbered: 13 r5-contests, 14 r5-frontier,
+15 r5-minigames (r5-scripts documents 0xCE in its own section). After the scripts merge the lane's WIP needed
+`spotlessApply` and a StateJsonTest update for the new `ui.script` field.
+
+## Reconciliations
+- **One handler per decomp special.** `ScriptSpecials` now reports every clash at once and is built at
+  start-up (`GameServerComponent.scriptSpecials()`, logged "637 decomp specials have a handler"). The five
+  clashes were r5-scripts no-ops on r5-minigames' names (`IsWirelessAdapterConnected`, `TryBecomeLinkLeader`,
+  `TryJoinLinkGroup`, `SetFlavorTextFlagFromSpecialVars`, `UpdatePickStateFromSpecialVar8005`); the stubs
+  were removed, the owner lane wins.
+- **Coverage walk counts the real handlers.** `ScriptCoverageTest` builds the real Dagger component and
+  checks every special both decomps reach against the bound handlers (no more "owned by another lane"
+  pass by regex). That exposed 32 specials the regex gave to a lane that never implemented them; they are
+  now implemented in the owning lane: `FrontierMiscSpecials` (Battle Frontier move tutors from
+  `sBattleFrontier_TutorMoves*` / `gTutorMoves`, e-Reader trainer never valid, Apprentice / records /
+  cable-club half-party as no-ops) and `MinigameMiscSpecials` (berry powder vendor on Berry Crush's
+  powder, interviews / easy chat message / mixing language / Wonder News). Result: 0 unimplemented
+  commands, 0 unclaimed specials, kanto 222 + hoenn 494 specials reached.
+- **One var accessor.** `ScriptContext.varGet/varSet(id)` and new `varGet/varSet(name)` (by the image's
+  var names: `VAR_0x8004`, `VAR_RESULT`, `VAR_ITEM_ID`, `VAR_CONTEST_RANK`...) are the only path to the
+  temp / special vars: inside the interpreter they are the VM's gSpecialVar slots, a hand port without the
+  VM keeps them in the context. Contests' `SpecialVars.get/set`, minigames' specials (their private
+  `specialVar` extension was dropped; it is now the member, so `specialVar(0x8004)` call sites became
+  `specialVar(4)`) and frontier's `VAR_0x8004` / `VAR_FRONTIER_FACILITY` reads use it. Unit test in
+  `ScriptVmTest`. The bug this fixed was visible: Mr. Fuji's `famechecker` macro rolled the Pokémon Tower
+  script back.
+- **One coin store.** `script/CoinStore` (bound to r5-minigames' `minigame_players.coins` via
+  `MinigameCoinStore`): the interpreter's `checkcoins` / `addcoins` / `removecoins` / `*coinsbox` and the
+  Game Corner share the coin case (and push the coin chip).
+- **Hand ports vs the interpreter** (decision per label):
+  - retired, the interpreter runs the decomp script with the lane's specials: berry trees
+    (`BerryTreeScript`, `BerryTree_EventScript_ItemUseWailmerPail`), the three blenders + the link
+    blender, the blender records, the hall winner paintings (`showcontestpainting`), the museum 2F frames,
+    the whole Celadon / Mauville Game Corner (clerks, gamblers, slot machines via `playslotmachine`,
+    roulette, prize corners), the Lilycove ferry attendant. `Bag_ChooseBerry` now gives the interpreter the
+    decomp item number (the script continues with `removeitem VAR_ITEM_ID`).
+  - kept: the contest receptionists (entry screen, matchmaking with other online players and the live
+    contest screen are UI flows the decomp hall cutscene + `startcontest` cannot express); the PC 2F Union
+    Room / Wireless Club / Direct Corner attendants and the Mystery Gift deliveryman (they replace
+    link-cable features); the Battle Frontier attendants open the frontier desks (their battle-room walks
+    are replaced by the desk screens); the other lobby NPCs run in the interpreter.
+  - GameServerModule's script registry now merges only these kept labels (`ContestLaneScripts.byLabel`,
+    `MinigameScripts.byLabel`); the retired ports are kept as `replaced` maps for reference.
+- **Items.** EON / MYSTIC / AURORA TICKET, OLD SEA MAP, FAME CHECKER and POKéBLOCK CASE are real key items
+  (ExtraItems slots 114, 115, 120-123). The Mystery Gift ticket also gives the item; the decomp harbor
+  scripts' `checkitem` finds it.
+- **Wailmer Pail from the bag**: `services/BagItemScript` (multibound); contests' `WailmerPailFromBag`
+  runs `BerryTree_EventScript_ItemUseWailmerPail` on the tree in front.
+- **Frontier**: EVs are capped at Gen 3's 255 per stat in the model (`EVs`), so frontier sets keep their
+  255 (battle EV gain keeps its own 252 cap); Frontier Brain intros are the decomp's battle room texts
+  (`BrainTexts`, Silver / Gold per facility); battle.js no longer brings the trainer / player intro sprites
+  back when the screen is rebuilt mid-battle (`introGone`).
+
+## Hooks through the interpreter (verified)
+- `playslotmachine` / coin commands → r5-minigames (story `gamecorner` scene + browser slots).
+- Fame Checker: the `famechecker` macro → `UpdatePickStateFromSpecialVar8005` (Pokémon Tower scene).
+- Eon Ticket → Lilycove ferry (first-time sailor route) → Southern Island → the Lati@s event
+  (camera pan, `BattleSetup_StartLatiBattle`) (story `eon`).
+- FRLG Mystic / Aurora Ticket: Vermilion's decomp script `checkitem ITEM_MYSTIC_TICKET` now finds the key
+  item (not driven by a scene).
+- Contest hall / museum scripts, berry trees, blenders: interpreter + contests specials (r5c_e2e).
+- Battle Frontier: attendants → desks (frontier_e2e).
+
+
+---
+
 # Round 3 integration (branch `own-client`)
 
 Backup tag before the merge: `pre-r3`. Each branch's report is now `docs/reports/r3-<name>.md`.
