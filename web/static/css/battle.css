@@ -73,10 +73,11 @@
 }
 #battle .sheet.learn button.mvrow, #battle .sheet.learn .newmove {
   grid-template-columns: 1fr calc(var(--u) * 20) calc(var(--u) * 28) calc(var(--u) * 30); display: grid; align-items: center;
-  gap: calc(var(--u) * 2); min-height: calc(var(--u) * 13); width: 100%; font-size: calc(var(--u) * 7.5);
+  gap: calc(var(--u) * 2); min-height: calc(var(--u) * 11); width: 100%; font-size: calc(var(--u) * 7.5);
 }
 #battle .sheet.learn .newmove { padding: 0 calc(var(--u) * 2) 0 calc(var(--u) * 10); position: relative; background: #fff4c0; border-radius: calc(var(--u) * 2); }
 #battle .sheet.learn .newmove .tag { position: absolute; left: calc(var(--u) * 1); font-size: calc(var(--u) * 4.5); color: #e04030; }
+#battle .sheet.learn .title { font-size: calc(var(--u) * 7); }
 #battle .sheet.learn .mvstat { font-size: calc(var(--u) * 6); color: #506070; text-align: right; }
 #battle .sheet.learn button.skip { grid-template-columns: 1fr; color: #a03030; }
 #battle .sheet .confirm { display: flex; gap: calc(var(--u) * 6); justify-content: center; margin-top: calc(var(--u) * 6); }

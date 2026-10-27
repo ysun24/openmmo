@@ -1,11 +1,13 @@
 package de.fiereu.openmmo.web
 
+import de.fiereu.openmmo.client.net.BattleFx
 import de.fiereu.openmmo.client.net.BattleMon
 import de.fiereu.openmmo.client.net.BattleMove
 import de.fiereu.openmmo.client.net.BattlePhase
 import de.fiereu.openmmo.client.net.BattleState
 import de.fiereu.openmmo.client.net.MarketClient
 import de.fiereu.openmmo.client.net.MarketEntry
+import de.fiereu.openmmo.client.net.TurnTimer
 import de.fiereu.openmmo.client.world.ChatLine
 import de.fiereu.openmmo.client.world.DialogView
 import de.fiereu.openmmo.client.world.Entity
@@ -18,6 +20,7 @@ import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.common.enums.EVs
 import de.fiereu.openmmo.common.enums.IVs
 import de.fiereu.openmmo.common.enums.PokemonContainer
+import de.fiereu.openmmo.net.game.packets.battle.DuelRules
 import de.fiereu.openmmo.net.game.packets.trade.TradeItemView
 import de.fiereu.openmmo.net.game.packets.trade.TradeMonView
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
@@ -166,6 +169,46 @@ class StateJsonTest {
     assertEquals(
         parse("""{"speaker":null,"lines":["a"],"lastPage":false,"choices":[],"cursor":0}"""),
         dialog)
+  }
+
+  @Test
+  fun `duel rules, turn timer and the effect stream`() {
+    val battle =
+        BattleState(
+            active = true,
+            wild = false,
+            opponentName = "Gary",
+            party = listOf(BattleMon(0, 100, 4, 50, 103, 103)),
+            opponent = listOf(BattleMon(0, 200, 1, 50, 113, 113)),
+            phase = BattlePhase.ACTION,
+            turn = 2,
+            rules = DuelRules(50, 1, 30),
+            timer = TurnTimer(4, 30, true, 1, 2, false, 0L),
+            fx =
+                listOf(
+                    BattleFx(7, "move", "me", mapOf("move" to "EMBER", "type" to "FIRE")),
+                    BattleFx(8, "hp", "foe", mapOf("from" to 113, "hp" to 80, "maxHp" to 113)),
+                    BattleFx(9, "text", null, mapOf("text" to "It's super effective!"))),
+            pendingInviteFrom = "Gary",
+            pendingInviteRules = DuelRules(100, 3, 60),
+        )
+    val out = json.build(sources(battle = battle))
+    val b = out["battle"] as kotlinx.serialization.json.JsonObject
+    assertEquals(parse("""{"levelCap":50,"party":1,"timer":30}"""), b["rules"])
+    assertEquals(
+        parse(
+            """{"id":4,"seconds":30,"mustAct":true,"timeouts":1,"rivalTimeouts":2,
+               "autoPicked":false,"maxTimeouts":3}"""),
+        b["timer"])
+    assertEquals(
+        parse(
+            """[{"n":7,"k":"move","side":"me","move":"EMBER","type":"FIRE"},
+                {"n":8,"k":"hp","side":"foe","from":113,"hp":80,"maxHp":113},
+                {"n":9,"k":"text","text":"It's super effective!"}]"""),
+        b["fx"])
+    assertEquals(parse("0"), b["activeSlot"])
+    assertEquals(
+        parse("""{"from":"Gary","rules":{"levelCap":100,"party":3,"timer":60}}"""), out["invite"])
   }
 
   @Test

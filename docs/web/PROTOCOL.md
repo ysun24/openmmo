@@ -44,7 +44,7 @@ web/
 | `battle.run` / `battle.ball` | – | |
 | `battle.learn` | `slot` (0-3) or `null` to skip | |
 | `battle.close` | – | leaves the result screen of an ENDED battle (`a`, `b` and `step` do too) |
-| `duel` | `name` | BattleClient.challenge |
+| `duel` | `name`; optional rules `levelCap` (0 = none, 1-100), `party` (1-6, default 6), `timer` (seconds per turn, 0 = none, 5-240) | BattleClient.challenge (rules → `DuelRulesChallengePacket` c2s 0xEE, none → retail 0x5A) |
 | `duel.answer` | `accept` (bool) | |
 | `trade.request` | `name` | TradeClient |
 | `trade.accept` / `trade.decline` / `trade.ready` / `trade.confirm` / `trade.cancel` | – | |
@@ -95,14 +95,22 @@ Unknown or malformed messages get `{"t":"error","msg":...}`; they never close th
 "party": [ {"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":39,"maxHp":39} ],
 "battle": {             // null when no battle
   "wild":true,"opponentName":"","phase":"ACTION|FORCED_SWITCH|WAITING|ENDED","turn":3,
+  "activeSlot":0,       // index into "party" of the monster that is out
   "me":  {"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39,
-          "moves":[{"name":"SCRATCH","pp":33,"maxPp":35}]},
+          "exp":0.42,   // 0..1 towards the next level, omitted when unknown
+          "moves":[{"name":"SCRATCH","pp":33,"maxPp":35,"type":"NORMAL","power":40}]},
   "foe": {"dex":19,"name":"RATTATA","level":3,"hp":0,"maxHp":15},
   "party":[{"dex":4,"name":"CHARMANDER","level":15,"hp":30,"maxHp":39}],
   "log":["CHARMANDER used SCRATCH!"],"result":null,
-  "learn": {"move":"EMBER","current":["SCRATCH","GROWL"]} | null
+  "rules": {"levelCap":50,"party":3,"timer":30} | null,   // duel rules, null outside a duel
+  "timer": {"id":4,"seconds":30,"mustAct":true,"timeouts":1,"rivalTimeouts":0,
+            "autoPicked":false,"maxTimeouts":3} | null,   // the running duel turn clock
+  "fx": [ {"n":12,"k":"move","side":"me","move":"EMBER","type":"FIRE","power":40,"target":"foe","hits":true} ],
+  "learn": {"move":"EMBER","current":["SCRATCH","GROWL"],"mon":"CHARMANDER",
+            "offer":{"name":"EMBER","type":"FIRE","power":40,"accuracy":100,"pp":25,"maxPp":25},
+            "moves":[{"name":"SCRATCH","type":"NORMAL","power":40,"accuracy":100,"pp":33,"maxPp":35}]} | null
 },
-"invite": {"from":"Friend"} | null,     // pending duel invite
+"invite": {"from":"Friend","rules":{"levelCap":0,"party":6,"timer":0} | null} | null,  // pending duel invite
 "trade": {              // null when no trade
   "phase":"REQUEST_RECEIVED|REQUEST_SENT|OPEN|COMPLETED|CLOSED","partner":"Friend","message":"",
   "mine":  {"stage":"NONE|READY|CONFIRMED","mons":[{"slot":1,"dex":1,"name":"BULBASAUR","level":12}],
@@ -130,6 +138,25 @@ Gateway notes (implementation in `web/gateway`):
   until the next trade starts. `REQUEST_*`/`OPEN`/`COMPLETED` as in the table.
 - `battle` stays (phase `ENDED`, `result` set) until `battle.close`/`a`/`b`/`step`.
 - `market.money` and `ui.money` are the same balance.
+- `battle.turn` counts action prompts in this battle (1 on the first).
+- `battle.fx` is the battle's effect stream, oldest first, the newest 60 kept. `n` grows by one per
+  effect for the whole session, so the browser plays every effect with `n` above the last one it
+  played, in order, to animate the battle in step with the server (state messages are coalesced).
+  A fresh battle starts with a `start` effect. Kinds (`side` is `me`/`foe` where it applies):
+  `start` {wild, pvp, opponentName, me, foe}, `text` {text}, `move` {move, type, power, target,
+  hits}, `hp` {from, hp, maxHp, effect: normal|super|weak|heal}, `miss`, `stat` {stat, delta},
+  `faint`, `switch` {mon:{dex,name,level,hp,maxHp}}, `ball` {shakes, caught}, `exp` {from, to}
+  (0..1 of the level bar; a level-up is `exp`→1, `level` {level}, `exp` 0→x), `end` {result}.
+  Status conditions are not modelled by the server, so there is no status effect yet.
+- Duels: `rules` echo what the challenger picked (the server clamps them). Monsters above
+  `levelCap` fight at the cap (stats recomputed, hp kept at the same fraction); each side brings
+  its first `party` healthy monsters; nothing carries over after the duel. With a `timer`, each
+  prompt starts a clock of `timer.seconds` (count it down locally from when a new `timer.id`
+  arrives). `mustAct` false means only the rival is choosing. When it runs out the server acts for
+  whoever still owes an action (first usable move, or the first healthy monster for a forced
+  switch) and counts a timeout; at `maxTimeouts` that player forfeits. Opcodes (ours, free in both
+  directions): c2s 0xEE `DuelRulesChallengePacket`, s2c 0xEE `DuelRulesPacket`, s2c 0xEF
+  `BattleTurnTimerPacket`.
 
 Entity ids are strings (they are 64-bit). Names come resolved from the gateway (codegen tables),
 so the browser needs no name tables.

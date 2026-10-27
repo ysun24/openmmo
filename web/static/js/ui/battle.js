@@ -582,13 +582,14 @@ function render(state) {
   }
   paintView();
 
-  const log = b.log || [];
+  const log = (b.log || []).map((l) => l.replace(/ \((learn N \/ skip|accept \/ decline)\)$/, ''));
   const lastLines = log.slice(-2);
   const keep = r.querySelector('.nav-focus');
   const keepK = keep && keep.dataset.k !== 'adv' ? keep.dataset.k : null;
   sk.menu.className = 'menu gbabox';
   sk.menu.classList.remove('hidden');
   sk.sheet.classList.add('hidden');
+  sk.sheet.classList.remove('learn');
   sk.result.classList.add('hidden');
 
   if (b.phase === 'ACTION' && menu === 'fight') {
