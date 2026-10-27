@@ -1,27 +1,60 @@
 // Overworld simulation (PROTOCOL.md section 5): self prediction + reconciliation, interpolation of
-// other entities, collision from col.bin + entity tiles, seamless map connections.
+// other entities, collision from col.bin + beh.bin + entity tiles, seamless map connections.
+// The step rules mirror the server's FieldRules (Gen 3 field_player_avatar.c): elevation, ledges,
+// surfing, boulders, bike terrain, directional walls (PROTOCOL.md "r3-field").
 import { assets, connOrigin } from './assets.js';
 
 export const STEP_WALK = 250;
 export const STEP_RUN = 125;
+/** Step time per travel mode (GBA px/frame: walk 1, run/surf/acro 2, mach 4 at full speed). */
+export const STEP_BY_MODE = { walk: STEP_WALK, run: STEP_RUN, mach_bike: 70, acro_bike: 125, surf: 125, underwater: 250 };
+/** Kanto's Bicycle is slower than the Mach Bike. */
+const KANTO_BIKE = 95;
+export const JUMP_MS = 520; // a 2-tile ledge hop (JUMP_2 = 32 GBA frames)
 const TURN_HOLD = 90; // ms a fresh direction press only turns before walking
 const MAX_PENDING = 8;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
+// Elevation (MapGridGetElevationAt): 0 and 15 are wildcards, 1 water, 3 land.
+const Z_ANY = 0, Z_WATER = 1, Z_LAND = 3, Z_BRIDGE = 15;
+export const elevationMismatch = (z, tz) => z !== Z_ANY && tz !== Z_ANY && tz !== Z_BRIDGE && tz !== z;
+const elevationAfter = (cur, fromZ, toZ) => (toZ === Z_BRIDGE || fromZ === Z_BRIDGE ? cur : toZ);
+const LEDGE = { JUMP_SOUTH: 'down', JUMP_NORTH: 'up', JUMP_EAST: 'right', JUMP_WEST: 'left' };
+const ENTRY_BLOCK = { IMPASSABLE_EAST: 'left', IMPASSABLE_WEST: 'right', IMPASSABLE_NORTH: 'down', IMPASSABLE_SOUTH: 'up' };
+const EXIT_BLOCK = { IMPASSABLE_EAST: 'right', IMPASSABLE_WEST: 'left', IMPASSABLE_NORTH: 'up', IMPASSABLE_SOUTH: 'down' };
+export const SURFABLE = new Set(['WATER', 'DEEP_WATER', 'WATERFALL', 'SEAWEED']);
+// Boulder gfx per region (OBJ_EVENT_GFX_PUSHABLE_BOULDER).
+const BOULDER_GFX = { 0: 97, 1: 87 };
+
 const keyOf = (m) => (m ? `${m.region}:${m.bank}:${m.map}` : null);
 
 function newMover() {
-  return { x: 0, y: 0, fx: 0, fy: 0, t: 0, dur: STEP_WALK, moving: false, facing: 'down', parity: 0, px: 0, py: 0 };
+  return { x: 0, y: 0, fx: 0, fy: 0, t: 0, dur: STEP_WALK, moving: false, facing: 'down', parity: 0, px: 0, py: 0, jump: 0, mode: 'walk', run: false };
 }
 function place(o) {
   if (o.moving) {
     const p = Math.min(1, o.t / o.dur);
     o.px = (o.fx + (o.x - o.fx) * p) * 16;
     o.py = (o.fy + (o.y - o.fy) * p) * 16;
+    // ledge hop arc (the sprite rises, its shadow stays on the ground)
+    o.jump = o.jumping ? Math.sin(Math.PI * p) * 14 : 0;
   } else {
     o.px = o.x * 16;
     o.py = o.y * 16;
+    o.jump = 0;
   }
+}
+
+/** The behaviour grid of a map resource, fetched once (`<layout>.beh.bin`, PROTOCOL r3-field). */
+function behOf(res) {
+  if (!res || !res.info || !res.info.behavior) return null;
+  if (res.beh !== undefined) return res.beh;
+  res.beh = null;
+  fetch(assets.url(res.info.behavior))
+    .then((r) => (r.ok ? r.arrayBuffer() : null))
+    .then((b) => b && (res.beh = new Uint8Array(b)))
+    .catch(() => null);
+  return null;
 }
 
 export class World {
@@ -34,7 +67,7 @@ export class World {
     this.mapKey = null;
     this.map = null; // server map descriptor
     this.selfId = null;
-    this.self = Object.assign(newMover(), { name: '', kind: 'player', gfx: 0, id: null });
+    this.self = Object.assign(newMover(), { name: '', kind: 'player', gfx: 0, id: null, z: Z_LAND });
     this.hasSelf = false;
     this.ents = new Map();
     this.drawList = [];
@@ -48,7 +81,11 @@ export class World {
     this.fade = 0; // 1 = black
     this.fadeHoldUntil = 0;
     this.fadeWaiting = null;
-    this.stats = { snaps: 0, steps: 0 };
+    this.stats = { snaps: 0, steps: 0, jumps: 0 };
+    /** world.field from the server (dark, flash, canRun, moves, fly...), or null. */
+    this.field = null;
+    /** Field effects to draw: {kind, x, y, t0, dur, dir} in world tiles. */
+    this.fx = [];
   }
 
   get res() { return assets.map(this.mapKey); }
@@ -57,6 +94,7 @@ export class World {
   onServer(w, now) {
     if (!w) return;
     this.selfId = w.self;
+    this.field = w.field || null;
     const newKey = keyOf(w.map);
     if (newKey !== this.mapKey) this.changeMap(newKey, w.map, now);
     this.map = w.map;
@@ -85,12 +123,15 @@ export class World {
       sh(this.self);
       for (const p of this.pending) (p.x -= c.ox), (p.y -= c.oy);
       for (const e of this.ents.values()) sh(e);
+      for (const f of this.fx) (f.x -= c.ox), (f.y -= c.oy);
       place(this.self);
     } else {
       this.pending = [];
       this.self.moving = false;
+      this.self.jumping = false;
       this.hasSelf = false; // snap on reconcile
       this.ents.clear();
+      this.fx.length = 0;
       if (this.mapKey !== null || newKey !== null) this.startFade(newKey, now);
     }
     this.mapKey = newKey;
@@ -112,9 +153,11 @@ export class World {
     this.conns.length = 0;
     const r = this.res;
     if (!r || !r.info) return;
+    behOf(r);
     for (const c of r.info.connections || []) {
       const res = assets.map(c.map);
       if (!res.info) continue;
+      behOf(res);
       const [ox, oy] = connOrigin(r.info, c, res.info);
       this.conns.push({ key: c.map, ox, oy, info: res.info, res, dir: c.dir });
     }
@@ -123,7 +166,7 @@ export class World {
   serverEntity(e, now) {
     let o = this.ents.get(e.id);
     if (!o) {
-      o = Object.assign(newMover(), { id: e.id, lastMove: 0 });
+      o = Object.assign(newMover(), { id: e.id, lastMove: 0, jumpSeq: e.jump || 0, exclaimSeq: e.exclaim || 0, exclaimAt: 0 });
       o.x = o.fx = e.x;
       o.y = o.fy = e.y;
       this.ents.set(e.id, o);
@@ -131,14 +174,23 @@ export class World {
     o.kind = e.kind;
     o.name = e.name;
     o.gfx = e.gfx;
+    o.mode = e.mode || 'walk';
+    o.run = !!e.run;
+    const jumped = (e.jump || 0) > o.jumpSeq;
+    o.jumpSeq = e.jump || 0;
+    if ((e.exclaim || 0) > o.exclaimSeq) o.exclaimAt = now;
+    o.exclaimSeq = e.exclaim || 0;
     if (e.x !== o.x || e.y !== o.y) {
       const d = Math.abs(e.x - o.x) + Math.abs(e.y - o.y);
-      if (d === 1) {
+      if (d === 1 || (jumped && d === 2)) {
+        this.leaveTile(o, now);
         place(o);
         o.fx = o.px / 16;
         o.fy = o.py / 16;
         const since = now - o.lastMove;
-        o.dur = Math.max(110, Math.min(STEP_WALK, since > 0 ? since : STEP_WALK));
+        const base = STEP_BY_MODE[o.mode] || STEP_WALK;
+        o.dur = jumped ? JUMP_MS : Math.max(o.run ? 110 : Math.min(base, 110), Math.min(o.run ? STEP_RUN : base, since > 0 ? since : base));
+        o.jumping = jumped;
         o.t = 0;
         o.moving = true;
         o.parity ^= 1;
@@ -146,10 +198,12 @@ export class World {
         o.fx = e.x;
         o.fy = e.y;
         o.moving = false;
+        o.jumping = false;
       }
       o.x = e.x;
       o.y = e.y;
       o.lastMove = now;
+      this.enterTile(o, now);
     }
     o.facing = e.facing || o.facing;
   }
@@ -160,6 +214,11 @@ export class World {
     me.name = s.name;
     me.gfx = s.gfx;
     me.kind = 'player';
+    const mode = s.mode || 'walk';
+    if (mode !== me.mode) {
+      me.mode = mode;
+      if (mode === 'surf' || mode === 'underwater') me.z = Z_WATER;
+    }
     if (!this.hasSelf) {
       this.snap(s, false);
       this.hasSelf = true;
@@ -186,19 +245,56 @@ export class World {
       me.t = 0;
       me.dur = 120;
       me.moving = true;
+      me.jumping = false;
     } else {
       me.moving = false;
+      me.jumping = false;
     }
     me.x = s.x;
     me.y = s.y;
     if (!me.moving) (me.fx = s.x), (me.fy = s.y);
     if (s.facing) me.facing = s.facing;
+    // the server's elevation is the tile's (water when surfing)
+    const t = this.tileAt(s.x, s.y);
+    if (me.mode === 'surf' || me.mode === 'underwater') me.z = Z_WATER;
+    else if (t && t.z !== Z_BRIDGE) me.z = t.z === Z_WATER ? Z_LAND : t.z;
     this.pending = [];
     this.stats.snaps++;
     place(me);
   }
 
-  // ------------------------------------------------------------------ collision
+  // ------------------------------------------------------------------ tiles
+  /** {col, z, beh} of world tile (x, y) (current map or a connection), or null outside. */
+  tileAt(x, y) {
+    const r = this.res;
+    const w = this.map ? this.map.width : r && r.info ? r.info.width : 0;
+    const hgt = this.map ? this.map.height : r && r.info ? r.info.height : 0;
+    let res, lx, ly;
+    if (x >= 0 && y >= 0 && x < w && y < hgt) {
+      res = r;
+      lx = x;
+      ly = y;
+    } else {
+      const c = this.conns.find((c) => x >= c.ox && y >= c.oy && x < c.ox + c.info.width && y < c.oy + c.info.height);
+      if (!c) return null;
+      res = c.res;
+      lx = x - c.ox;
+      ly = y - c.oy;
+    }
+    if (!res || !res.col || !res.info) return { loading: true };
+    const i = ly * res.info.width + lx;
+    const c = res.col[i];
+    const beh = behOf(res);
+    const names = assets.manifest && assets.manifest.behaviors;
+    return { col: c & 1, z: c >> 4, beh: beh && names ? names[beh[i]] || 'NORMAL' : 'NORMAL' };
+  }
+
+  /** The behaviour name of a world tile ('NORMAL' when unknown). */
+  behAt(x, y) {
+    const t = this.tileAt(x, y);
+    return t && t.beh ? t.beh : 'NORMAL';
+  }
+
   /** A warp tile of the current map (manifest `warps`): pushing against a wall there still steps. */
   isWarp(x, y) {
     const wp = this.res && this.res.info && this.res.info.warps;
@@ -207,24 +303,84 @@ export class World {
     return false;
   }
 
-  blocked(x, y) {
-    const r = this.res;
-    const w = this.map ? this.map.width : r && r.info ? r.info.width : 0;
-    const hgt = this.map ? this.map.height : r && r.info ? r.info.height : 0;
-    if (x >= 0 && y >= 0 && x < w && y < hgt) {
-      // collision not loaded yet (just warped): predict nothing until it is
-      if (!r || !r.col || !r.info) return true;
-      if (r.col[y * r.info.width + x] & 1) return true;
-    } else {
-      const c = this.conns.find((c) => x >= c.ox && y >= c.oy && x < c.ox + c.info.width && y < c.oy + c.info.height);
-      if (!c || !c.res.col) return true;
-      if (c.res.col[(y - c.oy) * c.info.width + (x - c.ox)] & 1) return true;
-    }
+  entityBlocks(x, y) {
     for (const e of this.ents.values()) {
-      if (e.x === x && e.y === y) return true;
-      if (e.moving && Math.round(e.fx) === x && Math.round(e.fy) === y && e.t < e.dur * 0.5) return true;
+      if (e.x === x && e.y === y) return e;
+      if (e.moving && Math.round(e.fx) === x && Math.round(e.fy) === y && e.t < e.dur * 0.5) return e;
     }
-    return false;
+    return null;
+  }
+
+  /** Kept for callers: true when a plain step onto (x, y) would be refused. */
+  blocked(x, y) {
+    const t = this.tileAt(x, y);
+    if (!t || t.loading || t.col) return true;
+    if (elevationMismatch(this.self.z, t.z)) return true;
+    return !!this.entityBlocks(x, y);
+  }
+
+  /**
+   * The Gen 3 step rules for the predicted self (server FieldRules.step): returns
+   * {kind: 'walk'|'jump'|'stopSurf'|'push'|'block', x, y, z}.
+   */
+  predictStep(dir) {
+    const me = this.self;
+    const [dx, dy] = DIRS[dir];
+    const nx = me.x + dx, ny = me.y + dy;
+    const from = this.tileAt(me.x, me.y);
+    const to = this.tileAt(nx, ny);
+    if (!to || to.loading) return { kind: 'block' };
+    const water = me.mode === 'surf' || me.mode === 'underwater';
+    if (!water && LEDGE[to.beh] === dir) {
+      const lx = me.x + dx * 2, ly = me.y + dy * 2;
+      const land = this.tileAt(lx, ly);
+      if (!land || land.loading || land.col || this.entityBlocks(lx, ly)) return { kind: 'block' };
+      return { kind: 'jump', x: lx, y: ly, z: elevationAfter(me.z, from ? from.z : me.z, land.z) };
+    }
+    if (to.col || ENTRY_BLOCK[to.beh] === dir || (from && EXIT_BLOCK[from.beh] === dir)) return { kind: 'block' };
+    const ent = this.entityBlocks(nx, ny);
+    if (elevationMismatch(me.z, to.z)) {
+      if (me.mode === 'surf' && to.z === Z_LAND && !ent) return { kind: 'stopSurf', x: nx, y: ny, z: Z_LAND };
+      return { kind: 'block' };
+    }
+    if (ent) {
+      const region = this.map ? this.map.region : 0;
+      if (ent.kind === 'npc' && ent.gfx === BOULDER_GFX[region] && this.field && this.field.strength && me.mode === 'walk') return { kind: 'push' };
+      return { kind: 'block' };
+    }
+    if (to.beh === 'MUDDY_SLOPE' && dir === 'up' && me.mode !== 'mach_bike') return { kind: 'block' };
+    if ((to.beh === 'BUMPY_SLOPE' || to.beh === 'RAIL') && me.mode !== 'acro_bike') return { kind: 'block' };
+    return { kind: 'walk', x: nx, y: ny, z: elevationAfter(me.z, from ? from.z : me.z, to.z) };
+  }
+
+  /** How long one step of the predicted self takes. */
+  stepMs(run) {
+    const me = this.self;
+    if (me.mode === 'mach_bike') return this.map && this.map.region === 0 ? KANTO_BIKE : STEP_BY_MODE.mach_bike;
+    if (me.mode !== 'walk') return STEP_BY_MODE[me.mode] || STEP_WALK;
+    const canRun = !this.field || this.field.canRun;
+    return run && canRun && this.behAt(me.x, me.y) !== 'NO_RUNNING' ? STEP_RUN : STEP_WALK;
+  }
+
+  // ------------------------------------------------------------------ field effects
+  /** An entity arrived on (x, y): grass rustle, splashes, ash puffs (GBA ground effects). */
+  enterTile(o, now) {
+    const b = this.behAt(o.x, o.y);
+    const add = (kind, dur) => this.fx.push({ kind, x: o.x, y: o.y, t0: now + (o.dur || 0) * 0.5, dur, dir: o.facing });
+    if (b === 'TALL_GRASS' || b === 'ASH_GRASS') add('tallGrass', 300);
+    else if (b === 'LONG_GRASS') add('longGrass', 300);
+    else if (b === 'PUDDLE' || b === 'SHALLOW_WATER') add('splash', 260);
+    if (b === 'ASH_GRASS') add('ashPuff', 400);
+    if (o.jumping) this.fx.push({ kind: SURFABLE.has(b) ? 'jumpSplash' : b === 'TALL_GRASS' ? 'jumpGrass' : 'dust', x: o.x, y: o.y, t0: now + JUMP_MS, dur: 300 });
+    if (this.fx.length > 120) this.fx.splice(0, this.fx.length - 120);
+  }
+
+  /** An entity is leaving (o.x, o.y): sand footprints / bike tracks stay behind for a while. */
+  leaveTile(o, now) {
+    const b = this.behAt(o.x, o.y);
+    if (b !== 'SAND' && b !== 'DEEP_SAND') return;
+    const bike = o.mode === 'mach_bike' || o.mode === 'acro_bike';
+    this.fx.push({ kind: bike ? 'tireTracks' : b === 'DEEP_SAND' ? 'deepFootprints' : 'footprints', x: o.x, y: o.y, t0: now, dur: 2400, dir: o.facing });
   }
 
   // ------------------------------------------------------------------ per frame
@@ -239,25 +395,28 @@ export class World {
         if (me.t >= me.dur) {
           const carry = Math.min(me.t - me.dur, 40);
           me.moving = false;
+          me.jumping = false;
           me.fx = me.x;
           me.fy = me.y;
           justMoved = true;
-          this.tryStep(input, carry, true);
+          this.tryStep(input, carry, true, now);
         }
       } else if (this.turnWait > 0) {
         this.turnWait -= dt;
         if (!input.dir || !input.enabled) this.turnWait = 0;
-        else if (this.turnWait <= 0) this.tryStep(input, 0, true);
-      } else this.tryStep(input, 0, justMoved);
+        else if (this.turnWait <= 0) this.tryStep(input, 0, true, now);
+      } else this.tryStep(input, 0, justMoved, now);
       place(me);
     }
     for (const e of this.ents.values()) {
       if (e.moving) {
         e.t += dt;
-        if (e.t >= e.dur) (e.moving = false), (e.fx = e.x), (e.fy = e.y);
+        if (e.t >= e.dur) (e.moving = false), (e.jumping = false), (e.fx = e.x), (e.fy = e.y);
       }
       place(e);
     }
+    // expire effects
+    if (this.fx.length) this.fx = this.fx.filter((f) => now < f.t0 + f.dur);
     // y-sorted draw list, reused (no per-frame allocation)
     const dl = this.drawList;
     dl.length = 0;
@@ -266,7 +425,7 @@ export class World {
     dl.sort(byY);
   }
 
-  tryStep(input, carry, continuing) {
+  tryStep(input, carry, continuing, now = performance.now()) {
     const me = this.self;
     if (!input.enabled || !input.dir || this.pending.length >= MAX_PENDING) return;
     const dir = input.dir;
@@ -277,16 +436,18 @@ export class World {
       this.turnWait = TURN_HOLD;
       return;
     }
-    const [dx, dy] = DIRS[dir];
-    const nx = me.x + dx, ny = me.y + dy;
-    if (this.blocked(nx, ny)) {
+    const out = this.predictStep(dir);
+    if (out.kind === 'block' || out.kind === 'push') {
+      const [dx, dy] = DIRS[dir];
+      const nx = me.x + dx, ny = me.y + dy;
       if (me.facing !== dir) {
         me.facing = dir;
         this.send({ t: 'face', dir });
         this.lastLocalAct = performance.now();
-      } else if (this.res && this.res.col && !this.entityAt(nx, ny) && (this.isWarp(me.x, me.y) || this.isWarp(nx, ny)) && performance.now() - this.lastBump > STEP_WALK) {
-        // Walking into a wall still goes to the server (unpredicted): stair warps and the like
-        // trigger on a step against them, as on the GBA.
+      } else if (performance.now() - this.lastBump > STEP_WALK &&
+        (out.kind === 'push' || (this.res && this.res.col && !this.entityAt(nx, ny) && (this.isWarp(me.x, me.y) || this.isWarp(nx, ny))))) {
+        // Unpredicted steps still go to the server: stair warps trigger on a push against them,
+        // and a STRENGTH boulder slides while the player stays put.
         this.lastBump = performance.now();
         const seq = ++this.seq;
         this.pending.push({ seq, x: me.x, y: me.y });
@@ -294,20 +455,27 @@ export class World {
       }
       return;
     }
+    this.leaveTile(me, now);
     me.facing = dir;
     me.fx = me.x;
     me.fy = me.y;
-    me.x = nx;
-    me.y = ny;
-    me.dur = input.run ? STEP_RUN : STEP_WALK;
+    me.x = out.x;
+    me.y = out.y;
+    me.z = out.z;
+    me.jumping = out.kind === 'jump';
+    me.dur = me.jumping ? JUMP_MS : this.stepMs(input.run);
+    me.run = me.dur === STEP_RUN && me.mode === 'walk';
     me.t = carry;
     me.moving = true;
     me.parity ^= 1;
+    if (out.kind === 'stopSurf') me.mode = 'walk';
+    if (me.jumping) this.stats.jumps++;
     const seq = ++this.seq;
-    this.pending.push({ seq, x: nx, y: ny });
-    this.send({ t: 'step', dir, run: !!input.run, seq });
+    this.pending.push({ seq, x: out.x, y: out.y });
+    this.send(me.jumping ? { t: 'step', dir, run: !!input.run, seq, jump: true } : { t: 'step', dir, run: !!input.run, seq });
     this.lastLocalAct = performance.now();
     this.stats.steps++;
+    this.enterTile(me, now);
   }
 
   /** Tile the player faces. */

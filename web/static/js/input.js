@@ -6,6 +6,8 @@ const KEYS = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
   KeyZ: 'a', Space: 'a', KeyX: 'b', Escape: 'b', Enter: 'chat', Tab: 'menu',
+  // r3-field: field moves menu and the bike (the GBA's registered-item SELECT).
+  KeyF: 'field', KeyC: 'bike',
 };
 const DIRS = ['up', 'down', 'left', 'right'];
 const REPEAT_DELAY = 360;

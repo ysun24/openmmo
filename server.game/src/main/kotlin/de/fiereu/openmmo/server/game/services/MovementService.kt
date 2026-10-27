@@ -215,7 +215,7 @@ constructor(
             outcome.x to outcome.y
           }
           is StepOutcome.StopSurf -> {
-            fieldService.stopSurf(ctx, state)
+            state.elevation = outcome.elevation
             outcome.x to outcome.y
           }
           is StepOutcome.PushBoulder -> {
@@ -235,6 +235,11 @@ constructor(
     characterStore.updatePosition(charId, toX.toShort(), toY.toShort(), facing = msg.direction)
     state.x = toX.toShort()
     state.y = toY.toShort()
+    if (outcome is StepOutcome.StopSurf) fieldService.stopSurf(ctx, state)
+    // A ledge hop lands two tiles away: tell the client where, so a client that only predicts one
+    // tile (the headless gateway client) does not desync.
+    if (outcome is StepOutcome.Jump)
+        ctx.send(gbaMovePacket(charId, currentMap, toX, toY, msg.direction, MOVE_MODE_JUMP))
     fieldService.onStepDone(ctx, state, currentMap, msg.running)
 
     // The client already walked itself there, so only the observers need telling. A ledge hop is

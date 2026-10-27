@@ -36,11 +36,16 @@ class GameSession(val client: GameClient) : GameActions {
     return b.active && b.phase != BattlePhase.ENDED
   }
 
-  override fun step(dir: Direction, run: Boolean, seq: Int): String? {
+  override fun step(dir: Direction, run: Boolean, seq: Int): String? = doStep(dir, run, seq, false)
+
+  override fun stepJump(dir: Direction, run: Boolean, seq: Int): String? =
+      doStep(dir, run, seq, true)
+
+  private fun doStep(dir: Direction, run: Boolean, seq: Int, jump: Boolean): String? {
     // A finished battle's result screen goes away once the player walks.
     if (battleOver()) client.battle.close()
     try {
-      if (!inBattle()) client.step(dir, run)
+      if (!inBattle()) client.step(dir, run, jump)
     } finally {
       // Acknowledged even when refused: the browser then sees the unchanged tile and snaps back.
       ackSeq.set(seq)
@@ -52,6 +57,15 @@ class GameSession(val client: GameClient) : GameActions {
     if (inBattle()) return null
     client.face(dir)
     return null
+  }
+
+  override fun field(action: String, arg: Int, arg2: Int): String? {
+    if (inBattle()) return "not in a battle"
+    val a =
+        de.fiereu.openmmo.net.game.packets.field.FieldAction.entries.firstOrNull {
+          it.name.lowercase().replace("_", "") == action
+        } ?: return "unknown field action"
+    return if (client.fieldAction(a, arg, arg2)) null else "close the dialog first"
   }
 
   override fun say(text: String): String? {

@@ -258,8 +258,16 @@ class PretGbaParser(
   }
 
   private fun parseItemBall(mapDirName: String, script: String): String {
-    val body = labelBody(scriptsText(mapDirName), script)
+    val body =
+        labelBody(scriptsText(mapDirName), script).ifEmpty {
+          // Both games keep most item ball scripts together in one file.
+          labelBody(itemBallScripts, script)
+        }
     return FIND_ITEM.find(body)?.groupValues?.get(1) ?: ""
+  }
+
+  private val itemBallScripts: String by lazy {
+    File(rootDir, "data/scripts/item_ball_scripts.inc").takeIf { it.exists() }?.readText() ?: ""
   }
 
   private fun parseTrainer(mapDirName: String, script: String, sight: Int): ParsedTrainerSpot? {

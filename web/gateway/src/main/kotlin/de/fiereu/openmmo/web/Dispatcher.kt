@@ -14,7 +14,13 @@ import kotlinx.serialization.json.longOrNull
  * clients; tests record the calls. A non-null return is an error to report to the browser.
  */
 interface GameActions {
+  /** A field move / item: [action] is a lower-case FieldAction name without underscores. */
+  fun field(action: String, arg: Int, arg2: Int): String? = "field moves are not supported"
+
   fun step(dir: Direction, run: Boolean, seq: Int): String?
+
+  /** A step the browser predicted as a ledge hop (lands two tiles away). */
+  fun stepJump(dir: Direction, run: Boolean, seq: Int): String? = step(dir, run, seq)
 
   fun face(dir: Direction): String?
 
@@ -114,7 +120,10 @@ object Dispatcher {
 
   private fun route(t: String, m: JsonObject, g: GameActions): String? =
       when (t) {
-        "step" -> g.step(m.dir("dir"), m.bool("run") ?: false, m.int("seq") ?: throw bad("seq"))
+        "step" ->
+            if (m.bool("jump") == true)
+                g.stepJump(m.dir("dir"), m.bool("run") ?: false, m.int("seq") ?: throw bad("seq"))
+            else g.step(m.dir("dir"), m.bool("run") ?: false, m.int("seq") ?: throw bad("seq"))
         "face" -> g.face(m.dir("dir"))
         "say" -> {
           val text = m.string("text").trim()
@@ -195,8 +204,24 @@ object Dispatcher {
         "market.listItem" -> g.marketListItem(m.reqInt("item"), m.qty("qty"), m.price())
         "market.buy" -> g.marketBuy(m.id("id"))
         "market.cancel" -> g.marketCancel(m.id("id"))
+        // r3-field: a field move or field item (PROTOCOL.md "r3-field").
+        "field" -> {
+          val action = m.string("action")
+          if (action !in FIELD_ACTIONS) "unknown field action: $action"
+          else
+              g.field(
+                  action,
+                  (m.int("arg") ?: m.int("bank") ?: 0).coerceIn(0, 255),
+                  (m.int("arg2") ?: m.int("map") ?: 0).coerceIn(0, 255))
+        }
         else -> "unknown message type: $t"
       }
+
+  /** `field.action` values, the FieldAction names in lower case. */
+  val FIELD_ACTIONS =
+      de.fiereu.openmmo.net.game.packets.field.FieldAction.entries
+          .map { it.name.lowercase().replace("_", "") }
+          .toSet()
 
   private val DUEL_RULE_FIELDS = setOf("levelCap", "party", "timer")
 

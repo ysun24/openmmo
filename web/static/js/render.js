@@ -5,6 +5,13 @@ import { assets, stepAnim, GBA_HZ } from './assets.js';
 
 export const VW = 240;
 export const VH = 160;
+// The player's object gfx per travel mode (event_objects.h), per region and gender.
+const MODE_GFX = {
+  0: { m: { mach_bike: 1, acro_bike: 1, surf: 2 }, f: { mach_bike: 8, acro_bike: 8, surf: 9 } },
+  1: { m: { mach_bike: 1, acro_bike: 63, surf: 2, underwater: 111 }, f: { mach_bike: 90, acro_bike: 91, surf: 92, underwater: 112 } },
+};
+// surf_blob.png frames: down, up, left (right mirrored).
+const SURF_FRAME = { down: 0, up: 1, left: 2, right: 2 };
 // GBA camera: the player's 16x16 tile sits at (112, 64) on screen
 const CAM_X = 112;
 const CAM_Y = 64;
@@ -63,6 +70,7 @@ export class Renderer {
   }
 
   draw(world, now) {
+    this.world = world;
     const ctx = this.ctx;
     const me = world.self;
     let camX = Math.round(me.px - CAM_X);
@@ -97,6 +105,7 @@ export class Renderer {
       ctx.fillStyle = this.pattern;
       ctx.fillRect(camX, camY, VW, VH);
       ctx.restore();
+      if (world.map) this.borderAnim(res, camX, camY, world.map.width, world.map.height);
     } else {
       ctx.fillStyle = '#204018';
       ctx.fillRect(0, 0, VW, VH);
@@ -112,7 +121,8 @@ export class Renderer {
       this.anim(res.anim, 0, 0, camX, camY, false);
     } else if (world.map) this.placeholderMap(world.map.width, world.map.height, camX, camY);
 
-    // entities, y-sorted
+    // ground effects (footprints, splashes, grass rustles), then entities, y-sorted
+    this.effects(world, camX, camY, now);
     const region = world.map ? world.map.region : 0;
     for (const e of world.drawList) this.entity(e, camX, camY, now, region);
 
@@ -125,6 +135,8 @@ export class Renderer {
       this.layer(res.top, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, true);
     }
+    // dark caves until FLASH
+    this.darkness(world, camX, camY);
 
     // name tags above everything of the world
     if (this.tags || this.selfTag) {
@@ -205,7 +217,7 @@ export class Renderer {
 
   entity(e, camX, camY, now, region) {
     const ctx = this.ctx;
-    const d = assets.sheetFor(e, region);
+    const d = this.sheetForMode(e, region);
     const bx = Math.round(e.px) - camX;
     const by = Math.round(e.py) - camY;
     if (bx < -32 || by < -32 || bx > VW + 16 || by > VH + 32) return;
@@ -215,11 +227,17 @@ export class Renderer {
       ctx.fillRect(bx + 6, by - 22 + bob, 4, 2);
       ctx.fillRect(bx + 7, by - 20 + bob, 2, 2);
     }
+    // under the sprite: the surf blob, the ledge-hop shadow
+    const surfing = e.mode === 'surf';
+    const bobY = surfing ? ((now / 266) | 0) & 1 : 0; // the blob bobs 1px every 16 frames
+    if (surfing) this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, bx - 8, by - 8 + bobY, e.facing === 'right');
+    if (e.jump > 0) this.fxSprite('shadow', 0, bx, by + 10);
+    const lift = Math.round(e.jump || 0) - (surfing ? bobY : 0);
     if (!d || !d._img || !d._img.ready) {
       ctx.fillStyle = e.kind === 'player' ? '#e04848' : '#4878e0';
-      ctx.fillRect(bx + 3, by - 8, 10, 22);
+      ctx.fillRect(bx + 3, by - 8 - lift, 10, 22);
       ctx.fillStyle = '#f8d0a8';
-      ctx.fillRect(bx + 4, by - 12, 8, 7);
+      ctx.fillRect(bx + 4, by - 12 - lift, 8, 7);
       return;
     }
     const f = d.frames;
@@ -227,9 +245,9 @@ export class Renderer {
     const mirror = face === 'right' && d.mirrorRight;
     if (mirror) face = 'left';
     let idx;
-    const walking = e.moving && e.t < e.dur * 0.5;
+    const walking = e.moving && e.t < e.dur * 0.5 && !e.jumping;
     const Face = face[0].toUpperCase() + face.slice(1);
-    const running = e.moving && e.dur <= 130 && f['runWalk' + Face];
+    const running = e.moving && (e.run || (e.mode === 'walk' && e.dur <= 130)) && f['runWalk' + Face];
     if (walking) {
       const w = running ? f['runWalk' + Face] : f['walk' + Face];
       idx = Array.isArray(w) ? w[e.parity % w.length] : w;
@@ -240,13 +258,149 @@ export class Renderer {
     const perRow = Math.max(1, Math.floor(img.width / fw));
     const sx = (idx % perRow) * fw, sy = Math.floor(idx / perRow) * fh;
     const dx = bx + ((16 - fw) >> 1);
-    const dy = by + 16 - fh;
+    const dy = by + 16 - fh - lift;
     if (mirror) {
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(img, sx, sy, fw, fh, -dx - fw, dy, fw, fh);
       ctx.restore();
     } else ctx.drawImage(img, sx, sy, fw, fh, dx, dy, fw, fh);
+    // standing in tall grass: the grass covers the legs (FLDEFF_TALL_GRASS's resting frame)
+    if (this.world && !e.jump && !surfing) {
+      const tx = e.moving && e.t < e.dur * 0.5 ? Math.round(e.fx) : e.x;
+      const ty = e.moving && e.t < e.dur * 0.5 ? Math.round(e.fy) : e.y;
+      const b = this.world.behAt(tx, ty);
+      if (b === 'TALL_GRASS' || b === 'ASH_GRASS' || b === 'LONG_GRASS') this.grassCover(tx, ty, camX, camY, b === 'LONG_GRASS');
+    }
+    // a trainer's "!" when it spots the player (FLDEFF_EXCLAMATION_MARK_ICON, ~1 s)
+    if (e.exclaimAt && now - e.exclaimAt < 1000) this.fxSprite('exclamation', 0, bx, by - 30 + (now - e.exclaimAt < 120 ? 4 : 0));
+  }
+
+  /** The sprite sheet for an entity, swapped for its bike/surf/underwater variant (players). */
+  sheetForMode(e, region) {
+    if (e.kind === 'player' && e.mode && e.mode !== 'walk') {
+      const man = assets.manifest;
+      const p = man && man.players && man.players[String(region)];
+      const female = p && e.gfx === p.femaleGfx;
+      const table = MODE_GFX[region] && MODE_GFX[region][female ? 'f' : 'm'];
+      const gfx = table && table[e.mode];
+      if (gfx !== undefined) {
+        const d = man.objects[`${region}:${gfx}`];
+        if (d) {
+          if (!d._img) d._img = assets.image(d.sheet);
+          if (d._img.ready) return d;
+        }
+      }
+    }
+    return assets.sheetFor(e, region);
+  }
+
+  /** One frame of a field effect sprite (manifest fieldEffects) at screen (x, y). */
+  fxSprite(name, frame, x, y, mirror = false) {
+    const m = assets.manifest && assets.manifest.fieldEffects && assets.manifest.fieldEffects[name];
+    if (!m) return false;
+    if (!m._img) m._img = assets.image(m.sheet);
+    if (!m._img.ready) return false;
+    const img = m._img.img;
+    const perRow = Math.max(1, Math.floor(img.width / m.frameW));
+    const i = Math.max(0, Math.min(m.count - 1, frame | 0));
+    const sx = (i % perRow) * m.frameW, sy = Math.floor(i / perRow) * m.frameH;
+    const ctx = this.ctx;
+    if (mirror) {
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, sx, sy, m.frameW, m.frameH, -x - m.frameW, y, m.frameW, m.frameH);
+      ctx.restore();
+    } else ctx.drawImage(img, sx, sy, m.frameW, m.frameH, x, y, m.frameW, m.frameH);
+    return true;
+  }
+
+  /** Re-draw the lower half of a grass tile over a sprite standing in it. */
+  grassCover(tx, ty, camX, camY, long) {
+    const w = this.world;
+    const r = w.res;
+    let img = null, ox = 0, oy = 0;
+    if (w.map && tx >= 0 && ty >= 0 && tx < w.map.width && ty < w.map.height) img = r && r.bottom && r.bottom.ready ? r.bottom.img : null;
+    else {
+      const c = w.conns.find((c) => tx >= c.ox && ty >= c.oy && tx < c.ox + c.info.width && ty < c.oy + c.info.height);
+      if (c && c.res.bottom && c.res.bottom.ready) (img = c.res.bottom.img), (ox = c.ox), (oy = c.oy);
+    }
+    if (!img) return;
+    const cut = long ? 4 : 8; // long grass hides more of the sprite
+    this.ctx.drawImage(img, (tx - ox) * 16, (ty - oy) * 16 + cut, 16, 16 - cut, tx * 16 - camX, ty * 16 - camY + cut, 16, 16 - cut);
+  }
+
+  /** Ground effects under the sprites (footprints, splashes, rustles), GBA timing. */
+  effects(world, camX, camY, now) {
+    for (const f of world.fx) {
+      if (now < f.t0) continue;
+      const p = (now - f.t0) / f.dur;
+      const x = f.x * 16 - camX, y = f.y * 16 - camY;
+      if (x < -16 || y < -16 || x > VW || y > VH) continue;
+      switch (f.kind) {
+        case 'footprints':
+        case 'deepFootprints':
+        case 'tireTracks': {
+          // vertical/horizontal frames; they blink out at the end like the GBA's
+          if (p > 0.75 && ((now / 66) | 0) & 1) break;
+          const horiz = f.dir === 'left' || f.dir === 'right';
+          this.fxSprite(f.kind, horiz ? 1 : 0, x, y, f.dir === 'right');
+          break;
+        }
+        case 'tallGrass':
+        case 'longGrass':
+        case 'ripple':
+        case 'ashPuff':
+          this.fxSprite(f.kind, Math.floor(p * 5), x, y);
+          break;
+        case 'splash':
+          this.fxSprite('splash', Math.floor(p * 2), x, y + 8);
+          break;
+        case 'jumpSplash':
+        case 'jumpGrass':
+        case 'dust':
+          this.fxSprite(f.kind, Math.floor(p * 3), x, y + 8);
+          break;
+      }
+    }
+  }
+
+  /** Dark caves: black outside the FLASH circle around the player (radius as the GBA's). */
+  darkness(world, camX, camY) {
+    const f = world.field;
+    if (!f || !f.dark) return;
+    const ctx = this.ctx;
+    const me = world.self;
+    const cx = Math.round(me.px) - camX + 8, cy = Math.round(me.py) - camY + 8;
+    const r = f.flash ? 72 : 24;
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.rect(0, 0, VW, VH);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2, true);
+    ctx.fill('evenodd');
+    ctx.restore();
+  }
+
+  /** Animated border cells (the sea around routes): the map's anim atlas, border-patterned. */
+  borderAnim(res, camX, camY, mapW, mapH) {
+    const slots = res.info && res.info.borderAnim;
+    const a = res.anim;
+    if (!slots || !a || !a.atlas || !a.atlas.ready) return;
+    stepAnim(a, this.gbaFrame);
+    const bw = res.info.borderWidth || 2, bh = res.info.borderHeight || 2;
+    const x0 = Math.floor(camX / 16), y0 = Math.floor(camY / 16);
+    const x1 = Math.ceil((camX + VW) / 16), y1 = Math.ceil((camY + VH) / 16);
+    const img = a.atlas.img, cols = a.cols, ctx = this.ctx;
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++) {
+        if (x >= 0 && y >= 0 && x < mapW && y < mapH) continue;
+        if (this.world && this.world.conns.some((c) => x >= c.ox && y >= c.oy && x < c.ox + c.info.width && y < c.oy + c.info.height)) continue;
+        const s = slots[(((y % bh) + bh) % bh) * bw + (((x % bw) + bw) % bw)];
+        if (s === undefined || s < 0 || !a.metas[s]) continue;
+        const cell = a.metas[s].cell;
+        ctx.drawImage(img, (cell % cols) * 16, ((cell / cols) | 0) * 32, 16, 16, x * 16 - camX, y * 16 - camY, 16, 16);
+      }
   }
 
   /** Canvas-relative CSS px -> world tile, using the current camera. */

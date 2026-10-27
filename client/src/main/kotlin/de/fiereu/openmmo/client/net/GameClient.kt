@@ -125,7 +125,7 @@ class GameClient(
    * One step. The server takes the tile the step starts on and the direction, checks it against its
    * own collision and answers a blocked step with a position reset.
    */
-  fun step(direction: Direction, running: Boolean = false): Boolean {
+  fun step(direction: Direction, running: Boolean = false, jump: Boolean = false): Boolean {
     val snap = world.snapshot()
     val self = snap.self ?: return false
     if (!snap.inWorld) return false
@@ -140,9 +140,11 @@ class GameClient(
       return false
     }
     s.send(MovementPacket(self.x, self.y, direction, running))
-    // Predict the step so the UI moves at once; a reset from the server corrects it.
-    val tx = self.x + direction.dx
-    val ty = self.y + direction.dy
+    // Predict the step so the UI moves at once; a reset from the server corrects it. A ledge hop
+    // (the caller says so; the server confirms with its landing) goes two tiles.
+    val reach = if (jump) 2 else 1
+    val tx = self.x + direction.dx * reach
+    val ty = self.y + direction.dy * reach
     val key = snap.map
     val crossing =
         if (key != null && (tx !in 0 until snap.mapWidth || ty !in 0 until snap.mapHeight))
@@ -172,6 +174,18 @@ class GameClient(
 
   fun send(packet: Any) {
     session?.send(packet)
+  }
+
+  /** A field move / field item (FieldActionPacket c2s 0xF4). False when a box or battle is open. */
+  fun fieldAction(
+      action: de.fiereu.openmmo.net.game.packets.field.FieldAction,
+      arg: Int = 0,
+      arg2: Int = 0,
+  ): Boolean {
+    val ui = world.snapshot().overworld
+    if (ui != null && (ui.dialog != null || ui.shop != null || ui.transitioning)) return false
+    session?.send(de.fiereu.openmmo.net.game.packets.field.FieldActionPacket(action, arg, arg2))
+    return true
   }
 
   fun say(text: String) {
@@ -280,6 +294,24 @@ class GameClient(
         } else if (!(p.entityId == world.snapshot().selfId && overworld.selfBusy())) {
           world.move(p.entityId, p.x, p.y, p.direction)
         }
+        // Movement mode 6 is a ledge hop (ours): observers animate the jump.
+        if (p.movementMode == 6) world.update(p.entityId) { it.copy(jumpSeq = it.jumpSeq + 1) }
+        onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket> { event ->
+        val p = event.packet
+        world.update(p.entityId) {
+          if (p.exclaim) it.copy(exclaimSeq = it.exclaimSeq + 1)
+          else it.copy(travel = p.mode, running = p.running)
+        }
+        onChange()
+      }
+      on<de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket> { event ->
+        val p = event.packet
+        // The last UI request stays, so the browser sees its seq even when a newer info follows.
+        val old = world.snapshot().field
+        world.setField(
+            if (p.uiKind == 0 && old != null) p.copy(uiSeq = old.uiSeq, uiKind = old.uiKind) else p)
         onChange()
       }
       on<EntityMovePacket> { event ->

@@ -13,6 +13,7 @@ import * as battle from './ui/battle.js';
 import * as trade from './ui/trade.js';
 import * as market from './ui/market.js';
 import * as misc from './ui/misc.js';
+import * as field from './ui/field.js';
 import { music } from './audio.js';
 
 const DIRS = ['up', 'down', 'left', 'right'];
@@ -64,7 +65,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, field];
 UIS.forEach((u) => u.init(app));
 
 // ------------------------------------------------------------------ device / layout
@@ -296,6 +297,7 @@ function onPress(btn, repeat = false) {
     if (e && e.kind === 'player') return misc.openPlayer(e);
     return send({ t: 'a' });
   }
+  if (!repeat && field.onPress(btn)) return;
   if (btn === 'b' && document.body.classList.contains('chat-open')) chat.close();
 }
 input.on('press', (b) => onPress(b));

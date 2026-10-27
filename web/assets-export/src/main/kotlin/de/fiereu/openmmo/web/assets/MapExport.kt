@@ -5,6 +5,8 @@ import de.fiereu.openmmo.client.gfx.LayoutData
 import de.fiereu.openmmo.client.gfx.MetatilePainter
 import de.fiereu.openmmo.client.gfx.MetatilePainter.Pixels
 import de.fiereu.openmmo.client.gfx.PretData
+import de.fiereu.openmmo.common.enums.MetatileBehaviorNames
+import de.fiereu.openmmo.common.enums.TileBehavior
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.Json
@@ -32,6 +34,9 @@ data class MapEntry(
     val connections: List<Triple<String, Int, String>>,
     /** Warp tiles (x, y) from map.json `warp_events`: doors, stairs, arrows. */
     val warps: List<Pair<Int, Int>> = emptyList(),
+    val allowCycling: Boolean = true,
+    val allowRunning: Boolean = true,
+    val requiresFlash: Boolean = false,
 ) {
   val key = "$region:$bank:$map"
 }
@@ -44,6 +49,10 @@ data class LayoutFiles(
     val border: String?,
     /** `<stem>.anim.json` when the layout has animated metatiles. */
     val anim: String? = null,
+    /** `<stem>.beh.bin`: one TileBehavior ordinal per tile. */
+    val behavior: String? = null,
+    /** Per border cell, the anim.json metatile slot that animates it, or -1. */
+    val borderAnim: List<Int>? = null,
 )
 
 class MapExport(private val decompRoot: File, private val out: Output) {
@@ -105,7 +114,22 @@ class MapExport(private val decompRoot: File, private val out: Output) {
                               ?: return@mapNotNull null
                       x to y
                     }
-            entries += MapEntry(region, bank, map, name, layoutId, layout, music, conns, warps)
+            fun flag(k: String, d: Boolean) =
+                mapJson[k]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: d
+            entries +=
+                MapEntry(
+                    region,
+                    bank,
+                    map,
+                    name,
+                    layoutId,
+                    layout,
+                    music,
+                    conns,
+                    warps,
+                    allowCycling = flag("allow_cycling", true),
+                    allowRunning = flag("allow_running", true),
+                    requiresFlash = flag("requires_flash", false))
           }
         } catch (e: Exception) {
           failures += "$key $name: ${e.javaClass.simpleName}: ${e.message}"
@@ -152,13 +176,47 @@ class MapExport(private val decompRoot: File, private val out: Output) {
     val b = out.writePng("$stem.bottom.png", bottom.toImage())
     val t = out.writePng("$stem.top.png", top.toImage())
     val c = out.write("$stem.col.bin", collision(layout))
+    val beh = out.write("$stem.beh.bin", behaviors(game, layout))
+    // Border cells drawn from the animation atlas (the sea around Pallet Town): the anim slot of
+    // each border metatile, -1 when it does not animate.
+    val borderAnim =
+        anim?.let { a ->
+          val ids =
+              (a.json["metatiles"] as? kotlinx.serialization.json.JsonArray).orEmpty().map {
+                (it as JsonObject)["id"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: -1
+              }
+          val slots = layout.border.map { ids.indexOf(it and 0x3FF) }
+          slots.takeIf { s -> s.any { it >= 0 } }
+        }
     val border =
         if (layout.border.size >= layout.borderWidth * layout.borderHeight &&
             layout.borderWidth > 0 &&
             layout.borderHeight > 0)
             out.writePng("$stem.border.png", border(game, layout).toImage())
         else null
-    return LayoutFiles(b, t, c, border, animPath)
+    return LayoutFiles(b, t, c, border, animPath, beh, borderAnim)
+  }
+
+  private val behaviorIds = ConcurrentHashMap<GbaGame, Map<Int, TileBehavior>>()
+
+  /**
+   * One [TileBehavior] ordinal per tile (the server's own classification, MetatileBehaviorNames),
+   * so the browser predicts ledges, water, bike terrain and field effects like the server.
+   */
+  fun behaviors(game: GbaGame, layout: LayoutData): ByteArray {
+    val ids =
+        behaviorIds.computeIfAbsent(game) {
+          MetatileBehaviorNames.idTable(
+              File(decompRoot, "${game.dir}/include/constants/metatile_behaviors.h"))
+        }
+    val width = if (game == GbaGame.FIRERED) 4 else 2
+    return ByteArray(layout.width * layout.height) { i ->
+      val id = layout.blocks.getOrElse(i) { 0 } and 0x3FF
+      val attr =
+          if (id < game.metatilesInPrimary) layout.primary.attributes.getOrElse(id) { 0 }
+          else layout.secondary.attributes.getOrElse(id - game.metatilesInPrimary) { 0 }
+      MetatileBehaviorNames.categorize(attr, width, ids).ordinal.toByte()
+    }
   }
 
   fun manifestEntry(e: MapEntry, files: LayoutFiles): JsonObject = buildJsonObject {
@@ -193,10 +251,70 @@ class MapExport(private val decompRoot: File, private val out: Output) {
           }
         })
     put("anim", files.anim?.let(::JsonPrimitive) ?: JsonNull)
+    put("behavior", files.behavior?.let(::JsonPrimitive) ?: JsonNull)
+    files.borderAnim?.let { slots ->
+      put("borderAnim", buildJsonArray { slots.forEach { add(JsonPrimitive(it)) } })
+    }
+    // Map header rules the browser's prediction needs (r3-field).
+    put("allowCycling", e.allowCycling)
+    put("allowRunning", e.allowRunning)
+    put("requiresFlash", e.requiresFlash)
   }
 
   companion object {
     val DIRECTIONS = setOf("up", "down", "left", "right")
+
+    /**
+     * The overworld field effect sprites the browser draws (r3-field): Emerald's art for both
+     * regions (FireRed's are the same pictures in vertical strips). name -> (file, frame w, frame h,
+     * palette under graphics/field_effects/palettes or null for the PNG's own).
+     */
+    private val FIELD_EFFECTS =
+        listOf(
+            FieldEffectSpec("surfBlob", "surf_blob", 32, 32, null),
+            FieldEffectSpec("tallGrass", "tall_grass", 16, 16, "general_1"),
+            FieldEffectSpec("longGrass", "long_grass", 16, 16, "general_1"),
+            FieldEffectSpec("shadow", "shadow_medium", 16, 8, null),
+            FieldEffectSpec("footprints", "sand_footprints", 16, 16, "general_0"),
+            FieldEffectSpec("deepFootprints", "deep_sand_footprints", 16, 16, "general_0"),
+            FieldEffectSpec("tireTracks", "bike_tire_tracks", 16, 16, "general_0"),
+            FieldEffectSpec("splash", "splash", 16, 8, "general_0"),
+            FieldEffectSpec("ripple", "ripple", 16, 16, "general_1"),
+            FieldEffectSpec("jumpSplash", "jump_small_splash", 16, 8, "general_0"),
+            FieldEffectSpec("jumpGrass", "jump_tall_grass", 16, 8, "general_1"),
+            FieldEffectSpec("dust", "ground_impact_dust", 16, 8, "general_0"),
+            FieldEffectSpec("ashPuff", "ash_puff", 16, 16, "ash"),
+            FieldEffectSpec("exclamation", "emotion_exclamation", 16, 16, null),
+        )
+
+    private data class FieldEffectSpec(
+        val name: String,
+        val file: String,
+        val w: Int,
+        val h: Int,
+        val palette: String?,
+    )
+
+    /** Writes `fx/<name>.png` strips and returns the manifest's `fieldEffects` object. */
+    fun fieldEffects(decompRoot: File, out: Output): JsonObject = buildJsonObject {
+      val dir = File(decompRoot, "pokeemerald/graphics/field_effects")
+      for (fx in FIELD_EFFECTS) {
+        val png = File(dir, "pics/${fx.file}.png")
+        if (!png.isFile) continue
+        val pal = fx.palette?.let { Decomp.readPalette(File(dir, "palettes/$it.pal")) }
+        val img = Decomp.readIndexed(png, pal)
+        val count = maxOf(1, (img.width / fx.w) * (img.height / fx.h))
+        val path = out.writePng("fx/${fx.file}.png", img)
+        put(
+            fx.name,
+            buildJsonObject {
+              put("sheet", path)
+              put("frameW", fx.w)
+              put("frameH", fx.h)
+              put("count", count)
+            })
+      }
+    }
 
     /** bit0 = blocked (collision bits != 0), bits 4-7 = elevation; one byte per tile. */
     fun collision(layout: LayoutData): ByteArray =

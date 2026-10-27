@@ -61,6 +61,7 @@ constructor(
     private val scriptRunner: ScriptRunner,
     private val items: ItemRegistry,
     private val encounterService: EncounterService,
+    private val species: de.fiereu.openmmo.pokemon.SpeciesRegistry,
 ) {
 
   // ------------------------------------------------------------------ state and info
@@ -373,7 +374,7 @@ constructor(
   }
 
   private fun monName(mon: de.fiereu.openmmo.common.Pokemon): String =
-      mon.nickname.ifEmpty { "POKéMON" }.uppercase()
+      mon.nickname.ifEmpty { species.get(mon.dexId)?.name ?: "POKéMON" }.uppercase()
 
   /** EventScript_CutTree / EventScript_RockSmash. */
   private suspend fun obstacleScript(
@@ -690,6 +691,13 @@ constructor(
     val dir =
         if (abs(dx) >= abs(dy)) (if (dx > 0) "east" else "west") else (if (dy > 0) "south" else "north")
     return "The ITEMFINDER is responding! Something is buried to the $dir."
+  }
+
+  /** Developer teleport (/fieldtp): warp to map [name] (decomp dir name) at (x, y). */
+  fun devWarp(session: SessionContext, state: PlayerState, name: String, x: Int, y: Int): Boolean {
+    val target = mapManager.getMapByName(state.regionId, name) ?: return false
+    flyTo(session, state, target, x, y)
+    return true
   }
 
   private fun flyTo(session: SessionContext, state: PlayerState, target: MapDef, x: Int, y: Int) {
