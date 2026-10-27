@@ -43,7 +43,7 @@ saw, accepted if the arrow was there in the last 45 frames), `PokeblockService`,
 `BerryTreeService`, `ContestStatsService`. **Feebas → Milotic**: EvolutionService's EVO_BEAUTY rule
 reads the beauty through the `MonBeauty` binding.
 
-**Specials** (`ContestSpecials`, 77 names): the contest* / Contest* / Pokéblock / Blender / berry
+**Specials** (`ContestSpecials`, 75 names): the contest* / Contest* / Pokéblock / Blender / berry
 tree / Museum / Painting / ribbon / CheckLeadMon* specials of both games' specials.inc
 (TryEnterContestMon, GiveMonContestRibbon, ShouldReadyContestArtist, SaveMuseumContestPainting,
 ShowContestPainting, DoBerryBlending, ObjectEventInteraction*BerryTree, Bag_ChooseBerry,
