@@ -11,6 +11,7 @@ import de.fiereu.openmmo.net.game.packets.dialog.*
 import de.fiereu.openmmo.net.game.packets.gtl.*
 import de.fiereu.openmmo.net.game.packets.guild.*
 import de.fiereu.openmmo.net.game.packets.market.*
+import de.fiereu.openmmo.net.game.packets.social.*
 import de.fiereu.openmmo.net.game.packets.trade.*
 
 object GameProtocol : Protocol() {
@@ -622,5 +623,11 @@ object GameProtocol : Protocol() {
     c2s<DuelRulesChallengePacket>(0xEEu, DuelRulesChallengePacketCodec)
     s2c<DuelRulesPacket>(0xEEu, DuelRulesPacketCodec)
     s2c<BattleTurnTimerPacket>(0xEFu, BattleTurnTimerPacketCodec)
+    // r3-social: OpenMMO-only social/chat/guild/market-extra packets (see packets/social).
+    // c2s 0xFC-0xFE and s2c 0xFD were free in both directions; s2c 0xFC/0xFE are retail.
+    c2s<SocialRequestPacket>(0xFCu, SocialRequestPacketCodec)
+    c2s<MarketQueryPacket>(0xFDu, MarketQueryPacketCodec)
+    c2s<TradeOfferPcMonPacket>(0xFEu, TradeOfferPcMonPacketCodec)
+    s2c<CommunityPacket>(0xFDu, CommunityPacketCodec)
   }
 }

@@ -6,7 +6,8 @@ import de.fiereu.openmmo.common.enums.PokemonContainer
 import de.fiereu.openmmo.server.game.storage.StoredCharacter
 
 /**
- * What one side puts on the table. Monsters are named by id, so a slot shuffle cannot swap them.
+ * What one side puts on the table. Monsters are named by id, so a slot shuffle cannot swap them;
+ * they may come from the party or the PC.
  */
 data class TradeOffer(
     val monIds: List<Long> = emptyList(),
@@ -46,8 +47,8 @@ object TradeSwap {
       return SwapResult.Rejected(it)
     }
 
-    val givenByA = offerA.monIds.map { id -> a.pokemon.first { it.id == id } }
-    val givenByB = offerB.monIds.map { id -> b.pokemon.first { it.id == id } }
+    val givenByA = offerA.monIds.map { id -> (a.pokemon + a.pcStorage).first { it.id == id } }
+    val givenByB = offerB.monIds.map { id -> (b.pokemon + b.pcStorage).first { it.id == id } }
 
     val newA = receive(give(a, offerA), givenByB, offerB) ?: return overflow(a)
     val newB = receive(give(b, offerB), givenByA, offerA) ?: return overflow(b)
@@ -67,8 +68,8 @@ object TradeSwap {
     if (offer.monIds.size > MAX_OFFERED_MONS) return "$name offered more than $MAX_OFFERED_MONS."
     if (offer.monIds.toSet().size != offer.monIds.size) return "$name offered a monster twice."
     for (id in offer.monIds) {
-      if (owner.pokemon.none { it.id == id && it.ownerId == owner.info.id }) {
-        return "$name no longer has an offered monster in the party."
+      if ((owner.pokemon + owner.pcStorage).none { it.id == id && it.ownerId == owner.info.id }) {
+        return "$name no longer has an offered monster."
       }
     }
     for ((itemId, quantity) in offer.items) {
@@ -91,6 +92,7 @@ object TradeSwap {
             .filter { it.id !in gone }
             .sortedBy { it.containerSlot }
             .mapIndexed { index, mon -> mon.copy(containerSlot = index.toShort()) }
+    val pc = owner.pcStorage.filter { it.id !in gone }
     val items = owner.items.toMutableMap()
     for ((itemId, quantity) in offer.items) {
       val left = (items[itemId] ?: 0) - quantity
@@ -99,6 +101,7 @@ object TradeSwap {
     return owner.copy(
         info = owner.info.copy(money = owner.info.money - offer.money),
         pokemon = party.toMutableList(),
+        pcStorage = pc.toMutableList(),
         items = items,
     )
   }

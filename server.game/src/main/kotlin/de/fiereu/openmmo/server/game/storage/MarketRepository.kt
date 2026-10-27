@@ -55,10 +55,22 @@ data class MarketListing(
     val status: MarketStatus,
     val buyerId: Long?,
     val soldAt: LocalDateTime?,
+    /** What the seller paid to list it (V8_4). */
+    val fee: Int = 0,
 )
 
-/** A listing a search returned, with the escrowed monster when it is one. */
-data class MarketRow(val listing: MarketListing, val pokemon: Pokemon?)
+/** A listing a search returned, with the escrowed monster when it is one, and who sells it. */
+data class MarketRow(
+    val listing: MarketListing,
+    val pokemon: Pokemon?,
+    val sellerName: String = ""
+)
+
+/** One completed sale, for price history: the whole price and how many units it bought. */
+data class MarketSale(val soldAt: LocalDateTime, val price: Int, val quantity: Int)
+
+/** One of a seller's sold listings, with who bought it. */
+data class SoldListing(val listing: MarketListing, val buyerName: String)
 
 data class MarketPage(val total: Int, val rows: List<MarketRow>)
 
@@ -114,9 +126,11 @@ constructor(
       now: LocalDateTime,
       expiresAt: LocalDateTime,
       maxActive: Int,
+      fee: Int = 0,
   ): MarketOutcome = inTransaction { tx ->
-    lockCharacters(tx, listOf(sellerId))
+    val money = lockCharacters(tx, listOf(sellerId))
     checkActiveLimit(tx, sellerId, maxActive)
+    chargeFee(tx, sellerId, money[sellerId] ?: 0, fee)
     val mon =
         tx.selectFrom(POKEMON)
             .where(POKEMON.ID.eq(pokemonId))
@@ -138,7 +152,7 @@ constructor(
         .execute()
     if (from == PokemonContainer.PARTY) compactParty(tx, sellerId)
     insertListing(
-        tx, sellerId, MarketKind.POKEMON, pokemonId, mon.dexId, null, 1, price, now, expiresAt)
+        tx, sellerId, MarketKind.POKEMON, pokemonId, mon.dexId, null, 1, price, now, expiresAt, fee)
   }
 
   suspend fun createItemListing(
@@ -149,14 +163,16 @@ constructor(
       now: LocalDateTime,
       expiresAt: LocalDateTime,
       maxActive: Int,
+      fee: Int = 0,
   ): MarketOutcome = inTransaction { tx ->
-    lockCharacters(tx, listOf(sellerId))
+    val money = lockCharacters(tx, listOf(sellerId))
     checkActiveLimit(tx, sellerId, maxActive)
+    chargeFee(tx, sellerId, money[sellerId] ?: 0, fee)
     if (!takeItem(tx, sellerId, itemId, quantity)) {
       throw MarketRefused("You do not have $quantity of item $itemId.")
     }
     insertListing(
-        tx, sellerId, MarketKind.ITEM, null, null, itemId, quantity, price, now, expiresAt)
+        tx, sellerId, MarketKind.ITEM, null, null, itemId, quantity, price, now, expiresAt, fee)
   }
 
   /** Pays the seller and hands the goods over. Refuses an expired listing without closing it. */
@@ -266,6 +282,19 @@ constructor(
                 .offset(query.page * query.pageSize)
                 .fetch()
                 .map { it.toListing() }
+        val sellers =
+            listings
+                .map { it.sellerId }
+                .distinct()
+                .takeIf { it.isNotEmpty() }
+                ?.let { ids ->
+                  dsl.select(CHARACTERS.ID, CHARACTERS.NAME)
+                      .from(CHARACTERS)
+                      .where(CHARACTERS.ID.`in`(ids))
+                      .fetch()
+                      .associate { it.value1()!! to it.value2()!! }
+                }
+                .orEmpty()
         val monIds = listings.mapNotNull { it.pokemonId }
         val mons =
             if (monIds.isEmpty()) emptyMap()
@@ -273,7 +302,11 @@ constructor(
                 dsl.selectFrom(POKEMON).where(POKEMON.ID.`in`(monIds)).fetch().associate {
                   it.id to it.toPokemon()
                 }
-        MarketPage(total, listings.map { MarketRow(it, it.pokemonId?.let(mons::get)) })
+        MarketPage(
+            total,
+            listings.map {
+              MarketRow(it, it.pokemonId?.let(mons::get), sellers[it.sellerId].orEmpty())
+            })
       }
 
   private suspend fun close(
@@ -322,6 +355,61 @@ constructor(
           .forUpdate()
           .fetch()
           .associate { it.value1()!! to it.value2()!! }
+
+  /** Takes the listing fee; the whole listing is refused when the seller cannot pay it. */
+  private fun chargeFee(tx: DSLContext, sellerId: Long, balance: Int, fee: Int) {
+    if (fee <= 0) return
+    if (balance < fee) throw MarketRefused("The listing fee is $fee.")
+    tx.update(CHARACTERS)
+        .set(CHARACTERS.MONEY, CHARACTERS.MONEY.minus(fee))
+        .where(CHARACTERS.ID.eq(sellerId))
+        .execute()
+  }
+
+  suspend fun activeCount(sellerId: Long): Int =
+      withContext(dispatcher) {
+        dsl.fetchCount(
+            MARKET_LISTINGS,
+            MARKET_LISTINGS.SELLER_ID.eq(sellerId)
+                .and(MARKET_LISTINGS.STATUS.eq(MarketStatus.ACTIVE.name)))
+      }
+
+  /** Sales of one species or item since [since], newest first. */
+  suspend fun sales(
+      kind: MarketKind,
+      refId: Int,
+      since: LocalDateTime,
+      limit: Int = 500
+  ): List<MarketSale> =
+      withContext(dispatcher) {
+        val ref =
+            if (kind == MarketKind.POKEMON) MARKET_LISTINGS.DEX_ID else MARKET_LISTINGS.ITEM_ID
+        dsl.select(MARKET_LISTINGS.SOLD_AT, MARKET_LISTINGS.PRICE, MARKET_LISTINGS.QUANTITY)
+            .from(MARKET_LISTINGS)
+            .where(MARKET_LISTINGS.STATUS.eq(MarketStatus.SOLD.name))
+            .and(MARKET_LISTINGS.KIND.eq(kind.name))
+            .and(ref.eq(refId))
+            .and(MARKET_LISTINGS.SOLD_AT.ge(since))
+            .orderBy(MARKET_LISTINGS.SOLD_AT.desc())
+            .limit(limit)
+            .fetch { MarketSale(it.value1()!!, it.value2()!!, it.value3()!!) }
+      }
+
+  /** A seller's sold listings, newest first, with the buyer's name. */
+  suspend fun soldBy(sellerId: Long, limit: Int): List<SoldListing> =
+      withContext(dispatcher) {
+        dsl.select(MARKET_LISTINGS.asterisk(), CHARACTERS.NAME)
+            .from(MARKET_LISTINGS)
+            .leftJoin(CHARACTERS)
+            .on(CHARACTERS.ID.eq(MARKET_LISTINGS.BUYER_ID))
+            .where(MARKET_LISTINGS.SELLER_ID.eq(sellerId))
+            .and(MARKET_LISTINGS.STATUS.eq(MarketStatus.SOLD.name))
+            .orderBy(MARKET_LISTINGS.SOLD_AT.desc())
+            .limit(limit)
+            .fetch { r ->
+              SoldListing(r.into(MARKET_LISTINGS).toListing(), r.get(CHARACTERS.NAME) ?: "?")
+            }
+      }
 
   private fun checkActiveLimit(tx: DSLContext, sellerId: Long, maxActive: Int) {
     val active =
@@ -424,6 +512,7 @@ constructor(
       price: Int,
       now: LocalDateTime,
       expiresAt: LocalDateTime,
+      fee: Int = 0,
   ): MarketListing {
     val id =
         tx.insertInto(MARKET_LISTINGS)
@@ -437,6 +526,7 @@ constructor(
             .set(MARKET_LISTINGS.CREATED_AT, now)
             .set(MARKET_LISTINGS.EXPIRES_AT, expiresAt)
             .set(MARKET_LISTINGS.STATUS, MarketStatus.ACTIVE.name)
+            .set(MARKET_LISTINGS.FEE, fee)
             .returning(MARKET_LISTINGS.ID)
             .fetchOne()!!
             .id!!
@@ -453,7 +543,8 @@ constructor(
         expiresAt,
         MarketStatus.ACTIVE,
         null,
-        null)
+        null,
+        fee)
   }
 
   private fun MarketListingsRecord.toListing(): MarketListing =
@@ -471,6 +562,7 @@ constructor(
           status = MarketStatus.valueOf(status),
           buyerId = buyerId,
           soldAt = soldAt,
+          fee = fee ?: 0,
       )
 
   private fun PokemonRecord.toPokemon(): Pokemon =

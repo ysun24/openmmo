@@ -13,7 +13,7 @@ import javax.inject.Provider
 import javax.inject.Singleton
 
 @Singleton
-@Component(modules = [GameServerModule::class, ChatCommandModule::class])
+@Component(modules = [GameServerModule::class, ChatCommandModule::class, SocialModule::class])
 interface GameServerComponent {
 
   fun server(): GameServer

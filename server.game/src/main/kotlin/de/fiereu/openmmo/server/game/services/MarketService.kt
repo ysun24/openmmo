@@ -24,9 +24,21 @@ import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
 import de.fiereu.openmmo.net.game.packets.market.MarketItemStack
 import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
+import de.fiereu.openmmo.net.game.packets.social.CommunityBody
+import de.fiereu.openmmo.net.game.packets.social.CommunityPacket
+import de.fiereu.openmmo.net.game.packets.social.ListingMeta
+import de.fiereu.openmmo.net.game.packets.social.MarketQueryOp
+import de.fiereu.openmmo.net.game.packets.social.MarketQueryPacket
+import de.fiereu.openmmo.net.game.packets.social.PricePoint
+import de.fiereu.openmmo.net.game.packets.social.RecentSale
+import de.fiereu.openmmo.net.game.packets.social.SaleRecord
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.battle.BattleRegistry
 import de.fiereu.openmmo.server.game.battle.StatCalculator
+import de.fiereu.openmmo.server.game.services.social.RateKind
+import de.fiereu.openmmo.server.game.services.social.RateLimiter
+import de.fiereu.openmmo.server.game.services.social.SocialConfig
+import de.fiereu.openmmo.server.game.services.trade.TradeService
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -36,6 +48,7 @@ import de.fiereu.openmmo.server.game.storage.MarketOutcome
 import de.fiereu.openmmo.server.game.storage.MarketQuery
 import de.fiereu.openmmo.server.game.storage.MarketRepository
 import de.fiereu.openmmo.server.game.storage.MarketRow
+import de.fiereu.openmmo.server.game.storage.MarketSale
 import de.fiereu.openmmo.server.game.storage.MarketSort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.nio.ByteBuffer
@@ -55,7 +68,9 @@ import kotlinx.coroutines.launch
 private val log = KotlinLogging.logger {}
 
 private const val MAX_PRICE = 999_999_999
-private const val MAX_ACTIVE_LISTINGS = 30
+private const val SALES_HISTORY_ROWS = 50
+private const val PRICE_HISTORY_DAYS = 30L
+private const val RECENT_SALES = 20
 private const val PAGE_SIZE = 20
 private val EXPIRY_SWEEP = 60.seconds
 
@@ -82,6 +97,9 @@ constructor(
     private val items: ItemRegistry,
     private val species: SpeciesRegistry,
     private val scope: CoroutineScope,
+    private val config: SocialConfig,
+    private val limiter: RateLimiter,
+    private val trades: TradeService,
 ) {
   private val sweepStarted = AtomicBoolean(false)
 
@@ -102,12 +120,14 @@ constructor(
     }
     val now = now()
     val expires = now.plusSeconds(listingSeconds)
+    val fee = config.listingFee(p.price)
+    val maxActive = config.marketMaxActive
     val outcome =
         when (p.entryKind) {
           MARKET_ENTRY_POKEMON ->
               characterStore.withExternalWrite(listOf(charId)) {
                 repository.createPokemonListing(
-                    charId, p.entityId, p.price, now, expires, MAX_ACTIVE_LISTINGS)
+                    charId, p.entityId, p.price, now, expires, maxActive, fee)
               }
           MARKET_ENTRY_ITEM -> {
             val itemId = p.entityId.toInt()
@@ -117,7 +137,7 @@ constructor(
             }
             characterStore.withExternalWrite(listOf(charId)) {
               repository.createItemListing(
-                  charId, itemId, qty, p.price, now, expires, MAX_ACTIVE_LISTINGS)
+                  charId, itemId, qty, p.price, now, expires, maxActive, fee)
             }
           }
           else -> MarketOutcome.Refused("Unknown listing kind ${p.entryKind}.")
@@ -127,7 +147,13 @@ constructor(
       is MarketOutcome.Done -> {
         val l = outcome.listing
         log.info { "char=$charId listed ${describe(l)} for ${l.price} as #${l.id}" }
-        reply(session, MarketAction.CREATE, true, l.id, "Listed ${describe(l)} for ${l.price}.")
+        val feeText = if (l.fee > 0) " (fee ${l.fee})" else ""
+        reply(
+            session,
+            MarketAction.CREATE,
+            true,
+            l.id,
+            "Listed ${describe(l)} for ${l.price}$feeText.")
         sendInventory(session, charId, partyChanged = l.kind == MarketKind.POKEMON)
       }
     }
@@ -188,7 +214,12 @@ constructor(
 
   suspend fun onSearch(event: PacketEvent<GtlSearchPageRequestPacket>) {
     val session = event.session
-    val charId = session.attributes[PLAYER_STATE]?.characterId ?: return
+    val state = session.attributes[PLAYER_STATE] ?: return
+    val charId = state.characterId ?: return
+    if (!limiter.tryAcquire(state.userId, RateKind.MARKET)) {
+      return reply(
+          session, MarketAction.SEARCH, false, 0, "Too many market requests, wait a moment.")
+    }
     ensureSweep()
     sweepExpired()
     val p = event.packet
@@ -227,6 +258,67 @@ constructor(
             listings = page.rows.mapNotNull(::toWire),
             quotes = if (p.listKind == GtlListKind.ITEM) emptyList() else null,
         ))
+    // The board row has no seller field; the names follow in our own packet, keyed by listing.
+    session.send(
+        CommunityPacket(
+            CommunityBody.ListingMetas(
+                page.rows.map { ListingMeta(it.listing.id, it.sellerName) })))
+  }
+
+  /** Price history, the player's own sales and the fee table (c2s 0xFD). */
+  suspend fun onQuery(event: PacketEvent<MarketQueryPacket>) {
+    val session = event.session
+    val state = session.attributes[PLAYER_STATE] ?: return
+    val charId = state.characterId ?: return
+    if (!limiter.tryAcquire(state.userId, RateKind.MARKET)) {
+      return reply(
+          session, MarketAction.SEARCH, false, 0, "Too many market requests, wait a moment.")
+    }
+    val p = event.packet
+    when (p.op) {
+      MarketQueryOp.PRICE_HISTORY -> {
+        val kind = if (p.kind.toInt() == 0) MarketKind.POKEMON else MarketKind.ITEM
+        val sales = repository.sales(kind, p.refId, now().minusDays(PRICE_HISTORY_DAYS))
+        session.send(CommunityPacket(priceHistory(p.kind, p.refId, sales)))
+      }
+      MarketQueryOp.SALES_HISTORY -> {
+        val sold = repository.soldBy(charId, SALES_HISTORY_ROWS)
+        session.send(
+            CommunityPacket(
+                CommunityBody.SalesHistory(
+                    sold.map { (l, buyer) ->
+                      SaleRecord(
+                          l.id,
+                          if (l.kind == MarketKind.POKEMON) 0 else 1,
+                          (if (l.kind == MarketKind.POKEMON) l.dexId else l.itemId) ?: 0,
+                          l.quantity,
+                          l.price,
+                          l.fee,
+                          buyer,
+                          (l.soldAt ?: l.createdAt).toEpochSecond(ZoneOffset.UTC))
+                    })))
+      }
+      MarketQueryOp.INFO -> sendInfo(session, charId)
+    }
+  }
+
+  /** The market window, opened by talking to a clerk. */
+  suspend fun openFor(session: SessionContext) {
+    val charId = session.attributes[PLAYER_STATE]?.characterId ?: return
+    session.send(CommunityPacket(CommunityBody.MarketOpen))
+    sendInventory(session, charId, partyChanged = false)
+    sendInfo(session, charId)
+  }
+
+  private suspend fun sendInfo(session: SessionContext, charId: Long) {
+    session.send(
+        CommunityPacket(
+            CommunityBody.MarketInfo(
+                config.marketFeePermille,
+                config.marketMinFee,
+                config.marketMaxActive,
+                repository.activeCount(charId),
+                (listingSeconds / 3600).toInt())))
   }
 
   fun onInventory(event: PacketEvent<MarketInventoryRequestPacket>) {
@@ -269,7 +361,10 @@ constructor(
     ensureSweep()
     val reason =
         when {
+          !limiter.tryAcquire(state.userId, RateKind.MARKET) ->
+              "Too many market requests, wait a moment."
           characterStore.getCharacter(charId) == null -> "You are not in the world yet."
+          trades.isTrading(charId) -> "Finish your trade first."
           // A script rolled back later would restore the goods from its snapshot.
           state.inDialog -> "Finish your conversation first."
           battles.byChar(charId) != null -> "You cannot trade during a battle."
@@ -332,6 +427,31 @@ constructor(
         GtlPokemonListing(l.id, l.price, listedAt, expiresAt, 1, mon, stats)
       }
     }
+  }
+
+  private fun priceHistory(
+      kind: Byte,
+      refId: Int,
+      sales: List<MarketSale>
+  ): CommunityBody.PriceHistory {
+    val days =
+        sales
+            .groupBy { it.soldAt.toLocalDate().toEpochDay() }
+            .toSortedMap()
+            .map { (day, list) ->
+              val units = list.map { it.price / it.quantity.coerceAtLeast(1) }
+              val qty = list.sumOf { it.quantity.coerceAtLeast(1) }
+              val total = list.sumOf { it.price.toLong() }
+              PricePoint(day, units.min(), units.max(), (total / qty).toInt(), qty)
+            }
+    val recent =
+        sales.take(RECENT_SALES).map {
+          RecentSale(
+              it.soldAt.toEpochSecond(ZoneOffset.UTC),
+              it.price / it.quantity.coerceAtLeast(1),
+              it.quantity)
+        }
+    return CommunityBody.PriceHistory(kind, refId, days, recent)
   }
 
   private fun describe(l: MarketListing): String =

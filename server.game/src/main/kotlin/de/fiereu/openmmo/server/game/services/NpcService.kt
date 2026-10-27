@@ -9,6 +9,7 @@ import de.fiereu.openmmo.maps.NpcDef
 import de.fiereu.openmmo.net.game.packets.EntityLeavePacket
 import de.fiereu.openmmo.net.game.packets.NpcSpawnPacket
 import de.fiereu.openmmo.net.game.packets.NpcUpdatePacket
+import de.fiereu.openmmo.server.game.services.social.ExtraNpcSource
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -24,6 +25,8 @@ class NpcService
 constructor(
     private val mapManager: MapManager,
     private val characterStore: CharacterStore,
+    // r3-social: server-added npcs (the market clerk in every Pokemon Center).
+    private val extras: ExtraNpcSource = ExtraNpcSource.NONE,
 ) {
 
   private val npcEntityIdCounter = AtomicLong(0x1A69000000000000L)
@@ -57,6 +60,7 @@ constructor(
               mapId,
           ))
     }
+    extras.spawn(ctx, regionId, bankId, mapId)
   }
 
   /** Allocate (or return) the stable entity id for a map npc by its decomp local id. */

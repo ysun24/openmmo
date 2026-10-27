@@ -74,6 +74,8 @@ data class TradeOfferView(
     val mons: List<TradeMonView> = emptyList(),
     val items: List<TradeItemView> = emptyList(),
     val money: Int = 0,
+    /** Monsters offered from the PC (r3-social); [TradeMonView.partySlot] is the PC slot there. */
+    val pcMons: List<TradeMonView> = emptyList(),
 )
 
 /** Where the window is, from the receiver's point of view. */
@@ -103,6 +105,8 @@ data class TradeStatePacket(
     val myStage: TradeStage = TradeStage.NONE,
     val theirStage: TradeStage = TradeStage.NONE,
     val message: String = "",
+    /** Seconds until an unanswered request lapses (REQUEST_* phases), else 0. */
+    val expiresInSeconds: Int = 0,
 )
 
 private object TradeMonViewCodec : Codec<TradeMonView> {
@@ -141,12 +145,13 @@ private val ItemList = TradeItemViewCodec.listPrefixed(U8)
 
 private object TradeOfferViewCodec : Codec<TradeOfferView> {
   override fun read(buf: ReadBuffer): TradeOfferView =
-      TradeOfferView(MonList.read(buf), ItemList.read(buf), S32LE.read(buf))
+      TradeOfferView(MonList.read(buf), ItemList.read(buf), S32LE.read(buf), MonList.read(buf))
 
   override fun write(buf: WriteBuffer, value: TradeOfferView) {
     MonList.write(buf, value.mons)
     ItemList.write(buf, value.items)
     S32LE.write(buf, value.money)
+    MonList.write(buf, value.pcMons)
   }
 }
 
@@ -159,6 +164,7 @@ object TradeStatePacketCodec : PacketCodec<TradeStatePacket>() {
     val myStage = TradeStage.entries[field(U8) { it.myStage.ordinal }]
     val theirStage = TradeStage.entries[field(U8) { it.theirStage.ordinal }]
     val message = field(Utf16LeNullTerminated) { it.message }
-    return TradeStatePacket(phase, partner, mine, theirs, myStage, theirStage, message)
+    val expires = field(S32LE) { it.expiresInSeconds }
+    return TradeStatePacket(phase, partner, mine, theirs, myStage, theirStage, message, expires)
   }
 }
