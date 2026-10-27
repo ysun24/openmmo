@@ -147,7 +147,13 @@ constructor(
   /** Every accepted step: the escape point, day care growth, eggs. */
   fun onStep(session: SessionContext, charId: Long, map: MapDef, x: Int, y: Int) {
     escapeRope.onStep(charId, map, x, y)
+    val eggBefore = eggWaiting(charId)
     val lines = daycare.onStep(charId)
     if (lines.isNotEmpty()) daycare.notifyHatch(session, charId, lines)
+    // The man says nothing until talked to, but the day care view shows the egg.
+    else if (!eggBefore && eggWaiting(charId)) progress.push(session, charId)
   }
+
+  private fun eggWaiting(charId: Long): Boolean =
+      (characters.getCharacter(charId)?.storyVars?.get(ProgressKeys.DAYCARE_EGG) ?: 0) != 0
 }
