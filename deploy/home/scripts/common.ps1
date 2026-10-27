@@ -8,7 +8,8 @@ $ErrorActionPreference = 'Continue'
 $script:Here = $PSScriptRoot
 $script:EnvFile = Join-Path $Here '.env'
 $script:ComposeFile = Join-Path $Here 'compose.yml'
-$script:Project = 'openmmo'
+# Compose project name; the volumes are <project>_login_db etc. Override only for testing.
+$script:Project = if ($env:OPENMMO_PROJECT) { $env:OPENMMO_PROJECT } else { 'openmmo' }
 
 function Write-Step([string]$msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok([string]$msg) { Write-Host "    $msg" -ForegroundColor Green }

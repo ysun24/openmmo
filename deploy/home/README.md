@@ -46,7 +46,7 @@ scp <你的Mac用户名>@<Mac的IP>:Downloads/openmmo-home-*.zip $env:USERPROFIL
    powershell -ExecutionPolicy Bypass -File .\setup.ps1
    ```
 3. 它会问 Pinggy token（输入时不显示，直接回车 = 免费版），再问固定子域名（例如 `mymon.a.pinggy.link`，没有就回车）。
-4. 等几分钟（第一次要导入约 200 MB 的镜像、创建数据库）。最后会打印：
+4. 等几分钟（第一次要导入约 250 MB 的镜像、创建数据库）。最后会打印：
    - 本机地址 `http://127.0.0.1:8080/`
    - 公网地址 `https://....pinggy.link/`
    - 管理员账号 `admin`，密码在 `.env` 文件的 `OPENMMO_ADMIN_PASSWORD`
