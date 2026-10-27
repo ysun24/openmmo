@@ -310,11 +310,12 @@ def has_item(s, name):
         return True
     item = name.replace(' ', '_').replace('.', '')
     for _ in range(3):
-        before = len(s.p.chat_texts())
+        old = list(s.p.state.get("chat") or [])
         s.p.send(t="say", text=f"/script hasitem {item}")
         end = time.time() + 4
         while time.time() < end:
-            hit = [c for c in s.p.chat_texts()[before:] if f"ITEM_{item} x" in c]
+            new = [f'{c["sender"]}: {c["text"]}' for c in _after(old, s.p.state.get("chat") or [])]
+            hit = [c for c in new if f"ITEM_{item} x" in c]
             if hit:
                 return int(hit[-1].rsplit(" x", 1)[1]) > 0
             time.sleep(0.1)
