@@ -28,6 +28,7 @@ constructor(
     private val characterStore: CharacterStore,
     private val scriptRegistry: ScriptRegistry,
     private val scriptRunner: ScriptRunner,
+    private val fieldService: FieldService,
 ) {
 
   /** The player pressed the action button on a specific entity, that is an npc. */
@@ -50,6 +51,8 @@ constructor(
 
     for (npc in currentMap.npcs) {
       if (npcService.getNpcEntityId(regionId, bankId, mapId, npc.entityIdx) == npcEntityId) {
+        // HM obstacles, item balls and trainers first.
+        if (fieldService.onNpcInteract(session, state, currentMap, npc, npcEntityId)) return
         val script = scriptRegistry.forLabel(npc.script)
         if (script != null) {
           runScript(session, state, script, npcEntityId)
@@ -90,9 +93,14 @@ constructor(
         }
     val bgEvent =
         currentMap.bgEvents.find {
-          it.x == facingX && it.y == facingY && facingDirOk(it.facingDir, state.facingDirection)
+          it.x == facingX &&
+              it.y == facingY &&
+              facingDirOk(it.facingDir, state.facingDirection) &&
+              scriptRegistry.forLabel(it.script) != null
         }
     if (bgEvent == null) {
+      // Hidden items, the PC, water and dive spots.
+      if (fieldService.onTileInteract(session, state, currentMap, facingX, facingY)) return
       log.debug { "Tile interaction at ($facingX, $facingY) has no bg event" }
       return
     }

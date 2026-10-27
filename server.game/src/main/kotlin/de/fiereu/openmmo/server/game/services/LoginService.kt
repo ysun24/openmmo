@@ -63,6 +63,7 @@ constructor(
     private val tokenVerifier: SessionTokenVerifier,
     private val worldStateService: WorldStateService,
     private val progressActions: Provider<ProgressActionService>,
+    private val fieldService: FieldService,
 ) {
 
   fun onJoinGame(event: PacketEvent<JoinPacket>) {
@@ -334,6 +335,7 @@ constructor(
 
     // An entry script may fade back out, so it runs after the fade this arrival owns.
     mapManager.getMap(info.positionRegionId, info.positionBankId, info.positionMapId)?.let { map ->
+      fieldService.onMapEnter(ctx, state, map, warped = true)
       mapScriptService.onMapEnter(ctx, state, map)
     }
 

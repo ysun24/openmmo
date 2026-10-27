@@ -62,8 +62,18 @@ constructor(
 
   private val steps = ConcurrentHashMap<Long, StepState>()
 
-  /** Called after a completed step. Starts a wild battle if the tile and roll call for one. */
-  fun onStep(session: SessionContext, charId: Long, map: MapDef, x: Int, y: Int) {
+  /**
+   * Called after a completed step. Starts a wild battle if the tile and roll call for one: land
+   * tables on grass and encounter ground, the water table while [surfing] over water.
+   */
+  fun onStep(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      x: Int,
+      y: Int,
+      surfing: Boolean = false,
+  ) {
     if (battleService.inBattle(charId)) return
     val repelled = tickRepel(session, charId)
     val tile = map.tileAt(x, y) ?: return
@@ -72,29 +82,67 @@ constructor(
     state.prevBehavior = tile.behavior
     val method =
         when {
-          tile.behavior.hasLandEncounters -> EncounterMethod.LAND
-          tile.behavior.isSurfableWater -> EncounterMethod.WATER
+          surfing && tile.behavior.hasWaterEncounters -> EncounterMethod.WATER
+          !surfing && tile.behavior.hasLandEncounters -> EncounterMethod.LAND
           else -> return
         }
-    val table = map.encounterTable(method) ?: return
-    val lead = leadMon(charId) ?: return
-    val kanto = map.regionId.toInt() == Region.KANTO.wireValue.toInt()
-    if (kanto && !cooldownAllows(state, table, lead)) return
+    // The 60% gate when stepping onto a new kind of tile (WildEncounterCheck /
+    // DoWildEncounterRateTest).
     if (prev != tile.behavior && random.nextInt(100) >= 60) return
-    if (!rollsEncounter(table, lead, kanto, state)) {
-      if (kanto)
-          state.encounterRateBuff =
-              if (repelled) 0 else state.encounterRateBuff + table.encounterRate
-      return
+    encounter(session, charId, map, method, repelled, force = false, x, y, tile.behavior)
+  }
+
+  /**
+   * An encounter that is not a step: ROCK SMASH (rock_smash_mons, RockSmashWildEncounter), the
+   * fishing rods (the three fishing tables) and SWEET SCENT ([force]: always meets a monster when
+   * the tile has a table). True when a battle started.
+   */
+  fun encounterNow(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      method: EncounterMethod,
+      force: Boolean,
+      x: Int = -1,
+      y: Int = -1,
+  ): Boolean {
+    if (battleService.inBattle(charId)) return false
+    val behavior = map.tileAt(x, y)?.behavior
+    return encounter(session, charId, map, method, false, force, x, y, behavior)
+  }
+
+  private fun encounter(
+      session: SessionContext,
+      charId: Long,
+      map: MapDef,
+      method: EncounterMethod,
+      repelled: Boolean,
+      force: Boolean,
+      x: Int,
+      y: Int,
+      behavior: TileBehavior?,
+  ): Boolean {
+    val state = steps.getOrPut(charId) { StepState() }
+    val table = map.encounterTable(method) ?: return false
+    val lead = leadMon(charId) ?: return false
+    val kanto = map.regionId.toInt() == Region.KANTO.wireValue.toInt()
+    if (!force) {
+      if (kanto && !cooldownAllows(state, table, lead)) return false
+      if (!rollsEncounter(table, lead, kanto, state)) {
+        if (kanto)
+            state.encounterRateBuff =
+                if (repelled) 0 else state.encounterRateBuff + table.encounterRate
+        return false
+      }
     }
-    val slot = pickSlot(table, lead, kanto) ?: return
+    val slot = pickSlot(table, lead, kanto) ?: return false
     val level = chooseLevel(slot, lead, kanto)
     // The GBA repel: a wild monster below the lead's level does not appear.
-    if (repelled && level < lead.level) return
-    if (!kanto && !abilityAllowsEncounter(lead, level)) return
+    if (repelled && level < lead.level) return false
+    if (!force && !kanto && !abilityAllowsEncounter(lead, level)) return false
     state.stepsSinceLastEncounter = 0
     state.encounterRateBuff = 0
-    val terrain = terrainFor(map, tile.behavior)
+    val terrain = terrainFor(map, behavior)
     log.info {
       "Wild encounter for char=$charId at ($x, $y) [$method/$terrain]: species ${slot.speciesId} level $level"
     }
@@ -104,6 +152,7 @@ constructor(
         level,
         terrain = terrain,
         underwater = map.mapType == MapType.UNDERWATER)
+    return true
   }
 
   /** Forget a player's step state (logout). */
@@ -259,7 +308,7 @@ constructor(
         MapType.UNDERGROUND ->
             return when {
               behavior == TileBehavior.INDOOR_ENCOUNTER -> BattleTerrain.BUILDING
-              behavior?.isSurfableWater == true -> BattleTerrain.POND
+              behavior?.isSurfable == true -> BattleTerrain.POND
               else -> BattleTerrain.CAVE
             }
         MapType.INSIDE,
@@ -268,12 +317,13 @@ constructor(
         else -> Unit
       }
       return when (behavior) {
+        // MetatileBehavior_IsDeepOrOceanWater, then any other surfable water.
+        TileBehavior.WATER,
         TileBehavior.DEEP_WATER -> BattleTerrain.WATER
-        TileBehavior.POND_WATER -> BattleTerrain.POND
         TileBehavior.MOUNTAIN -> BattleTerrain.ROCK
         TileBehavior.CAVE -> BattleTerrain.CAVE
         TileBehavior.ASH_GRASS -> BattleTerrain.GRASS
-        else -> BattleTerrain.PLAIN
+        else -> if (behavior?.isSurfable == true) BattleTerrain.POND else BattleTerrain.PLAIN
       }
     }
   }

@@ -127,6 +127,16 @@ class Exporter(private val decomp: File, private val outDir: File, private val t
 
       val manifest = buildJsonObject {
         put("version", 1)
+        // r3-field: overworld field effect sprites.
+        put("fieldEffects", MapExport.fieldEffects(decomp, out))
+        // r3-field: names of the `<map>.behavior` grid values (TileBehavior ordinals).
+        put(
+            "behaviors",
+            kotlinx.serialization.json.buildJsonArray {
+              de.fiereu.openmmo.common.enums.TileBehavior.entries.forEach {
+                add(kotlinx.serialization.json.JsonPrimitive(it.name))
+              }
+            })
         put(
             "maps",
             buildJsonObject {

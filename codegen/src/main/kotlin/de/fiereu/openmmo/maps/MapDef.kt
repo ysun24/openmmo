@@ -40,7 +40,26 @@ class MapDef(
     val coordScripts: List<MapCoordScript> = emptyList(),
     private val blockData: String = "",
     private val behaviorData: String = "",
+    /** The decomp map directory name, e.g. "PalletTown". */
+    val name: String = "",
+    /** The region map section (MAPSEC_*), what the town map and FLY name it by. */
+    val mapsec: String = "",
+    /** The decomp MAP_TYPE_* constant. */
+    val mapTypeName: String = "",
+    /** Dark until FLASH is used (map header requires_flash). */
+    val requiresFlash: Boolean = false,
+    val allowCycling: Boolean = true,
+    val allowRunning: Boolean = true,
+    /** ESCAPE ROPE and DIG work here (map header allow_escaping). */
+    val allowEscaping: Boolean = false,
+    /** bg_events of type hidden_item. */
+    val hiddenItems: List<HiddenItemDef> = emptyList(),
 ) {
+  /** FLY, the bike and the like work outdoors only (Overworld IsMapTypeOutdoors). */
+  val isOutdoors: Boolean
+    get() =
+        mapTypeName in
+            setOf("MAP_TYPE_ROUTE", "MAP_TYPE_TOWN", "MAP_TYPE_CITY", "MAP_TYPE_OCEAN_ROUTE")
 
   val tiles: List<Tile2D> by lazy { decodeBlockData(blockData, behaviorData) }
 
@@ -87,3 +106,14 @@ private fun decodeBlockData(blockData: String, behaviorData: String): List<Tile2
     )
   }
 }
+
+/** A hidden item (bg_event `hidden_item`): found with A while facing it, once per [flag]. */
+data class HiddenItemDef(
+    val x: Int,
+    val y: Int,
+    /** The decomp ITEM_* constant. */
+    val item: String,
+    /** Namespaced flag set once it is found. */
+    val flag: String,
+    val quantity: Int = 1,
+)

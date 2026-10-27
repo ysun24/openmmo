@@ -28,6 +28,7 @@ import de.fiereu.openmmo.server.game.services.DialogService
 import de.fiereu.openmmo.server.game.services.EncounterService
 import de.fiereu.openmmo.server.game.services.EvolutionService
 import de.fiereu.openmmo.server.game.services.FieldItemService
+import de.fiereu.openmmo.server.game.services.FieldService
 import de.fiereu.openmmo.server.game.services.MapEntryScripts
 import de.fiereu.openmmo.server.game.services.MapLoadService
 import de.fiereu.openmmo.server.game.services.MapScriptService
@@ -66,6 +67,7 @@ fun movementService(
   val entryScripts = MapEntryScripts(ScriptRegistry(emptyMap()), story)
   val runner = scriptRunner(store, mapManager, interest, battles)
   val progress by lazy { progressActions(store, mapManager, runner, battles) }
+  val encounters = EncounterService(store, battles)
   return MovementService(
       WarpService(mapLoad, mapManager, store, presence),
       mapLoad,
@@ -73,10 +75,38 @@ fun movementService(
       presence,
       mapManager,
       store,
-      EncounterService(store, battles),
+      encounters,
       MapScriptService(entryScripts, runner),
       { progress },
+      FieldService(
+          mapManager,
+          store,
+          story,
+          npcs,
+          presence,
+          runner,
+          ItemRegistry(),
+          encounters,
+          SpeciesRegistry()),
   )
+}
+
+/** A real [FieldService] over [store] and [mapManager]. */
+fun fieldService(store: CharacterStore, mapManager: MapManager = MapManager()): FieldService {
+  val interest = InterestManager()
+  val mapLoad = MapLoadService(mapManager)
+  val presence = PresenceService(interest, PassThroughInterestPolicy(), mapLoad, store)
+  val battles = battleService(store, interest)
+  return FieldService(
+      mapManager,
+      store,
+      StoryService(store),
+      NpcService(mapManager, store),
+      presence,
+      scriptRunner(store, mapManager, interest, battles),
+      ItemRegistry(),
+      EncounterService(store, battles),
+      SpeciesRegistry())
 }
 
 /**

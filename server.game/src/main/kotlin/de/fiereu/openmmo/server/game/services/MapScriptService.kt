@@ -49,7 +49,7 @@ constructor(
   ): Boolean {
     if (state.inDialog) return false
     val charId = state.characterId ?: return false
-    val script = entryScripts.atCoordinate(charId, map, x, y) ?: return false
+    val script = entryScripts.atCoordinate(charId, map, x, y, state.elevation) ?: return false
     scriptRunner.run(session, state, script, entityId = -1)
     return true
   }

@@ -130,6 +130,7 @@ constructor(
     private val scriptRunner: ScriptRunner,
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
+    private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
     scope: CoroutineScope,
 ) : CoroutineProtocolHandler<GameProtocol>(GameProtocol, Side.SERVER, scope) {
 
@@ -146,6 +147,9 @@ constructor(
 
     onSuspend<EntityInteractPacket> { event -> interactionService.onEntityInteract(event) }
     onSuspend<TileInteractPacket> { event -> interactionService.onTileInteract(event) }
+    onSuspend<de.fiereu.openmmo.net.game.packets.field.FieldActionPacket> { event ->
+      fieldService.onAction(event)
+    }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
     onSuspend<ExchangeItemRequestPacket> { event -> shopService.onBuy(event) }

@@ -14,6 +14,8 @@ import de.fiereu.openmmo.common.MonStatus
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.net.game.packets.battle.DuelRules
+import de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferView
 import de.fiereu.openmmo.net.game.packets.trade.TradePhase
@@ -85,6 +87,7 @@ class StateJson(private val names: Names) {
             .forEach { add(entity(it, it.id in s.moving)) }
       }
       put("ackSeq", s.ackSeq)
+      w.field?.let { put("field", field(it, w.map)) }
     }
   }
 
@@ -110,6 +113,33 @@ class StateJson(private val names: Names) {
       put("region", e.map.regionId)
       put("bank", e.map.bankId)
       put("map", e.map.mapId)
+    }
+    // r3-field, only when not the default: travel mode, running, ledge-hop / trainer "!" counters.
+    if (e.travel != TravelMode.WALK) put("mode", e.travel.name.lowercase())
+    if (e.running) put("run", true)
+    if (e.jumpSeq > 0) put("jump", e.jumpSeq)
+    if (e.exclaimSeq > 0) put("exclaim", e.exclaimSeq)
+  }
+
+  /** The player's own field state (r3-field): world.field. */
+  fun field(f: FieldInfoPacket, map: MapKey?) = buildJsonObject {
+    put("dark", f.dark)
+    put("flash", f.flash)
+    put("canRun", f.flags and FieldInfoPacket.FLAG_CAN_RUN != 0)
+    put("canBike", f.flags and FieldInfoPacket.FLAG_CAN_BIKE != 0)
+    put("hasBike", f.flags and FieldInfoPacket.FLAG_HAS_BIKE != 0)
+    put("strength", f.flags and FieldInfoPacket.FLAG_STRENGTH != 0)
+    put("canEscape", f.flags and FieldInfoPacket.FLAG_CAN_ESCAPE != 0)
+    putJsonArray("moves") { f.moves.forEach { add(it.name.lowercase().replace("_", "")) } }
+    putJsonArray("fly") {
+      val region = map?.regionId ?: 0
+      f.fly.forEach {
+        addJsonObject {
+          put("bank", it.bank)
+          put("map", it.map)
+          put("name", names.mapName(MapKey(region, it.bank, it.map)))
+        }
+      }
     }
   }
 
@@ -175,6 +205,20 @@ class StateJson(private val names: Names) {
       put("bag", bagJson(bag, s.party))
       put("registered", s.progress?.registeredItem?.toInt()?.takeIf { it != 0 })
       put("locked", v != null && (v.transitioning || v.scriptLocked || v.inScript))
+      // r3-field: a UI the server asks to open (the PC tile, the FLY map). `seq` grows per request.
+      val f = s.world.field
+      if (f != null && f.uiKind != 0)
+          putJsonObject("open") {
+            put("seq", f.uiSeq)
+            put(
+                "kind",
+                when (f.uiKind) {
+                  1 -> "pc"
+                  2 -> "pcItems"
+                  3 -> "fly"
+                  else -> "unknown"
+                })
+          }
       val n = v?.notice
       put(
           "notice",

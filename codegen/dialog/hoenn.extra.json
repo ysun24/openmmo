@@ -1,0 +1,16 @@
+{
+  "region": "hoenn",
+  "note": "Decomp-only lines (src/strings.c) that DialogService sends for the starter picker; ids are the ones DialogService.HOENN_STARTER_PICK_TEXT / HOENN_STARTER_CONFIRM_TEXT use (r3-field).",
+  "lines": [
+    {
+      "label": "gText_BirchInTrouble",
+      "id": 274631763,
+      "text": "PROF. BIRCH is in trouble!\\nRelease a POKéMON and rescue him!$"
+    },
+    {
+      "label": "gText_ConfirmStarterChoice",
+      "id": 274631824,
+      "text": "Do you choose this POKéMON?$"
+    }
+  ]
+}

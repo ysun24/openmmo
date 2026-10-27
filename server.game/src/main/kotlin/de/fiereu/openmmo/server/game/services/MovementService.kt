@@ -11,6 +11,9 @@ import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
 import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
 import de.fiereu.openmmo.net.game.packets.MapData
 import de.fiereu.openmmo.net.game.packets.MovementPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
+import de.fiereu.openmmo.server.game.field.FieldRules
+import de.fiereu.openmmo.server.game.field.StepOutcome
 import de.fiereu.openmmo.server.game.progression.ProgressActionService
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.storage.CharacterStore
@@ -20,6 +23,10 @@ import javax.inject.Provider
 import javax.inject.Singleton
 
 private val log = KotlinLogging.logger {}
+
+/** GbaEntityMovePacket.movementMode: an ordinary step, and a ledge hop (ours, for observers). */
+internal const val MOVE_MODE_WALK = 2
+internal const val MOVE_MODE_JUMP = 6
 
 /** Resolve a cardinal Gen-3 ledge hop to its tile two spaces away. */
 internal fun ledgeLanding(
@@ -61,6 +68,7 @@ constructor(
     private val encounterService: EncounterService,
     private val mapScriptService: MapScriptService,
     private val progressActions: Provider<ProgressActionService>,
+    private val fieldService: FieldService,
 ) {
 
   /** One step. The client sends the tile it left and the direction, the server derives the rest. */
@@ -115,15 +123,6 @@ constructor(
     // Only once the step is accepted, so a locked player keeps the facing its script left.
     state.facingDirection = msg.direction
 
-    var toX = fromX + msg.direction.dx
-    var toY = fromY + msg.direction.dy
-
-    // Ledge hops land two tiles away.
-    ledgeLanding(currentMap, fromX, fromY, msg.direction)?.let { landing ->
-      toX = landing.first
-      toY = landing.second
-    }
-
     // Stairs and arrow warps fire from the tile the player stands on.
     val standingBehavior = currentMap.tileAt(fromX, fromY)?.behavior
     if (standingBehavior?.warpsWhenWalking == msg.direction) {
@@ -134,8 +133,11 @@ constructor(
       }
     }
 
+    val nextX = fromX + msg.direction.dx
+    val nextY = fromY + msg.direction.dy
+
     // Walking off the edge of a map hands the player to the neighbouring map, if there is one.
-    if (toX !in 0 until currentMap.width || toY !in 0 until currentMap.height) {
+    if (nextX !in 0 until currentMap.width || nextY !in 0 until currentMap.height) {
       val connection = currentMap.connections.find { it.direction == msg.direction }
       // Connections stay inside one region.
       val targetMap =
@@ -158,45 +160,116 @@ constructor(
             Direction.DOWN -> 0
             else -> (fromY - connection.unknown).coerceIn(0, targetMap.height - 1)
           }
+      // The elevation rule holds across a connection too: land cannot walk onto the next map's
+      // sea, and a surfer cannot paddle onto its land.
+      val entryTile = targetMap.tileAt(entryX, entryY)
+      if (entryTile != null) {
+        if (entryTile.blocksMovement() ||
+            FieldRules.elevationMismatch(state.elevation, entryTile.elevation)) {
+          sendPositionReset(ctx, charId, currentMap, fromX, fromY, msg.direction)
+          return
+        }
+        state.elevation =
+            FieldRules.elevationAfter(
+                state.elevation,
+                currentMap.tileAt(fromX, fromY)?.elevation ?: state.elevation,
+                entryTile.elevation)
+      }
       edgeTransition(ctx, charId, currentMap.regionId, connection, entryX.toByte(), entryY.toByte())
       return
     }
 
     // A door only warps when walked into from below, a ladder warps on the step itself.
-    val targetBehavior = currentMap.tileAt(toX, toY)?.behavior
+    val targetBehavior = currentMap.tileAt(nextX, nextY)?.behavior
     val stepsIntoWarp =
         when (targetBehavior) {
           TileBehavior.DOOR -> msg.direction == Direction.UP
           else -> targetBehavior?.warpsOnStep == true
         }
-    val warp = if (!stepsIntoWarp) null else currentMap.warps.find { w -> w.x == toX && w.y == toY }
+    val warp =
+        if (!stepsIntoWarp) null else currentMap.warps.find { w -> w.x == nextX && w.y == nextY }
     if (warp != null) {
-      log.info { "WARP at ($toX, $toY) facing ${msg.direction}" }
+      log.info { "WARP at ($nextX, $nextY) facing ${msg.direction}" }
       warpService.executeWarp(ctx, charId, warp)
       return
     }
 
-    if (!isWalkable(currentMap, toX, toY)) {
-      log.debug { "WALL: char=$charId blocked at ($toX, $toY)" }
-      sendPositionReset(ctx, charId, currentMap, fromX, fromY, msg.direction)
-      return
-    }
+    // The Gen 3 step rules: collision, elevation, ledges, surfing, boulders, bike terrain.
+    val outcome =
+        FieldRules.step(
+            currentMap,
+            fromX,
+            fromY,
+            msg.direction,
+            state.elevation,
+            state.travel,
+            strength = state.strength,
+        ) { x, y ->
+          fieldService.obstacleAt(state, currentMap, x, y)
+        }
+    val (toX, toY) =
+        when (outcome) {
+          is StepOutcome.Walk -> {
+            state.elevation = outcome.elevation
+            outcome.x to outcome.y
+          }
+          is StepOutcome.Jump -> {
+            state.elevation = outcome.elevation
+            outcome.x to outcome.y
+          }
+          is StepOutcome.StopSurf -> {
+            state.elevation = outcome.elevation
+            outcome.x to outcome.y
+          }
+          is StepOutcome.PushBoulder -> {
+            fieldService.pushBoulder(
+                ctx, state, currentMap, outcome.localId, outcome.toX, outcome.toY)
+            // The player pushes in place.
+            sendPositionReset(ctx, charId, currentMap, fromX, fromY, msg.direction)
+            return
+          }
+          StepOutcome.Blocked -> {
+            log.debug { "WALL: char=$charId blocked at ($nextX, $nextY)" }
+            sendPositionReset(ctx, charId, currentMap, fromX, fromY, msg.direction)
+            return
+          }
+        }
 
     characterStore.updatePosition(charId, toX.toShort(), toY.toShort(), facing = msg.direction)
     state.x = toX.toShort()
     state.y = toY.toShort()
     // r3-items: day care steps, egg hatching, the Escape Rope's outdoor point.
     progressActions.get().onStep(ctx, charId, currentMap, toX, toY)
+    if (outcome is StepOutcome.StopSurf) fieldService.stopSurf(ctx, state)
+    // A ledge hop lands two tiles away: tell the client where, so a client that only predicts one
+    // tile (the headless gateway client) does not desync.
+    if (outcome is StepOutcome.Jump)
+        ctx.send(gbaMovePacket(charId, currentMap, toX, toY, msg.direction, MOVE_MODE_JUMP))
+    fieldService.onStepDone(ctx, state, currentMap, msg.running)
 
-    // The client already walked itself there, so only the observers need telling.
+    // The client already walked itself there, so only the observers need telling. A ledge hop is
+    // movement mode 6 so they animate the jump.
     presenceService.broadcastToObservers(
         ctx,
-        gbaMovePacket(charId, currentMap, toX, toY, msg.direction),
+        gbaMovePacket(
+            charId,
+            currentMap,
+            toX,
+            toY,
+            msg.direction,
+            if (outcome is StepOutcome.Jump) MOVE_MODE_JUMP else MOVE_MODE_WALK),
     )
 
-    // Story coordinate events take precedence over random encounters on the same step.
-    if (!mapScriptService.onStep(ctx, state, currentMap, toX, toY)) {
-      encounterService.onStep(ctx, charId, currentMap, toX, toY)
+    // Story coordinate events take precedence over trainers, trainers over random encounters.
+    if (!mapScriptService.onStep(ctx, state, currentMap, toX, toY) &&
+        !fieldService.checkTrainerSight(ctx, state, currentMap, toX, toY)) {
+      encounterService.onStep(
+          ctx,
+          charId,
+          currentMap,
+          toX,
+          toY,
+          surfing = state.travel == TravelMode.SURF || state.travel == TravelMode.UNDERWATER)
     }
   }
 
@@ -218,6 +291,7 @@ constructor(
       x: Int,
       y: Int,
       direction: Direction,
+      movementMode: Int = MOVE_MODE_WALK,
   ): GbaEntityMovePacket =
       GbaEntityMovePacket(
           entityId = charId,
@@ -225,7 +299,7 @@ constructor(
           mapId = map.mapId.toInt() and 0xff,
           x = x,
           y = y,
-          movementMode = 2,
+          movementMode = movementMode,
           direction = direction,
       )
 
@@ -264,12 +338,6 @@ constructor(
     )
   }
 
-  private fun isWalkable(map: MapDef, x: Int, y: Int): Boolean {
-    if (x !in 0 until map.width || y !in 0 until map.height) return false
-    val tile = map.tileAt(x, y) ?: return true
-    return !tile.blocksMovement()
-  }
-
   private fun edgeTransition(
       ctx: SessionContext,
       charId: Long,
@@ -302,7 +370,10 @@ constructor(
     mapLoadService.preloadConnectedMaps(ctx, map, depth = 1)
     npcService.spawnNpcsForMap(ctx, targetBank.toInt(), targetMap.toInt(), regionId.toInt())
 
-    if (state != null) mapScriptService.onMapEnter(ctx, state, map)
+    if (state != null) {
+      fieldService.onMapEnter(ctx, state, map, warped = false)
+      mapScriptService.onMapEnter(ctx, state, map)
+    }
 
     log.info { "Player $charId edge-transitioned to bank=$targetBank map=$targetMap" }
   }

@@ -53,4 +53,17 @@ interface ChatCommandModule {
   @Binds @IntoSet fun warpCommand(command: WarpCommand): ChatCommand
 
   @Binds @IntoSet fun setStatusCommand(command: SetStatusCommand): ChatCommand
+
+  // r3-field
+  @Binds
+  @IntoSet
+  fun fieldDevCommand(
+      command: de.fiereu.openmmo.server.game.services.command.FieldDevCommand
+  ): ChatCommand
+
+  @Binds
+  @IntoSet
+  fun fieldTpCommand(
+      command: de.fiereu.openmmo.server.game.services.command.FieldTpCommand
+  ): ChatCommand
 }

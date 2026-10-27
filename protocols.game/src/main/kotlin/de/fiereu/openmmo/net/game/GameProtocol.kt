@@ -634,5 +634,12 @@ object GameProtocol : Protocol() {
     s2c<BattleExtPacket>(0xE6u, BattleExtPacketCodec)
     c2s<BattleExtActionPacket>(0xF0u, BattleExtActionPacketCodec)
     c2s<EvolutionReplyPacket>(0xF2u, EvolutionReplyPacketCodec)
+    // r3-field: field moves and travel modes (packets/field). c2s 0xF4, s2c 0xE8/0xE9 were free.
+    c2s<de.fiereu.openmmo.net.game.packets.field.FieldActionPacket>(
+        0xF4u, de.fiereu.openmmo.net.game.packets.field.FieldActionPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacket>(
+        0xE8u, de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacketCodec)
+    s2c<de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket>(
+        0xE9u, de.fiereu.openmmo.net.game.packets.field.FieldInfoPacketCodec)
   }
 }

@@ -17,6 +17,24 @@ class ExportTest {
   private val decomp = File(System.getProperty("decomp.root") ?: "../../decomp")
 
   @Test
+  fun behaviourGridsMatchTheServerClassification() {
+    val maps = MapExport(decomp, Output(createTempDir()))
+    val route1 = maps.collect(0, GbaGame.FIRERED).first { it.key == "0:3:19" }
+    val beh = maps.behaviors(GbaGame.FIRERED, route1.layout)
+    val names = de.fiereu.openmmo.common.enums.TileBehavior.entries
+    fun at(x: Int, y: Int) = names[beh[y * route1.layout.width + x].toInt()]
+    // Route 1's first south ledge row, and its tall grass.
+    assertEquals(de.fiereu.openmmo.common.enums.TileBehavior.JUMP_SOUTH, at(4, 5))
+    assertEquals(de.fiereu.openmmo.common.enums.TileBehavior.TALL_GRASS, at(12, 6))
+    val pallet = maps.collect(0, GbaGame.FIRERED).first { it.key == "0:3:0" }
+    val pb = maps.behaviors(GbaGame.FIRERED, pallet.layout)
+    // Pallet Town's pond is surfable water.
+    assertEquals(
+        de.fiereu.openmmo.common.enums.TileBehavior.WATER,
+        names[pb[18 * pallet.layout.width + 9].toInt()])
+  }
+
+  @Test
   fun palletTownLayoutConnectionsAndCollision() {
     val maps = MapExport(decomp, Output(createTempDir()))
     val pallet = maps.collect(0, GbaGame.FIRERED).first { it.key == "0:3:0" }

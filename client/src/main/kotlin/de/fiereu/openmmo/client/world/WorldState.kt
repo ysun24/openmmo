@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.client.world
 
 import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket
+import de.fiereu.openmmo.net.game.packets.field.TravelMode
 
 /** Map coordinates the server addresses everything by. Region 0 is Kanto, 1 is Hoenn. */
 data class MapKey(val regionId: Int, val bankId: Int, val mapId: Int)
@@ -16,6 +18,13 @@ data class Entity(
     /** Decomp OBJ_EVENT_GFX_* id for npcs, -1 for players (drawn with the player sprite). */
     val graphicsId: Int = -1,
     val visible: Boolean = true,
+    /** How it travels: a [de.fiereu.openmmo.net.game.packets.field.TravelMode]. */
+    val travel: TravelMode = TravelMode.WALK,
+    val running: Boolean = false,
+    /** Grows by one per ledge hop the server reported (movement mode 6). */
+    val jumpSeq: Int = 0,
+    /** Grows by one per trainer "!" over this entity. */
+    val exclaimSeq: Int = 0,
 )
 
 data class ChatLine(val sender: String, val message: String)
@@ -35,6 +44,8 @@ class WorldState {
       val chat: List<ChatLine>,
       val inWorld: Boolean,
       val overworld: OverworldState.View? = null,
+      /** The server's last FieldInfoPacket: dark map, flash, usable field moves, FLY towns. */
+      val field: FieldInfoPacket? = null,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -64,8 +75,13 @@ class WorldState {
             entities.toMap(),
             chat.toList(),
             inWorld,
-            overworld.view())
+            overworld.view(),
+            field)
       }
+
+  private var field: FieldInfoPacket? = null
+
+  fun setField(info: FieldInfoPacket) = synchronized(lock) { field = info }
 
   fun selectCharacter(id: Long, name: String) =
       synchronized(lock) {
