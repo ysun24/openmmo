@@ -125,8 +125,11 @@ the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sect
 - `r5c_e2e.py --only contest,blender,berry` **ALL OK** (two players + two NPCs in one contest, the
   interpreter-run blender and berry tree), `--only feebas,link` **ALL OK** (Feebas → Milotic, two players at
   the link blender).
-- `frontier_e2e.py`: **ALL OK** (every desk, link multi). Reruns with a character whose party the e2e
-  trade had emptied lost a Tower battle (the driver fights with the first move); a fresh character passes.
+- `frontier_e2e.py`: **ALL OK** on the merged build (every desk and the link multi). On the final build a
+  fresh character passed Tower, Factory, Palace, Arena, Dome and Pike in one run, then the Battle Pyramid
+  hit the driver's battle-result timeout (a long wild battle); a second run `--only
+  pyramid,ttower,hill,tents,exchange,multi` was **ALL OK**. Runs with the e2e accounts lose Tower battles
+  because e2e.py trades their strong monsters away (the driver fights with the first move).
 - `story.py`: Kanto **ALL OK** (10 scenes, one run); Hoenn **ALL OK** (7 scenes, one run).
 - Browser regression (desktop 960×640 and Pixel 7, every shot looked at), `docs/reports/r5-integration/`:
   `d-k1-newgame` / `m-k1-newgame` (a new Kanto game), `d-k2-oaklab` / `d-k3-starter-scene` (Oak's Lab starter
