@@ -137,7 +137,7 @@ def run_contest(a, b):
     tb.join(400)
     assert a.label in results and b.label in results, results
     you_a, win_a, names = results[a.label]
-    humans = [n for n, _ in names if n in ("Ash", "Gary")]
+    humans = [n for n, _ in names if n in (a.label, b.label)]
     assert len(humans) == 2, f"both players in one contest: {names}"
     ok(f"two players and {4 - len(humans)} NPCs in one contest: {names}")
     assert you_a == win_a, f"Ash won: {names}"
