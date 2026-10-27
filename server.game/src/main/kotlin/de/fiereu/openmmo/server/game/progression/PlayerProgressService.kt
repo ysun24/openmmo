@@ -66,9 +66,15 @@ constructor(
 
   fun daycareMode(charId: Long): Int = daycareOpen[charId] ?: 0
 
-  fun openDecorShop(charId: Long, stock: List<Int>) {
+  fun openDecorShop(charId: Long, stock: List<Int>, clerkEntityId: Long = -1) {
     decorShops[charId] = stock
+    decorClerks[charId] = clerkEntityId
   }
+
+  /** The npc who opened the decoration shop, for its "Please come again!". */
+  fun decorClerk(charId: Long): Long = decorClerks[charId] ?: -1
+
+  private val decorClerks = ConcurrentHashMap<Long, Long>()
 
   fun decorShop(charId: Long): List<Int>? = decorShops[charId]
 

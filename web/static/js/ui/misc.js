@@ -64,7 +64,7 @@ function renderParty(state) {
   rerender(p.body, () => [
     useItem ? h('p.muted', useItem.desc || '') : null,
     h('div.list', party.length ? party.map((m, i) => h('div.item.mon', { 'data-mon': m.id },
-      monImg(m.dex),
+      m.egg ? h('span.ic.ph.egg', 'EGG') : monImg(m.dex),
       h('span.nm', m.nick ? `${m.nick} (${m.name})` : m.name, m.status ? h('span.status', { 'data-s': m.status }, m.status) : null,
         h('small', m.egg ? 'EGG' : `Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.hp <= 0 ? ' · FNT' : ''}`), m.egg ? null : hpBar(m.hp, m.maxHp)),
       h('span.act', useItem

@@ -30,6 +30,8 @@ export function update(state, changed) {
     if (k === 'dex' && panels.isOpen('dexentry')) renderEntry();
     if ((k === 'trainer' || k === 'dex') && panels.isOpen('card')) renderCard();
     if ((k === 'decor') && panels.isOpen('decorpc')) renderDecorPc();
+    // Money and stock counts change under an open decoration shop.
+    if ((k === 'ui' || k === 'decor') && panels.isOpen('decorshop')) renderDecorShop();
     if (k === 'party' && panels.isOpen('movepick')) renderMovePick();
   }
   syncDaycare(state.daycare);

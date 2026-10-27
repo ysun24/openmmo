@@ -197,7 +197,9 @@ internal constructor(
    */
   fun decorationShop(label: String) {
     val charId = state.characterId ?: return
-    checkNotNull(progress) { "Progress service is unavailable" }.decorations.open(charId, label)
+    checkNotNull(progress) { "Progress service is unavailable" }
+        .decorations
+        .open(charId, label, entityId)
   }
 
   /** Run a non-catchable, non-escapable story battle and wait for its result. */

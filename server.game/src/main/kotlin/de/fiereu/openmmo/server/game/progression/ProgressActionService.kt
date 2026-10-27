@@ -108,11 +108,12 @@ constructor(
   private fun shopClosed(session: SessionContext, charId: Long) {
     val state = session.attributes[PLAYER_STATE] ?: return
     val mart = session.attributes.remove(OPEN_SHOP)
+    val clerk = progress.decorClerk(charId)
     val decor = progress.closeDecorShop(charId)
     if (mart == null && !decor) return
     if (decor) progress.push(session, charId)
     if (state.inDialog) return
-    scriptRunner.run(session, state, PleaseComeAgain, mart?.npcEntityId ?: -1)
+    scriptRunner.run(session, state, PleaseComeAgain, mart?.npcEntityId ?: clerk)
   }
 
   private fun sendMoney(session: SessionContext, charId: Long) {

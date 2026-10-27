@@ -25,9 +25,9 @@ constructor(
     private val progress: PlayerProgressService,
 ) {
   /** Opens a decoration shop on the decomp stock list [label]. False if the label is unknown. */
-  fun open(charId: Long, label: String): Boolean {
+  fun open(charId: Long, label: String, clerkEntityId: Long = -1): Boolean {
     val stock = Gen3Data.decorStocks[label] ?: return false
-    progress.openDecorShop(charId, stock)
+    progress.openDecorShop(charId, stock, clerkEntityId)
     progress.push(charId)
     return true
   }
