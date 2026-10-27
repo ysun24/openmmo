@@ -4,6 +4,7 @@
 // surfing, boulders, bike terrain, directional walls (PROTOCOL.md "r3-field").
 import { assets, connOrigin } from './assets.js';
 import { Acro, ACRO_STEP, JUMP_Y, HOP_MS, acroAllows, isRail } from './acro.js';
+import { overlay as sbOverlay, blocks as sbBlocks } from './secretbase.js';
 
 export const STEP_WALK = 250;
 export const STEP_RUN = 125;
@@ -120,6 +121,8 @@ export class World {
     if (!w) return;
     this.selfId = w.self;
     this.field = w.field || null;
+    // r4: the secret base state (open entrances outside, decorations inside).
+    this.secretBase = w.secretBase || null;
     const newKey = keyOf(w.map);
     if (newKey !== this.mapKey) this.changeMap(newKey, w.map, now);
     this.map = w.map;
@@ -356,7 +359,19 @@ export class World {
     const c = res.col[i];
     const beh = behOf(res);
     const names = assets.manifest && assets.manifest.behaviors;
-    return { col: c & 1, z: c >> 4, beh: beh && names ? names[beh[i]] || 'NORMAL' : 'NORMAL' };
+    // r4: a secret base's decorations change the collision (ShowDecorationOnMap_)
+    const dec = res === r && this.secretBase ? sbBlocks(this, lx, ly) : undefined;
+    const col = dec === undefined ? c & 1 : dec ? 1 : 0;
+    return { col, z: c >> 4, beh: beh && names ? names[beh[i]] || 'NORMAL' : 'NORMAL' };
+  }
+
+  /** Doll / cushion decorations of the base the player is in, as drawable objects. */
+  decorSprites() {
+    const o = this.secretBase ? sbOverlay(this) : null;
+    if (!o || !o.sprites.length) return [];
+    if (o._ents) return o._ents;
+    o._ents = o.sprites.map((s, i) => Object.assign(newMover(), { id: 'decor' + i, kind: 'npc', gfx: s.gfx, x: s.x, y: s.y, fx: s.x, fy: s.y, px: s.x * 16, py: s.y * 16 }));
+    return o._ents;
   }
 
   /** The behaviour name of a world tile ('NORMAL' when unknown). */
@@ -527,6 +542,7 @@ export class World {
     dl.length = 0;
     for (const e of this.ents.values()) dl.push(e);
     for (const o of this.dying) dl.push(o);
+    for (const o of this.decorSprites()) dl.push(o);
     if (this.hasSelf) dl.push(me);
     dl.sort(byY);
   }

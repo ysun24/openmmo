@@ -15,6 +15,7 @@ import * as market from './ui/market.js';
 import * as misc from './ui/misc.js';
 import * as progress from './ui/progress.js';
 import * as field from './ui/field.js';
+import * as sbui from './ui/secretbase.js';
 import * as social from './ui/social.js';
 import * as typer from './ui/typewriter.js';
 import { music } from './audio.js';
@@ -111,7 +112,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social, sbui];
 UIS.forEach((u) => u.init(app));
 typer.init();
 
@@ -485,7 +486,7 @@ function stateSounds(state, changed) {
 // ------------------------------------------------------------------ input routing
 function canMove() {
   const s = net.state;
-  return inGame && !panels.any() && !dialog.isOpen() && !battle.isOpen() && !(s.ui && (s.ui.locked || s.ui.shop))
+  return inGame && !sbui.placing() && !panels.any() && !dialog.isOpen() && !battle.isOpen() && !(s.ui && (s.ui.locked || s.ui.shop))
     && !(document.activeElement && document.activeElement.id === 'chat-input');
 }
 
@@ -511,6 +512,8 @@ function onPress(btn, repeat = false) {
   }
   const isDir = DIRS.includes(btn);
   if (repeat && !isDir) return;
+  // r4: the secret base decoration cursor takes the buttons
+  if (sbui.placing() && !panels.any() && !dialog.isOpen()) return void sbui.onPress(btn);
   const top = panels.top();
   if (top) {
     // The shop's B steps back out of the quantity picker before it closes the shop.

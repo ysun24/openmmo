@@ -34,3 +34,28 @@ class AcroTrickPacketsTest :
         FieldActionPacketCodec.decodeBytes(FieldActionPacketCodec.encodeToBytes(p)) shouldBe p
       }
     })
+
+/** r4: the secret base packets round-trip. */
+class SecretBasePacketsTest :
+    FunSpec({
+      test("state and action round-trip") {
+        val s =
+            de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket(
+                inside = 2,
+                owner = "May",
+                baseId = 131,
+                decorations =
+                    listOf(de.fiereu.openmmo.net.game.packets.field.PlacedDecoration(3, 2, 4)),
+                openSpots = listOf(24 to 36),
+                uiSeq = 7,
+                uiKind = 1,
+                myBaseId = 12)
+        val c = de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacketCodec
+        c.decodeBytes(c.encodeToBytes(s)) shouldBe s
+        val a =
+            de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacket(
+                de.fiereu.openmmo.net.game.packets.field.SecretBaseAction.PLACE, 76, 3, 3)
+        val ac = de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacketCodec
+        ac.decodeBytes(ac.encodeToBytes(a)) shouldBe a
+      }
+    })

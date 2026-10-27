@@ -18,6 +18,10 @@ interface GameActions : SocialActions {
   /** A field move / item: [action] is a lower-case FieldAction name without underscores. */
   fun field(action: String, arg: Int, arg2: Int): String? = "field moves are not supported"
 
+  /** r4: a secret base PC action (place / putaway / packup / close). */
+  fun secretBase(action: String, decor: Int, x: Int, y: Int): String? =
+      "secret bases are not supported"
+
   fun step(dir: Direction, run: Boolean, seq: Int): String?
 
   /** A step the browser predicted as a ledge hop (lands two tiles away). */
@@ -350,6 +354,16 @@ object Dispatcher {
         "decor.close" -> g.decorClose()
         "progress.refresh" -> g.progressRefresh()
         // r3-field: a field move or field item (PROTOCOL.md "r3-field").
+        "secretbase" -> {
+          val action = m.string("action")
+          if (action !in SECRET_BASE_ACTIONS) "unknown secret base action: $action"
+          else
+              g.secretBase(
+                  action,
+                  (m.int("decor") ?: 0).coerceIn(0, 255),
+                  (m.int("x") ?: 0).coerceIn(0, 255),
+                  (m.int("y") ?: 0).coerceIn(0, 255))
+        }
         "field" -> {
           val action = m.string("action")
           if (action !in FIELD_ACTIONS) "unknown field action: $action"
@@ -361,6 +375,12 @@ object Dispatcher {
         }
         else -> "unknown message type: $t"
       }
+
+  /** `secretbase.action` values, the SecretBaseAction names in lower case without "_". */
+  val SECRET_BASE_ACTIONS =
+      de.fiereu.openmmo.net.game.packets.field.SecretBaseAction.entries
+          .map { it.name.lowercase().replace("_", "") }
+          .toSet()
 
   /** `field.action` values, the FieldAction names in lower case. */
   val FIELD_ACTIONS =

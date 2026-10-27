@@ -40,6 +40,8 @@ data class PlayerState(
         de.fiereu.openmmo.net.game.packets.field.AcroTrick.NONE,
     /** The last step's running flag, for observers' animation. */
     @field:Volatile var running: Boolean = false,
+    /** r4: whose secret base the player is in (character id), null outside a base. */
+    @field:Volatile var secretBaseOwner: Long? = null,
     /** FLASH lit this map (FLAG_SYS_USE_FLASH, cleared on map change). */
     @field:Volatile var flash: Boolean = false,
     /** STRENGTH is active (FLAG_SYS_USE_STRENGTH, cleared on map change). */

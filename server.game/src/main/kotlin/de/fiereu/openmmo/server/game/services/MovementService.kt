@@ -81,12 +81,14 @@ constructor(
     log.debug { "Movement: char=$charId from (${msg.x}, ${msg.y}) dir=${msg.direction}" }
 
     val stored = characterStore.getCharacter(charId) ?: return
-    val currentMap =
+    val rawMap =
         mapManager.getMap(
             stored.info.positionRegionId,
             stored.info.positionBankId,
             stored.info.positionMapId,
         ) ?: return
+    // r4: inside a secret base the owner's decorations are part of the map.
+    val currentMap = fieldService.secretBases?.get()?.stepMap(state, rawMap) ?: rawMap
     var fromX = stored.info.positionX.toInt()
     var fromY = stored.info.positionY.toInt()
     if (state.acceptNextMoveSource &&

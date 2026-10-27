@@ -66,7 +66,11 @@ constructor(
                 FieldMoves.DIVE,
                 FieldMoves.TELEPORT,
                 FieldMoves.DIG,
-                FieldMoves.SWEET_SCENT)
+                FieldMoves.SWEET_SCENT) +
+                // r4: Emerald's SECRET POWER (the secret bases), a TM field move
+                (if (region == Region.HOENN)
+                    listOf(de.fiereu.openmmo.server.game.services.SecretBaseService.SECRET_POWER)
+                else emptyList())
         else
             ctx.args.mapNotNull { a ->
               FieldMoves.moveOf.entries

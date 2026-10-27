@@ -11,6 +11,7 @@ dependencies {
   implementation(project(":client"))
   // TileBehavior and the shared metatile classification (r3-field behaviour grids).
   implementation(project(":common"))
+  implementation(project(":codegen"))
   implementation(libs.kotlinx.serialization.json)
 }
 

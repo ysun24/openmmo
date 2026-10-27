@@ -97,8 +97,48 @@ class StateJson(private val names: Names) {
       }
       put("ackSeq", s.ackSeq)
       w.field?.let { put("field", field(it, w.map)) }
+      w.secretBase?.let { put("secretBase", secretBase(it)) }
     }
   }
+
+  /** r4: world.secretBase (PROTOCOL.md section 11). */
+  fun secretBase(p: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket) =
+      buildJsonObject {
+        put(
+            "inside",
+            when (p.inside) {
+              1 -> "own"
+              2 -> "visiting"
+              else -> "none"
+            })
+        if (p.owner.isNotEmpty()) put("owner", p.owner)
+        if (p.baseId != 0) put("id", p.baseId)
+        if (p.myBaseId != 0) put("mine", p.myBaseId)
+        putJsonArray("decorations") {
+          p.decorations.forEach { d ->
+            add(
+                buildJsonObject {
+                  put("id", d.decorId)
+                  put("x", d.x)
+                  put("y", d.y)
+                })
+          }
+        }
+        putJsonArray("open") {
+          p.openSpots.forEach { (x, y) ->
+            add(
+                buildJsonObject {
+                  put("x", x)
+                  put("y", y)
+                })
+          }
+        }
+        if (p.uiKind != 0)
+            putJsonObject("ui") {
+              put("seq", p.uiSeq)
+              put("kind", if (p.uiKind == 1) "pc" else "none")
+            }
+      }
 
   private fun mapJson(key: MapKey, width: Int, height: Int) = buildJsonObject {
     put("region", key.regionId)

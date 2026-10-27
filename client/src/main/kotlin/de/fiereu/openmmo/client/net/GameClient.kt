@@ -318,6 +318,14 @@ class GameClient(
         }
         onChange()
       }
+      on<de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket> { event ->
+        // r4: keep the last UI request, like FieldInfoPacket.
+        val p = event.packet
+        val old = world.snapshot().secretBase
+        world.setSecretBase(
+            if (p.uiKind == 0 && old != null) p.copy(uiSeq = old.uiSeq, uiKind = old.uiKind) else p)
+        onChange()
+      }
       on<de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket> { event ->
         val p = event.packet
         // The last UI request stays, so the browser sees its seq even when a newer info follows.

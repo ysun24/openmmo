@@ -63,6 +63,8 @@ class WorldState {
       val field: FieldInfoPacket? = null,
       /** The selected character's gender (CharacterInfo.rivalSex: 0 male, 1 female). */
       val characterGender: Int = 0,
+      /** r4: the server's last SecretBaseStatePacket. */
+      val secretBase: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket? = null,
   ) {
     val self: Entity?
       get() = selfId?.let { entities[it] }
@@ -95,8 +97,14 @@ class WorldState {
             inWorld,
             overworld.view(),
             field,
-            characterGender)
+            characterGender,
+            secretBase)
       }
+
+  private var secretBase: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket? = null
+
+  fun setSecretBase(p: de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket) =
+      synchronized(lock) { secretBase = p }
 
   private var field: FieldInfoPacket? = null
 

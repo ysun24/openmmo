@@ -3,6 +3,7 @@
 // name tags, fade on warps.
 import { assets, stepAnim, GBA_HZ } from './assets.js';
 import { fonts } from './font.js';
+import { overlay as sbOverlay, openSpots as sbOpenSpots } from './secretbase.js';
 
 export const VW = 240;
 export const VH = 160;
@@ -133,6 +134,9 @@ export class Renderer {
       this.layer(res.bottom, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, false);
     } else if (world.map) this.placeholderMap(world.map.width, world.map.height, camX, camY);
+    // r4: secret base decorations / open entrances replace their metatiles
+    const sbCells = this.secretBaseCells(world);
+    if (sbCells) this.drawCells(sbCells, 0, camX, camY);
 
     // ground effects (footprints, splashes, grass rustles), then entities, y-sorted
     this.effects(world, camX, camY, now);
@@ -147,9 +151,20 @@ export class Renderer {
       this.anim(c.res.anim, c.ox * 16, c.oy * 16, camX, camY, true);
     }
     if (res && res.top) {
-      this.layer(res.top, 0, 0, camX, camY);
+      if (sbCells) {
+        // the map's top layer is replaced too: clip the replaced cells out of it
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, VW, VH);
+        for (const c of sbCells) ctx.rect(c.x * 16 - camX, c.y * 16 - camY, 16, 16);
+        ctx.clip('evenodd');
+        this.layer(res.top, 0, 0, camX, camY);
+        ctx.restore();
+        this.drawCells(sbCells, 16, camX, camY);
+      } else this.layer(res.top, 0, 0, camX, camY);
       this.anim(res.anim, 0, 0, camX, camY, true);
     }
+    if (world.decorCursor) this.decorCursor(world, camX, camY, now);
     // dark caves until FLASH
     this.darkness(world, camX, camY);
 
@@ -405,6 +420,53 @@ export class Renderer {
     if (pose === 'wheelie' && e.moving && !e.jumping) return play(anims.movingWheelie, now, true);
     const hop = anims.bunnyHopBackWheel && anims.bunnyHopBackWheel[face];
     return hop ? hop[hop.length - 1][0] : undefined;
+  }
+
+  /**
+   * The cells a secret base replaces on the current map: [{x, y, img, cell}] (atlas row 0 = bottom
+   * layer, row 1 = top layer), or null.
+   */
+  secretBaseCells(world) {
+    const m = assets.manifest && assets.manifest.secretBases;
+    if (!m || !world.secretBase) return null;
+    const out = [];
+    const o = sbOverlay(world);
+    if (o) {
+      const b = m.bases[world.mapKey];
+      if (!b._img) b._img = assets.image(b.atlas);
+      if (!b._img.ready) return null;
+      for (const [i, c] of o.cells) if (c.cell >= 0) out.push({ x: i % o.w, y: (i / o.w) | 0, img: b._img.img, cell: c.cell });
+    }
+    const spots = sbOpenSpots(world);
+    if (spots.length && m.entrances) {
+      if (!m._entImg) m._entImg = assets.image(m.entrances);
+      if (m._entImg.ready) for (const s of spots) out.push({ x: s.x, y: s.y, img: m._entImg.img, cell: s.cell });
+    }
+    return out.length ? out : null;
+  }
+
+  drawCells(cells, row, camX, camY) {
+    for (const c of cells) {
+      const dx = c.x * 16 - camX, dy = c.y * 16 - camY;
+      if (dx < -16 || dy < -16 || dx > VW || dy > VH) continue;
+      this.ctx.drawImage(c.img, c.cell * 16, row, 16, 16, dx, dy, 16, 16);
+    }
+  }
+
+  /** The decoration being placed (decoration.c's cursor): its outline, green where it may go. */
+  decorCursor(world, camX, camY, now) {
+    const c = world.decorCursor;
+    const ctx = this.ctx;
+    const x = c.x * 16 - camX, y = (c.y - c.h + 1) * 16 - camY;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(now / 120);
+    ctx.fillStyle = c.ok ? '#30d060' : '#e03030';
+    ctx.fillRect(x, y, c.w * 16, c.h * 16);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = c.ok ? '#f8f8f8' : '#ffb0b0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, c.w * 16 - 1, c.h * 16 - 1);
+    ctx.restore();
   }
 
   /** The sprite sheet for an entity, swapped for its bike/surf/underwater variant (players). */

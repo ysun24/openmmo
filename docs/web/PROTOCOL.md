@@ -527,3 +527,20 @@ Static assets (manifest):
   frames (sJumpY_Low for bunny hops, sJumpY_Normal for side and turn jumps). B held 40 frames on a
   standing wheelie starts the bunny hop; B and a new direction within 4 frames is a side jump (or a
   turn jump when it is the opposite direction).
+
+### Secret bases (Emerald)
+- Browser → gateway: `secretbase` `{action: "place"|"putaway"|"packup"|"close", decor, x, y}` (c2s 0xF5
+  `SecretBaseActionPacket`; only inside the player's own base). `x` is the decoration's left
+  column, `y` its bottom row. The server checks `CanPlaceDecoration` and the PC stock.
+- `world.secretBase` (s2c 0xED `SecretBaseStatePacket`, every map entry and change):
+  `{inside: "none"|"own"|"visiting", owner, id, mine, decorations: [{id, x, y}], open: [{x, y}],
+  ui: {seq, kind: "pc"}}`. `open` = spots on this map whose entrance is open for this player (its
+  own base, a friend's base). `ui` asks to open the base PC once per new `seq`.
+- A at a spot (bg_event `secret_base`) runs SecretBase_EventScript_CheckEntrance (SECRET POWER in
+  the party); entering an open spot warps into the base (its MAP_DYNAMIC exit leads back).
+- Manifest `secretBases`: `tiles` (secondary-tileset indices of the atlas cells), `tileAttrs`
+  (`[MB name without MB_, layer type]` per cell), `bases` (`"r:b:m"` → `{atlas, group, pcX, pcY,
+  width, behaviors}`; atlas row 0 bottom layer, row 1 top layer, 16 px cells), `entrances` (atlas of
+  open entrance metatiles) + `spots` (`"r:b:m"` → `[{x, y, id, cell}]`), `decorations`
+  (`id` → `{name, category, perm, w, h, tiles|gfx}`).
+- Dev: `/givedecor <id|all> [qty]`; `/fielddev` in Hoenn also teaches SECRET POWER.

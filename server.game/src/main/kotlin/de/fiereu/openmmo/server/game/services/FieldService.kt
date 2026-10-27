@@ -69,6 +69,8 @@ constructor(
     private val encounterService: EncounterService,
     private val species: de.fiereu.openmmo.pokemon.SpeciesRegistry,
 ) {
+  /** r4: Emerald secret bases (member-injected so the test helpers need not build it). */
+  @Inject @JvmField var secretBases: javax.inject.Provider<SecretBaseService>? = null
 
   // ------------------------------------------------------------------ state and info
 
@@ -210,6 +212,7 @@ constructor(
     }
     sendInfo(ctx, state)
     if (before != state.travel || warped) broadcastAvatar(ctx, state)
+    secretBases?.get()?.onMapEnter(ctx, state, map)
   }
 
   /** The step that was just accepted: keep the outdoor escape point and the running flag. */
@@ -376,6 +379,7 @@ constructor(
       fy: Int
   ): Boolean {
     val stored = stored(state) ?: return false
+    if (secretBases?.get()?.onTileInteract(session, state, map, fx, fy) == true) return true
     val region = region(state)
     val text = FieldText.of(region)
     // Hidden items are found by facing them (bg_event hidden_item).
