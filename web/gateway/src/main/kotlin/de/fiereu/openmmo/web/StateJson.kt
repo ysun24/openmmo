@@ -100,7 +100,9 @@ class StateJson(private val names: Names) {
       w.secretBase?.let { put("secretBase", secretBase(it)) }
       // r5-frontier: the battle facility screen, as the server sent it.
       w.frontier?.let { f ->
-        runCatching { kotlinx.serialization.json.Json.parseToJsonElement(f) }.getOrNull()?.let { put("frontier", it) }
+        runCatching { kotlinx.serialization.json.Json.parseToJsonElement(f) }
+            .getOrNull()
+            ?.let { put("frontier", it) }
       }
       // r4: the Pokénav Match Call list, when asked for (`seq` grows per answer).
       w.matchCall?.let { mc ->

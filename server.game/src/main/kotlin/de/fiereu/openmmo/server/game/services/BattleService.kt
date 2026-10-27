@@ -2,6 +2,7 @@ package de.fiereu.openmmo.server.game.services
 
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
+import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.enums.BattleAction
 import de.fiereu.openmmo.common.enums.IVs
@@ -36,12 +37,11 @@ import de.fiereu.openmmo.server.game.battle.BattleRewards
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.BattleRules
 import de.fiereu.openmmo.server.game.battle.BattleTerrain
-import de.fiereu.openmmo.server.game.battle.FacilityBattleOutcome
-import de.fiereu.openmmo.server.game.battle.FacilityBattleSetup
-import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.server.game.battle.BattlerRef
 import de.fiereu.openmmo.server.game.battle.CatchCalculator
 import de.fiereu.openmmo.server.game.battle.CatchContext
+import de.fiereu.openmmo.server.game.battle.FacilityBattleOutcome
+import de.fiereu.openmmo.server.game.battle.FacilityBattleSetup
 import de.fiereu.openmmo.server.game.battle.HeldItems
 import de.fiereu.openmmo.server.game.battle.ItemNames
 import de.fiereu.openmmo.server.game.battle.MoveLearnPrompts
@@ -587,24 +587,24 @@ constructor(
 
   /**
    * r5-frontier: a battle facility's battle (Battle Frontier, Battle Tents, Trainer Hill, Trainer
-   * Tower). The player fights with [FacilityBattleSetup.team] (their own monsters at the
-   * facility's level, or rentals) and nothing is written back; the end state comes back instead.
+   * Tower). The player fights with [FacilityBattleSetup.team] (their own monsters at the facility's
+   * level, or rentals) and nothing is written back; the end state comes back instead.
    */
   suspend fun startFacilityBattle(
       session: SessionContext,
       setup: FacilityBattleSetup,
       partner: Pair<SessionContext, FacilityBattleSetup>? = null,
   ): FacilityBattleOutcome {
-    val charId = session.attributes[PLAYER_STATE]?.characterId
-        ?: return FacilityBattleOutcome(BattleResult.FAILED, setup.team)
+    val charId =
+        session.attributes[PLAYER_STATE]?.characterId
+            ?: return FacilityBattleOutcome(BattleResult.FAILED, setup.team)
     val battle =
         createFacilityBattle(session, charId, setup, partner)
             ?: return FacilityBattleOutcome(BattleResult.FAILED, setup.team)
     if (battle.facility?.autoPlay == true) autoTurn(battle)
     val result = battle.completion.await()
     val byId = battle.party.associateBy { it.entityId }
-    return FacilityBattleOutcome(
-        result, setup.team.map { m -> byId[m.id]?.persisted() ?: m })
+    return FacilityBattleOutcome(result, setup.team.map { m -> byId[m.id]?.persisted() ?: m })
   }
 
   /** The partner's end state of a multi battle that [startFacilityBattle] ran for the leader. */
@@ -646,7 +646,8 @@ constructor(
           // Multi battle: position 0 is the leader's first monster, position 1 the partner's.
           listOf(
               setup.team.indices.first { !party[it].fainted },
-              setup.team.size + partner.second.team.indices.first { !party[setup.team.size + it].fainted })
+              setup.team.size +
+                  partner.second.team.indices.first { !party[setup.team.size + it].fainted })
         } else party.indices.filter { !party[it].fainted }
     val actualFormat = if (format >= 2 && healthy.size >= 2) 2 else 1
     val trainer =
@@ -684,7 +685,8 @@ constructor(
           b.facilityBattle = true
           if (partner == null && setup.partnerFrom > 0) {
             // An NPC partner: its slots belong to the "character" -1, played by the AI.
-            b.multiOwners = party.indices.associateWith { if (it < setup.partnerFrom) charId else -1L }
+            b.multiOwners =
+                party.indices.associateWith { if (it < setup.partnerFrom) charId else -1L }
           }
           if (partner != null && partnerId != null) {
             b.multiOwners =
@@ -780,7 +782,8 @@ constructor(
         val ref = BattlerRef(0, pos)
         val ctx = engine.context(battle)
         if (ctx.live(ref) != null && auto.none { it.side == 0 && it.pos == pos })
-            auto += de.fiereu.openmmo.server.game.battle.BattleAi.choose(ctx, ref, forceSmart = true)
+            auto +=
+                de.fiereu.openmmo.server.game.battle.BattleAi.choose(ctx, ref, forceSmart = true)
       }
       if (auto.isNotEmpty()) {
         val keys = auto.map { it.side to it.pos }.toSet()

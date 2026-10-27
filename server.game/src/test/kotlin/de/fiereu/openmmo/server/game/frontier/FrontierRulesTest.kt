@@ -34,7 +34,8 @@ import kotlinx.coroutines.runBlocking
 private val data = FrontierData()
 private val speciesRegistry = SpeciesRegistry()
 private val moveRegistry = MoveRegistry()
-private val factory = FrontierMonFactory(speciesRegistry, moveRegistry, ItemRegistry(), EntityIdService())
+private val factory =
+    FrontierMonFactory(speciesRegistry, moveRegistry, ItemRegistry(), EntityIdService())
 
 private fun mon(dex: Int, level: Int, moves: List<Int>, id: Long, seed: Int = 0): Pokemon {
   val m =
@@ -52,7 +53,9 @@ private fun mon(dex: Int, level: Int, moves: List<Int>, id: Long, seed: Int = 0)
           xp = 0,
           eVs = EVs(),
           iVs = IVs(),
-          moves = List(4) { i -> moves.getOrNull(i) ?: 0 }.map { PokemonMove(it.toShort(), (moveRegistry.get(it)?.pp ?: 0).toByte()) },
+          moves =
+              List(4) { i -> moves.getOrNull(i) ?: 0 }
+                  .map { PokemonMove(it.toShort(), (moveRegistry.get(it)?.pp ?: 0).toByte()) },
           isShiny = false,
           hasHiddenAbility = false,
           isAlpha = false,
@@ -65,7 +68,12 @@ private fun mon(dex: Int, level: Int, moves: List<Int>, id: Long, seed: Int = 0)
 }
 
 private fun state(m: Pokemon, slot: Int?) =
-    BattleMonState(m.id, speciesRegistry.get(m.dexId)!!, slot, m, StatCalculator.computeAll(speciesRegistry.get(m.dexId)!!, m))
+    BattleMonState(
+        m.id,
+        speciesRegistry.get(m.dexId)!!,
+        slot,
+        m,
+        StatCalculator.computeAll(speciesRegistry.get(m.dexId)!!, m))
 
 class FrontierRulesTest :
     FunSpec({
@@ -88,7 +96,9 @@ class FrontierRulesTest :
         // Every trainer has a mon set, including the macro-built ones (FRONTIER_MONS_*_EXTRA(...)).
         data.frontier.trainers.forEach { it.monSet.size shouldBeGreaterThanOrEqual 12 }
         data.frontier.trainers[48].monSet.take(6) shouldBe listOf(2, 3, 4, 8, 9, 21)
-        data.tents.values.forEach { t -> t.trainers.forEach { it.monSet.size shouldBeGreaterThanOrEqual 3 } }
+        data.tents.values.forEach { t ->
+          t.trainers.forEach { it.monSet.size shouldBeGreaterThanOrEqual 3 }
+        }
       }
 
       test("GetRandomScaledFrontierTrainerId: ranges per challenge, the 7th battle harder") {
@@ -114,10 +124,14 @@ class FrontierRulesTest :
       test("FillTrainerParty: no repeated species or held item, no high tier at level 50") {
         val rng = Random(7)
         for (tid in listOf(0, 150, 299)) repeat(50) {
-          val ids = FrontierRules.fillTrainerParty(data.frontier.trainers[tid].monSet, data.frontier.mons, 50, 3, rng)
+          val ids =
+              FrontierRules.fillTrainerParty(
+                  data.frontier.trainers[tid].monSet, data.frontier.mons, 50, 3, rng)
           ids.size shouldBe 3
           ids.map { data.frontier.mons[it].species }.toSet().size shouldBe 3
-          ids.map { data.frontier.mons[it].item }.filter { it != "NONE" }.let { it.toSet().size shouldBe it.size }
+          ids.map { data.frontier.mons[it].item }
+              .filter { it != "NONE" }
+              .let { it.toSet().size shouldBe it.size }
           ids.forEach { it shouldBeLessThanOrEqual FrontierRules.FRONTIER_MONS_HIGH_TIER }
         }
       }
@@ -130,18 +144,29 @@ class FrontierRulesTest :
       }
 
       test("GetFrontierBrainStatus: Anabel at the 35th and 70th battle, then every 35") {
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 34, 0) shouldBe BrainStatus.SILVER
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 33, 0) shouldBe BrainStatus.NOT_READY
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 69, 1) shouldBe BrainStatus.GOLD
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 34, 2) shouldBe BrainStatus.STREAK
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 69, 2) shouldBe BrainStatus.STREAK_LONG
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 104, 2) shouldBe BrainStatus.STREAK_LONG
-        FrontierRules.brainStatus(Facility.TOWER, BattleMode.DOUBLES, 34, 0) shouldBe BrainStatus.NOT_READY
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 34, 0) shouldBe
+            BrainStatus.SILVER
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 33, 0) shouldBe
+            BrainStatus.NOT_READY
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 69, 1) shouldBe
+            BrainStatus.GOLD
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 34, 2) shouldBe
+            BrainStatus.STREAK
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 69, 2) shouldBe
+            BrainStatus.STREAK_LONG
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.SINGLES, 104, 2) shouldBe
+            BrainStatus.STREAK_LONG
+        FrontierRules.brainStatus(Facility.TOWER, BattleMode.DOUBLES, 34, 0) shouldBe
+            BrainStatus.NOT_READY
         // The Dome counts tournaments with no modifier, the Pyramid floors.
-        FrontierRules.brainStatus(Facility.DOME, BattleMode.SINGLES, 4, 0) shouldBe BrainStatus.SILVER
-        FrontierRules.brainStatus(Facility.PYRAMID, BattleMode.SINGLES, 21, 0) shouldBe BrainStatus.SILVER
-        FrontierRules.brainStatus(Facility.PALACE, BattleMode.SINGLES, 20, 0) shouldBe BrainStatus.SILVER
-        FrontierRules.brainStatus(Facility.ARENA, BattleMode.SINGLES, 27, 0) shouldBe BrainStatus.SILVER
+        FrontierRules.brainStatus(Facility.DOME, BattleMode.SINGLES, 4, 0) shouldBe
+            BrainStatus.SILVER
+        FrontierRules.brainStatus(Facility.PYRAMID, BattleMode.SINGLES, 21, 0) shouldBe
+            BrainStatus.SILVER
+        FrontierRules.brainStatus(Facility.PALACE, BattleMode.SINGLES, 20, 0) shouldBe
+            BrainStatus.SILVER
+        FrontierRules.brainStatus(Facility.ARENA, BattleMode.SINGLES, 27, 0) shouldBe
+            BrainStatus.SILVER
       }
 
       test("GiveBattlePoints: sBattlePointAwards by challenge, +10 for a brain, capped rows") {
@@ -165,13 +190,24 @@ class FrontierRulesTest :
                 FrontierRules.EntrantCheck(3, 50, 5, false),
                 FrontierRules.EntrantCheck(1, 5, 0, true))
         FrontierRules.eligibleSlots(party, LevelMode.LV50, data.bannedSpecies) shouldBe listOf(0, 4)
-        FrontierRules.eligibleSlots(party, LevelMode.OPEN, data.bannedSpecies) shouldBe listOf(0, 3, 4)
-        FrontierRules.eligibleSlots(party, LevelMode.OPEN, data.bannedSpecies, pyramid = true) shouldBe listOf(0, 3)
-        FrontierRules.validEntry(party, listOf(0, 2, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe "Two POKéMON of the same kind can't enter."
-        FrontierRules.validEntry(party, listOf(0, 4, 5), LevelMode.LV50, data.bannedSpecies, 3) shouldBe "Two POKéMON can't hold the same item."
-        FrontierRules.validEntry(party, listOf(0, 1, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe "That POKéMON is not allowed to enter."
-        FrontierRules.validEntry(party, listOf(0, 3, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe "Only POKéMON of Lv. 50 or lower may enter."
-        FrontierRules.validEntry(party, listOf(0, 3, 4), LevelMode.OPEN, data.bannedSpecies, 3) shouldBe null
+        FrontierRules.eligibleSlots(party, LevelMode.OPEN, data.bannedSpecies) shouldBe
+            listOf(0, 3, 4)
+        FrontierRules.eligibleSlots(
+            party, LevelMode.OPEN, data.bannedSpecies, pyramid = true) shouldBe listOf(0, 3)
+        FrontierRules.validEntry(
+            party, listOf(0, 2, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe
+            "Two POKéMON of the same kind can't enter."
+        FrontierRules.validEntry(
+            party, listOf(0, 4, 5), LevelMode.LV50, data.bannedSpecies, 3) shouldBe
+            "Two POKéMON can't hold the same item."
+        FrontierRules.validEntry(
+            party, listOf(0, 1, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe
+            "That POKéMON is not allowed to enter."
+        FrontierRules.validEntry(
+            party, listOf(0, 3, 4), LevelMode.LV50, data.bannedSpecies, 3) shouldBe
+            "Only POKéMON of Lv. 50 or lower may enter."
+        FrontierRules.validEntry(
+            party, listOf(0, 3, 4), LevelMode.OPEN, data.bannedSpecies, 3) shouldBe null
         FrontierRules.partySize(Facility.TOWER, BattleMode.DOUBLES) shouldBe 4
         FrontierRules.partySize(Facility.PALACE, BattleMode.DOUBLES) shouldBe 3
         FrontierRules.partySize(Facility.TOWER, BattleMode.MULTIS) shouldBe 2
@@ -191,7 +227,8 @@ class FrontierRulesTest :
         m.heldItem shouldNotBe 0
         // Factory sets lose Return for Frustration and have friendship 0.
         val returner = data.frontier.mons.indexOfFirst { FrontierRules.MOVE_RETURN in it.moves }
-        val f = factory.facilityMon(data.frontier.mons[returner], 50, 3, Random(1), avoidReturn = true)
+        val f =
+            factory.facilityMon(data.frontier.mons[returner], 50, 3, Random(1), avoidReturn = true)
         f.moves.map { it.id.toInt() } shouldContain FrontierRules.MOVE_FRUSTRATION
         f.friendship shouldBe 0
       }
@@ -226,7 +263,8 @@ class FrontierRulesTest :
         }
         (failed + picked) shouldBeGreaterThanOrEqual 1000
         failed shouldBeInRange (picked - 150)..(picked + 150)
-        PalaceRules.select(23, false, listOf(moveRegistry.get(33)!! to false), rng).second shouldBe PalaceRules.Pick(null, false)
+        PalaceRules.select(23, false, listOf(moveRegistry.get(33)!! to false), rng).second shouldBe
+            PalaceRules.Pick(null, false)
       }
 
       test("Battle Arena: three categories, 2 for a win, 1 each on a tie") {
@@ -247,14 +285,17 @@ class FrontierRulesTest :
         val engine = TurnEngine(moveRegistry, TypeChart())
         val me = state(mon(129, 50, listOf(150), 0x1C001L), 0) // Magikarp, Splash
         val foe = state(mon(129, 50, listOf(150), 0x3C001L), null)
-        val battle = BattleInstance(1L, 100L, FakeSession(100L), listOf(me), listOf(foe), BattleRng(5))
+        val battle =
+            BattleInstance(1L, 100L, FakeSession(100L), listOf(me), listOf(foe), BattleRng(5))
         val hooks = ArenaHooks(data.mindRatings, "ASH", "FOE")
         battle.facility = hooks
         battle.facilityBattle = true
         var extra = emptyList<BattleEvent>()
         repeat(3) {
           hooks.beforeTurn(engine, battle)
-          val ev = engine.resolve(battle, listOf(BattleChoice.UseMove(0, 0, 150), BattleChoice.UseMove(1, 0, 150)))
+          val ev =
+              engine.resolve(
+                  battle, listOf(BattleChoice.UseMove(0, 0, 150), BattleChoice.UseMove(1, 0, 150)))
           extra = hooks.afterTurn(engine, battle, ev)
         }
         hooks.lastJudgment!!.player shouldBe 3
@@ -267,7 +308,8 @@ class FrontierRulesTest :
         val engine = TurnEngine(moveRegistry, TypeChart())
         val me = state(mon(25, 50, listOf(33, 45), 0x1C002L, seed = 0), 0)
         val foe = state(mon(19, 50, listOf(33), 0x3C002L), null)
-        val battle = BattleInstance(1L, 100L, FakeSession(100L), listOf(me), listOf(foe), BattleRng(5))
+        val battle =
+            BattleInstance(1L, 100L, FakeSession(100L), listOf(me), listOf(foe), BattleRng(5))
         val hooks = PalaceHooks(Random(2))
         battle.facility = hooks
         hooks.autoPlay shouldBe true
@@ -275,7 +317,9 @@ class FrontierRulesTest :
         repeat(50) {
           val (c, line) = hooks.autoChoice(engine, battle, BattlerRef(0, 0))!!
           if (c is BattleChoice.UseMove) listOf(33, 45) shouldContain c.moveId
-          else line shouldBe "${de.fiereu.openmmo.server.game.battle.BattleNames.token(me)} appears incapable of using its power!"
+          else
+              line shouldBe
+                  "${de.fiereu.openmmo.server.game.battle.BattleNames.token(me)} appears incapable of using its power!"
         }
       }
 
@@ -296,10 +340,14 @@ class FrontierRulesTest :
           val r = FactoryRules.initialRentals(data.frontier.mons, LevelMode.LV50, 1, 2, rng)
           r.size shouldBe 6
           r.map { data.frontier.mons[it].species } shouldNotContain 201
-          r.map { data.frontier.mons[it].item }.filter { it != "NONE" }.let { it.toSet().size shouldBe it.size }
+          r.map { data.frontier.mons[it].item }
+              .filter { it != "NONE" }
+              .let { it.toSet().size shouldBe it.size }
           val opp = FactoryRules.opponentMons(data.frontier.mons, LevelMode.LV50, 1, r, rng)
           opp.size shouldBe 3
-          opp.forEach { o -> r.none { data.frontier.mons[it].species == data.frontier.mons[o].species } shouldBe true }
+          opp.forEach { o ->
+            r.none { data.frontier.mons[it].species == data.frontier.mons[o].species } shouldBe true
+          }
         }
       }
 

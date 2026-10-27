@@ -149,7 +149,10 @@ class FrontierData @Inject constructor() {
                 o.arr("gold").map { brainMon(it.jsonObject) })
       }
 
-  /** sLvl50Mons / sLvlOpenMons: four tables of three, picked by streak (GetBattlePikeWildMonHeaderId). */
+  /**
+   * sLvl50Mons / sLvlOpenMons: four tables of three, picked by streak
+   * (GetBattlePikeWildMonHeaderId).
+   */
   val pikeWild: Map<String, List<List<PikeWildMon>>> =
       root.obj("pikeWild").mapValues { (_, v) ->
         v.jsonArray.map { t ->
@@ -200,8 +203,7 @@ class FrontierData @Inject constructor() {
   val trainerHill: Map<String, List<TowerFloor>> =
       root.obj("trainerHill").mapValues { (_, v) ->
         v.jsonArray.map { f ->
-          TowerFloor(
-              "hill", 0, f.jsonObject.arr("trainers").map { towerTrainer(it.jsonObject) })
+          TowerFloor("hill", 0, f.jsonObject.arr("trainers").map { towerTrainer(it.jsonObject) })
         }
       }
 
@@ -222,7 +224,8 @@ class FrontierData @Inject constructor() {
       root.obj("trainerTower").arr("prizes").map { it.jsonPrimitive.content }
 
   /** battle_factory.c sMoveStyles: the moves of FACTORY_STYLE_PREPARATION .. _WEATHER. */
-  val factoryStyles: List<Set<Int>> = root.arr("factoryStyles").map { r -> r.jsonArray.map { it.int() }.toSet() }
+  val factoryStyles: List<Set<Int>> =
+      root.arr("factoryStyles").map { r -> r.jsonArray.map { it.int() }.toSet() }
 
   /** gFrontierBannedSpecies, as national dex numbers. */
   val bannedSpecies: Set<Int> = root.arr("bannedSpecies").map { it.jsonPrimitive.int }.toSet()
@@ -238,7 +241,8 @@ class FrontierData @Inject constructor() {
       }
 
   private fun facilityMon(o: JsonObject) =
-      FacilityMon(o.int("species"), o.ints("moves"), o.str("item"), o.int("evSpread"), o.int("nature"))
+      FacilityMon(
+          o.int("species"), o.ints("moves"), o.str("item"), o.int("evSpread"), o.int("nature"))
 
   private fun trainer(o: JsonObject) =
       FacilityTrainer(

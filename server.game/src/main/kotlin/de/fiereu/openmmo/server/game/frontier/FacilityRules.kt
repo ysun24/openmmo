@@ -8,7 +8,8 @@ object FactoryRules {
   private const val NUM_FRONTIER_MONS = 882
 
   /** sFixedIVTable: (normal, last battle of the challenge). */
-  private val FIXED_IV = listOf(3 to 6, 6 to 9, 9 to 12, 12 to 15, 15 to 18, 21 to 31, 31 to 31, 31 to 31)
+  private val FIXED_IV =
+      listOf(3 to 6, 6 to 9, 9 to 12, 12 to 15, 15 to 18, 21 to 31, 31 to 31, 31 to 31)
 
   /** sInitialRentalMonRanges: 8 for Level 50, 8 for Open Level. */
   private val RANGES =
@@ -39,8 +40,7 @@ object FactoryRules {
   /** GetFactoryMonId. */
   fun monId(mode: LevelMode, challengeNum: Int, better: Boolean, rng: Random): Int {
     val adder = if (mode == LevelMode.LV50) 0 else 8
-    val idx =
-        if (challengeNum < 7) adder + challengeNum + if (better) 1 else 0 else adder + 7
+    val idx = if (challengeNum < 7) adder + challengeNum + if (better) 1 else 0 else adder + 7
     val (lo, hi) = RANGES[idx]
     return lo + rng.nextInt(hi - lo + 1)
   }
@@ -199,7 +199,14 @@ enum class PikeStatus(val bits: Int, val label: String) {
 object PikeRules {
   const val NUM_PIKE_ROOMS = 14
 
-  data class PartyView(val hp: Int, val maxHp: Int, val status: Int, val types: Set<String>, val ability: String, val fullPp: Boolean)
+  data class PartyView(
+      val hp: Int,
+      val maxHp: Int,
+      val status: Int,
+      val types: Set<String>,
+      val ability: String,
+      val fullPp: Boolean
+  )
 
   fun atLeastTwoAlive(party: List<PartyView>): Boolean = party.count { it.hp > 0 } >= 2
 
@@ -212,13 +219,18 @@ object PikeRules {
   /** The hint for this set of doors (SetHintedRoom). Brain rooms hint at every door. */
   data class Hint(val index: Int, val type: PikeRoom)
 
-  fun hintedRoom(brainNext: Boolean, healingDisabled: Boolean, party: List<PartyView>, rng: Random): Hint {
+  fun hintedRoom(
+      brainNext: Boolean,
+      healingDisabled: Boolean,
+      party: List<PartyView>,
+      rng: Random
+  ): Hint {
     if (brainNext) return Hint(rng.nextInt(6), PikeRoom.BRAIN)
     val index = rng.nextInt(3)
     val candidates =
-        PikeRoom.entries.filter { it != PikeRoom.BRAIN }.filter {
-          !healingDisabled || (it != PikeRoom.HEAL_FULL && it != PikeRoom.HEAL_PART)
-        }
+        PikeRoom.entries
+            .filter { it != PikeRoom.BRAIN }
+            .filter { !healingDisabled || (it != PikeRoom.HEAL_FULL && it != PikeRoom.HEAL_PART) }
     var type = candidates[rng.nextInt(candidates.size)]
     if (type == PikeRoom.STATUS && !atLeastOneHealthy(party)) type = PikeRoom.NPC
     if (type == PikeRoom.DOUBLE_BATTLE && !atLeastTwoAlive(party)) type = PikeRoom.NPC
@@ -226,7 +238,13 @@ object PikeRules {
   }
 
   /** GetNextRoomType: the hinted door is the hinted room; the others never share its hint. */
-  fun roomBehind(door: Int, hint: Hint, healingDisabled: Boolean, party: List<PartyView>, rng: Random): PikeRoom {
+  fun roomBehind(
+      door: Int,
+      hint: Hint,
+      healingDisabled: Boolean,
+      party: List<PartyView>,
+      rng: Random
+  ): PikeRoom {
     if (hint.type == PikeRoom.BRAIN) return PikeRoom.BRAIN
     if (door == hint.index) return hint.type
     val candidates =
@@ -248,11 +266,12 @@ object PikeRules {
       val j = rng.nextInt(party.size)
       order[i] = order[j].also { order[j] = order[i] }
     }
-    val count = when {
-      roomNum <= 4 -> 1
-      roomNum <= 9 -> 2
-      else -> 3
-    }
+    val count =
+        when {
+          roomNum <= 4 -> 1
+          roomNum <= 9 -> 2
+          else -> 3
+        }
     val candidates = order.filter { party[it].status == 0 && party[it].hp > 0 }.take(count)
     if (candidates.isEmpty()) return null
     var status: PikeStatus
@@ -269,7 +288,10 @@ object PikeRules {
           }
       if (candidates.any { !typePrevents(party[it], status) } || ++tries > 50) break
     }
-    val hit = candidates.filter { !typePrevents(party[it], status) && !abilityPrevents(party[it], status) }
+    val hit =
+        candidates.filter {
+          !typePrevents(party[it], status) && !abilityPrevents(party[it], status)
+        }
     return status to hit
   }
 
@@ -300,7 +322,14 @@ object PikeRules {
       }
 
   /** sNumMonsToHealBeforePikeQueen[hintIndex][door]. */
-  private val QUEEN_HEALS = listOf(intArrayOf(2, 1, 0), intArrayOf(2, 0, 1), intArrayOf(1, 2, 0), intArrayOf(1, 0, 2), intArrayOf(0, 2, 1), intArrayOf(0, 1, 2))
+  private val QUEEN_HEALS =
+      listOf(
+          intArrayOf(2, 1, 0),
+          intArrayOf(2, 0, 1),
+          intArrayOf(1, 2, 0),
+          intArrayOf(1, 0, 2),
+          intArrayOf(0, 2, 1),
+          intArrayOf(0, 1, 2))
 
   fun healsBeforeQueen(hintIndex: Int, door: Int): Int = QUEEN_HEALS[hintIndex][door]
 
@@ -316,7 +345,8 @@ object PikeRules {
   /** TryGenerateBattlePikeWildMon's level. */
   fun wildLevel(mode: LevelMode, partyMax: Int, delta: Int): Int =
       if (mode == LevelMode.LV50) FrontierRules.FRONTIER_MAX_LEVEL_50 - delta
-      else if (partyMax < FrontierRules.FRONTIER_MIN_LEVEL_OPEN) FrontierRules.FRONTIER_MIN_LEVEL_OPEN
+      else if (partyMax < FrontierRules.FRONTIER_MIN_LEVEL_OPEN)
+          FrontierRules.FRONTIER_MIN_LEVEL_OPEN
       else (partyMax - delta).coerceAtLeast(FrontierRules.FRONTIER_MIN_LEVEL_OPEN)
 
   /** GetPikeQueenFightType(nextRoom): the brain status for the room about to be entered. */
@@ -329,7 +359,8 @@ object PikeRules {
       else ->
           when {
             s == a[0] - a[3] -> BrainStatus.STREAK
-            s == a[1] - a[3] || (s > a[1] && (s - a[1] + a[3]) % a[2] == 0) -> BrainStatus.STREAK_LONG
+            s == a[1] - a[3] || (s > a[1] && (s - a[1] + a[3]) % a[2] == 0) ->
+                BrainStatus.STREAK_LONG
             else -> BrainStatus.NOT_READY
           }
     }
@@ -376,10 +407,11 @@ object PyramidRules {
   fun wildLevel(mode: LevelMode, partyMax: Int, tableLevel: Int, rng: Random): Int {
     val roll = rng.nextInt(11)
     return if (mode == LevelMode.LV50) tableLevel - 5 + roll
-    else {
-      val lvl = FrontierRules.enemyLevel(LevelMode.OPEN, partyMax)
-      (lvl - (FrontierRules.FRONTIER_MAX_LEVEL_50 - tableLevel)).coerceIn(5, 100) - 5 + roll
-    }.coerceIn(1, 100)
+        else {
+          val lvl = FrontierRules.enemyLevel(LevelMode.OPEN, partyMax)
+          (lvl - (FrontierRules.FRONTIER_MAX_LEVEL_50 - tableLevel)).coerceIn(5, 100) - 5 + roll
+        }
+        .coerceIn(1, 100)
   }
 
   /** Squares within the light: the radius in pixels over a square's 64-pixel side. */
@@ -447,8 +479,8 @@ object DomeRules {
   }
 
   /**
-   * SelectOpponentMonsFromParty: the two monsters with the highest points (ties broken by coin),
-   * or two random ones when all three are equal.
+   * SelectOpponentMonsFromParty: the two monsters with the highest points (ties broken by coin), or
+   * two random ones when all three are equal.
    */
   fun pickTwo(points: IntArray, rng: Random): List<Int> {
     if (points[0] == points[1] && points[0] == points[2]) {

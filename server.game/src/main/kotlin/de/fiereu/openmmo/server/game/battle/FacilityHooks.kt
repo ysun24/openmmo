@@ -7,9 +7,9 @@ import de.fiereu.openmmo.common.Pokemon
  * Tents, the Trainer Hill and the FRLG Trainer Tower run their battles on the normal engine with
  * these hooks; null on [BattleInstance.facility] keeps every rule as it was.
  *
- * Facility battles never write anything back to the stored party (no EXP, no prize money, no hp
- * or pp, no friendship, no white-out): the facility owns its team copy and gets the end state
- * back from [BattleService.startFacilityBattle].
+ * Facility battles never write anything back to the stored party (no EXP, no prize money, no hp or
+ * pp, no friendship, no white-out): the facility owns its team copy and gets the end state back
+ * from [BattleService.startFacilityBattle].
  */
 interface FacilityHooks {
   /** Battle Palace: the monsters pick their own moves, the player only watches. */
@@ -20,7 +20,10 @@ interface FacilityHooks {
   val allowSwitch: Boolean
     get() = true
 
-  /** Battle Arena: a judgment draw that leaves both sides without monsters is a loss (B_OUTCOME_DREW). */
+  /**
+   * Battle Arena: a judgment draw that leaves both sides without monsters is a loss
+   * (B_OUTCOME_DREW).
+   */
   val bothDownIsLoss: Boolean
     get() = false
 
@@ -36,8 +39,8 @@ interface FacilityHooks {
   fun beforeTurn(engine: TurnEngine, battle: BattleInstance) {}
 
   /**
-   * Palace: the choice for one live position of either side, and an optional line shown first
-   * ("X appears incapable of using its power!"). Null lets the normal choice stand.
+   * Palace: the choice for one live position of either side, and an optional line shown first ("X
+   * appears incapable of using its power!"). Null lets the normal choice stand.
    */
   fun autoChoice(
       engine: TurnEngine,
@@ -45,7 +48,9 @@ interface FacilityHooks {
       ref: BattlerRef,
   ): Pair<BattleChoice, String?>? = null
 
-  /** After each turn with its events; returns more events to play (Arena judgment, Palace lines). */
+  /**
+   * After each turn with its events; returns more events to play (Arena judgment, Palace lines).
+   */
   fun afterTurn(
       engine: TurnEngine,
       battle: BattleInstance,

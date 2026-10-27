@@ -81,7 +81,14 @@ object FrontierRules {
   /** battle_tower.c sFrontierTrainerIdRanges. */
   private val TRAINER_ID_RANGES =
       listOf(
-          0 to 99, 80 to 119, 100 to 139, 120 to 159, 140 to 179, 160 to 199, 180 to 219, 200 to 299)
+          0 to 99,
+          80 to 119,
+          100 to 139,
+          120 to 159,
+          140 to 179,
+          160 to 199,
+          180 to 219,
+          200 to 299)
 
   /** battle_tower.c sFrontierTrainerIdRangesHard: the 7th battle of each challenge. */
   private val TRAINER_ID_RANGES_HARD =
@@ -135,8 +142,8 @@ object FrontierRules {
       }
 
   /**
-   * FillTrainerParty: [count] random sets from the trainer's [monSet], no duplicate species or
-   * held items, and no "high tier" sets (ids above FRONTIER_MONS_HIGH_TIER) at level 50.
+   * FillTrainerParty: [count] random sets from the trainer's [monSet], no duplicate species or held
+   * items, and no "high tier" sets (ids above FRONTIER_MONS_HIGH_TIER) at level 50.
    */
   fun fillTrainerParty(
       monSet: List<Int>,
@@ -161,7 +168,9 @@ object FrontierRules {
     return chosen
   }
 
-  /** sFrontierBrainStreakAppearances: silver streak, gold streak, repeat interval, streak modifier. */
+  /**
+   * sFrontierBrainStreakAppearances: silver streak, gold streak, repeat interval, streak modifier.
+   */
   private val BRAIN_APPEARANCES =
       mapOf(
           Facility.TOWER to intArrayOf(35, 70, 35, 1),
@@ -232,8 +241,26 @@ object FrontierRules {
       )
 
   // tower[4], dome[2], palace[2], arena[1], factory[2], pike[1], pyramid[1]
-  private fun bp(tower: IntArray, d0: Int, d1: Int, p0: Int, p1: Int, a: Int, f0: Int, f1: Int, pk: Int, py: Int) =
-      arrayOf(tower, intArrayOf(d0, d1), intArrayOf(p0, p1), intArrayOf(a), intArrayOf(f0, f1), intArrayOf(pk), intArrayOf(py))
+  private fun bp(
+      tower: IntArray,
+      d0: Int,
+      d1: Int,
+      p0: Int,
+      p1: Int,
+      a: Int,
+      f0: Int,
+      f1: Int,
+      pk: Int,
+      py: Int
+  ) =
+      arrayOf(
+          tower,
+          intArrayOf(d0, d1),
+          intArrayOf(p0, p1),
+          intArrayOf(a),
+          intArrayOf(f0, f1),
+          intArrayOf(pk),
+          intArrayOf(py))
 
   /**
    * GiveBattlePoints: the BP for a completed challenge. [challengeNum] is the facility's own count

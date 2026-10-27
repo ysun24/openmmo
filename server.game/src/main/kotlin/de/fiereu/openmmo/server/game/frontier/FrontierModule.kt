@@ -42,7 +42,9 @@ object FrontierDesks {
   val ALL: Set<String> = BY_SCRIPT.values.toSet() + "card"
 }
 
-/** `/frontier <desk>` opens a facility desk anywhere (developer), e.g. `/frontier tower:singles`. */
+/**
+ * `/frontier <desk>` opens a facility desk anywhere (developer), e.g. `/frontier tower:singles`.
+ */
 class FrontierCommand @Inject constructor(private val frontier: FrontierService) : ChatCommand {
   override val name = "frontier"
   override val usage = "/frontier <desk> | /frontier bp <n>"
@@ -50,7 +52,9 @@ class FrontierCommand @Inject constructor(private val frontier: FrontierService)
   override val permission = CharacterPermissions.DEVELOPER
 
   override suspend fun run(ctx: CommandContext) {
-    val desk = ctx.args.getOrNull(0) ?: return ctx.reply("Desks: ${FrontierDesks.ALL.sorted().joinToString()}")
+    val desk =
+        ctx.args.getOrNull(0)
+            ?: return ctx.reply("Desks: ${FrontierDesks.ALL.sorted().joinToString()}")
     if (desk == "bp") {
       val n = ctx.args.getOrNull(1)?.toIntOrNull() ?: return ctx.reply("Usage: /frontier bp <n>")
       frontier.save(ctx.characterId).addPoints(n)
@@ -163,33 +167,83 @@ class FrontierSpecials @Inject constructor(private val frontier: FrontierService
       "GetBattleTowerSinglesStreak" ->
           maxOf(save.streak("tower:singles:50").current, save.streak("tower:singles:open").current)
       "CheckPartyBattleTowerBanlist" -> {
-        val party = frontier.party(charId).map { FrontierRules.EntrantCheck(it.dexId, it.level.toInt(), it.heldItem, it.isEgg) }
-        if (FrontierRules.eligibleSlots(party, LevelMode.OPEN, frontier.data.bannedSpecies).size < 3) 1 else 0
+        val party =
+            frontier.party(charId).map {
+              FrontierRules.EntrantCheck(it.dexId, it.level.toInt(), it.heldItem, it.isEgg)
+            }
+        if (FrontierRules.eligibleSlots(party, LevelMode.OPEN, frontier.data.bannedSpecies).size <
+            3)
+            1
+        else 0
       }
-      // CallFrontierUtilFunc: FRONTIER_UTIL_FUNC_GET_FACILITY_SYMBOL_COUNT (11) reads the symbols of
+      // CallFrontierUtilFunc: FRONTIER_UTIL_FUNC_GET_FACILITY_SYMBOL_COUNT (11) reads the symbols
+      // of
       // VAR_FRONTIER_FACILITY; GIVE_BATTLE_POINTS (10) etc. are run by the desks themselves.
       "CallFrontierUtilFunc" ->
           when (f) {
-            11 -> save.symbolsOf(Facility.entries.getOrElse(ctx.getVar("VAR_FRONTIER_FACILITY")) { Facility.TOWER })
+            11 ->
+                save.symbolsOf(
+                    Facility.entries.getOrElse(ctx.getVar("VAR_FRONTIER_FACILITY")) {
+                      Facility.TOWER
+                    })
             else -> 0
           }
-      "CallBattleTowerFunc" -> { openFor(ctx, "tower:singles", f); 0 }
-      "CallBattleDomeFunction" -> { openFor(ctx, "dome:singles", f); 0 }
-      "CallBattlePalaceFunction" -> { openFor(ctx, "palace:singles", f); 0 }
-      "CallBattleArenaFunction" -> { openFor(ctx, "arena", f); 0 }
-      "CallBattleFactoryFunction" -> { openFor(ctx, "factory:singles", f); 0 }
-      "CallBattlePikeFunction" -> { openFor(ctx, "pike", f); 0 }
-      "CallBattlePyramidFunction" -> { openFor(ctx, "pyramid", f); 0 }
-      "CallTrainerHillFunction" -> { openFor(ctx, "hill", f); 0 }
-      "CallTrainerTowerFunc" -> { openFor(ctx, "ttower", f); 0 }
-      "CallVerdanturfTentFunction" -> { openFor(ctx, "tent:verdanturf", f); 0 }
-      "CallFallarborTentFunction" -> { openFor(ctx, "tent:fallarbor", f); 0 }
-      "CallSlateportTentFunction" -> { openFor(ctx, "tent:slateport", f); 0 }
-      "ShowBattlePointsWindow", "ShowRankingHallRecordsWindow", "ShowTrainerHillRecords" -> {
+      "CallBattleTowerFunc" -> {
+        openFor(ctx, "tower:singles", f)
+        0
+      }
+      "CallBattleDomeFunction" -> {
+        openFor(ctx, "dome:singles", f)
+        0
+      }
+      "CallBattlePalaceFunction" -> {
+        openFor(ctx, "palace:singles", f)
+        0
+      }
+      "CallBattleArenaFunction" -> {
+        openFor(ctx, "arena", f)
+        0
+      }
+      "CallBattleFactoryFunction" -> {
+        openFor(ctx, "factory:singles", f)
+        0
+      }
+      "CallBattlePikeFunction" -> {
+        openFor(ctx, "pike", f)
+        0
+      }
+      "CallBattlePyramidFunction" -> {
+        openFor(ctx, "pyramid", f)
+        0
+      }
+      "CallTrainerHillFunction" -> {
+        openFor(ctx, "hill", f)
+        0
+      }
+      "CallTrainerTowerFunc" -> {
+        openFor(ctx, "ttower", f)
+        0
+      }
+      "CallVerdanturfTentFunction" -> {
+        openFor(ctx, "tent:verdanturf", f)
+        0
+      }
+      "CallFallarborTentFunction" -> {
+        openFor(ctx, "tent:fallarbor", f)
+        0
+      }
+      "CallSlateportTentFunction" -> {
+        openFor(ctx, "tent:slateport", f)
+        0
+      }
+      "ShowBattlePointsWindow",
+      "ShowRankingHallRecordsWindow",
+      "ShowTrainerHillRecords" -> {
         frontier.open(ctx.session, "card")
         0
       }
-      "PlayerNotAtTrainerHillEntrance", "IsPlayerNotInTrainerTowerLobby" -> 0
+      "PlayerNotAtTrainerHillEntrance",
+      "IsPlayerNotInTrainerTowerLobby" -> 0
       "ReadTrainerTowerAndValidate" -> 1
       else -> 0
     }

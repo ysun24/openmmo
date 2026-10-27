@@ -10,7 +10,6 @@ import de.fiereu.openmmo.net.game.packets.frontier.FrontierActionPacket
 import de.fiereu.openmmo.net.game.packets.frontier.FrontierStatePacket
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.progression.Gen3Data
-import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.battle.FacilityBattleOutcome
 import de.fiereu.openmmo.server.game.battle.FacilityBattleSetup
 import de.fiereu.openmmo.server.game.battle.FacilityHooks
@@ -43,7 +42,6 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -123,8 +121,8 @@ data class FacilityOpponent(
 
 /**
  * r5-frontier: the battle facilities. Players reach a desk by talking to its attendant (see
- * [FrontierDesks]), the desk runs the facility's challenge in a coroutine, and every screen goes
- * to the browser as [FrontierStatePacket] JSON (PROTOCOL.md "r5-frontier").
+ * [FrontierDesks]), the desk runs the facility's challenge in a coroutine, and every screen goes to
+ * the browser as [FrontierStatePacket] JSON (PROTOCOL.md "r5-frontier").
  */
 @Singleton
 class FrontierService
@@ -153,11 +151,13 @@ constructor(
 
   // --- records ---------------------------------------------------------------------------------
 
-  suspend fun save(charId: Long): FrontierSave = saves[charId] ?: repo.load(charId).also { saves[charId] = it }
+  suspend fun save(charId: Long): FrontierSave =
+      saves[charId] ?: repo.load(charId).also { saves[charId] = it }
 
   suspend fun persist(charId: Long) {
     val s = saves[charId] ?: return
-    runCatching { repo.save(charId, s) }.onFailure { log.error(it) { "frontier save char=$charId" } }
+    runCatching { repo.save(charId, s) }
+        .onFailure { log.error(it) { "frontier save char=$charId" } }
   }
 
   // --- entry points ----------------------------------------------------------------------------
@@ -181,8 +181,7 @@ constructor(
         scope.launch {
           try {
             FrontierChallenges(this@FrontierService, run).runDesk()
-          } catch (_: FrontierClosed) {
-          } catch (e: CancellationException) {
+          } catch (_: FrontierClosed) {} catch (e: CancellationException) {
             throw e
           } catch (e: Exception) {
             log.error(e) { "frontier desk $desk failed for char=$charId" }
@@ -202,7 +201,8 @@ constructor(
   /** The browser's answer to the current screen, or a close. */
   suspend fun onAction(event: PacketEvent<FrontierActionPacket>) {
     val charId = event.session.attributes[PLAYER_STATE]?.characterId ?: return
-    val a = runCatching { Json.parseToJsonElement(event.packet.json).jsonObject }.getOrNull() ?: return
+    val a =
+        runCatching { Json.parseToJsonElement(event.packet.json).jsonObject }.getOrNull() ?: return
     when (a["a"]?.jsonPrimitive?.contentOrNull) {
       "answer" -> {
         val run = runs[charId] ?: return
@@ -238,7 +238,9 @@ constructor(
       put("desk", run.desk)
       put("answer", expectsAnswer)
       put("bp", s?.battlePoints ?: 0)
-      put("symbols", JsonObject(Facility.entries.associate { it.key to JsonPrimitive(s?.symbolsOf(it) ?: 0) }))
+      put(
+          "symbols",
+          JsonObject(Facility.entries.associate { it.key to JsonPrimitive(s?.symbolsOf(it) ?: 0) }))
       put("screen", run.screen)
     }
     run.session.send(FrontierStatePacket(json.toString()))
@@ -260,7 +262,8 @@ constructor(
 
   fun itemName(wireId: Int): String = if (wireId == 0) "" else items.get(wireId)?.name ?: ""
 
-  fun itemNameOf(decomp: String): String = ItemNames.byDecompName(decomp)?.name ?: decomp.replace('_', ' ')
+  fun itemNameOf(decomp: String): String =
+      ItemNames.byDecompName(decomp)?.name ?: decomp.replace('_', ' ')
 
   fun natureName(mon: Pokemon): String = mon.nature.name
 
@@ -276,19 +279,34 @@ constructor(
       put("level", mon.level.toInt())
       put("hp", mon.hp.toInt())
       put("maxHp", max?.hp ?: mon.hp.toInt())
-      put("status", if (mon.status != 0) de.fiereu.openmmo.common.StatusCondition.code(mon.status) else null)
+      put(
+          "status",
+          if (mon.status != 0) de.fiereu.openmmo.common.StatusCondition.code(mon.status) else null)
       put("item", itemName(mon.heldItem))
       put("nature", natureName(mon))
       def?.let {
         val ability =
-            if (it.ability2 != de.fiereu.openmmo.common.enums.Ability.NONE && (mon.seed and 1) == 1) it.ability2
+            if (it.ability2 != de.fiereu.openmmo.common.enums.Ability.NONE && (mon.seed and 1) == 1)
+                it.ability2
             else it.ability1
         put("ability", ability.name.replace('_', ' '))
         put("types", buildJsonArray { it.types.forEach { t -> add(JsonPrimitive(t.name)) } })
       }
-      put("moves", buildJsonArray { mon.moves.filter { it.id.toInt() != 0 }.forEach { add(JsonPrimitive(moveName(it.id.toInt()))) } })
+      put(
+          "moves",
+          buildJsonArray {
+            mon.moves
+                .filter { it.id.toInt() != 0 }
+                .forEach { add(JsonPrimitive(moveName(it.id.toInt()))) }
+          })
       max?.let {
-        put("stats", buildJsonArray { listOf(it.hp, it.atk, it.def, it.spAtk, it.spDef, it.spd).forEach { v -> add(JsonPrimitive(v)) } })
+        put(
+            "stats",
+            buildJsonArray {
+              listOf(it.hp, it.atk, it.def, it.spAtk, it.spDef, it.spd).forEach { v ->
+                add(JsonPrimitive(v))
+              }
+            })
       }
     }
   }
@@ -317,19 +335,18 @@ constructor(
             intro = opp.intro,
             partnerFrom = partnerFrom)
     run.inBattle = true
-    run.show(buildJsonObject {
-      put("kind", "battle")
-      put("text", if (opp.wild) "A wild POKéMON appeared!" else "${opp.name} wants to battle!")
-    })
+    run.show(
+        buildJsonObject {
+          put("kind", "battle")
+          put("text", if (opp.wild) "A wild POKéMON appeared!" else "${opp.name} wants to battle!")
+        })
     partner?.first?.inBattle = true
     val outcome =
         try {
           battles
               .get()
               .startFacilityBattle(
-                  run.session,
-                  setup,
-                  partner?.let { (p, t) -> p.session to setup.copy(team = t) })
+                  run.session, setup, partner?.let { (p, t) -> p.session to setup.copy(team = t) })
         } finally {
           run.inBattle = false
           partner?.first?.inBattle = false
@@ -347,7 +364,8 @@ constructor(
     val id = ItemNames.wireId(items, decompName)
     if (id == 0) return false
     if (!characters.addItem(run.charId, id, qty)) return false
-    run.session.send(itemStackUpdatePacket(id, characters.getCharacter(run.charId)?.items?.get(id) ?: 0))
+    run.session.send(
+        itemStackUpdatePacket(id, characters.getCharacter(run.charId)?.items?.get(id) ?: 0))
     return true
   }
 
@@ -361,7 +379,9 @@ constructor(
       s.copy(
           storyVars =
               s.storyVars.toMutableMap().apply {
-                put(ProgressKeys.decor(decor.id), minOf(99, (this[ProgressKeys.decor(decor.id)] ?: 0) + 1))
+                put(
+                    ProgressKeys.decor(decor.id),
+                    minOf(99, (this[ProgressKeys.decor(decor.id)] ?: 0) + 1))
               })
     }
   }

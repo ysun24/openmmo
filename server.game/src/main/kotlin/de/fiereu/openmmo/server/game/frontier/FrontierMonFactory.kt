@@ -20,8 +20,8 @@ import kotlin.random.Random
 
 /**
  * Builds facility monsters the decomp's ways: CreateMonWithEVSpreadNatureOTID for frontier sets,
- * CreateFrontierBrainPokemon for the brains, CreateBattleTowerMon for Trainer Hill / Trainer
- * Tower entries, and the level fix-up the facilities apply to the player's own monsters.
+ * CreateFrontierBrainPokemon for the brains, CreateBattleTowerMon for Trainer Hill / Trainer Tower
+ * entries, and the level fix-up the facilities apply to the player's own monsters.
  */
 @Singleton
 class FrontierMonFactory
@@ -127,7 +127,9 @@ constructor(
     return leveled.copy(hp = StatCalculator.computeAll(def, leveled).hp.toShort())
   }
 
-  /** Full hp and pp, no status: the heal between battles of Tower / Dome / Palace / Arena / Factory. */
+  /**
+   * Full hp and pp, no status: the heal between battles of Tower / Dome / Palace / Arena / Factory.
+   */
   fun healed(mon: Pokemon): Pokemon {
     val def = species.get(mon.dexId) ?: return mon
     return mon.copy(
@@ -139,7 +141,8 @@ constructor(
             })
   }
 
-  fun maxHp(mon: Pokemon): Int = species.get(mon.dexId)?.let { StatCalculator.computeAll(it, mon).hp } ?: mon.hp.toInt()
+  fun maxHp(mon: Pokemon): Int =
+      species.get(mon.dexId)?.let { StatCalculator.computeAll(it, mon).hp } ?: mon.hp.toInt()
 
   private fun maxPp(moveId: Int, ppBonuses: Int, slot: Int): Byte {
     if (moveId == 0) return 0
@@ -194,7 +197,8 @@ constructor(
             dexId = dex,
             seed = personality,
             ot = "",
-            nickname = nickname.takeIf { it.isNotBlank() && it.uppercase() != def.name.uppercase() } ?: "",
+            nickname =
+                nickname.takeIf { it.isNotBlank() && it.uppercase() != def.name.uppercase() } ?: "",
             level = level.toByte(),
             hp = 0,
             xp = ExpCurves.totalXpFor(def.growthRate, level),

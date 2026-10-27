@@ -367,7 +367,8 @@ object Dispatcher {
           if (a !in setOf("answer", "close", "open")) "unknown frontier action: $a"
           else {
             val body = JsonObject(m.filterKeys { it != "t" })
-            if (body.toString().length > 4096) "frontier message too long" else g.frontier(body.toString())
+            if (body.toString().length > 4096) "frontier message too long"
+            else g.frontier(body.toString())
           }
         }
         "secretbase" -> {

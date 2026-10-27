@@ -30,7 +30,9 @@ constructor(
     private val scriptRunner: ScriptRunner,
     private val fieldService: FieldService,
     /** r5-frontier: facility attendants open their desk. */
-    private val frontier: javax.inject.Provider<de.fiereu.openmmo.server.game.frontier.FrontierService>? = null,
+    private val frontier:
+        javax.inject.Provider<de.fiereu.openmmo.server.game.frontier.FrontierService>? =
+        null,
 ) {
 
   /** The player pressed the action button on a specific entity, that is an npc. */
@@ -56,7 +58,9 @@ constructor(
         // HM obstacles, item balls and trainers first.
         if (fieldService.onNpcInteract(session, state, currentMap, npc, npcEntityId)) return
         de.fiereu.openmmo.server.game.frontier.FrontierDesks.BY_SCRIPT[npc.script]?.let { desk ->
-          frontier?.get()?.open(session, desk)?.let { return }
+          frontier?.get()?.open(session, desk)?.let {
+            return
+          }
         }
         val script = scriptRegistry.forLabel(npc.script)
         if (script != null) {

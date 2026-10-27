@@ -26,8 +26,8 @@ enum class PalaceGroup {
  * ChooseMoveAndTargetInBattlePalace and battle_script_commands.c
  * gBattlePalaceNatureToMoveGroupLikelihood. Each monster picks a move group by its nature (one
  * table above half hp, another at or below half), then the AI picks within the group. A monster
- * with no usable move in the group picks at random from the others and then has a 50% chance to
- * be "incapable of using its power". Below half hp a monster shows its nature's flavor line.
+ * with no usable move in the group picks at random from the others and then has a 50% chance to be
+ * "incapable of using its power". Below half hp a monster shows its nature's flavor line.
  */
 object PalaceRules {
   /** PALACE_STYLE(atk, def, atkLow, defLow) per nature: cumulative thresholds. */
@@ -198,15 +198,14 @@ class PalaceHooks(private val rng: Random = Random.Default) : FacilityHooks {
   }
 }
 
-private fun BattleMonState.nature(): Int =
-    ((source.seed.toLong() and 0xFFFFFFFFL) % 25).toInt()
+private fun BattleMonState.nature(): Int = ((source.seed.toLong() and 0xFFFFFFFFL) % 25).toInt()
 
 /**
  * The Battle Arena (and Fallarbor Battle Tent): battle_arena.c. Monsters fight one on one in party
  * order with no switching; after three turns with both still standing the referee judges Mind
  * (sMindRatings of the moves used), Skill (hits that worked minus misses and ineffective ones) and
- * Body (hp left against the hp at the start of the match-up). Each category won is 2 points, a
- * tie 1; the lower total faints, a draw faints both.
+ * Body (hp left against the hp at the start of the match-up). Each category won is 2 points, a tie
+ * 1; the lower total faints, a draw faints both.
  */
 object ArenaRules {
   /** BattleArena_AddSkillPoints for one move's outcome. */
@@ -331,25 +330,42 @@ class ArenaHooks(
     val meName = BattleNames.token(me)
     val foeName = BattleNames.token(foe)
     val out = mutableListOf<BattleEvent>()
-    out += BattleEvent.Message("REFEREE: That's it! We will now go to judging to determine the winner!")
-    out += BattleEvent.Message("REFEREE: Judging category 1, Mind! The POKéMON showing the most guts! (${ArenaRules.mark(j.mind.first)} - ${ArenaRules.mark(j.mind.second)})")
-    out += BattleEvent.Message("REFEREE: Judging category 2, Skill! The POKéMON using moves the best! (${ArenaRules.mark(j.skill.first)} - ${ArenaRules.mark(j.skill.second)})")
-    out += BattleEvent.Message("REFEREE: Judging category 3, Body! The POKéMON with the most vitality! (${ArenaRules.mark(j.body.first)} - ${ArenaRules.mark(j.body.second)})")
+    out +=
+        BattleEvent.Message(
+            "REFEREE: That's it! We will now go to judging to determine the winner!")
+    out +=
+        BattleEvent.Message(
+            "REFEREE: Judging category 1, Mind! The POKéMON showing the most guts! (${ArenaRules.mark(j.mind.first)} - ${ArenaRules.mark(j.mind.second)})")
+    out +=
+        BattleEvent.Message(
+            "REFEREE: Judging category 2, Skill! The POKéMON using moves the best! (${ArenaRules.mark(j.skill.first)} - ${ArenaRules.mark(j.skill.second)})")
+    out +=
+        BattleEvent.Message(
+            "REFEREE: Judging category 3, Body! The POKéMON with the most vitality! (${ArenaRules.mark(j.body.first)} - ${ArenaRules.mark(j.body.second)})")
     val losers =
         when {
           j.player > j.opponent -> {
-            out += BattleEvent.Message("REFEREE: Judgment: ${j.player} to ${j.opponent}! The winner is $playerName's $meName!")
-            out += BattleEvent.Message("$meName defeated the opponent $foeName in a REFEREE's decision!")
+            out +=
+                BattleEvent.Message(
+                    "REFEREE: Judgment: ${j.player} to ${j.opponent}! The winner is $playerName's $meName!")
+            out +=
+                BattleEvent.Message(
+                    "$meName defeated the opponent $foeName in a REFEREE's decision!")
             listOf(foe)
           }
           j.player < j.opponent -> {
-            out += BattleEvent.Message("REFEREE: Judgment: ${j.player} to ${j.opponent}! The winner is $trainerName's $foeName!")
-            out += BattleEvent.Message("$meName lost to the opponent $foeName in a REFEREE's decision!")
+            out +=
+                BattleEvent.Message(
+                    "REFEREE: Judgment: ${j.player} to ${j.opponent}! The winner is $trainerName's $foeName!")
+            out +=
+                BattleEvent.Message(
+                    "$meName lost to the opponent $foeName in a REFEREE's decision!")
             listOf(me)
           }
           else -> {
             out += BattleEvent.Message("REFEREE: Judgment: 3 to 3! We have a draw!")
-            out += BattleEvent.Message("$meName tied the opponent $foeName in a REFEREE's decision!")
+            out +=
+                BattleEvent.Message("$meName tied the opponent $foeName in a REFEREE's decision!")
             listOf(me, foe)
           }
         }
@@ -385,8 +401,10 @@ class ArenaHooks(
                     outcome =
                         when {
                           t.effectiveness == 0 -> ArenaRules.MoveOutcome.NO_EFFECT
-                          t.effectiveness > TypeChart.NEUTRAL -> ArenaRules.MoveOutcome.SUPER_EFFECTIVE
-                          t.effectiveness < TypeChart.NEUTRAL -> ArenaRules.MoveOutcome.NOT_VERY_EFFECTIVE
+                          t.effectiveness > TypeChart.NEUTRAL ->
+                              ArenaRules.MoveOutcome.SUPER_EFFECTIVE
+                          t.effectiveness < TypeChart.NEUTRAL ->
+                              ArenaRules.MoveOutcome.NOT_VERY_EFFECTIVE
                           else -> ArenaRules.MoveOutcome.NORMAL
                         }
             else -> Unit

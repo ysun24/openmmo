@@ -83,8 +83,8 @@ internal object BattleAi {
 
   /**
    * r5-frontier: [allowed] restricts the pick to these move ids (the Battle Palace's nature-chosen
-   * move group, BattleAI_SetupAIData(selectedMoves)); [forceSmart] scores moves like a trainer
-   * for either side (the Palace runs the AI for the player's monsters too).
+   * move group, BattleAI_SetupAIData(selectedMoves)); [forceSmart] scores moves like a trainer for
+   * either side (the Palace runs the AI for the player's monsters too).
    */
   fun choose(
       ctx: BattleCtx,

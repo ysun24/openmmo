@@ -393,7 +393,8 @@ class BattleClient(
       is BattleQueuedEventPacket ->
           if (p.flag) {
             update {
-              val next = it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1, chosen = emptyList())
+              val next =
+                  it.copy(phase = BattlePhase.ACTION, turn = it.turn + 1, chosen = emptyList())
               // r5-frontier: in a multi battle the partner's position is not ours to pick.
               if (next.notMine.isNotEmpty() && next.choosingPos == null)
                   next.copy(phase = BattlePhase.WAITING)
