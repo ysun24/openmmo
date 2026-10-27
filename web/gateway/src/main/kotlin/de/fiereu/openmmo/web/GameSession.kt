@@ -3,6 +3,7 @@ package de.fiereu.openmmo.web
 import de.fiereu.openmmo.client.net.BattlePhase
 import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.MarketSortOrder
+import de.fiereu.openmmo.client.net.OverworldClient
 import de.fiereu.openmmo.common.enums.Direction
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -17,6 +18,7 @@ class GameSession(val client: GameClient) : GameActions {
           battle = client.battle.snapshot(),
           trade = client.trade.state,
           party = client.trade.party,
+          pc = client.trade.pc,
           tradeBag = client.trade.bag,
           tradeMoney = client.trade.money,
           market = client.market.state,
@@ -89,6 +91,32 @@ class GameSession(val client: GameClient) : GameActions {
 
   override fun shopSell(item: Int, qty: Int): String? =
       if (client.overworld.sell(item, qty)) null else "no shop is open"
+
+  override fun itemUse(item: Int, mon: Long?): String? {
+    if (inBattle()) return "not outside a battle"
+    return if (client.overworld.useItem(item, mon ?: 0)) null else "close the dialog first"
+  }
+
+  override fun partyMove(from: Int, to: Int): String? {
+    client.overworld.moveMonster(PARTY, from, PARTY, to)
+    return null
+  }
+
+  override fun pcDeposit(slot: Int): String? {
+    client.overworld.moveMonster(PARTY, slot, PC, ANY)
+    return null
+  }
+
+  override fun pcWithdraw(slot: Int): String? {
+    client.overworld.moveMonster(PC, slot, PARTY, ANY)
+    return null
+  }
+
+  private companion object {
+    const val PARTY = OverworldClient.LIST_PARTY
+    const val PC = OverworldClient.LIST_PC
+    const val ANY = -1
+  }
 
   override fun shopClose(): String? {
     client.overworld.closeShop()

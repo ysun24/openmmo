@@ -34,6 +34,15 @@ interface GameActions {
 
   fun shopClose(): String?
 
+  /** Use bag [item] in the field, on party monster [mon] (its id), or on nothing. */
+  fun itemUse(item: Int, mon: Long?): String?
+
+  fun partyMove(from: Int, to: Int): String?
+
+  fun pcDeposit(slot: Int): String?
+
+  fun pcWithdraw(slot: Int): String?
+
   fun battleFight(move: Int): String?
 
   fun battleSwitch(slot: Int): String?
@@ -92,6 +101,7 @@ class BadMessage(msg: String) : RuntimeException(msg)
 object Dispatcher {
   const val MAX_TEXT = 256
   private const val MAX_QTY = 999
+  private const val MAX_PC_SLOT = 14 * 30 - 1
   private val TRADE_ACTIONS = setOf("accept", "decline", "ready", "confirm", "cancel")
 
   /** Returns an error message, or null when the action was taken. */
@@ -118,6 +128,13 @@ object Dispatcher {
         "shop.buy" -> g.shopBuy(m.reqInt("item"), m.qty("qty"))
         "shop.sell" -> g.shopSell(m.reqInt("item"), m.qty("qty"))
         "shop.close" -> g.shopClose()
+        "item.use" -> {
+          val mon = m["mon"]
+          g.itemUse(m.reqInt("item"), if (mon == null || mon is JsonNull) null else m.id("mon"))
+        }
+        "party.move" -> g.partyMove(m.reqInt("from", 0..5), m.reqInt("to", 0..5))
+        "pc.deposit" -> g.pcDeposit(m.reqInt("slot", 0..5))
+        "pc.withdraw" -> g.pcWithdraw(m.reqInt("slot", 0..MAX_PC_SLOT))
         "battle.fight" -> g.battleFight(m.reqInt("move", 0..3))
         "battle.switch" -> g.battleSwitch(m.reqInt("slot", 0..5))
         "battle.run" -> g.battleRun()

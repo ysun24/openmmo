@@ -17,12 +17,25 @@ data class TextPokemonSpeciesArg(
     val speciesId: Short,
 ) : DialogMessageArg()
 
+/**
+ * Fills a text placeholder with a literal string: an item name, a rival name, any text the script
+ * buffered. Our own addition (tag 4), so a script can name things the other args cannot carry.
+ * [stringVariable] 1..3 is STR_VAR_1..3, [RIVAL] is the {RIVAL} placeholder.
+ */
+data class TextStringArg(val stringVariable: Byte, val text: String) : DialogMessageArg() {
+  companion object {
+    const val RIVAL: Byte = 0x10
+  }
+}
+
 data class TextCreatureArg(
     val slot: Byte,
     val statusId: Byte,
     val value1: Short,
     val value2: Short,
 ) : DialogMessageArg()
+
+private val StringArgText: Codec<String> = stringPrefixed(U8, Charsets.UTF_8)
 
 private val DialogMessageArgCodec: Codec<DialogMessageArg> =
     object : Codec<DialogMessageArg> {
@@ -46,6 +59,7 @@ private val DialogMessageArgCodec: Codec<DialogMessageArg> =
             }
 
             3 -> TextCreatureArg(buf.readByte(), buf.readByte(), S16LE.read(buf), S16LE.read(buf))
+            4 -> TextStringArg(buf.readByte(), StringArgText.read(buf))
             else -> throw MalformedPacketException("unknown dialog message arg tag $tag")
           }
 
@@ -71,6 +85,12 @@ private val DialogMessageArgCodec: Codec<DialogMessageArg> =
             buf.writeByte(value.partySlot)
             buf.writeByte(value.stringVariable)
             S16LE.write(buf, value.speciesId)
+          }
+
+          is TextStringArg -> {
+            buf.writeByte(4)
+            buf.writeByte(value.stringVariable)
+            StringArgText.write(buf, value.text)
           }
 
           is TextCreatureArg -> {

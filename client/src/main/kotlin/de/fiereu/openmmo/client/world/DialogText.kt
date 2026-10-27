@@ -24,12 +24,18 @@ class DialogText(private val dir: File) {
   @Synchronized
   private fun table(region: String): Map<Int, String> =
       tables.getOrPut(region) {
-        val f = File(dir, "$region.json")
-        if (!f.exists()) return@getOrPut emptyMap()
-        Json.parseToJsonElement(f.readText()).jsonObject.getValue("lines").jsonArray.associate {
-          val o = it.jsonObject
-          o.getValue("id").jsonPrimitive.int to o.getValue("text").jsonPrimitive.content
-        }
+        // The ROM-resolved table, plus decomp-only lines with synthetic ids
+        // (`<region>.extra.json`).
+        listOf("$region.json", "$region.extra.json")
+            .map { File(dir, it) }
+            .filter { it.exists() }
+            .flatMap { f ->
+              Json.parseToJsonElement(f.readText()).jsonObject.getValue("lines").jsonArray.map {
+                val o = it.jsonObject
+                o.getValue("id").jsonPrimitive.int to o.getValue("text").jsonPrimitive.content
+              }
+            }
+            .toMap()
       }
 
   companion object {

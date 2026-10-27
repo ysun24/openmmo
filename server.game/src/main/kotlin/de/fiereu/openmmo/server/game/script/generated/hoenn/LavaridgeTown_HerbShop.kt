@@ -1,25 +1,16 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.LavaridgeTown_HerbShop
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message LavaridgeTown_HerbShop_Text_WelcomeToHerbShop
- * waitmessage
- * pokemart LavaridgeTown_HerbShop_Pokemart
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object LavaridgeTown_HerbShop_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LavaridgeTown_HerbShop_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(LavaridgeTown_HerbShop.WelcomeToHerbShop)
+    ctx.pokemart(Items.ENERGYPOWDER, Items.ENERGY_ROOT, Items.HEAL_POWDER, Items.REVIVAL_HERB)
+  }
 }
 
 /**

@@ -17,6 +17,7 @@ import de.fiereu.openmmo.net.game.packets.EntityFaceTurnPacket
 import de.fiereu.openmmo.net.game.packets.EntityInteractPacket
 import de.fiereu.openmmo.net.game.packets.EntityPresencePacket
 import de.fiereu.openmmo.net.game.packets.ExchangeItemRequestPacket
+import de.fiereu.openmmo.net.game.packets.FieldItemUsePacket
 import de.fiereu.openmmo.net.game.packets.LocalCharacterDeltaPacket
 import de.fiereu.openmmo.net.game.packets.LocalPlayerStatePacket
 import de.fiereu.openmmo.net.game.packets.MapTransitionPacket
@@ -26,12 +27,15 @@ import de.fiereu.openmmo.net.game.packets.NpcUpdatePacket
 import de.fiereu.openmmo.net.game.packets.RenderScreenPacket
 import de.fiereu.openmmo.net.game.packets.ShopCatalogPacket
 import de.fiereu.openmmo.net.game.packets.ShopSellRequestPacket
+import de.fiereu.openmmo.net.game.packets.SlotSwap
+import de.fiereu.openmmo.net.game.packets.SwapInventorySlotsPacket
 import de.fiereu.openmmo.net.game.packets.TileInteractPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSideAddPokemonPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionResponsePacket
 import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
+import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -137,7 +141,7 @@ class OverworldClient(
         world.overworld.setStack(s.frontSpriteId.toInt(), s.backSpriteId.toInt())
         val name = itemName(s.frontSpriteId.toInt())
         world.overworld.updateShop {
-          it.copy(status = "$name x${s.backSpriteId}  ¥${world.overworld.view().money ?: 0}")
+          it.copy(status = "$name x${s.backSpriteId}  ₽${world.overworld.view().money ?: 0}")
         }
       }
       is MapTransitionPacket -> world.overworld.setTransitioning(true)
@@ -225,9 +229,16 @@ class OverworldClient(
             ?: if (p.textId == 0) "" else "[text 0x${p.textId.toString(16)}]"
     val vars = mutableMapOf("PLAYER" to (snap.characterName ?: "PLAYER"), "RIVAL" to "RIVAL")
     // A species argument fills the ROM string variable it names (1-based, STR_VAR_1..3).
-    p.messageArgs.filterIsInstance<TextPokemonSpeciesArg>().forEach {
-      vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] =
-          speciesName(it.speciesId.toInt())
+    p.messageArgs.forEach {
+      when (it) {
+        is TextPokemonSpeciesArg ->
+            vars["STR_VAR_${it.stringVariable.toInt().coerceIn(1, 3)}"] =
+                speciesName(it.speciesId.toInt())
+        is TextStringArg ->
+            if (it.stringVariable == TextStringArg.RIVAL) vars["RIVAL"] = it.text
+            else if (it.stringVariable in 1..3) vars["STR_VAR_${it.stringVariable}"] = it.text
+        else -> {}
+      }
     }
     val actionType = p.actionType.toInt() and 0xFF
     var choices = emptyList<String>()
@@ -269,7 +280,8 @@ class OverworldClient(
     // A box that faces an npc turns the player toward it is the server's job; nothing to do here.
   }
 
-  private fun speciesName(dex: Int): String = speciesNames[dex] ?: "#$dex"
+  private fun speciesName(dex: Int): String =
+      BattleNames.species(dex).takeUnless { it.startsWith("#") } ?: speciesNames[dex] ?: "#$dex"
 
   /** A: next page, or answer the box. Returns false if no box is open. */
   fun advance(): Boolean {
@@ -394,6 +406,25 @@ class OverworldClient(
     return true
   }
 
+  /** Use bag item [itemId] in the field, on party monster [pokemonId] (0 for none, a Repel). */
+  fun useItem(itemId: Int, pokemonId: Long): Boolean {
+    if (world.overworld.view().dialog != null) return false
+    send(FieldItemUsePacket(itemId.toShort(), pokemonId))
+    return true
+  }
+
+  /**
+   * Move a monster: list types are [LIST_PARTY] and [LIST_PC], slots are party indices or PC slots,
+   * a destination of -1 means "anywhere free". The server answers with both containers.
+   */
+  fun moveMonster(fromList: Int, fromSlot: Int, toList: Int, toSlot: Int) {
+    send(
+        SwapInventorySlotsPacket(
+            listOf(
+                SlotSwap(
+                    fromList.toByte(), fromSlot.toShort(), toList.toByte(), toSlot.toShort()))))
+  }
+
   fun closeShop() {
     world.overworld.setShop(null)
     onChange()
@@ -404,14 +435,16 @@ class OverworldClient(
     timer.shutdownNow()
   }
 
-  private companion object {
-    const val YES_NO = 0x05
-    const val PICK = 0x23
-    const val ITEM_TAG = 0x5000L
-    const val ITEM_REGION_BLOCK = 5000
-    const val COUNTER = 0x80
+  companion object {
+    const val LIST_PC = 0
+    const val LIST_PARTY = 1
+    private const val YES_NO = 0x05
+    private const val PICK = 0x23
+    private const val ITEM_TAG = 0x5000L
+    private const val ITEM_REGION_BLOCK = 5000
+    private const val COUNTER = 0x80
 
-    fun dirOf(i: Int): Direction =
+    private fun dirOf(i: Int): Direction =
         when (i and 0x3) {
           1 -> Direction.UP
           2 -> Direction.LEFT

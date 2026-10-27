@@ -39,6 +39,10 @@ web/
 | `choose` | `index` | dialog choice |
 | `shop.buy` / `shop.sell` | `item`, `qty` | OverworldClient.buy/sell |
 | `shop.close` | – | |
+| `item.use` | `item`, `mon` (party monster `id` string, or null/absent for items without a target, e.g. Repel) | OverworldClient.useItem → FieldItemUsePacket |
+| `party.move` | `from`, `to` (party indices 0-5; swaps the two) | OverworldClient.moveMonster → SwapInventorySlotsPacket |
+| `pc.deposit` | `slot` (party index) | only where `pc.here` is true |
+| `pc.withdraw` | `slot` (PC slot from `pc.mons[].slot`) | only where `pc.here` is true |
 | `battle.fight` | `move` (0-3) | BattleClient.fight |
 | `battle.switch` | `slot` (party index 0-5) | |
 | `battle.run` / `battle.ball` | – | |
@@ -86,13 +90,23 @@ Unknown or malformed messages get `{"t":"error","msg":...}`; they never close th
 },
 "chat":   [ {"sender":"*","text":"Welcome to OpenMMO!"} ],     // last 50 lines
 "ui": {                 // overworld UI (OverworldState.View)
-  "dialog": {"speaker":"OAK","lines":["Hey! Wait!","Don't go out!"],"lastPage":false,
-             "choices":["YES","NO"],"cursor":0} | null,
-  "shop": {"offers":[{"item":5017,"name":"POTION","price":300}],"cursor":0,"status":""} | null,
-  "money": 3000, "bag": [{"item":5017,"name":"POTION","qty":3}],
-  "locked": false       // transitioning || scriptLocked || inScript
+  "dialog": {"speaker":"PROF. OAK","lines":["Hey! Wait!","Don't go out!"],"lastPage":false,
+             "choices":["YES","NO"],"cursor":0} | null,   // speaker: named npcs only, else null
+  "shop": {"offers":[{"item":5017,"name":"Potion","price":300,"desc":"..."}],
+           "sell":[{"item":5017,"name":"Potion","qty":3,"price":150}],   // what the clerk buys, half price
+           "cursor":0,"status":""} | null,
+  "money": 3000,
+  "bag": [{"item":5017,"name":"Potion","qty":3,
+           "pocket":"items|balls|tms|berries|key","desc":"...","use":"mon|field"|null}],
+  "locked": false,      // transitioning || scriptLocked || inScript
+  "notice": {"seq":3,"text":"BULBASAUR's HP was restored by 16 point(s)."} | null  // last server notice
 },
-"party": [ {"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":39,"maxHp":39} ],
+"party": [ {"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":39,"maxHp":39,
+            "id":"<string>","stats":{"hp":39,"atk":20,"def":18,"spa":22,"spd":19,"spe":24},
+            "nature":"HARDY","ability":"BLAZE","types":["FIRE"],
+            "moves":[{"name":"SCRATCH","pp":35,"maxPp":35}],"ot":"Ash","xp":1000,"shiny":false} ],
+"pc": {"here": true,   // the player is on a map with a Pokemon Center nurse
+       "mons": [{"slot":0,"id":"<string>","dex":19,"name":"RATTATA","level":5,"hp":19,"maxHp":19}]},
 "battle": {             // null when no battle
   "wild":true,"opponentName":"","phase":"ACTION|FORCED_SWITCH|WAITING|ENDED","turn":3,
   "activeSlot":0,       // index into "party" of the monster that is out
@@ -157,6 +171,10 @@ Gateway notes (implementation in `web/gateway`):
   switch) and counts a timeout; at `maxTimeouts` that player forfeits. Opcodes (ours, free in both
   directions): c2s 0xEE `DuelRulesChallengePacket`, s2c 0xEE `DuelRulesPacket`, s2c 0xEF
   `BattleTurnTimerPacket`.
+- Dialog text arrives with `{PLAYER}`, `{RIVAL}` and `{STR_VAR_n}` already filled: the game server
+  sends the script's string buffers with every box (dialog arg tag 4 `TextStringArg`, ours).
+- `item.use` / `party.move` / `pc.*` results come back as a changed `party` / `pc` / `ui.bag` and a
+  `ui.notice` (also in `chat`). Refusals (full HP, no PC here, last monster) are notices too.
 
 Entity ids are strings (they are 64-bit). Names come resolved from the gateway (codegen tables),
 so the browser needs no name tables.

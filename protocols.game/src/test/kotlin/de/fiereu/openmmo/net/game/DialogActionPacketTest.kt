@@ -5,8 +5,10 @@ import de.fiereu.openmmo.common.test.encodeToBytes
 import de.fiereu.openmmo.common.test.fixture
 import de.fiereu.openmmo.common.utils.toHex
 import de.fiereu.openmmo.net.game.packets.dialog.CreatureDataArg
+import de.fiereu.openmmo.net.game.packets.dialog.DialogActionPacket
 import de.fiereu.openmmo.net.game.packets.dialog.DialogActionPacketCodec
 import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
+import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -45,5 +47,25 @@ class DialogActionPacketTest :
 
         packet.messageArgs shouldBe listOf(TextPokemonSpeciesArg(1, 1, 255))
         DialogActionPacketCodec.encodeToBytes(packet) shouldBe bytes
+      }
+
+      test("a string argument round-trips next to the captured ones") {
+        val packet =
+            DialogActionPacket(
+                flags = 3,
+                actionType = 4,
+                textId = 0x0019021A,
+                entityId = 42,
+                contextValue = 0,
+                messageArgs =
+                    listOf(
+                        TextPokemonSpeciesArg(1, 1, 4),
+                        TextStringArg(2, "Poké Ball"),
+                        TextStringArg(TextStringArg.RIVAL, "GREEN"),
+                    ),
+                detail = byteArrayOf(0),
+            )
+        DialogActionPacketCodec.decodeBytes(DialogActionPacketCodec.encodeToBytes(packet)) shouldBe
+            packet
       }
     })

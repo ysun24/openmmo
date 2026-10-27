@@ -19,6 +19,7 @@ import de.fiereu.openmmo.net.game.packets.DuelChallengePacket
 import de.fiereu.openmmo.net.game.packets.EntityInteractPacket
 import de.fiereu.openmmo.net.game.packets.ExchangeItemRequestPacket
 import de.fiereu.openmmo.net.game.packets.FaceDirectionPacket
+import de.fiereu.openmmo.net.game.packets.FieldItemUsePacket
 import de.fiereu.openmmo.net.game.packets.InGameChallengeResponsePacket
 import de.fiereu.openmmo.net.game.packets.JoinPacket
 import de.fiereu.openmmo.net.game.packets.KeepAlivePacket
@@ -31,6 +32,7 @@ import de.fiereu.openmmo.net.game.packets.RequestPlayerPacket
 import de.fiereu.openmmo.net.game.packets.RequestSocialProfilePacket
 import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
 import de.fiereu.openmmo.net.game.packets.ShopSellRequestPacket
+import de.fiereu.openmmo.net.game.packets.SwapInventorySlotsPacket
 import de.fiereu.openmmo.net.game.packets.TileInteractPacket
 import de.fiereu.openmmo.net.game.packets.TradeActionPacket
 import de.fiereu.openmmo.net.game.packets.TradeSelectMonPacket
@@ -77,12 +79,14 @@ import de.fiereu.openmmo.net.game.packets.trade.TradeRequestPacket
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogService
+import de.fiereu.openmmo.server.game.services.FieldItemService
 import de.fiereu.openmmo.server.game.services.GuildService
 import de.fiereu.openmmo.server.game.services.InteractionService
 import de.fiereu.openmmo.server.game.services.LoginService
 import de.fiereu.openmmo.server.game.services.MarketService
 import de.fiereu.openmmo.server.game.services.MovementService
 import de.fiereu.openmmo.server.game.services.MultiplayerService
+import de.fiereu.openmmo.server.game.services.PartyStorageService
 import de.fiereu.openmmo.server.game.services.PresenceService
 import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.ShopService
@@ -115,6 +119,8 @@ constructor(
     private val pvpBattleService: PvpBattleService,
     private val chatCommandService: ChatCommandService,
     private val shopService: ShopService,
+    private val fieldItemService: FieldItemService,
+    private val partyStorageService: PartyStorageService,
     private val tradeService: TradeService,
     private val marketService: MarketService,
     private val scriptRunner: ScriptRunner,
@@ -140,6 +146,8 @@ constructor(
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
     onSuspend<ExchangeItemRequestPacket> { event -> shopService.onBuy(event) }
     onSuspend<ShopSellRequestPacket> { event -> shopService.onSell(event) }
+    onSuspend<FieldItemUsePacket> { event -> fieldItemService.onUse(event) }
+    onSuspend<SwapInventorySlotsPacket> { event -> partyStorageService.onSwap(event) }
 
     onSuspend<CreateMarketListingPacket> { event -> marketService.onCreate(event) }
     onSuspend<GtlSearchPageRequestPacket> { event -> marketService.onSearch(event) }

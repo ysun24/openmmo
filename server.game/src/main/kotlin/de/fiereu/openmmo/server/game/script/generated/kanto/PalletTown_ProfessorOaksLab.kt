@@ -183,12 +183,14 @@ private suspend fun starterBall(ctx: ScriptContext, starter: Starter) {
   ctx.setFlag(KantoFlags.FLAG_PALLET_LADY_NOT_BLOCKING_SIGN)
   ctx.givePokemon(starter.species, STARTER_LEVEL, *starter.moves)
   ctx.setVar(KantoVars.VAR_STARTER_MON, starter.starterNumber)
+  ctx.bufferSpeciesName(1, starter.species)
   ctx.sign(PalletTown_ProfessorOaksLab.ReceivedMonFromOak)
 
   val rivalStarter = starter.rival
   ctx.moveNpc(LOCALID_RIVAL, *rivalStarter.rivalWalk.toTypedArray())
   ctx.sayNpc(LOCALID_RIVAL, PalletTown_ProfessorOaksLab.RivalIllTakeThisOneThen)
   ctx.removeNpc(rivalStarter.localId)
+  ctx.bufferSpeciesName(1, rivalStarter.species)
   ctx.sign(PalletTown_ProfessorOaksLab.RivalReceivedMonFromOak)
   ctx.setVar(KantoVars.VAR_MAP_SCENE_PALLET_TOWN_PROFESSOR_OAKS_LAB, 3)
   if (ctx.isFlagSet(KantoFlags.FLAG_OPENED_START_MENU)) {

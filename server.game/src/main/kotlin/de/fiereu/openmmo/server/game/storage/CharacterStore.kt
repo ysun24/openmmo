@@ -31,6 +31,9 @@ private val log = KotlinLogging.logger {}
 private val FLUSH_TICK = 5.seconds
 private val FLUSH_DEBOUNCE = 10.seconds
 
+// Above any real party or PC slot, where rearrangeMonsters parks monsters mid-move.
+private const val PARKING_SLOT = 30000
+
 data class StoredCharacter(
     val info: CharacterInfo,
     val pokemon: MutableList<Pokemon>,
@@ -235,6 +238,13 @@ constructor(
     return applied
   }
 
+  /** Set the steps a repel has left, and which item it was. */
+  fun setRepel(characterId: Long, steps: Int, itemId: Int) {
+    mutate(characterId) {
+      it.copy(info = it.info.copy(repelLeft = steps.toShort(), repelItemId = itemId.toShort()))
+    }
+  }
+
   fun updateCharacter(info: CharacterInfo) {
     mutate(info.id) { it.copy(info = info) }
   }
@@ -278,6 +288,45 @@ constructor(
       stored.copy(
           pokemon = stored.pokemon.map { if (it.id == updated.id) updated else it }.toMutableList())
     }
+  }
+
+  /**
+   * Replace the party and PC with [party] and [pc], the same monsters in new places (a party
+   * reorder, a deposit, a withdrawal). False when nothing was written, which leaves both as they
+   * were. The slot unique key is deferred, so two monsters can trade slots in one write.
+   */
+  suspend fun rearrangeMonsters(
+      characterId: Long,
+      party: List<Pokemon>,
+      pc: List<Pokemon>,
+  ): Boolean {
+    val before = characters[characterId] ?: return false
+    val was = (before.pokemon + before.pcStorage).associateBy { it.id }
+    val moved =
+        (party + pc).filter { m ->
+          was[m.id]?.let { it.container != m.container || it.containerSlot != m.containerSlot }
+              ?: true
+        }
+    if (moved.isEmpty()) return true
+    // The write is a merge that also matches on (owner, container, slot), so a monster moving into
+    // a slot another one is leaving would update that other row. Parking every moved monster on a
+    // free slot first leaves each final slot matched by id alone.
+    val parkedIds = moved.mapIndexed { i, m -> m.id to (PARKING_SLOT + i).toShort() }.toMap()
+    fun park(m: Pokemon) = parkedIds[m.id]?.let { m.copy(containerSlot = it) } ?: m
+    val parked =
+        before.copy(
+            pokemon = party.map(::park).toMutableList(), pcStorage = pc.map(::park).toMutableList())
+    if (!mutateDurably(characterId, apply = { parked }, rollback = { before })) return false
+    if (mutateDurably(
+        characterId,
+        apply = { it.copy(pokemon = party.toMutableList(), pcStorage = pc.toMutableList()) },
+        rollback = { parked },
+    )) {
+      return true
+    }
+    // Put everyone back where they were; from parked slots that cannot collide either.
+    mutateDurably(characterId, apply = { before }, rollback = { parked })
+    return false
   }
 
   /** False when the change could not be written, in which case the balance is left as it was. */

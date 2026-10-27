@@ -1,6 +1,8 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.LilycoveCity_DepartmentStore_3F
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
@@ -19,40 +21,27 @@ internal object LilycoveCity_DepartmentStore_3F_EventScript_Woman : Script {
       ctx.say(LilycoveCity_DepartmentStore_3F.GaveCarbosToSpeedUpMon)
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * pokemart LilycoveCity_DepartmentStore_3F_Pokemart_Vitamins
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object LilycoveCity_DepartmentStore_3F_EventScript_ClerkLeft : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_3F_EventScript_ClerkLeft")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.pokemart(Items.PROTEIN, Items.CALCIUM, Items.IRON, Items.ZINC, Items.CARBOS, Items.HP_UP)
+  }
 }
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * pokemart LilycoveCity_DepartmentStore_3F_Pokemart_StatBoosters
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object LilycoveCity_DepartmentStore_3F_EventScript_ClerkRight : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port LilycoveCity_DepartmentStore_3F_EventScript_ClerkRight")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.pokemart(
+        Items.X_SPEED,
+        Items.X_SPECIAL,
+        Items.X_ATTACK,
+        Items.X_DEFEND,
+        Items.DIRE_HIT,
+        Items.GUARD_SPEC,
+        Items.X_ACCURACY)
+  }
 }
 
 internal val LilycoveCity_DepartmentStore_3FScripts: Map<String, Script> =

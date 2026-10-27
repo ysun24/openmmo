@@ -35,6 +35,7 @@ data class Sources(
     val battle: BattleState,
     val trade: TradeStatePacket,
     val party: List<Pokemon>,
+    val pc: List<Pokemon> = emptyList(),
     /** The bag as the trade client saw it, used when the overworld has none yet. */
     val tradeBag: Map<Int, Int>,
     val tradeMoney: Int?,
@@ -54,6 +55,7 @@ class StateJson(private val names: Names) {
           "chat" to chat(s.world),
           "ui" to ui(s),
           "party" to party(s.party),
+          "pc" to pc(s),
           "battle" to battle(s.battle),
           "invite" to invite(s.battle),
           "trade" to trade(s.trade),
@@ -119,7 +121,7 @@ class StateJson(private val names: Names) {
           if (d == null) JsonNull
           else
               buildJsonObject {
-                put("speaker", JsonNull)
+                put("speaker", speakerOf(s.world, d.entityId))
                 putJsonArray("lines") { d.pages.getOrNull(d.page).orEmpty().forEach { add(it) } }
                 put("lastPage", d.onLastPage)
                 putJsonArray("choices") { if (d.onLastPage) d.choices.forEach { add(it) } }
@@ -137,7 +139,22 @@ class StateJson(private val names: Names) {
                       put("item", it.itemId)
                       put("name", it.name)
                       put("price", it.price)
+                      put("desc", names.itemInfo(it.itemId)?.description.orEmpty())
                     }
+                  }
+                }
+                // What the clerk buys back: the bag, at half the item's price (never for 0).
+                val bag = v.bag.takeIf { it.isNotEmpty() } ?: s.tradeBag
+                putJsonArray("sell") {
+                  bag.toSortedMap().forEach { (id, qty) ->
+                    val price = (names.itemInfo(id)?.price ?: 0) / 2
+                    if (qty > 0 && price > 0)
+                        addJsonObject {
+                          put("item", id)
+                          put("name", names.item(id))
+                          put("qty", qty)
+                          put("price", price)
+                        }
                   }
                 }
                 put("cursor", shop.cursor)
@@ -147,7 +164,24 @@ class StateJson(private val names: Names) {
       val bag = v?.bag?.takeIf { it.isNotEmpty() } ?: s.tradeBag
       put("bag", bagJson(bag))
       put("locked", v != null && (v.transitioning || v.scriptLocked || v.inScript))
+      val n = v?.notice
+      put(
+          "notice",
+          if (n == null) JsonNull
+          else
+              buildJsonObject {
+                put("seq", n.seq)
+                put("text", n.text)
+              })
     }
+  }
+
+  /** Who is talking: a named character's npc, or nobody (signs, generic npcs). */
+  private fun speakerOf(w: WorldState.Snapshot, entityId: Long): String? {
+    if (entityId <= 0) return null
+    val e = w.entities[entityId] ?: return null
+    if (e.isPlayer) return null
+    return names.speaker(e.map.regionId, e.graphicsId)
   }
 
   fun bagJson(bag: Map<Int, Int>): JsonArray = buildJsonArray {
@@ -157,6 +191,12 @@ class StateJson(private val names: Names) {
             put("item", id)
             put("name", names.item(id))
             put("qty", qty)
+            val info = names.itemInfo(id)
+            if (info != null) {
+              put("pocket", info.pocket)
+              put("desc", info.description)
+              put("use", info.use)
+            }
           }
     }
   }
@@ -176,8 +216,49 @@ class StateJson(private val names: Names) {
             put("level", mon.level.toInt())
             put("hp", mon.hp.toInt())
             put("maxHp", names.maxHp(mon))
+            put("id", mon.id.toString())
+            names.summary(mon)?.let { sum ->
+              putJsonObject("stats") { sum.stats.forEach { (k, v) -> put(k, v) } }
+              put("nature", sum.nature)
+              put("ability", sum.ability)
+              putJsonArray("types") { sum.types.forEach { add(it) } }
+            }
+            putJsonArray("moves") {
+              mon.moves
+                  .filter { it.id.toInt() != 0 }
+                  .forEach {
+                    addJsonObject {
+                      put("name", names.move(it.id.toInt()))
+                      put("pp", it.pp.toInt())
+                      put("maxPp", names.maxPp(it.id.toInt()))
+                    }
+                  }
+            }
+            put("ot", mon.ot)
+            put("xp", mon.xp)
+            put("shiny", mon.isShiny)
           }
         }
+  }
+
+  /** The PC boxes, and whether the player stands where the PC can be used. */
+  fun pc(s: Sources): JsonElement = buildJsonObject {
+    put("here", s.world.map?.let(names::hasPc) ?: false)
+    putJsonArray("mons") {
+      s.pc
+          .sortedBy { it.containerSlot }
+          .forEach { mon ->
+            addJsonObject {
+              put("slot", mon.containerSlot.toInt())
+              put("id", mon.id.toString())
+              put("dex", mon.dexId)
+              put("name", names.species(mon.dexId))
+              put("level", mon.level.toInt())
+              put("hp", mon.hp.toInt())
+              put("maxHp", names.maxHp(mon))
+            }
+          }
+    }
   }
 
   fun battle(b: BattleState): JsonElement {

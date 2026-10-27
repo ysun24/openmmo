@@ -83,8 +83,11 @@ class DialogService @Inject constructor() {
       state: PlayerState,
       textId: Int,
       entityId: Long,
+      messageArgs: List<DialogMessageArg> = emptyList(),
   ): Boolean =
-      showChoiceAndWait(session, state, textId, YES_NO, entityId, contextValue = 0).unk != 0
+      showChoiceAndWait(
+              session, state, textId, YES_NO, entityId, contextValue = 0, messageArgs = messageArgs)
+          .unk != 0
 
   /**
    * Shows a dialog box and waits for the player to advance or close it. [actionType] is 3 for a
@@ -214,6 +217,7 @@ class DialogService @Inject constructor() {
       entityId: Long,
       contextValue: Int,
       detail: ByteArray = byteArrayOf(0),
+      messageArgs: List<DialogMessageArg> = emptyList(),
   ): DialogActionResponsePacket {
     val response = CompletableDeferred<DialogActionResponsePacket>()
     session.attributes[PENDING_DIALOG_RESPONSE] = response
@@ -228,7 +232,7 @@ class DialogService @Inject constructor() {
             textId = textId,
             entityId = entityId,
             contextValue = contextValue,
-            messageArgs = emptyList(),
+            messageArgs = messageArgs,
             detail = detail,
         ))
     return response.await()

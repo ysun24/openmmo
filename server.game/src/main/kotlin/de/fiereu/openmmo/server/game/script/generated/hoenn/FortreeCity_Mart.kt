@@ -1,24 +1,26 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.FortreeCity_Mart
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * pokemart FortreeCity_Mart_Pokemart
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object FortreeCity_Mart_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port FortreeCity_Mart_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    ctx.pokemart(
+        Items.GREAT_BALL,
+        Items.ULTRA_BALL,
+        Items.SUPER_POTION,
+        Items.HYPER_POTION,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.AWAKENING,
+        Items.REVIVE,
+        Items.SUPER_REPEL)
+  }
 }
 
 internal object FortreeCity_Mart_EventScript_Woman : Script {

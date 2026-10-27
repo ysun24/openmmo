@@ -49,6 +49,11 @@ private object FakeNames : Names {
   override fun mapName(key: MapKey) = if (key == MapKey(0, 3, 0)) "PalletTown" else null
 
   override fun maxHp(mon: Pokemon) = 39
+
+  override fun itemInfo(id: Int) =
+      if (id == 5017) ItemInfo("items", "Restores 20 HP.", 300, "mon") else null
+
+  override fun speaker(region: Int, gfx: Int) = if (gfx == 23) "PROF. OAK" else null
 }
 
 fun mon(dex: Int, slot: Int, nick: String = "", level: Int = 15, hp: Int = 30) =
@@ -129,7 +134,7 @@ class StateJsonTest {
         out["world"])
     assertEquals(parse("""[{"sender":"*","text":"Welcome to OpenMMO!"}]"""), out["chat"])
     assertEquals(
-        listOf("world", "chat", "ui", "party", "battle", "invite", "trade", "market"),
+        listOf("world", "chat", "ui", "party", "pc", "battle", "invite", "trade", "market"),
         out.keys.toList())
   }
 
@@ -153,10 +158,15 @@ class StateJsonTest {
     val ui = json.build(sources(w))["ui"]
     assertEquals(
         parse(
-            """{"dialog":{"speaker":null,"lines":["Want one?"],"lastPage":true,
+            """{"dialog":{"speaker":"PROF. OAK","lines":["Want one?"],"lastPage":true,
                  "choices":["YES","NO"],"cursor":0},
-               "shop":{"offers":[{"item":5017,"name":"POTION","price":300}],"cursor":0,"status":""},
-               "money":3000,"bag":[{"item":5017,"name":"Potion","qty":3}],"locked":true}"""),
+               "shop":{"offers":[{"item":5017,"name":"POTION","price":300,"desc":"Restores 20 HP."}],
+                       "sell":[{"item":5017,"name":"Potion","qty":3,"price":150}],
+                       "cursor":0,"status":""},
+               "money":3000,
+               "bag":[{"item":5017,"name":"Potion","qty":3,"pocket":"items","desc":"Restores 20 HP.",
+                       "use":"mon"}],
+               "locked":true,"notice":null}"""),
         ui)
   }
 
@@ -164,7 +174,7 @@ class StateJsonTest {
   fun `choices are hidden until the last page`() {
     val w = world()
     w.overworld.setDialog(
-        DialogView(1, 5, 1, 7, listOf(listOf("a"), listOf("b")), choices = listOf("YES", "NO")))
+        DialogView(1, 5, 1, 99, listOf(listOf("a"), listOf("b")), choices = listOf("YES", "NO")))
     val dialog = (json.build(sources(w))["ui"] as kotlinx.serialization.json.JsonObject)["dialog"]
     assertEquals(
         parse("""{"speaker":null,"lines":["a"],"lastPage":false,"choices":[],"cursor":0}"""),
@@ -238,8 +248,10 @@ class StateJsonTest {
         json.build(sources(battle = battle, party = listOf(mon(4, 0), mon(1, 1, nick = "Bulby"))))
     assertEquals(
         parse(
-            """[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":30,"maxHp":39},
-                {"slot":1,"dex":1,"name":"BULBASAUR","nick":"Bulby","level":15,"hp":30,"maxHp":39}]"""),
+            """[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":30,"maxHp":39,
+                 "id":"100","moves":[],"ot":"Ash","xp":0,"shiny":false},
+                {"slot":1,"dex":1,"name":"BULBASAUR","nick":"Bulby","level":15,"hp":30,"maxHp":39,
+                 "id":"101","moves":[],"ot":"Ash","xp":0,"shiny":false}]"""),
         out["party"])
     assertEquals(
         parse(
@@ -315,7 +327,8 @@ class StateJsonTest {
                "mine":[{"id":"1","kind":"item","dex":null,"item":5017,"name":"Potion","level":null,
                         "qty":2,"price":150,"expiresAt":1793000000,"mine":true}],
                "inventory":{"party":[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,
-                                      "hp":30,"maxHp":39}],"bag":[]},
+                                      "hp":30,"maxHp":39,"id":"100","moves":[],"ot":"Ash",
+                                      "xp":0,"shiny":false}],"bag":[]},
                "log":["BUY ok: Bought 2x Potion for 300."]}"""),
         m)
   }
@@ -351,5 +364,35 @@ class StateJsonTest {
   fun `state message envelope`() {
     val msg = WsSession.stateMessage(3, mapOf("battle" to JsonNull))
     assertEquals("""{"t":"state","seq":3,"battle":null}""", msg.toString())
+  }
+
+  @Test
+  fun `party summary, pc and a notice`() {
+    val w = world()
+    w.overworld.setNotice("CHARMANDER's HP was restored by 9 point(s).")
+    val boxed = mon(19, 3).copy(container = PokemonContainer.PC)
+    val out =
+        StateJson(
+                object : Names by FakeNames {
+                  override fun summary(mon: Pokemon) =
+                      MonSummary(mapOf("hp" to 39, "atk" to 20), "HARDY", "BLAZE", listOf("FIRE"))
+
+                  override fun hasPc(key: MapKey) = true
+                })
+            .build(sources(w, party = listOf(mon(4, 0))).copy(pc = listOf(boxed)))
+    assertEquals(
+        parse(
+            """[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,"hp":30,"maxHp":39,
+                 "id":"100","stats":{"hp":39,"atk":20},"nature":"HARDY","ability":"BLAZE",
+                 "types":["FIRE"],"moves":[],"ot":"Ash","xp":0,"shiny":false}]"""),
+        out["party"])
+    assertEquals(
+        parse(
+            """{"here":true,"mons":[{"slot":3,"id":"103","dex":19,"name":"RATTATA","level":15,
+                 "hp":30,"maxHp":39}]}"""),
+        out["pc"])
+    assertEquals(
+        parse("""{"seq":1,"text":"CHARMANDER's HP was restored by 9 point(s)."}"""),
+        (out["ui"] as kotlinx.serialization.json.JsonObject)["notice"])
   }
 }

@@ -4,20 +4,11 @@ import de.fiereu.openmmo.dialog.generated.hoenn.FortreeCity_PokemonCenter_1F
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * setvar VAR_0x800B, LOCALID_FORTREE_NURSE
- * call Common_EventScript_PkmnCenterNurse
- * waitmessage
- * waitbuttonpress
- * release
- * end
- * ```
- */
+/** The decomp's Pokemon Center nurse: heal the party. */
 internal object FortreeCity_PokemonCenter_1F_EventScript_Nurse : Script {
-  override suspend fun run(ctx: ScriptContext) =
-      TODO("port FortreeCity_PokemonCenter_1F_EventScript_Nurse")
+  override suspend fun run(ctx: ScriptContext) {
+    healAtPokemonCenter(ctx)
+  }
 }
 
 internal object FortreeCity_PokemonCenter_1F_EventScript_Gentleman : Script {

@@ -1,25 +1,44 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
+import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.dialog.generated.hoenn.PetalburgCity_Mart
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
 
-/**
- * Not ported yet. Decomp body:
- * ```
- * lock
- * faceplayer
- * message gText_HowMayIServeYou
- * waitmessage
- * goto_if_set FLAG_PETALBURG_MART_EXPANDED_ITEMS, PetalburgCity_Mart_EventScript_ExpandedItems
- * pokemart PetalburgCity_Mart_Pokemart_Basic
- * msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
- * release
- * end
- * ```
- */
+/** The decomp's pokemart clerk, with its stock from the item list beside it. */
 internal object PetalburgCity_Mart_EventScript_Clerk : Script {
-  override suspend fun run(ctx: ScriptContext) = TODO("port PetalburgCity_Mart_EventScript_Clerk")
+  override suspend fun run(ctx: ScriptContext) {
+    ctx.say(Misc.gText_HowMayIServeYou)
+    if (ctx.isFlagSet(HoennFlags.FLAG_PETALBURG_MART_EXPANDED_ITEMS)) {
+      ctx.pokemart(
+          Items.POKE_BALL,
+          Items.GREAT_BALL,
+          Items.POTION,
+          Items.SUPER_POTION,
+          Items.ANTIDOTE,
+          Items.PARLYZ_HEAL,
+          Items.AWAKENING,
+          Items.ESCAPE_ROPE,
+          Items.REPEL,
+          Items.X_SPEED,
+          Items.X_ATTACK,
+          Items.X_DEFEND)
+      return
+    }
+    ctx.pokemart(
+        Items.POKE_BALL,
+        Items.POTION,
+        Items.ANTIDOTE,
+        Items.PARLYZ_HEAL,
+        Items.AWAKENING,
+        Items.ESCAPE_ROPE,
+        Items.REPEL,
+        Items.X_SPEED,
+        Items.X_ATTACK,
+        Items.X_DEFEND)
+  }
 }
 
 internal object PetalburgCity_Mart_EventScript_Man : Script {
