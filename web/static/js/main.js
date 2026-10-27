@@ -13,6 +13,7 @@ import * as battle from './ui/battle.js';
 import * as trade from './ui/trade.js';
 import * as market from './ui/market.js';
 import * as misc from './ui/misc.js';
+import * as progress from './ui/progress.js';
 import { music } from './audio.js';
 
 const DIRS = ['up', 'down', 'left', 'right'];
@@ -64,7 +65,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress];
 UIS.forEach((u) => u.init(app));
 
 // ------------------------------------------------------------------ device / layout

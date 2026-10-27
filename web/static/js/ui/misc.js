@@ -4,6 +4,7 @@ import { panels, rerender, setFocus } from './panels.js';
 import { monImg, itemIc } from './common.js';
 import * as market from './market.js';
 import { openChallenge, describeRules } from './battle.js';
+import * as progress from './progress.js';
 
 let app, lastParty = null, lastInvite = null;
 
@@ -18,8 +19,9 @@ export function update(state, changed) {
     for (const name of ['party', 'bag', 'pc', 'summary']) if (panels.isOpen(name)) RENDER[name](state);
   }
   const n = state.ui && state.ui.notice;
-  // Server notices (an item used, a refused move) pop up over the game.
-  if (n && (!lastNotice || n.seq !== lastNotice.seq)) toast(n.text, 3500);
+  // Server notices (an item used, a refused move) pop up over the game; joins and leaves
+  // (kind "presence") only go to the chat log.
+  if (n && (!lastNotice || n.seq !== lastNotice.seq) && n.kind !== 'presence') toast(n.text, 3500);
   lastNotice = n;
   if (changed.includes('invite')) {
     const inv = state.invite;
@@ -63,10 +65,11 @@ function renderParty(state) {
     useItem ? h('p.muted', useItem.desc || '') : null,
     h('div.list', party.length ? party.map((m, i) => h('div.item.mon', { 'data-mon': m.id },
       monImg(m.dex),
-      h('span.nm', m.nick ? `${m.nick} (${m.name})` : m.name,
-        h('small', `Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.hp <= 0 ? ' · FNT' : ''}`), hpBar(m.hp, m.maxHp)),
+      h('span.nm', m.nick ? `${m.nick} (${m.name})` : m.name, m.status ? h('span.status', { 'data-s': m.status }, m.status) : null,
+        h('small', m.egg ? 'EGG' : `Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.hp <= 0 ? ' · FNT' : ''}`), m.egg ? null : hpBar(m.hp, m.maxHp)),
       h('span.act', useItem
-        ? h('button.go', { type: 'button', 'data-k': 'use' + i, on: { click: () => use(useItem, m) } }, 'Use')
+        ? [useItem.able ? h('span.able', { class: useItem.able.includes(m.id) ? 'yes' : 'no' }, useItem.able.includes(m.id) ? 'ABLE' : 'NOT ABLE') : null,
+          h('button.go', { type: 'button', 'data-k': 'use' + i, on: { click: () => use(useItem, m) } }, useItem.use === 'teach' ? 'Teach' : 'Use')]
         : [
             h('button', { type: 'button', 'data-k': 'sum' + i, on: { click: () => openSummary(m.id) } }, 'Info'),
             h('button.step', { type: 'button', 'data-k': 'up' + i, 'aria-label': 'move up', disabled: i === 0, on: { click: () => app.send({ t: 'party.move', from: i, to: i - 1 }) } }, '▲'),
@@ -76,6 +79,8 @@ function renderParty(state) {
 }
 
 function use(item, mon) {
+  // r3-items: PP items and TMs ask for a move first (ui/progress.js).
+  if (mon && (item.use === 'move' || item.use === 'teach')) return progress.useOn(item, mon);
   app.send({ t: 'item.use', item: item.item, mon: mon ? mon.id : null });
   if (mon) {
     // Stay on the party so the HP change shows; drop the target mode once the item runs out.
@@ -124,7 +129,7 @@ export function openBag() {
 function renderBag(state) {
   const p = panels.get('bag');
   const bag = (state.ui && state.ui.bag) || [];
-  const key = JSON.stringify([bag, pocket, state.ui && state.ui.money]);
+  const key = JSON.stringify([bag, pocket, state.ui && state.ui.money, state.ui && state.ui.registered]);
   if (key === lastBag) return;
   lastBag = key;
   const inPocket = bag.filter((b) => (b.pocket || 'items') === pocket);
@@ -140,7 +145,10 @@ function renderBag(state) {
       h('span.nm', b.name, h('small', b.desc || '')),
       h('span.act', h('span', '×' + b.qty),
         b.use ? h('button.go', { type: 'button', 'data-k': 'use' + b.item,
-          on: { click: () => (b.use === 'mon' ? openParty(b) : use(b, null)) } }, 'Use') : null))) : h('p.muted', 'Nothing in this pocket.')),
+          on: { click: () => (b.use === 'field' ? use(b, null) : openParty(b)) } }, b.use === 'teach' ? 'Teach' : 'Use') : null,
+        b.register ? h('button', { type: 'button', 'data-k': 'reg' + b.item, 'aria-pressed': String(state.ui.registered === b.item),
+          on: { click: () => app.send({ t: 'item.register', item: state.ui.registered === b.item ? 0 : b.item }) } },
+          state.ui.registered === b.item ? 'Registered' : 'Register') : null))) : h('p.muted', 'Nothing in this pocket.')),
   ]);
 }
 
@@ -191,6 +199,7 @@ export function openMenu() {
   rerender(p.body, () => [
     item('POKéMON', 'party', () => openParty()),
     item('Bag', 'bag', openBag),
+    ...progress.menuItems().map(([label, k, fn]) => item(label, k, fn)),
     pcHere ? item('PC', 'pc', openPc) : null,
     item('Market', 'market', () => market.open()),
     item('Trade with…', 'trade', () => askName('Trade with', (n) => app.send({ t: 'trade.request', name: n }))),
