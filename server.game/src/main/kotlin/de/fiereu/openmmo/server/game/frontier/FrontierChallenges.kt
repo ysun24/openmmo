@@ -220,13 +220,7 @@ class FrontierChallenges(private val svc: FrontierService, private val run: Fron
   private suspend fun brainBeaten(f: Facility, status: BrainStatus): String? {
     val s = svc.save(run.charId)
     s.brainsBattled += f.key
-    val have = s.symbolsOf(f)
-    val got =
-        when {
-          status == BrainStatus.SILVER && have == 0 -> 1
-          status == BrainStatus.GOLD && have == 1 -> 2
-          else -> null
-        } ?: return null
+    val got = FrontierRules.symbolFor(status, s.symbolsOf(f)) ?: return null
     s.symbols[f.key] = got
     svc.persist(run.charId)
     return if (got == 1) "${f.title.removePrefix("BATTLE ")} SYMBOL (SILVER)"

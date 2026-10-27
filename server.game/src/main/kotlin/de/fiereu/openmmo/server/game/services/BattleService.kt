@@ -654,7 +654,8 @@ constructor(
         if (setup.wild) null
         else
             TrainerDef(
-                id = 0,
+                // Not 0, which the client reads as a player duel; no decomp trainer has this id.
+                id = Short.MAX_VALUE.toInt(),
                 name = setup.trainerName,
                 trainerClass = 0,
                 doubleBattle = actualFormat == 2,

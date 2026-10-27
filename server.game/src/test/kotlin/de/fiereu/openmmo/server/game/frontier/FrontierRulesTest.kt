@@ -169,6 +169,13 @@ class FrontierRulesTest :
             BrainStatus.SILVER
       }
 
+      test("GiveFacilitySymbol: Silver, then Gold, nothing new on later brain battles") {
+        FrontierRules.symbolFor(BrainStatus.SILVER, 0) shouldBe 1
+        FrontierRules.symbolFor(BrainStatus.GOLD, 1) shouldBe 2
+        FrontierRules.symbolFor(BrainStatus.STREAK, 2) shouldBe null
+        FrontierRules.symbolFor(BrainStatus.STREAK_LONG, 2) shouldBe null
+      }
+
       test("GiveBattlePoints: sBattlePointAwards by challenge, +10 for a brain, capped rows") {
         FrontierRules.battlePoints(Facility.TOWER, BattleMode.SINGLES, 1, false) shouldBe 1
         FrontierRules.battlePoints(Facility.TOWER, BattleMode.MULTIS, 1, false) shouldBe 3

@@ -205,6 +205,14 @@ object FrontierRules {
     }
   }
 
+  /** GiveFacilitySymbol after a won brain battle: Silver first, then Gold; null when none is new. */
+  fun symbolFor(status: BrainStatus, have: Int): Int? =
+      when {
+        status == BrainStatus.SILVER && have == 0 -> 1
+        status == BrainStatus.GOLD && have == 1 -> 2
+        else -> null
+      }
+
   /** frontier_util.c sBattlePointAwards[challenge][facility][battleMode]. */
   private val BP_AWARDS: Array<Array<IntArray>> =
       arrayOf(
