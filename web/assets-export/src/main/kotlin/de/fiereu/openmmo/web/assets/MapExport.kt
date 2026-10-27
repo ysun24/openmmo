@@ -271,8 +271,26 @@ class MapExport(private val decompRoot: File, private val out: Output) {
      */
     private val FIELD_EFFECTS =
         listOf(
+            // FldEff_SurfBlob sets oam.paletteNum = 0, the player's palette slot (PALSLOT_PLAYER):
+            // Brendan's or May's in Emerald, player.pal (Red and Green alike) in FireRed, which
+            // also has its own 6-frame blob picture (two bob frames per facing).
             FieldEffectSpec(
                 "surfBlob", "surf_blob", 32, 32, "../../object_events/palettes/brendan"),
+            FieldEffectSpec(
+                "surfBlobMay",
+                "surf_blob",
+                32,
+                32,
+                "../../object_events/palettes/may",
+                outFile = "surf_blob_may"),
+            FieldEffectSpec(
+                "surfBlobKanto",
+                "../../object_events/pics/misc/surf_blob",
+                32,
+                32,
+                "../../object_events/palettes/player",
+                game = "pokefirered",
+                outFile = "surf_blob_kanto"),
             FieldEffectSpec("tallGrass", "tall_grass", 16, 16, "general_1"),
             FieldEffectSpec("longGrass", "long_grass", 16, 16, "general_1"),
             FieldEffectSpec("shadow", "shadow_medium", 16, 8, null),
@@ -294,18 +312,20 @@ class MapExport(private val decompRoot: File, private val out: Output) {
         val w: Int,
         val h: Int,
         val palette: String?,
+        val game: String = "pokeemerald",
+        val outFile: String = file,
     )
 
     /** Writes `fx/<name>.png` strips and returns the manifest's `fieldEffects` object. */
     fun fieldEffects(decompRoot: File, out: Output): JsonObject = buildJsonObject {
-      val dir = File(decompRoot, "pokeemerald/graphics/field_effects")
       for (fx in FIELD_EFFECTS) {
+        val dir = File(decompRoot, "${fx.game}/graphics/field_effects")
         val png = File(dir, "pics/${fx.file}.png")
         if (!png.isFile) continue
         val pal = fx.palette?.let { Decomp.readPalette(File(dir, "palettes/$it.pal")) }
         val img = Decomp.readIndexed(png, pal)
         val count = maxOf(1, (img.width / fx.w) * (img.height / fx.h))
-        val path = out.writePng("fx/${fx.file}.png", img)
+        val path = out.writePng("fx/${fx.outFile}.png", img)
         put(
             fx.name,
             buildJsonObject {

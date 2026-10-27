@@ -11,8 +11,10 @@ const MODE_GFX = {
   0: { m: { mach_bike: 1, acro_bike: 1, surf: 2 }, f: { mach_bike: 8, acro_bike: 8, surf: 9 } },
   1: { m: { mach_bike: 1, acro_bike: 63, surf: 2, underwater: 111 }, f: { mach_bike: 90, acro_bike: 91, surf: 92, underwater: 112 } },
 };
-// surf_blob.png frames: down, up, left (right mirrored).
+// Emerald surf_blob.png frames: down, up, left (right mirrored).
 const SURF_FRAME = { down: 0, up: 1, left: 2, right: 2 };
+// FireRed's blob: two frames per facing, swapped every 48 GBA frames (sSurfBlobAnim_Face*).
+const SURF_FRAME_KANTO = { down: 0, up: 2, left: 4, right: 4 };
 // GBA camera: the player's 16x16 tile sits at (112, 64) on screen
 const CAM_X = 112;
 const CAM_Y = 64;
@@ -249,7 +251,7 @@ export class Renderer {
     // under the sprite: the surf blob, the ledge-hop shadow
     const surfing = e.mode === 'surf';
     const bobY = surfing ? ((now / 266) | 0) & 1 : 0; // the blob bobs 1px every 16 frames
-    if (surfing && !reflect) this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, bx - 8, by - 8 + bobY, e.facing === 'right');
+    if (surfing && !reflect) this.surfBlob(e, region, now, bx - 8, by - 8 + bobY);
     if (e.jump > 0 && !reflect) this.fxSprite('shadow', 0, bx, by + 10);
     const lift = Math.round(e.jump || 0) - (surfing ? bobY : 0);
     if (!d || !d._img || !d._img.ready) {
@@ -350,6 +352,25 @@ export class Renderer {
     ctx.scale(mirror ? -1 : 1, -1);
     ctx.drawImage(c, mirror ? -dx - fw : dx, dy, fw, fh);
     ctx.restore();
+  }
+
+  /**
+   * The surf blob in the player's palette (FldEff_SurfBlob: oam.paletteNum = 0, PALSLOT_PLAYER):
+   * FireRed's own 6-frame blob in player.pal, Emerald's in Brendan's or May's palette.
+   */
+  surfBlob(e, region, now, x, y) {
+    const mirror = e.facing === 'right';
+    if (region === 0) {
+      const f = (SURF_FRAME_KANTO[e.facing] ?? 0) + (((now / 800) | 0) & 1);
+      if (this.fxSprite('surfBlobKanto', f, x, y, mirror)) return;
+    } else if (this.isFemale(e, region) && this.fxSprite('surfBlobMay', SURF_FRAME[e.facing] ?? 0, x, y, mirror)) return;
+    this.fxSprite('surfBlob', SURF_FRAME[e.facing] ?? 0, x, y, mirror);
+  }
+
+  isFemale(e, region) {
+    const man = assets.manifest;
+    const p = man && man.players && man.players[String(region)];
+    return !!(p && (e.female || e.gfx === p.femaleGfx));
   }
 
   /** The sprite sheet for an entity, swapped for its bike/surf/underwater variant (players). */
