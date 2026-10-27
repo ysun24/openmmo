@@ -157,14 +157,17 @@ class TurnEngineTest :
         maxDealt(TACKLE) shouldBeGreaterThan maxDealt(PECK)
       }
 
-      test("an immune target takes no damage and the move fails") {
+      test("an immune target takes no damage and says so") {
         // Tackle into Gastly (Ghost/Poison) is a Normal immunity.
         val player = state(1, 20, listOf(TACKLE), PLAYER_ID)
         val wild = state(92, 5, listOf(SPLASH), WILD_ID)
         val before = wild.currentHp
         val events = engine.resolveTurn(battle(player, wild, seed = 3), TACKLE)
 
-        events.filterIsInstance<BattleEvent.MoveFailed>().first { it.attackerId == PLAYER_ID }
+        // Gen 3 prints "It doesn't affect X..." rather than "But it failed!".
+        events.filterIsInstance<BattleEvent.Message>().first {
+          it.text.startsWith("It doesn't affect")
+        }
         events
             .filterIsInstance<BattleEvent.DamageDealt>()
             .none { it.targetId == WILD_ID }

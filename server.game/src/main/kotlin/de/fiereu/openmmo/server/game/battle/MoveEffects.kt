@@ -660,7 +660,6 @@ internal class MoveEffects(private val ctx: BattleCtx, private val runner: MoveR
     val eff = runner.effectiveness(type, target)
     if (eff == 0 && type != PokemonType.QUESTIONQUESTIONQUESTION) {
       ctx.say("It doesn't affect $who...", target.entityId)
-      ctx.emit(BattleEvent.MoveFailed(user.entityId, move.id.toShort(), target.entityId))
       return false
     }
     if (target.ability == Ability.WONDER_GUARD &&

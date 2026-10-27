@@ -103,6 +103,24 @@ export function update(state, changed) {
     build();
     startPresentation(nb);
   }
+  // The extended state (format, trainer sprite, background) can land after the battle opened:
+  // rebuild the screen for it, keeping what is presented.
+  if (!fresh && (nb.format !== b.format || (nb.trainer && nb.trainer.pic) !== (b.trainer && b.trainer.pic) || nb.terrain !== b.terrain)) {
+    b = nb;
+    const keepView = view || {};
+    build();
+    view = keepView;
+    for (const k of keysInUse()) {
+      if (!view[k]) view[k] = copyMon(stateMon(k));
+      if (view[k + 'Vis'] === undefined) view[k + 'Vis'] = false;
+    }
+    if (busy() || queue.length) {
+      // The intro is still playing: show the trainer and the player again.
+      if (sk.trainer.dataset.has && !b.wild && !keysInUse().some((k) => sideOfKey(k) === 'foe' && view[k + 'Vis'])) sk.trainer.classList.remove('hidden');
+      if (sk.back.dataset.has && !keysInUse().some((k) => sideOfKey(k) === 'me' && view[k + 'Vis'])) sk.back.classList.remove('hidden');
+    }
+    paintView();
+  }
   const prevPhase = b && b.phase;
   const prevLearn = b && b.learn;
   const prevPos = b && b.choosingPos;
@@ -148,7 +166,8 @@ function bgUrl() {
   const bgs = assets.manifest && assets.manifest.battle && assets.manifest.battle.backgrounds;
   if (!bgs || !b) return null;
   const r = bgs[String(region())] || bgs['1'] || {};
-  return assets.url(r[b.terrain] || r.plain || r.tall_grass);
+  const special = /^(elite|champion|team)/.test(b.terrain || '') ? r.stadium : null;
+  return assets.url(r[b.terrain] || special || r.plain || r.tall_grass);
 }
 
 function build() {
@@ -918,8 +937,9 @@ function render(state) {
     sk.menu.replaceChildren(
       ...foes.map((f, i) => btn(f ? f.name : '-', 'tg' + i, () => sendFight(pick.move, { side: 'foe', pos: i }), !f || f.hp <= 0, h('span.pp', 'FOE'))),
       btn(ally ? ally.name : '-', 'tga', () => sendFight(pick.move, { side: 'me', pos: 1 - pos }), !ally || ally.hp <= 0, h('span.pp', 'ALLY')),
+      btn('◀ BACK', 'back', () => setMenu('fight')),
     );
-    sk.text.replaceChildren(h('div', `${pick.name}: target?`), btn('◀ BACK', 'back', () => setMenu('fight')));
+    sk.text.replaceChildren(h('div', `${pick.name}:`), h('div', 'which target?'));
     sk.text.style.flex = '0 0 calc(var(--u) * 70)';
   } else {
     sk.text.style.flex = '';

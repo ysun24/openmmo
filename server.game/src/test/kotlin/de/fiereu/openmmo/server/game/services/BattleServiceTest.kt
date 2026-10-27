@@ -157,6 +157,8 @@ class BattleServiceTest :
               listOf(
                   EntityPresencePacket::class,
                   BattleSidePacket::class,
+                  // r3-battle: the extended state before and after the field state.
+                  BattleExtPacket::class,
                   BattleFieldStatePacket::class,
                   // r3-battle: the extended state (format, positions, status) follows the field.
                   BattleExtPacket::class,

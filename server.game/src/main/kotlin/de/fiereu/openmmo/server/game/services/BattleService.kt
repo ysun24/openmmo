@@ -371,6 +371,25 @@ constructor(
         else -> "trainer"
       }
 
+  /**
+   * Gym leaders, the Elite Four and the champion fight on their own backgrounds (battle_bg.c picks
+   * the leader / stadium palettes by trainer class), keyed like the exported backgrounds.
+   */
+  private fun trainerBackground(trainer: TrainerDef?): String? =
+      when (trainer?.className) {
+        null -> null
+        "LEADER" -> "leader"
+        "ELITE_FOUR" -> "elite_" + trainer.name.lowercase().filter { it.isLetter() }
+        "CHAMPION" -> "champion"
+        "TEAM_AQUA",
+        "AQUA_ADMIN",
+        "AQUA_LEADER" -> "team_aqua"
+        "TEAM_MAGMA",
+        "MAGMA_ADMIN",
+        "MAGMA_LEADER" -> "team_magma"
+        else -> null
+      }
+
   /** The battle background for where the player stands (BattleSetup_GetEnvironmentId). */
   private fun terrainHere(session: SessionContext): String {
     val state = session.attributes[PLAYER_STATE] ?: return BattleTerrain.PLAIN
@@ -477,7 +496,7 @@ constructor(
                 escapable,
                 trainer,
                 format = actualFormat,
-                terrain = terrain ?: terrainHere(session),
+                terrain = trainerBackground(trainer) ?: terrain ?: terrainHere(session),
                 musicKey = musicFor(trainer),
                 underwater = underwater))
     battle.own.actives.clear()

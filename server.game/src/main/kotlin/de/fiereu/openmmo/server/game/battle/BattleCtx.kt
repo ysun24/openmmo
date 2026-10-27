@@ -67,12 +67,12 @@ internal class BattleCtx(
   fun allyOf(ref: BattlerRef): BattlerRef? =
       if (sideState(ref.side).actives.size < 2) null else BattlerRef(ref.side, 1 - ref.pos)
 
-  fun name(mon: BattleMonState): String {
-    val base = mon.source.nickname.ifEmpty { mon.species.name }
-    return if (sideOf(mon) == 1) {
-      if (battle.trainer == null && battle.pvp == null) "Wild $base" else "Foe $base"
-    } else base
-  }
+  /**
+   * A monster's name in a battle line. Lines are written once and shown to both players of a duel,
+   * so the name is a token the emitter turns into "CHARMANDER", "Foe CHARMANDER" or "Wild ..." per
+   * viewer (see [BattleNames.localize]).
+   */
+  fun name(mon: BattleMonState): String = BattleNames.token(mon)
 
   fun move(id: Int): MoveDef? = moves.get(id)
 

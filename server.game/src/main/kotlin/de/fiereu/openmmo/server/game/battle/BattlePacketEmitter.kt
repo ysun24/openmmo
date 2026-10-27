@@ -80,6 +80,9 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
     // Without it, opening the bag crashes. Opcode 0x40 is left alone here, since re-sending it
     // would wipe the balls out of the battle bag.
     battle.session.send(BattleSidePacket(side = PLAYER_SIDE))
+    // r3-battle: the extended state goes first too, so the client knows the format, trainer and
+    // background when it opens the battle.
+    sendState(battle)
     broadcast(
         battle,
         BattleFieldStatePacket(
@@ -218,7 +221,7 @@ class BattlePacketEmitter @Inject constructor(private val interestManager: Inter
         is BattleEvent.Message ->
             buildJsonObject {
               put("k", "text")
-              put("text", event.text)
+              put("text", BattleNames.localize(battle, event.text))
               if (event.targetId != 0L) put("id", event.targetId)
             }
         is BattleEvent.HpChanged ->

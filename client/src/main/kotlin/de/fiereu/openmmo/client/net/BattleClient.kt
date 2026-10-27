@@ -331,6 +331,9 @@ class BattleClient(
   /** r3-battle: the last ball held, so the battle end reads CAUGHT whatever the ball. */
   private var caughtSeen = false
 
+  /** r3-battle: the trainer name from the extended state sent just before the battle opens. */
+  private var extTrainerName: String? = null
+
   /** r3-battle: the position the next retail switch-in fills. */
   private var pendingSwitchPos: Int? = null
 
@@ -512,7 +515,9 @@ class BattleClient(
               when {
                 wild -> ""
                 p.trainerId.toInt() != 0 ->
-                    BattleNames.trainer(regionId(), p.trainerId.toInt()) ?: "Trainer"
+                    synchronized(lock) { extTrainerName }
+                        ?: BattleNames.trainer(regionId(), p.trainerId.toInt())
+                        ?: "Trainer"
                 else -> invitedBy ?: it.opponentName
               },
           party = party,
@@ -960,6 +965,7 @@ class BattleClient(
           m.long("id")!! to m
         }
     val trainer = o["trainer"]?.jsonObject
+    synchronized(lock) { extTrainerName = trainer?.str("name")?.takeIf { it.isNotBlank() } }
     update { s ->
       fun merge(list: List<BattleMon>) =
           list.map { b ->
@@ -982,6 +988,7 @@ class BattleClient(
           music = o.str("music") ?: s.music,
           weather = o.str("weather") ?: s.weather,
           trainerPic = trainer?.str("pic") ?: s.trainerPic,
+          opponentName = trainer?.str("name")?.takeIf { it.isNotBlank() } ?: s.opponentName,
           trainerClass = trainer?.str("class") ?: s.trainerClass,
           actives = acts,
           foeActives = actives(foe) ?: s.foeActives,

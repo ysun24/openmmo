@@ -431,6 +431,8 @@ class StateJson(private val names: Names) {
       when (v) {
         null -> JsonNull
         is Boolean -> JsonPrimitive(v)
+        // r3-battle: entity ids exceed 2^53, so a browser would round them; send them as strings.
+        is Long -> JsonPrimitive(v.toString())
         is Number -> JsonPrimitive(v)
         is String -> JsonPrimitive(v)
         is Map<*, *> -> buildJsonObject { for ((k, x) in v) put(k.toString(), anyJson(x)) }

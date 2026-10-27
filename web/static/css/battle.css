@@ -143,12 +143,13 @@
 #battle.dbl .monwrap.k-foe1 { left: calc(var(--u) * 172); top: calc(var(--u) * 10); }
 #battle.dbl .monwrap.k-me { left: calc(var(--u) * 4); top: calc(var(--u) * 46); }
 #battle.dbl .monwrap.k-me1 { left: calc(var(--u) * 56); top: calc(var(--u) * 50); }
-#battle.dbl .info { width: calc(var(--u) * 100); padding: calc(var(--u) * 1) calc(var(--u) * 3); font-size: calc(var(--u) * 6.5); }
+#battle.dbl .info { width: calc(var(--u) * 96); padding: calc(var(--u) * 1) calc(var(--u) * 3); font-size: calc(var(--u) * 6.5); }
+#battle.dbl .info .hp { margin-top: 0; }
 #battle.dbl .info.k-foe { left: calc(var(--u) * 4); top: calc(var(--u) * 4); }
-#battle.dbl .info.k-foe1 { left: calc(var(--u) * 10); top: calc(var(--u) * 27); }
-#battle.dbl .info.k-me { left: calc(var(--u) * 132); top: calc(var(--u) * 58); padding-top: calc(var(--u) * 1); }
-#battle.dbl .info.k-me1 { left: calc(var(--u) * 138); top: calc(var(--u) * 84); padding-top: calc(var(--u) * 1); }
-#battle.dbl .info .hpnum { font-size: calc(var(--u) * 6); line-height: calc(var(--u) * 6); }
+#battle.dbl .info.k-foe1 { left: calc(var(--u) * 10); top: calc(var(--u) * 26); }
+#battle.dbl .info.k-me { left: calc(var(--u) * 138); top: calc(var(--u) * 62); padding-top: calc(var(--u) * 1); }
+#battle.dbl .info.k-me1 { left: calc(var(--u) * 142); top: calc(var(--u) * 86); padding-top: calc(var(--u) * 1); }
+#battle.dbl .info .hpnum { display: none; }
 #battle.dbl .trainerpic { left: calc(var(--u) * 150); }
 
 /* evolution scene */
