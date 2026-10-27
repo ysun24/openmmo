@@ -96,6 +96,10 @@ constructor(
     private val prompts: MoveLearnPrompts = MoveLearnPrompts(),
     private val evolution: EvolutionService? = null,
     private val maps: MapManager? = null,
+    /** Lost wild and trainer battles white out (story battles and duels do not). */
+    private val whiteOut:
+        javax.inject.Provider<de.fiereu.openmmo.server.game.progression.WhiteOutService>? =
+        null,
 ) {
 
   private val pokeBallItemId: Short by lazy { items.idOf(Items.POKE_BALL).toShort() }
@@ -1067,6 +1071,26 @@ constructor(
     rewardedByBattle.remove(battle.battleId)
     val leveled = leveledIn.remove(battle.charId).orEmpty()
     battle.completion.complete(result)
+    // FRIENDSHIP_EVENT_LEAGUE_BATTLE: beating a gym leader, the Elite Four or the champion.
+    if (result == BattleResult.VICTORY &&
+        battle.trainer?.className in setOf("LEADER", "GYM_LEADER", "ELITE_FOUR", "CHAMPION")) {
+      characterStore
+          .getCharacter(battle.charId)
+          ?.pokemon
+          ?.filter { it.container == PokemonContainer.PARTY }
+          ?.forEach {
+            characterStore.updatePokemon(
+                battle.charId, Friendship.adjust(it, FriendshipEvent.LEAGUE_BATTLE, items))
+          }
+    }
+    // Gen 3 white-out: a lost wild or trainer battle (not a story battle, not a duel).
+    if (result == BattleResult.DEFEAT &&
+        battle.pvp == null &&
+        (battle.trainer != null || battle.catchable)) {
+      whiteOut
+          ?.get()
+          ?.whiteOut(battle.session, battle.charId, againstTrainer = battle.trainer != null)
+    }
     if (result != BattleResult.DISCONNECTED)
         evolution?.afterBattle(battle.session, battle.charId, leveled)
   }

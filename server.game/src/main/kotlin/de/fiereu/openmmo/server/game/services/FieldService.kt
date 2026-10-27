@@ -724,10 +724,20 @@ constructor(
       }
       FieldAction.TELEPORT -> {
         if (!map.isOutdoors && !map.allowEscaping) return cantHere(session)
+        // Teleport returns to the last heal location (lastHealLocation), else the last town.
+        val healed =
+            FlyDestinations.all
+                .getOrNull(
+                    (stored.storyVars[
+                            de.fiereu.openmmo.server.game.progression.HealLocations.HEAL_TOWN]
+                        ?: 0) - 1)
+                ?.takeIf { it.region == region }
         val town =
-            FlyDestinations.all.getOrNull((stored.storyVars[LAST_TOWN_VAR] ?: 0) - 1)?.takeIf {
-              it.region == region
-            } ?: FlyDestinations.forRegion(region).first()
+            healed
+                ?: FlyDestinations.all
+                    .getOrNull((stored.storyVars[LAST_TOWN_VAR] ?: 0) - 1)
+                    ?.takeIf { it.region == region }
+                ?: FlyDestinations.forRegion(region).first()
         val target = mapManager.getMapByName(region.wireValue.toInt(), town.mapName) ?: return
         flyTo(session, state, target, town.x, town.y)
       }

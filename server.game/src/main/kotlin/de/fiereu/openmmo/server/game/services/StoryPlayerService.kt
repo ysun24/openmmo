@@ -36,6 +36,8 @@ constructor(
     private val species: SpeciesRegistry,
     private val moves: MoveRegistry,
     private val items: ItemRegistry,
+    /** Records the last heal location when the party is healed (a center nurse, Mom). */
+    private val healLocations: de.fiereu.openmmo.server.game.progression.HealLocations? = null,
 ) {
 
   /** Gives a story Pokemon and syncs it. */
@@ -93,6 +95,7 @@ constructor(
           )
         }
     healed.forEach { characters.updatePokemon(characterId, it) }
+    healLocations?.recordHeal(state)
     session.send(
         PokemonContainerPacket(
             container = PokemonContainer.PARTY,

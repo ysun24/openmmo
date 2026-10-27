@@ -53,6 +53,8 @@ constructor(
     private val escapeRope: EscapeRopeService,
     private val scriptRunner: ScriptRunner,
     private val config: GameServerConfig,
+    /** Walking friendship and field poison (field_control_avatar.c), per step. */
+    private val stepEffects: FieldStepEffects? = null,
 ) {
 
   suspend fun onAction(event: PacketEvent<ProgressActionPacket>) {
@@ -153,6 +155,7 @@ constructor(
     if (lines.isNotEmpty()) daycare.notifyHatch(session, charId, lines)
     // The man says nothing until talked to, but the day care view shows the egg.
     else if (!eggBefore && eggWaiting(charId)) progress.push(session, charId)
+    stepEffects?.onStep(session, charId, map)
   }
 
   private fun eggWaiting(charId: Long): Boolean =
