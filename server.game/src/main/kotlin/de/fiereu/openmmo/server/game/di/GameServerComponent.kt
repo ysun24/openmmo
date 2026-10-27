@@ -22,6 +22,7 @@ import javax.inject.Singleton
             SocialModule::class,
             ScriptSpecialModule::class,
             de.fiereu.openmmo.server.game.script.vm.StoryScriptModule::class,
+            de.fiereu.openmmo.server.game.services.BagItemScriptModule::class,
             // r5-contests
             de.fiereu.openmmo.server.game.contest.ContestModule::class,
             de.fiereu.openmmo.server.game.frontier.FrontierModule::class,

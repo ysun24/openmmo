@@ -389,12 +389,15 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       }
       "Bag_ChooseBerry" -> {
         val item = chooseBerry(ctx)
-        v.set(ctx, v.ITEM_ID, item)
+        // r5 merge: inside the interpreter VAR_ITEM_ID is the decomp's item number (the script
+        // goes on with `removeitem VAR_ITEM_ID`); the hand ports keep the wire id.
+        val gba = gbaBerryItem(ctx, item)
+        v.set(ctx, v.ITEM_ID, if (ctx.vm != null && gba != null) gba else item)
         0
       }
       "ObjectEventInteractionPlantBerryTree" -> {
         val id = l.treeId(ctx) ?: return 0
-        val berry = itemToBerry(v.get(ctx, v.ITEM_ID))
+        val berry = itemToBerry(ctx, v.get(ctx, v.ITEM_ID))
         l.trees.update(charId, id) {
           BerryTreeRules.plant(berry, BerryTree.STAGE_PLANTED, true, LiveRng)
         }
@@ -478,9 +481,18 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
     return if (t.berryYield < 2) "$n BERRY" else "$n BERRIES"
   }
 
-  private fun itemToBerry(itemWireId: Int): Int {
-    val b = lane.data.berries.firstOrNull { lane.trees.itemIdOf(it) == itemWireId }
+  private fun itemToBerry(ctx: ScriptContext, item: Int): Int {
+    val cheri = ctx.constant("ITEM_CHERI_BERRY")
+    if (cheri != null && item in cheri until cheri + lane.data.berries.size) return item - cheri + 1
+    val b = lane.data.berries.firstOrNull { lane.trees.itemIdOf(it) == item }
     return b?.type ?: 1
+  }
+
+  /** The decomp item number (ITEM_CHERI_BERRY + type - 1) of a berry's wire item id. */
+  private fun gbaBerryItem(ctx: ScriptContext, wireId: Int): Int? {
+    if (wireId == 0) return 0
+    val b = lane.data.berries.firstOrNull { lane.trees.itemIdOf(it) == wireId } ?: return null
+    return ctx.constant("ITEM_CHERI_BERRY")?.plus(b.type - 1)
   }
 
   /** CB2_ChooseBerry: the bag's berries pocket; the wire item id, or 0 for cancel. */

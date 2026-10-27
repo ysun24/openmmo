@@ -61,6 +61,8 @@ constructor(
     private val maps: de.fiereu.openmmo.maps.MapManager? = null,
     /** The VS Seeker asks the field (trainers on screen); a Provider as the field uses items. */
     private val field: javax.inject.Provider<FieldService>? = null,
+    /** r5 merge: key items that run a field script (the Wailmer Pail on a berry tree). */
+    private val bagScripts: javax.inject.Provider<Set<@JvmSuppressWildcards BagItemScript>>? = null,
 ) {
 
   suspend fun onUse(event: PacketEvent<FieldItemUsePacket>) {
@@ -82,6 +84,11 @@ constructor(
     rodOf(itemId)?.let { rod ->
       return fish(session, state, charId, itemId, rod)
     }
+    val def = items.get(itemId)
+    if (def != null &&
+        (characters.getCharacter(charId)?.items?.get(itemId) ?: 0) > 0 &&
+        bagScripts?.get()?.any { it.tryUse(session, state, def) } == true)
+        return
     if (items.get(itemId) == de.fiereu.openmmo.items.generated.Items.VS_SEEKER && field != null) {
       if ((characters.getCharacter(charId)?.items?.get(itemId) ?: 0) <= 0) return
       for (line in field.get().useVsSeeker(session, state)) session.send(notice(line))

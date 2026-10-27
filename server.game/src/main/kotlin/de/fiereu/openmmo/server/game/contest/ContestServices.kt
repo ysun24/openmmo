@@ -451,3 +451,42 @@ constructor(private val moves: MoveRegistry, private val species: SpeciesRegistr
     log.debug { "contest names ready" }
   }
 }
+
+/** r5 merge: the Wailmer Pail used from the bag waters the berry tree the player faces. */
+@Singleton
+class WailmerPailFromBag
+@Inject
+constructor(
+    private val maps: MapManager,
+    private val npcs: NpcService,
+    private val runner: javax.inject.Provider<de.fiereu.openmmo.server.game.script.ScriptRunner>,
+    private val registry:
+        javax.inject.Provider<de.fiereu.openmmo.server.game.script.ScriptRegistry>,
+) : de.fiereu.openmmo.server.game.services.BagItemScript {
+  override suspend fun tryUse(
+      session: de.fiereu.network.SessionContext,
+      state: PlayerState,
+      item: de.fiereu.openmmo.items.ItemDef,
+  ): Boolean {
+    if (item != de.fiereu.openmmo.items.generated.Items.WAILMER_PAIL) return false
+    val map = maps.getMap(state.regionId, state.bankId, state.mapId) ?: return false
+    var x = state.x.toInt()
+    var y = state.y.toInt()
+    when (state.facingDirection) {
+      de.fiereu.openmmo.common.enums.Direction.UP -> y--
+      de.fiereu.openmmo.common.enums.Direction.DOWN -> y++
+      de.fiereu.openmmo.common.enums.Direction.LEFT -> x--
+      de.fiereu.openmmo.common.enums.Direction.RIGHT -> x++
+      else -> {}
+    }
+    val npc =
+        map.npcs.firstOrNull { it.script == "BerryTreeScript" && it.x == x && it.y == y }
+            ?: return false
+    val entity =
+        npcs.getNpcEntityId(state.regionId, state.bankId, state.mapId, npc.entityIdx)
+            ?: return false
+    val script = registry.get().forLabel("BerryTree_EventScript_ItemUseWailmerPail") ?: return false
+    runner.get().run(session, state, script, entity)
+    return true
+  }
+}

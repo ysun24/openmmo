@@ -247,6 +247,10 @@ constructor(
 interface ContestModule {
   @Binds @IntoSet fun contestSpecials(h: ContestSpecials): ScriptSpecial
 
+  @Binds
+  @IntoSet
+  fun wailmerPail(h: WailmerPailFromBag): de.fiereu.openmmo.server.game.services.BagItemScript
+
   @Binds @IntoSet fun contestDevCommand(c: ContestDevCommand): ChatCommand
 
   @Binds fun contestRepository(impl: JooqContestRepository): ContestRepository

@@ -589,8 +589,9 @@ def scene_regirock(s):
 
 def dev():
     """DEVELOPER permission for the slash commands (as e2e.py's setup does)."""
+    db = os.environ.get("OPENMMO_GAME_DB_CONTAINER", "openmmo-game-db")
     os.system(
-        "docker exec openmmo-r5s-game-db psql -q -U openmmo_game_user -d openmmo_game_db -c "
+        f"docker exec {db} psql -q -U openmmo_game_user -d openmmo_game_db -c "
         "\"update characters set permissions = permissions | 256\" >/dev/null 2>&1")
 
 
