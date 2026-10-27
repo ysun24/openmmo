@@ -89,6 +89,88 @@
 .panel .rulegroup .rulelabel { font-size: 13px; color: var(--muted); }
 .panel .rulegroup button.go { background: var(--accent) !important; color: #222; border-color: var(--accent) !important; font-weight: 700; }
 
+/* ---------------------------------------------------------------- r3-battle */
+/* terrain background (graphics/battle_environment): the 240x160 screen; it carries its own platforms */
+#battle .bgimg { position: absolute; left: 0; top: 0; width: calc(var(--u) * 240); height: calc(var(--u) * 160);
+  background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; }
+#battle.hasbg .plat { opacity: 0; }
+
+/* trainer front sprite and the player's back sprite in the intro */
+#battle .trainerpic, #battle .backpic { position: absolute; width: calc(var(--u) * 64); height: calc(var(--u) * 64);
+  background-repeat: no-repeat; background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; will-change: transform; }
+#battle .trainerpic { left: calc(var(--u) * 148); top: calc(var(--u) * 4); }
+#battle .backpic { left: calc(var(--u) * 32); top: calc(var(--u) * 48); background-size: 100% 400%; background-position: 0 0; }
+
+/* status icon in the info box and the party lists */
+#battle .st { display: inline-block; font-size: calc(var(--u) * 5); line-height: calc(var(--u) * 7); padding: 0 calc(var(--u) * 1.5);
+  border-radius: calc(var(--u) * 2); color: #fff; margin: 0 calc(var(--u) * 2); text-shadow: 0 calc(var(--u) * .5) 0 #0006; vertical-align: middle; }
+#battle .info .row { align-items: center; }
+
+/* ability / item banners */
+#battle .banners { position: absolute; inset: 0; pointer-events: none; }
+#battle .banner { position: absolute; padding: calc(var(--u) * 1) calc(var(--u) * 4); background: #f8f0d0; color: #383028;
+  border: calc(var(--u) * 1) solid #605840; border-radius: calc(var(--u) * 2); font-size: calc(var(--u) * 6); white-space: nowrap; }
+#battle .banner.foe { left: calc(var(--u) * 6); top: calc(var(--u) * 34); }
+#battle .banner.me { right: calc(var(--u) * 6); top: calc(var(--u) * 50); }
+
+/* move animation sprites (graphics/battle_anims/sprites), frames stepped by background-position */
+#battle .animspr { position: absolute; background-repeat: no-repeat; image-rendering: pixelated; will-change: transform; }
+#battle .ring.dizzy { border-style: dotted; border-color: #f8e060; }
+#battle .ball.open { filter: brightness(1.6); }
+#battle .ball.b-greatball { background: linear-gradient(#3878f0 0 44%, #202020 44% 56%, #f8f8f8 56% 100%); }
+#battle .ball.b-ultraball { background: linear-gradient(#383838 0 44%, #202020 44% 56%, #f8f8f8 56% 100%); }
+#battle .ball.b-masterball { background: linear-gradient(#9050c8 0 44%, #202020 44% 56%, #f8f8f8 56% 100%); }
+#battle .ball.b-netball, #battle .ball.b-diveball { background: linear-gradient(#40b8c8 0 44%, #202020 44% 56%, #f8f8f8 56% 100%); }
+
+/* weather */
+#battle .weather { position: absolute; left: 0; top: 0; width: calc(var(--u) * 240); height: calc(var(--u) * 112); pointer-events: none; }
+#battle .weather.rain { background: repeating-linear-gradient(105deg, transparent 0 calc(var(--u) * 9), #a8c8f880 calc(var(--u) * 9) calc(var(--u) * 10));
+  animation: wfall .5s linear infinite; }
+#battle .weather.hail { background: radial-gradient(#ffffffc0 calc(var(--u) * 1), transparent calc(var(--u) * 1.5)) 0 0 / calc(var(--u) * 18) calc(var(--u) * 18);
+  animation: wfall 1s linear infinite; }
+#battle .weather.sand { background: #c8a05830; }
+#battle .weather.sun { background: radial-gradient(circle at 85% 0%, #fff8a070, transparent 60%); }
+@keyframes wfall { from { background-position: 0 0; } to { background-position: calc(var(--u) * -6) calc(var(--u) * 20); } }
+
+/* bag pockets */
+#battle .sheet .tabs { display: flex; gap: calc(var(--u) * 2); margin-bottom: calc(var(--u) * 1); }
+#battle .sheet .tabs button.tab { display: block; min-height: calc(var(--u) * 10); width: auto; flex: 1; text-align: center; font-size: calc(var(--u) * 6.5); }
+#battle .sheet .tabs button.tab.on { background: #f8e8a0; }
+#battle .sheet .title.note { font-size: calc(var(--u) * 6); color: #806040; }
+
+/* double battles: two monsters per side, compact info boxes */
+#battle.dbl .monwrap.k-foe { left: calc(var(--u) * 124); top: calc(var(--u) * 0); }
+#battle.dbl .monwrap.k-foe1 { left: calc(var(--u) * 172); top: calc(var(--u) * 10); }
+#battle.dbl .monwrap.k-me { left: calc(var(--u) * 4); top: calc(var(--u) * 46); }
+#battle.dbl .monwrap.k-me1 { left: calc(var(--u) * 56); top: calc(var(--u) * 50); }
+#battle.dbl .info { width: calc(var(--u) * 100); padding: calc(var(--u) * 1) calc(var(--u) * 3); font-size: calc(var(--u) * 6.5); }
+#battle.dbl .info.k-foe { left: calc(var(--u) * 4); top: calc(var(--u) * 4); }
+#battle.dbl .info.k-foe1 { left: calc(var(--u) * 10); top: calc(var(--u) * 27); }
+#battle.dbl .info.k-me { left: calc(var(--u) * 132); top: calc(var(--u) * 58); padding-top: calc(var(--u) * 1); }
+#battle.dbl .info.k-me1 { left: calc(var(--u) * 138); top: calc(var(--u) * 84); padding-top: calc(var(--u) * 1); }
+#battle.dbl .info .hpnum { font-size: calc(var(--u) * 6); line-height: calc(var(--u) * 6); }
+#battle.dbl .trainerpic { left: calc(var(--u) * 150); }
+
+/* evolution scene */
+#evo { position: absolute; left: 0; top: 0; width: calc(var(--u) * 240); height: calc(var(--u) * 160); z-index: 40; overflow: hidden; }
+#evo .evobg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #f8f8f8 0, #a8b8f0 40%, #283070 100%);
+  animation: evopulse 1.2s ease-in-out infinite alternate; }
+#evo .evostage { position: absolute; left: calc(var(--u) * 88); top: calc(var(--u) * 24); width: calc(var(--u) * 64); height: calc(var(--u) * 64); }
+#evo .evomon { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+#evo .evomon.new { opacity: 0; filter: brightness(0) invert(1); }
+#evo .evomon.old.flashing { filter: brightness(0) invert(1); }
+#evo .evomon.new.arrived { filter: none; animation: evoarrive .6s ease-out; }
+#evo .evotext { position: absolute; left: calc(var(--u) * 2); right: calc(var(--u) * 2); bottom: calc(var(--u) * 2); height: calc(var(--u) * 44);
+  padding: calc(var(--u) * 4) calc(var(--u) * 6); font-size: calc(var(--u) * 8); line-height: calc(var(--u) * 12); }
+#evo button.evostop { position: absolute; right: calc(var(--u) * 6); top: calc(var(--u) * 4); font-size: calc(var(--u) * 6);
+  padding: calc(var(--u) * 1) calc(var(--u) * 4); background: #283050c8; color: #fff; border: 0; border-radius: calc(var(--u) * 3); }
+#evo button.evook { position: absolute; right: calc(var(--u) * 8); bottom: calc(var(--u) * 6); opacity: 0; pointer-events: none;
+  font-size: calc(var(--u) * 7); padding: calc(var(--u) * 1) calc(var(--u) * 6); background: #2c3150; color: #fff; border: 0; border-radius: calc(var(--u) * 3); }
+#evo button.evook.shown { opacity: 1; pointer-events: auto; }
+#evo button.hidden { display: none; }
+@keyframes evopulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+@keyframes evoarrive { from { transform: scale(1.3); filter: brightness(3); } to { transform: scale(1); filter: none; } }
+
 @media (prefers-reduced-motion: reduce) {
-  #battle .text button.adv, #battle .bbadge .clock.low { animation: none; }
+  #battle .text button.adv, #battle .bbadge .clock.low, #battle .weather, #evo .evobg { animation: none; }
 }
