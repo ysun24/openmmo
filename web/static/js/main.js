@@ -92,8 +92,18 @@ function layout() {
     cw = VW * s;
     ch = VH * s;
     // snap the CSS size to whole device pixels
-    cw = Math.round(cw * dpr) / dpr;
-    ch = Math.round(ch * dpr) / dpr;
+    cw = Math.floor(cw * dpr) / dpr;
+    ch = Math.floor(ch * dpr) / dpr;
+    k = s * dpr;
+  } else if (touchDevice) {
+    // landscape phone: centred between the side controls (they may overlap the edge a little)
+    const availH = H - top;
+    const side = Math.min(170, W * 0.2);
+    const fit = Math.min(availH / VH, Math.max(VW, W - 2 * side) / VW);
+    const ki = Math.floor(fit * dpr + 1e-6);
+    const s = ki / dpr >= fit * 0.94 ? ki / dpr : fit;
+    cw = Math.floor(VW * s * dpr) / dpr;
+    ch = Math.floor(VH * s * dpr) / dpr;
     k = s * dpr;
   } else {
     const availH = H - top;

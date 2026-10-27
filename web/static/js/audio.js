@@ -446,7 +446,7 @@ export const music = {
   },
   applyGain() {
     if (!this.master) return;
-    const v = this.muted ? 0 : this.volume * this.volume; // perceptual curve
+    const v = this.muted ? 0 : this.volume * this.volume * 2.2; // perceptual curve, GBA-ish loudness
     this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   },
 
@@ -459,7 +459,11 @@ export const music = {
       this.ctx = new AC({ latencyHint: 'playback' });
       this.master = this.ctx.createGain();
       this.master.gain.value = 0;
-      this.master.connect(this.ctx.destination);
+      // gentle limiter: many voices summing must not clip
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -10;
+      comp.ratio.value = 6;
+      this.master.connect(comp).connect(this.ctx.destination);
       this.pulses = DUTIES.map((d) => pulseWave(this.ctx, d));
       this.noise = noiseBuffer(this.ctx, false);
       this.noiseShort = noiseBuffer(this.ctx, true);
