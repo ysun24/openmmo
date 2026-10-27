@@ -217,7 +217,15 @@ constructor(
       cachedIds.forEach { pendingUnload.remove(it) }
       return cachedIds.mapNotNull { characters[it] }
     }
-    val loaded = repository.loadByUser(userId).map { cache(it) }
+    // The list read only tells which characters exist. Each one is then read again under its own
+    // lock, like [getOrLoadCharacter], so a market sale committing through [withExternalWrite]
+    // between the list read and the cache insert cannot leave a stale balance cached.
+    val loaded =
+        repository.loadByUser(userId).mapNotNull { listed ->
+          val id = listed.info.id
+          characters[id]
+              ?: lockFor(id).withLock { characters[id] ?: repository.loadById(id)?.let(::cache) }
+        }
     loaded.forEach { pendingUnload.remove(it.info.id) }
     charactersByUser.putIfAbsent(userId, CopyOnWriteArrayList(loaded.map { it.info.id }))
     return loaded

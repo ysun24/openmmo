@@ -1,0 +1,65 @@
+/* r3-social: chat tabs, friends, guild, profile, player menu, market chart. Loaded by ui/social.js. */
+
+/* ------------------------------------------------------------------ chat tabs */
+#chat-tabs { display: flex; gap: 2px; pointer-events: auto; flex-wrap: wrap; }
+#chat-tabs button {
+  background: #000a; color: var(--muted); border: 1px solid #ffffff1a; border-radius: 6px;
+  font-size: 11px; padding: 2px 7px; min-height: 22px; cursor: pointer;
+}
+#chat-tabs button.on { color: #111; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+#chat-tabs button.unread::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); margin-left: 4px;
+}
+#chat.collapsed #chat-tabs { opacity: .6; }
+#chat-form { display: flex; gap: 4px; align-items: center; }
+#chat-to { background: #5a3d8a; color: #fff; border-radius: 6px; padding: 6px 8px; font-size: 13px; white-space: nowrap; }
+#chat-log b { cursor: pointer; }
+#chat-log .tag { font-size: 11px; font-weight: 700; margin-right: 2px; }
+#chat-log p.ch-global .tag { color: #7ad0ff; }
+#chat-log p.ch-trade .tag { color: #ffb050; }
+#chat-log p.ch-trade b { color: #ffcf8a; }
+#chat-log p.ch-guild .tag, #chat-log p.ch-guild b { color: #7be38a; }
+#chat-log p.ch-whisper { color: #e3b8ff; }
+#chat-log p.ch-whisper b { color: #d08cff; }
+body.touch.chat-open #chat-tabs button { font-size: 13px; padding: 5px 9px; min-height: 32px; background: #101422ee; }
+body.touch.chat-open #chat-tabs button.on { background: var(--accent); }
+
+/* ------------------------------------------------------------------ shared bits */
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #555a70; flex: none; }
+.on > .dot, .dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.item.friend.off .nm, .item.member.off .nm { opacity: .65; }
+.badge { font-size: 11px; color: var(--accent); margin-left: 4px; }
+.gtag { margin-left: 6px; color: #7be38a; font-weight: 700; }
+.rank { font-size: 11px; margin-left: 6px; padding: 0 6px; border-radius: 6px; background: #333a55; color: #cfd6ff; }
+.rank.r5 { background: #8a6a10; color: #fff; }
+.rank.r4, .rank.r3 { background: #3d5a8a; color: #fff; }
+.rank.r2 { background: #2f6a46; color: #fff; }
+.motd { background: #151827; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.glog { font-size: 13px; display: grid; gap: 2px; max-height: 8em; overflow: auto; color: #cdd2e6; }
+.glog small { color: var(--muted); }
+.item.trade-rec { grid-template-columns: 1fr 1fr 1fr; }
+.item.trade-rec small { display: block; color: var(--muted); font-size: 11px; }
+.item.trade-rec .gave { color: #ffb0b0; font-size: 13px; }
+.item.trade-rec .got { color: #b0ffbe; font-size: 13px; }
+.prof-head b { font-size: 18px; }
+.prof-head .dot { width: 14px; height: 14px; }
+.prof-party { display: flex; flex-wrap: wrap; gap: 8px; }
+.prof-party .pmon { display: grid; justify-items: center; background: #151827; border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; }
+.prof-party img, .prof-party .ph { width: 32px; height: 32px; image-rendering: pixelated; }
+.ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ctx button { min-height: 44px; }
+
+/* ------------------------------------------------------------------ market extras */
+.mk-chart { background: #0d0f18; border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.mk-chart svg { width: 100%; height: 150px; display: block; }
+.mk-chart .axis { stroke: #3a3f5a; stroke-width: 1; }
+.mk-chart .band { fill: #f8c03033; }
+.mk-chart .avg { fill: none; stroke: var(--accent); stroke-width: 2; }
+.mk-chart .pt { fill: var(--accent); }
+.mk-chart .vol { fill: #48c86055; }
+.mk-chart text { fill: var(--muted); font-size: 10px; }
+.mk-stats { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.mk-stats b { color: var(--accent); }
+.seller { color: #8cc8ff; }
+.feeinfo { font-size: 12px; color: var(--muted); }
+.countdown { color: var(--accent); font-weight: 700; }

@@ -15,6 +15,7 @@ import * as market from './ui/market.js';
 import * as misc from './ui/misc.js';
 import * as progress from './ui/progress.js';
 import * as field from './ui/field.js';
+import * as social from './ui/social.js';
 import { music } from './audio.js';
 
 const DIRS = ['up', 'down', 'left', 'right'];
@@ -66,7 +67,7 @@ const app = {
     showLogin('Logged out.');
   },
 };
-const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field];
+const UIS = [chat, dialog, shop, battle, trade, market, misc, progress, field, social];
 UIS.forEach((u) => u.init(app));
 
 // ------------------------------------------------------------------ device / layout

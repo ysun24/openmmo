@@ -9,6 +9,7 @@ import de.fiereu.openmmo.net.game.packets.PokemonContainerPacket
 import de.fiereu.openmmo.net.game.packets.TradeActionPacket
 import de.fiereu.openmmo.net.game.packets.TradeSelectMonPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
+import de.fiereu.openmmo.net.game.packets.social.TradeOfferPcMonPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeAction
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferItemPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferKind
@@ -61,6 +62,11 @@ class TradeClient(private val send: (Any) -> Unit, private val onChange: () -> U
   var money: Int? = null
     private set
 
+  /** When (epoch ms) a pending request lapses, or 0. */
+  @Volatile
+  var expiresAtMs: Long = 0
+    private set
+
   /** Every trade state change, for scripts that want to wait on one. */
   @Volatile
   var updates: Int = 0
@@ -81,6 +87,9 @@ class TradeClient(private val send: (Any) -> Unit, private val onChange: () -> U
   /** Puts the monster in party slot [slot] on the table, or takes it back off. */
   fun toggleMon(slot: Int) = send(TradeSelectMonPacket(slot))
 
+  /** Puts the monster in PC slot [pcSlot] (its container slot) on the table, or takes it back. */
+  fun togglePcMon(pcSlot: Int) = send(TradeOfferPcMonPacket(pcSlot))
+
   fun offerItem(itemId: Int, quantity: Int) =
       send(TradeOfferItemPacket(TradeOfferKind.ITEM, itemId, quantity))
 
@@ -93,8 +102,12 @@ class TradeClient(private val send: (Any) -> Unit, private val onChange: () -> U
 
   internal fun onState(packet: TradeStatePacket) {
     state = packet
+    expiresAtMs =
+        if (packet.expiresInSeconds > 0)
+            System.currentTimeMillis() + packet.expiresInSeconds * 1000L
+        else 0
     updates++
-    println("trade: ${describe(packet)}")
+    log.info { "trade: ${describe(packet)}" }
     onChange()
   }
 
@@ -139,6 +152,7 @@ class TradeClient(private val send: (Any) -> Unit, private val onChange: () -> U
     fun offer(o: TradeOfferView): String {
       val parts =
           o.mons.map { "${GameNames.species(it.dexId)} L${it.level} (slot ${it.partySlot})" } +
+              o.pcMons.map { "${GameNames.species(it.dexId)} L${it.level} (pc ${it.partySlot})" } +
               o.items.map { "${it.quantity}x ${GameNames.item(it.itemId)}" } +
               listOfNotNull(o.money.takeIf { it > 0 }?.let { "$it money" })
       return if (parts.isEmpty()) "{}" else parts.joinToString(", ", "{", "}")

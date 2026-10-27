@@ -136,4 +136,56 @@ class DispatcherTest {
       assertEquals(listOf(expected), calls, json)
     }
   }
+
+  @Test
+  fun `r3-social messages reach their actions`() {
+    val cases =
+        mapOf(
+            """{"t":"say","text":"hi all","channel":"global"}""" to
+                ("sayOn" to listOf<Any?>("global", null, "hi all")),
+            """{"t":"say","text":"psst","channel":"whisper","to":"Gary"}""" to
+                ("sayOn" to listOf<Any?>("whisper", "Gary", "psst")),
+            """{"t":"say","text":"hey","channel":"local"}""" to
+                ("sayOn" to listOf<Any?>("local", null, "hey")),
+            """{"t":"social.refresh"}""" to ("socialRefresh" to emptyList()),
+            """{"t":"friends.add","name":"Gary"}""" to ("friendAdd" to listOf("Gary")),
+            """{"t":"friends.remove","name":"Gary"}""" to ("friendRemove" to listOf("Gary")),
+            """{"t":"block","name":"Gary"}""" to ("block" to listOf("Gary")),
+            """{"t":"unblock","name":"Gary"}""" to ("unblock" to listOf("Gary")),
+            """{"t":"profile","name":"Gary"}""" to ("profile" to listOf("Gary")),
+            """{"t":"guild.create","name":"Pallet Pals","tag":"PAL"}""" to
+                ("guildCreate" to listOf("Pallet Pals", "PAL")),
+            """{"t":"guild.invite","name":"Gary"}""" to ("guildInvite" to listOf("Gary")),
+            """{"t":"guild.answer","accept":true}""" to ("guildAnswer" to listOf(true)),
+            """{"t":"guild.leave"}""" to ("guildLeave" to emptyList()),
+            """{"t":"guild.kick","name":"Gary"}""" to ("guildKick" to listOf("Gary")),
+            """{"t":"guild.rank","name":"Gary","rank":2}""" to ("guildRank" to listOf("Gary", 2)),
+            """{"t":"guild.motd","text":" Meet "}""" to ("guildMotd" to listOf("Meet")),
+            """{"t":"guild.disband"}""" to ("guildDisband" to emptyList()),
+            """{"t":"trade.pcMon","slot":7}""" to ("tradePcMon" to listOf(7)),
+            """{"t":"trade.history"}""" to ("tradeHistory" to emptyList()),
+            """{"t":"market.history","kind":"item","id":5017}""" to
+                ("marketHistory" to listOf(false, 5017)),
+            """{"t":"market.history","id":25}""" to ("marketHistory" to listOf(true, 25)),
+            """{"t":"market.sales"}""" to ("marketSales" to emptyList()),
+            """{"t":"market.info"}""" to ("marketInfo" to emptyList()),
+        )
+    for ((json, expected) in cases) {
+      calls.clear()
+      assertNull(send(json), json)
+      assertEquals(listOf(expected), calls, json)
+    }
+  }
+
+  @Test
+  fun `r3-social bad fields are errors`() {
+    assertEquals("bad channel: shout", send("""{"t":"say","text":"x","channel":"shout"}"""))
+    assertEquals("missing or bad field: to", send("""{"t":"say","text":"x","channel":"whisper"}"""))
+    assertEquals("rank out of range", send("""{"t":"guild.rank","name":"G","rank":6}"""))
+    assertEquals(
+        "missing or bad field: tag", send("""{"t":"guild.create","name":"G","tag":"TOOLONG"}"""))
+    assertEquals("id out of range", send("""{"t":"market.history","id":0}"""))
+    assertEquals("missing or bad field: name", send("""{"t":"friends.add","name":"  "}"""))
+    assertTrue(calls.isEmpty(), "$calls")
+  }
 }

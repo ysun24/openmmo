@@ -2,9 +2,12 @@ package de.fiereu.openmmo.server.game.services.trade
 
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
+import de.fiereu.openmmo.common.enums.Direction
 import de.fiereu.openmmo.items.ItemRegistry
+import de.fiereu.openmmo.net.game.packets.GbaEntityMovePacket
 import de.fiereu.openmmo.net.game.packets.TradeActionPacket
 import de.fiereu.openmmo.net.game.packets.TradeSelectMonPacket
+import de.fiereu.openmmo.net.game.packets.social.TradeOfferPcMonPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeAction
 import de.fiereu.openmmo.net.game.packets.trade.TradeItemView
 import de.fiereu.openmmo.net.game.packets.trade.TradeMonView
@@ -15,21 +18,40 @@ import de.fiereu.openmmo.net.game.packets.trade.TradePhase
 import de.fiereu.openmmo.net.game.packets.trade.TradeRequestPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeStage
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
+import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.WorldStateService
 import de.fiereu.openmmo.server.game.services.notice
+import de.fiereu.openmmo.server.game.services.social.BlockList
+import de.fiereu.openmmo.server.game.services.social.RateKind
+import de.fiereu.openmmo.server.game.services.social.RateLimiter
+import de.fiereu.openmmo.server.game.services.social.SocialConfig
+import de.fiereu.openmmo.server.game.services.social.TradeProximity
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.SessionRegistry
 import de.fiereu.openmmo.server.game.storage.CharacterStore
+import de.fiereu.openmmo.server.game.storage.InMemorySocialRepository
+import de.fiereu.openmmo.server.game.storage.SocialRepository
 import de.fiereu.openmmo.server.game.storage.StoredCharacter
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val log = KotlinLogging.logger {}
 
 /** One trade between [initiator] and [target], from the request until it closes. */
-internal class Trade(val initiator: Long, val target: Long) {
+internal class Trade(
+    val initiator: Long,
+    val target: Long,
+    val requestedAtMs: Long = System.currentTimeMillis(),
+) {
   var open = false
   /** Set while the swap is being written. Nothing may change the trade until it finishes. */
   var committing = false
@@ -63,13 +85,24 @@ constructor(
     private val battleService: BattleService,
     private val worldState: WorldStateService,
     private val items: ItemRegistry,
+    private val config: SocialConfig = SocialConfig(),
+    private val limiter: RateLimiter = RateLimiter(config.rates),
+    private val history: SocialRepository = InMemorySocialRepository(),
+    private val blocks: BlockList = BlockList(history),
+    private val evolution: TradeEvolutionHook = TradeEvolutionHook.NONE,
+    private val species: SpeciesRegistry = SpeciesRegistry(),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
   private val lock = Any()
   private val trades = HashMap<Long, Trade>()
 
-  fun onRequest(event: PacketEvent<TradeRequestPacket>) {
+  suspend fun onRequest(event: PacketEvent<TradeRequestPacket>) {
     val me = event.session.charId() ?: return
     val myself = characterStore.getCharacter(me) ?: return
+    val userId = event.session.attributes[PLAYER_STATE]?.userId ?: return
+    if (!limiter.tryAcquire(userId, RateKind.TRADE_REQUEST)) {
+      return refuse(event.session, "You are sending trade requests too fast.")
+    }
     val wanted = event.packet.targetName.trim()
     val other =
         sessions.onlineCharacterIds().firstNotNullOfOrNull { id ->
@@ -84,6 +117,15 @@ constructor(
       return refuse(event.session, it)
     }
     if (them == me) return refuse(event.session, "You cannot trade with yourself.")
+    if (blocks.isBlocked(them, me)) {
+      return refuse(event.session, "${other.info.name} is not accepting trade requests.")
+    }
+    if (blocks.isBlocked(me, them)) {
+      return refuse(event.session, "Unblock ${other.info.name} to trade with them.")
+    }
+    proximityReason(myself, other)?.let {
+      return refuse(event.session, it)
+    }
     val trade = Trade(me, them)
     synchronized(lock) {
       if (me in trades) return refuse(event.session, "You are already trading.")
@@ -94,6 +136,79 @@ constructor(
     log.info { "char=$me asked char=$them to trade" }
     sessions.getByCharacterId(them)?.send(notice("${myself.info.name} wants to trade with you."))
     broadcast(trade)
+    scope.launch {
+      delay(config.tradeRequestSeconds.seconds)
+      val lapsed = synchronized(lock) { trades[me] === trade && !trade.open }
+      if (lapsed) close(trade, "The trade request expired.")
+    }
+  }
+
+  /** Null when [a] and [b] are close enough to trade under [SocialConfig.tradeProximity]. */
+  internal fun proximityReason(a: StoredCharacter, b: StoredCharacter): String? {
+    val rule = config.tradeProximity
+    if (rule == TradeProximity.Anywhere) return null
+    val sameMap =
+        a.info.positionRegionId == b.info.positionRegionId &&
+            a.info.positionBankId == b.info.positionBankId &&
+            a.info.positionMapId == b.info.positionMapId
+    if (!sameMap) return "${b.info.name} has to be on the same map to trade."
+    if (rule is TradeProximity.Within) {
+      val d =
+          kotlin.math.abs(a.info.positionX - b.info.positionX) +
+              kotlin.math.abs(a.info.positionY - b.info.positionY)
+      if (d > rule.tiles) return "Stand within ${rule.tiles} steps of ${b.info.name} to trade."
+    }
+    return null
+  }
+
+  /** The window is open: the player stands still and cannot shop until it closes. */
+  fun locksField(charId: Long): Boolean = synchronized(lock) { trades[charId]?.open == true }
+
+  /**
+   * Refuses a step while [locksField]: snaps the client back to the server's tile, the way a step
+   * during a script is refused. True when the step was refused.
+   */
+  fun refuseStep(session: SessionContext): Boolean {
+    val charId = session.charId() ?: return false
+    if (!locksField(charId)) return false
+    val info = characterStore.getCharacter(charId)?.info ?: return true
+    session.send(
+        GbaEntityMovePacket(
+            entityId = charId,
+            bankId = info.positionBankId.toInt() and 0xff,
+            mapId = info.positionMapId.toInt() and 0xff,
+            x = info.positionX.toInt(),
+            y = info.positionY.toInt(),
+            movementMode = 2,
+            direction = session.attributes[PLAYER_STATE]?.facingDirection ?: Direction.DOWN,
+        ))
+    return true
+  }
+
+  /** Refuses a shop or npc action while [locksField], with a notice. True when refused. */
+  fun refuseFieldAction(session: SessionContext): Boolean {
+    val charId = session.charId() ?: return false
+    if (!locksField(charId)) return false
+    session.send(notice("Finish your trade first."))
+    return true
+  }
+
+  /** Toggles the monster in PC slot [TradeOfferPcMonPacket.pcSlot] on or off the table. */
+  fun onSelectPcMon(event: PacketEvent<TradeOfferPcMonPacket>) {
+    val me = event.session.charId() ?: return
+    val stored = characterStore.getCharacter(me) ?: return
+    val mon =
+        stored.pcStorage.firstOrNull { it.containerSlot.toInt() == event.packet.pcSlot }
+            ?: return tell(me, "There is no monster in PC slot ${event.packet.pcSlot}.")
+    editOffer(me) { offer ->
+      if (mon.id in offer.monIds) {
+        offer.copy(monIds = offer.monIds - mon.id)
+      } else if (offer.monIds.size >= TradeSwap.MAX_OFFERED_MONS) {
+        null
+      } else {
+        offer.copy(monIds = offer.monIds + mon.id)
+      }
+    }
   }
 
   suspend fun onAction(event: PacketEvent<TradeActionPacket>) {
@@ -161,6 +276,14 @@ constructor(
   fun isTrading(charId: Long): Boolean = synchronized(lock) { charId in trades }
 
   private fun accept(me: Long) {
+    val pending = synchronized(lock) { trades[me] } ?: return
+    val a = characterStore.getCharacter(pending.target)
+    val b = characterStore.getCharacter(pending.initiator)
+    if (a != null && b != null) {
+      proximityReason(a, b)?.let {
+        return tell(me, it)
+      }
+    }
     val trade =
         synchronized(lock) {
           val trade = trades[me] ?: return
@@ -214,11 +337,21 @@ constructor(
     var reason: String? = busyReason(a, nameOf(a), ignoreTrade = true)
     reason = reason ?: busyReason(b, nameOf(b), ignoreTrade = true)
     var ok = false
+    var gaveA = ""
+    var gaveB = ""
+    var receivedByA = emptyList<Long>()
+    var receivedByB = emptyList<Long>()
     if (reason == null) {
       ok =
           characterStore.commitPair(a, b) { ca, cb ->
             when (val result = TradeSwap.apply(ca, offerA, cb, offerB)) {
-              is SwapResult.Ok -> result.a to result.b
+              is SwapResult.Ok -> {
+                gaveA = summary(ca, offerA)
+                gaveB = summary(cb, offerB)
+                receivedByA = offerB.monIds
+                receivedByB = offerA.monIds
+                result.a to result.b
+              }
               is SwapResult.Rejected -> {
                 reason = result.reason
                 null
@@ -248,6 +381,16 @@ constructor(
       return
     }
     log.info { "trade char=$a <-> char=$b done: $offerA for $offerB" }
+    runCatching { history.recordTrade(a, b, gaveA, gaveB, LocalDateTime.now()) }
+        .onFailure { log.warn(it) { "Could not log the trade" } }
+    for ((receiver, ids) in listOf(a to receivedByA, b to receivedByB)) {
+      val owned = characterStore.getCharacter(receiver) ?: continue
+      for (id in ids) {
+        val mon = (owned.pokemon + owned.pcStorage).firstOrNull { it.id == id } ?: continue
+        runCatching { evolution.onTraded(receiver, mon) }
+            .onFailure { log.warn(it) { "onTraded hook failed for $id" } }
+      }
+    }
     for (charId in listOf(a, b)) {
       val session = sessions.getByCharacterId(charId) ?: continue
       val stored = characterStore.getCharacter(charId) ?: continue
@@ -279,16 +422,18 @@ constructor(
   }
 
   private fun close(me: Long, why: String) {
-    val trade =
-        synchronized(lock) {
-          val trade = trades[me] ?: return
-          if (trade.committing) return
-          trades.remove(trade.initiator, trade)
-          trades.remove(trade.target, trade)
-          trade
-        }
+    val trade = synchronized(lock) { trades[me] } ?: return
     log.info { "trade char=${trade.initiator} <-> char=${trade.target}: char=$me $why" }
-    val message = "${nameOf(me)} $why."
+    close(trade, "${nameOf(me)} $why.")
+  }
+
+  private fun close(trade: Trade, message: String) {
+    synchronized(lock) {
+      if (trade.committing) return
+      if (trades[trade.initiator] !== trade && trades[trade.target] !== trade) return
+      trades.remove(trade.initiator, trade)
+      trades.remove(trade.target, trade)
+    }
     for (charId in listOf(trade.initiator, trade.target)) {
       sessions
           .getByCharacterId(charId)
@@ -343,6 +488,7 @@ constructor(
                       myStage = stages.getValue(charId),
                       theirStage = stages.getValue(partner),
                       message = message,
+                      expiresInSeconds = if (open) 0 else expiresIn(trade),
                   ))
         }
       }
@@ -350,6 +496,7 @@ constructor(
   private fun view(owner: Long, offer: TradeOffer): TradeOfferView {
     val stored: StoredCharacter? = characterStore.getCharacter(owner)
     val party = stored?.pokemon?.sortedBy { it.containerSlot }.orEmpty()
+    val pc = stored?.pcStorage.orEmpty()
     val mons =
         offer.monIds.mapNotNull { id ->
           val index = party.indexOfFirst { it.id == id }
@@ -357,10 +504,47 @@ constructor(
             TradeMonView(index, it.dexId, it.level.toInt(), it.nickname, it.isShiny, it.hp.toInt())
           }
         }
+    val pcMons =
+        offer.monIds.mapNotNull { id ->
+          pc.firstOrNull { it.id == id }
+              ?.let {
+                TradeMonView(
+                    it.containerSlot.toInt(),
+                    it.dexId,
+                    it.level.toInt(),
+                    it.nickname,
+                    it.isShiny,
+                    it.hp.toInt())
+              }
+        }
     return TradeOfferView(
         mons,
         offer.items.map { (id, qty) -> TradeItemView(id, qty) }.sortedBy { it.itemId },
-        offer.money)
+        offer.money,
+        pcMons)
+  }
+
+  /** "PIKACHU Lv12, 3x Potion, 500 money" for the trade log. */
+  private fun summary(owner: StoredCharacter, offer: TradeOffer): String {
+    val all = owner.pokemon + owner.pcStorage
+    val parts =
+        offer.monIds.mapNotNull { id ->
+          all.firstOrNull { it.id == id }
+              ?.let { m ->
+                val name = species.get(m.dexId)?.name ?: "#${m.dexId}"
+                "$name Lv${m.level}"
+              }
+        } +
+            offer.items.entries
+                .sortedBy { it.key }
+                .map { (id, qty) -> "${qty}x ${items.get(id)?.name ?: "item $id"}" } +
+            listOfNotNull(offer.money.takeIf { it > 0 }?.let { "$it money" })
+    return if (parts.isEmpty()) "nothing" else parts.joinToString(", ")
+  }
+
+  private fun expiresIn(trade: Trade): Int {
+    val left = trade.requestedAtMs + config.tradeRequestSeconds * 1000L - System.currentTimeMillis()
+    return ((left + 999) / 1000).toInt().coerceAtLeast(0)
   }
 
   private fun nameOf(charId: Long): String = characterStore.getCharacter(charId)?.info?.name ?: "?"

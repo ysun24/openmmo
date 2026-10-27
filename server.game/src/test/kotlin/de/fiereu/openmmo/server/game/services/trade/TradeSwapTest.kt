@@ -178,12 +178,25 @@ class TradeSwapTest :
         TradeSwap.apply(a, TradeOffer(), b, TradeOffer()).reason() shouldContain "Nothing"
       }
 
-      test("a pc monster cannot be offered") {
+      test("a pc monster can be offered and leaves the giver's pc") {
         val a = trader("Ash", listOf(1, 2))
         val boxed = tradeMon(a.info.id, 0, 150, PokemonContainer.PC)
         a.pcStorage += boxed
         val b = trader("Gary", listOf(25))
-        TradeSwap.apply(a, TradeOffer(listOf(boxed.id)), b, TradeOffer()).reason() shouldContain
+        val ok = TradeSwap.apply(a, TradeOffer(listOf(boxed.id)), b, TradeOffer())
+        ok.shouldBeInstanceOf<SwapResult.Ok>()
+        ok.a.pcStorage shouldBe emptyList()
+        ok.a.pokemon.map { it.dexId } shouldBe listOf(1, 2)
+        ok.b.pokemon.map { it.dexId } shouldBe listOf(25, 150)
+        ok.b.pokemon.last().ownerId shouldBe b.info.id
+      }
+
+      test("a pc monster someone else owns is refused") {
+        val a = trader("Ash", listOf(1, 2))
+        val b = trader("Gary", listOf(25))
+        val foreign = tradeMon(b.info.id, 0, 150, PokemonContainer.PC)
+        a.pcStorage += foreign
+        TradeSwap.apply(a, TradeOffer(listOf(foreign.id)), b, TradeOffer()).reason() shouldContain
             "no longer has"
       }
 

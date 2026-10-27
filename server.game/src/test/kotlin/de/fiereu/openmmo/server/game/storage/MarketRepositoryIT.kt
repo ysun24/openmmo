@@ -395,4 +395,71 @@ class MarketRepositoryIT :
         money(buyer) shouldBe 4600
         ownerAndContainer(sellerMon.id) shouldBe (buyer to "PARTY")
       }
+
+      test("the listing fee is taken with the listing and kept on cancel") {
+        val seller = character(money = 1000, items = mapOf(5017 to 5))
+        val outcome = market.createItemListing(seller, 5017, 2, 900, now(), later(), 10, fee = 18)
+        outcome.shouldBeInstanceOf<MarketOutcome.Done>()
+        outcome.listing.fee shouldBe 18
+        money(seller) shouldBe 982
+        market.cancel(outcome.listing.id, seller, now()).shouldBeInstanceOf<MarketOutcome.Done>()
+        money(seller) shouldBe 982
+        market.find(outcome.listing.id)!!.fee shouldBe 18
+      }
+
+      test("a seller who cannot pay the fee lists nothing") {
+        val seller = character(money = 10, items = mapOf(5017 to 5))
+        market.createItemListing(seller, 5017, 2, 900, now(), later(), 10, fee = 18) shouldBe
+            MarketOutcome.Refused("The listing fee is 18.")
+        money(seller) shouldBe 10
+        characters.loadById(seller)!!.items[5017] shouldBe 5
+      }
+
+      test("the active listing limit is enforced") {
+        val seller = character(items = mapOf(5017 to 9))
+        repeat(2) {
+          market
+              .createItemListing(seller, 5017, 1, 100, now(), later(), 2)
+              .shouldBeInstanceOf<MarketOutcome.Done>()
+        }
+        market.createItemListing(seller, 5017, 1, 100, now(), later(), 2) shouldBe
+            MarketOutcome.Refused("You already have 2 listings.")
+        market.activeCount(seller) shouldBe 2
+      }
+
+      test("search rows carry the seller name") {
+        val seller = character(items = mapOf(5018 to 3))
+        market.createItemListing(seller, 5018, 1, 77, now(), later(), 10)
+        val page = market.search(MarketQuery(kind = MarketKind.ITEM, refIds = listOf(5018)), now())
+        page.rows.single().sellerName shouldBe "C$seller"
+      }
+
+      test("sales and sold-by history: per unit data, newest first, buyer names") {
+        val seller = character(items = mapOf(5019 to 10))
+        val buyer = character(money = 50_000, partySize = 1)
+        val a =
+            (market.createItemListing(seller, 5019, 2, 300, now(), later(), 10)
+                    as MarketOutcome.Done)
+                .listing
+        val b =
+            (market.createItemListing(seller, 5019, 1, 200, now(), later(), 10)
+                    as MarketOutcome.Done)
+                .listing
+        val c =
+            (market.createItemListing(seller, 5019, 1, 999, now(), later(), 10)
+                    as MarketOutcome.Done)
+                .listing
+        market.buy(a.id, buyer, now()).shouldBeInstanceOf<MarketOutcome.Done>()
+        market.buy(b.id, buyer, now().plusSeconds(1)).shouldBeInstanceOf<MarketOutcome.Done>()
+        val sales = market.sales(MarketKind.ITEM, 5019, now().minusDays(1))
+        sales.map { it.price to it.quantity } shouldBe listOf(200 to 1, 300 to 2)
+        // An unsold listing is not a sale; another item's sales do not leak in.
+        market.sales(MarketKind.ITEM, 5017, now().minusDays(1)).none { it.price == 999 } shouldBe
+            true
+        val sold = market.soldBy(seller, 10)
+        sold.map { it.listing.id } shouldBe listOf(b.id, a.id)
+        sold.first().buyerName shouldBe "C$buyer"
+        market.soldBy(buyer, 10) shouldBe emptyList()
+        c.status shouldBe MarketStatus.ACTIVE
+      }
     })

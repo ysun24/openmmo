@@ -27,7 +27,17 @@ data class Entity(
     val exclaimSeq: Int = 0,
 )
 
-data class ChatLine(val sender: String, val message: String)
+/**
+ * One chat log line. [channel] is the [de.fiereu.openmmo.net.game.packets.social.ChatChannel] name
+ * for player chat (LOCAL, GLOBAL, TRADE, GUILD, WHISPER, SYSTEM) and empty for server notices; [to]
+ * is the whisper target.
+ */
+data class ChatLine(
+    val sender: String,
+    val message: String,
+    val channel: String = "",
+    val to: String = "",
+)
 
 /**
  * Everything the client knows about the world. Written from the netty thread and read from the UI,

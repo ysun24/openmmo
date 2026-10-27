@@ -14,7 +14,7 @@ import kotlinx.serialization.json.longOrNull
  * What a logged-in browser can make its game client do. [GameSession] implements it over the real
  * clients; tests record the calls. A non-null return is an error to report to the browser.
  */
-interface GameActions {
+interface GameActions : SocialActions {
   /** A field move / item: [action] is a lower-case FieldAction name without underscores. */
   fun field(action: String, arg: Int, arg2: Int): String? = "field moves are not supported"
 
@@ -178,9 +178,53 @@ object Dispatcher {
         "face" -> g.face(m.dir("dir"))
         "say" -> {
           val text = m.string("text").trim()
+          val channel = m.optString("channel")
           if (text.isEmpty()) "empty text"
-          else if (text.length > MAX_TEXT) "text too long" else g.say(text)
+          else if (text.length > MAX_TEXT) "text too long"
+          else if (channel == null || (channel == "local" && !text.startsWith("/"))) {
+            if (channel == null) g.say(text) else g.sayOn(channel, null, text)
+          } else {
+            if (channel !in SocialActions.CHANNELS) throw BadMessage("bad channel: $channel")
+            val to = if (channel == "whisper") m.name("to") else null
+            g.sayOn(channel, to, text)
+          }
         }
+        // r3-social
+        "social.refresh" -> g.socialRefresh()
+        "friends.add" -> g.friendAdd(m.name("name"))
+        "friends.remove" -> g.friendRemove(m.name("name"))
+        "block" -> g.block(m.name("name"))
+        "unblock" -> g.unblock(m.name("name"))
+        "profile" -> g.profile(m.name("name"))
+        "guild.create" -> {
+          val tag = m.string("tag").trim()
+          if (tag.isEmpty() || tag.length > 5) throw bad("tag")
+          g.guildCreate(m.name("name"), tag)
+        }
+        "guild.invite" -> g.guildInvite(m.name("name"))
+        "guild.answer" -> g.guildAnswer(m.bool("accept") ?: throw bad("accept"))
+        "guild.leave" -> g.guildLeave()
+        "guild.kick" -> g.guildKick(m.name("name"))
+        "guild.rank" -> g.guildRank(m.name("name"), m.reqInt("rank", 0..5))
+        "guild.motd" -> {
+          val text = m.string("text").trim()
+          if (text.length > MAX_TEXT) "text too long" else g.guildMotd(text)
+        }
+        "guild.disband" -> g.guildDisband()
+        "trade.pcMon" -> g.tradePcMon(m.reqInt("slot", 0..MAX_PC_SLOT))
+        "trade.history" -> g.tradeHistory()
+        "market.history" -> {
+          val pokemon =
+              when (val k = m.optString("kind")) {
+                null,
+                "mon" -> true
+                "item" -> false
+                else -> throw BadMessage("bad kind: $k")
+              }
+          g.marketHistory(pokemon, m.reqInt("id", 1..65535))
+        }
+        "market.sales" -> g.marketSales()
+        "market.info" -> g.marketInfo()
         "a" -> g.a()
         "b" -> g.b()
         "cursor" -> g.cursor((m.int("delta") ?: throw bad("delta")).coerceIn(-1, 1))

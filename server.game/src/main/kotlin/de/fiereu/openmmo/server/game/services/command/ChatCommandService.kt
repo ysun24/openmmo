@@ -23,6 +23,12 @@ constructor(
 
   private val commands = registered.associateBy { it.name.lowercase() }
 
+  init {
+    // One command per name: a second binding would silently shadow the first.
+    val clashes = registered.groupBy { it.name.lowercase() }.filterValues { it.size > 1 }.keys
+    require(clashes.isEmpty()) { "Chat commands registered twice: $clashes" }
+  }
+
   /** Handles a chat line. Returns false when it is ordinary chat the caller should broadcast. */
   suspend fun tryHandle(session: SessionContext, message: String): Boolean {
     val text = message.trim()

@@ -148,6 +148,7 @@ class StateJsonTest {
             "evolution",
             "trade",
             "market",
+            "social",
             "dex",
             "trainer",
             "daycare",
@@ -319,9 +320,9 @@ class StateJsonTest {
         parse(
             """{"phase":"OPEN","partner":"Gary","message":"",
                "mine":{"stage":"READY","mons":[{"slot":1,"dex":1,"name":"BULBASAUR","level":12}],
-                       "items":[],"money":500},
+                       "items":[],"money":500,"pcMons":[]},
                "theirs":{"stage":"NONE","mons":[],"items":[{"item":5017,"name":"Potion","qty":2}],
-                         "money":0}}"""),
+                         "money":0,"pcMons":[]}}"""),
         json.trade(t))
     // A closed trade with a reason is shown once more with that reason.
     val closed =
@@ -340,22 +341,25 @@ class StateJsonTest {
             browse = listOf(other, own),
             browseTotal = 2,
             mine = listOf(own),
-            log = listOf("BUY ok: Bought 2x Potion for 300."))
+            log = listOf("BUY ok: Bought 2x Potion for 300."),
+            sellers = mapOf(2412313315698249729L to "Gary"))
     val m = json.build(sources(market = state))["market"]
     assertEquals(
         parse(
             """{"money":80200,
                "browse":[{"id":"2412313315698249729","kind":"mon","dex":19,"item":null,"name":"RATTATA",
-                          "level":12,"qty":1,"price":1500,"expiresAt":1793000000,"mine":false},
+                          "level":12,"qty":1,"price":1500,"expiresAt":1793000000,"mine":false,
+                          "seller":"Gary"},
                          {"id":"1","kind":"item","dex":null,"item":5017,"name":"Potion","level":null,
-                          "qty":2,"price":150,"expiresAt":1793000000,"mine":true}],
+                          "qty":2,"price":150,"expiresAt":1793000000,"mine":true,"seller":null}],
                "browseTotal":2,"page":0,
                "mine":[{"id":"1","kind":"item","dex":null,"item":5017,"name":"Potion","level":null,
-                        "qty":2,"price":150,"expiresAt":1793000000,"mine":true}],
+                        "qty":2,"price":150,"expiresAt":1793000000,"mine":true,"seller":null}],
                "inventory":{"party":[{"slot":0,"dex":4,"name":"CHARMANDER","nick":null,"level":15,
                                       "hp":30,"maxHp":39,"id":"100","moves":[],"status":null,"ot":"Ash",
                                       "xp":0,"shiny":false}],"bag":[]},
-               "log":["BUY ok: Bought 2x Potion for 300."]}"""),
+               "log":["BUY ok: Bought 2x Potion for 300."],
+               "info":null,"history":null,"sales":null,"openSeq":0}"""),
         m)
   }
 

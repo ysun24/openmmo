@@ -88,19 +88,3 @@ constructor(
         "Field test kit: 8 badges, running shoes, FLY towns, bike; $taught field moves taught.")
   }
 }
-
-/** Developer teleport for testing the field layer: `/fieldtp <MapName> <x> <y>`. */
-@Singleton
-class FieldTpCommand @Inject constructor(private val field: FieldService) : ChatCommand {
-  override val name = "fieldtp"
-  override val usage = "/fieldtp <MapName> <x> <y>"
-  override val description = "warps you to a map of your region by its decomp name"
-  override val permission = CharacterPermissions.DEVELOPER
-
-  override suspend fun run(ctx: CommandContext) {
-    val name = ctx.args.getOrNull(0) ?: return ctx.reply("Usage: $usage")
-    val x = ctx.args.getOrNull(1)?.toIntOrNull() ?: return ctx.reply("Usage: $usage")
-    val y = ctx.args.getOrNull(2)?.toIntOrNull() ?: return ctx.reply("Usage: $usage")
-    if (!field.devWarp(ctx.session, ctx.state, name, x, y)) ctx.reply("No map called $name here.")
-  }
-}

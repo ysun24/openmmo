@@ -11,11 +11,9 @@ import de.fiereu.openmmo.server.game.services.command.GiveMoneyCommand
 import de.fiereu.openmmo.server.game.services.command.GrantCommand
 import de.fiereu.openmmo.server.game.services.command.HelpCommand
 import de.fiereu.openmmo.server.game.services.command.PosCommand
-import de.fiereu.openmmo.server.game.services.command.SetStatusCommand
 import de.fiereu.openmmo.server.game.services.command.StoryCommand
 import de.fiereu.openmmo.server.game.services.command.TestBattleCommand
 import de.fiereu.openmmo.server.game.services.command.TestTrainerCommand
-import de.fiereu.openmmo.server.game.services.command.WarpCommand
 
 /**
  * A name must not start with a client side command. The client resolves those itself and never
@@ -50,20 +48,10 @@ interface ChatCommandModule {
 
   @Binds @IntoSet fun grantCommand(command: GrantCommand): ChatCommand
 
-  @Binds @IntoSet fun warpCommand(command: WarpCommand): ChatCommand
-
-  @Binds @IntoSet fun setStatusCommand(command: SetStatusCommand): ChatCommand
-
   // r3-field
   @Binds
   @IntoSet
   fun fieldDevCommand(
       command: de.fiereu.openmmo.server.game.services.command.FieldDevCommand
-  ): ChatCommand
-
-  @Binds
-  @IntoSet
-  fun fieldTpCommand(
-      command: de.fiereu.openmmo.server.game.services.command.FieldTpCommand
   ): ChatCommand
 }

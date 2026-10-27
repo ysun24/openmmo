@@ -15,6 +15,7 @@ import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacketCodec
 import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacketCodec
+import de.fiereu.openmmo.net.game.packets.social.*
 import de.fiereu.openmmo.net.game.packets.trade.*
 
 object GameProtocol : Protocol() {
@@ -641,5 +642,11 @@ object GameProtocol : Protocol() {
         0xE8u, de.fiereu.openmmo.net.game.packets.field.FieldAvatarPacketCodec)
     s2c<de.fiereu.openmmo.net.game.packets.field.FieldInfoPacket>(
         0xE9u, de.fiereu.openmmo.net.game.packets.field.FieldInfoPacketCodec)
+    // r3-social: OpenMMO-only social/chat/guild/market-extra packets (see packets/social).
+    // c2s 0xFC-0xFE and s2c 0xFD were free in both directions; s2c 0xFC/0xFE are retail.
+    c2s<SocialRequestPacket>(0xFCu, SocialRequestPacketCodec)
+    c2s<MarketQueryPacket>(0xFDu, MarketQueryPacketCodec)
+    c2s<TradeOfferPcMonPacket>(0xFEu, TradeOfferPcMonPacketCodec)
+    s2c<CommunityPacket>(0xFDu, CommunityPacketCodec)
   }
 }

@@ -1,6 +1,5 @@
 package de.fiereu.openmmo.server.game.handler
 
-import de.fiereu.network.PacketEvent
 import de.fiereu.network.Side
 import de.fiereu.network.coroutines.CoroutineProtocolHandler
 import de.fiereu.openmmo.common.enums.ChatType
@@ -75,6 +74,9 @@ import de.fiereu.openmmo.net.game.packets.guild.GuildRankLabelUpdatePacket
 import de.fiereu.openmmo.net.game.packets.guild.GuildRankPermissionUpdatePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryRequestPacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
+import de.fiereu.openmmo.net.game.packets.social.MarketQueryPacket
+import de.fiereu.openmmo.net.game.packets.social.SocialRequestPacket
+import de.fiereu.openmmo.net.game.packets.social.TradeOfferPcMonPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeOfferItemPacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeRequestPacket
 import de.fiereu.openmmo.server.game.progression.ProgressActionService
@@ -94,6 +96,7 @@ import de.fiereu.openmmo.server.game.services.PvpBattleService
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.SocialService
 import de.fiereu.openmmo.server.game.services.command.ChatCommandService
+import de.fiereu.openmmo.server.game.services.social.MarketClerks
 import de.fiereu.openmmo.server.game.services.trade.TradeService
 import de.fiereu.openmmo.server.game.session.PLAYER_STATE
 import de.fiereu.openmmo.server.game.session.SCRIPT_SCOPE
@@ -131,6 +134,7 @@ constructor(
     private val sessionRegistry: SessionRegistry,
     private val characterStore: CharacterStore,
     private val fieldService: de.fiereu.openmmo.server.game.services.FieldService,
+    private val marketClerks: MarketClerks,
     scope: CoroutineScope,
 ) : CoroutineProtocolHandler<GameProtocol>(GameProtocol, Side.SERVER, scope) {
 
@@ -142,18 +146,33 @@ constructor(
     onSuspend<DeleteCharacterPacket> { event -> loginService.onDeleteCharacter(event) }
     onSuspend<RequestPlayerPacket> { event -> loginService.onRequestPlayer(event) }
 
-    onSuspend<MovementPacket> { event -> movementService.onMovement(event) }
+    // r3-social: no walking while a trade window is open.
+    onSuspend<MovementPacket> { event ->
+      if (!tradeService.refuseStep(event.session)) movementService.onMovement(event)
+    }
     onSuspend<FaceDirectionPacket> { event -> movementService.onFaceDirection(event) }
 
-    onSuspend<EntityInteractPacket> { event -> interactionService.onEntityInteract(event) }
-    onSuspend<TileInteractPacket> { event -> interactionService.onTileInteract(event) }
+    onSuspend<EntityInteractPacket> { event ->
+      when {
+        tradeService.refuseFieldAction(event.session) -> Unit
+        marketClerks.isClerk(event.packet.entityId) -> marketService.openFor(event.session)
+        else -> interactionService.onEntityInteract(event)
+      }
+    }
+    onSuspend<TileInteractPacket> { event ->
+      if (!tradeService.refuseFieldAction(event.session)) interactionService.onTileInteract(event)
+    }
     onSuspend<de.fiereu.openmmo.net.game.packets.field.FieldActionPacket> { event ->
-      fieldService.onAction(event)
+      if (!tradeService.refuseFieldAction(event.session)) fieldService.onAction(event)
     }
     onSuspend<DialogActionResponsePacket> { event -> dialogService.onInteractive(event) }
     onSuspend<DialogChoicePacket> { event -> dialogService.onDialogChoice(event) }
-    onSuspend<ExchangeItemRequestPacket> { event -> shopService.onBuy(event) }
-    onSuspend<ShopSellRequestPacket> { event -> shopService.onSell(event) }
+    onSuspend<ExchangeItemRequestPacket> { event ->
+      if (!tradeService.refuseFieldAction(event.session)) shopService.onBuy(event)
+    }
+    onSuspend<ShopSellRequestPacket> { event ->
+      if (!tradeService.refuseFieldAction(event.session)) shopService.onSell(event)
+    }
     onSuspend<FieldItemUsePacket> { event -> fieldItemService.onUse(event) }
     onSuspend<ProgressActionPacket> { event -> progressActions.onAction(event) }
     onSuspend<SwapInventorySlotsPacket> { event -> partyStorageService.onSwap(event) }
@@ -163,11 +182,13 @@ constructor(
     onSuspend<GtlConfirmPurchasePacket> { event -> marketService.onBuy(event) }
     onSuspend<GtlListingCancelPacket> { event -> marketService.onCancel(event) }
     on<MarketInventoryRequestPacket> { event -> marketService.onInventory(event) }
+    onSuspend<MarketQueryPacket> { event -> marketService.onQuery(event) }
+    onSuspend<SocialRequestPacket> { event -> socialService.onRequest(event) }
 
-    on<AddFriendPacket> { event -> socialService.onAddFriend(event) }
-    on<RemoveFriendPacket> { event -> socialService.onRemoveFriend(event) }
-    on<BlockPlayerPacket> { event -> socialService.onBlockPlayer(event) }
-    on<UnblockPlayerPacket> { event -> socialService.onUnblockPlayer(event) }
+    onSuspend<AddFriendPacket> { event -> socialService.onAddFriend(event) }
+    onSuspend<RemoveFriendPacket> { event -> socialService.onRemoveFriend(event) }
+    onSuspend<BlockPlayerPacket> { event -> socialService.onBlockPlayer(event) }
+    onSuspend<UnblockPlayerPacket> { event -> socialService.onUnblockPlayer(event) }
     on<RequestSocialProfilePacket> { event -> socialService.onRequestSocialProfile(event) }
     on<CancelSocialInteractionPacket> { event -> socialService.onCancelSocialInteraction(event) }
 
@@ -221,7 +242,8 @@ constructor(
       pvpBattleService.onChallengeResponse(event)
     }
 
-    on<TradeRequestPacket> { event -> tradeService.onRequest(event) }
+    onSuspend<TradeRequestPacket> { event -> tradeService.onRequest(event) }
+    on<TradeOfferPcMonPacket> { event -> tradeService.onSelectPcMon(event) }
     onSuspend<TradeActionPacket> { event -> tradeService.onAction(event) }
     on<TradeSelectMonPacket> { event -> tradeService.onSelectMon(event) }
     on<TradeOfferItemPacket> { event -> tradeService.onOfferItem(event) }
@@ -229,7 +251,7 @@ constructor(
     // The client sends an empty heartbeat packet.
     on<NullPacket> {}
     on<KeepAlivePacket> { event -> event.session.send(event.packet) }
-    onSuspend<ChatMessagePacket> { event -> onChatMessage(event) }
+    onSuspend<ChatMessagePacket> { event -> socialService.onLegacyChat(event) }
     // What the client sends when the player types. The text rides in target unless the mode
     // carries a message of its own.
     onSuspend<ChatMessageSendPacket> { event ->
@@ -250,6 +272,7 @@ constructor(
       battleService.onDisconnect(session)
       tradeService.onDisconnect(charId)
       progressActions.onLeave(charId)
+      socialService.onDisconnect(charId, state.userId)
       // Undo the interrupted script here rather than leaving it to the coroutine's own cleanup,
       // which runs on another thread and would race the flush below.
       scriptRunner.rollBack(session, state, entityId = -1)
@@ -265,26 +288,6 @@ constructor(
             message =
                 if (name != null) "Player $name left the game." else "A player left the game.",
             sender = "",
-        ),
-    )
-  }
-
-  private suspend fun onChatMessage(event: PacketEvent<ChatMessagePacket>) {
-    val state = event.session.attributes[PLAYER_STATE]
-    if (state == null) {
-      log.warn { "Chat message from session without PlayerState" }
-      return
-    }
-    val charId = state.characterId ?: return
-    val msg = event.packet
-    val sender = characterStore.getCharacter(charId)?.info?.name ?: "Unknown"
-    log.info { "Chat [${msg.type}] $sender: ${msg.message}" }
-    multiplayerService.broadcastMessage(
-        ChatMessagePacket(
-            type = msg.type,
-            language = msg.language,
-            message = msg.message,
-            sender = sender,
         ),
     )
   }

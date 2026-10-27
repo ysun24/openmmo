@@ -6,6 +6,7 @@ import de.fiereu.openmmo.client.net.BattleNames
 import de.fiereu.openmmo.client.net.BattleState
 import de.fiereu.openmmo.client.net.MarketClient
 import de.fiereu.openmmo.client.net.MarketEntry
+import de.fiereu.openmmo.client.net.SocialClient
 import de.fiereu.openmmo.client.world.Entity
 import de.fiereu.openmmo.client.world.MapKey
 import de.fiereu.openmmo.client.world.OverworldState
@@ -52,11 +53,16 @@ data class Sources(
     val progress: ProgressStatePacket? = null,
     /** Play time including the seconds since the last push. */
     val playSeconds: Int = 0,
+    /** r3-social: friends, profile, guild, invite, trade history. */
+    val social: SocialClient.State = SocialClient.State(),
+    /** When (epoch ms) a pending trade request lapses, or 0. */
+    val tradeExpiresAt: Long = 0,
 )
 
 /** The `state` sections of PROTOCOL.md section 3, built from [Sources]. Pure, so it is testable. */
 class StateJson(private val names: Names) {
   private val progressJson = ProgressJson(names)
+  private val socialJson = SocialJson(names)
 
   /** Every section, keyed by its name. A section with nothing to show is [JsonNull]. */
   fun build(s: Sources): Map<String, JsonElement> =
@@ -70,8 +76,9 @@ class StateJson(private val names: Names) {
           "invite" to invite(s.battle),
           // r3-battle: the evolution scene, which can also play outside a battle.
           "evolution" to evolution(s.battle),
-          "trade" to trade(s.trade),
+          "trade" to trade(s.trade, s.tradeExpiresAt),
           "market" to market(s),
+          "social" to socialJson.social(s.social),
       ) + progressJson.sections(s)
 
   fun world(s: Sources): JsonElement {
@@ -148,6 +155,9 @@ class StateJson(private val names: Names) {
       addJsonObject {
         put("sender", it.sender)
         put("text", it.message)
+        // r3-social: local|global|trade|guild|whisper|system, "" for server notices.
+        if (it.channel.isNotEmpty()) put("channel", it.channel.lowercase())
+        if (it.to.isNotEmpty()) put("to", it.to)
       }
     }
   }
@@ -519,12 +529,13 @@ class StateJson(private val names: Names) {
       }
 
   /** A closed trade stays visible once with its reason; a closed trade with no reason is null. */
-  fun trade(t: TradeStatePacket): JsonElement {
+  fun trade(t: TradeStatePacket, expiresAt: Long = 0): JsonElement {
     if (t.phase == TradePhase.CLOSED && t.message.isEmpty()) return JsonNull
     return buildJsonObject {
       put("phase", t.phase.name)
       put("partner", t.partnerName)
       put("message", t.message)
+      if (expiresAt > 0) put("expiresAt", expiresAt)
       put("mine", offer(t.mine, t.myStage))
       put("theirs", offer(t.theirs, t.theirStage))
     }
@@ -552,6 +563,17 @@ class StateJson(private val names: Names) {
       }
     }
     put("money", o.money)
+    // r3-social: monsters offered from the PC, `slot` is the PC slot.
+    putJsonArray("pcMons") {
+      o.pcMons.forEach {
+        addJsonObject {
+          put("slot", it.partySlot)
+          put("dex", it.dexId)
+          put("name", names.species(it.dexId))
+          put("level", it.level)
+        }
+      }
+    }
   }
 
   fun market(s: Sources): JsonElement {
@@ -563,20 +585,27 @@ class StateJson(private val names: Names) {
       // own copy only follows market replies, so prefer the former.
       put("money", s.world.overworld?.money ?: m.money)
       putJsonArray("browse") {
-        m.browse.forEach { add(entry(it, it.listingId in mineIds || it.sellerId == selfId)) }
+        m.browse.forEach {
+          add(entry(it, it.listingId in mineIds || it.sellerId == selfId, m.sellers[it.listingId]))
+        }
       }
       put("browseTotal", m.browseTotal)
       put("page", m.browsePage)
-      putJsonArray("mine") { m.mine.forEach { add(entry(it, true)) } }
+      putJsonArray("mine") { m.mine.forEach { add(entry(it, true, m.sellers[it.listingId])) } }
       putJsonObject("inventory") {
         put("party", party(m.party))
         put("bag", bagJson(m.items.associate { it.itemId.toInt() to it.quantity }))
       }
       putJsonArray("log") { m.log.forEach { add(it) } }
+      // r3-social extras.
+      put("info", m.info?.let(socialJson::info) ?: JsonNull)
+      put("history", m.priceHistory?.let(socialJson::priceHistory) ?: JsonNull)
+      put("sales", m.sales?.let(socialJson::sales) ?: JsonNull)
+      put("openSeq", m.openSeq)
     }
   }
 
-  private fun entry(e: MarketEntry, mine: Boolean) = buildJsonObject {
+  private fun entry(e: MarketEntry, mine: Boolean, seller: String? = null) = buildJsonObject {
     put("id", e.listingId.toString())
     put("kind", if (e.isPokemon) "mon" else "item")
     put("dex", if (e.isPokemon) JsonPrimitive(e.refId) else JsonNull)
@@ -587,6 +616,7 @@ class StateJson(private val names: Names) {
     put("price", e.price)
     put("expiresAt", e.expiresAtEpoch)
     put("mine", mine)
+    put("seller", seller?.takeIf { it.isNotEmpty() })
   }
 
   companion object {

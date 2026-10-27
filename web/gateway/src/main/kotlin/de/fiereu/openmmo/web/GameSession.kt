@@ -4,7 +4,9 @@ import de.fiereu.openmmo.client.net.BattlePhase
 import de.fiereu.openmmo.client.net.GameClient
 import de.fiereu.openmmo.client.net.MarketSortOrder
 import de.fiereu.openmmo.client.net.OverworldClient
+import de.fiereu.openmmo.client.net.SocialClient
 import de.fiereu.openmmo.common.enums.Direction
+import de.fiereu.openmmo.net.game.packets.social.ChatChannel
 import java.util.concurrent.atomic.AtomicInteger
 
 /** [GameActions] over one real [GameClient]. Called off the netty event loop, one at a time. */
@@ -26,6 +28,8 @@ class GameSession(val client: GameClient) : GameActions {
           moving = moving,
           progress = client.progress.state,
           playSeconds = client.progress.playSeconds(),
+          social = client.social.state,
+          tradeExpiresAt = client.trade.expiresAtMs,
       )
 
   private fun battleOver(): Boolean {
@@ -335,6 +339,81 @@ class GameSession(val client: GameClient) : GameActions {
   override fun marketBuy(id: Long): String? {
     client.market.buy(id)
     refreshMarket()
+    return null
+  }
+
+  // --- r3-social ---------------------------------------------------------------------------------
+
+  override fun sayOn(channel: String, to: String?, text: String): String? {
+    if (text.startsWith("/")) {
+      client.command(text)
+      return null
+    }
+    val ch =
+        when (channel) {
+          "local" -> ChatChannel.LOCAL
+          "global" -> ChatChannel.GLOBAL
+          "trade" -> ChatChannel.TRADE
+          "guild" -> ChatChannel.GUILD
+          "whisper" -> ChatChannel.WHISPER
+          else -> return "bad channel: $channel"
+        }
+    client.chat(ch, text, to.orEmpty())
+    return null
+  }
+
+  private inline fun social(block: SocialClient.() -> Unit): String? {
+    client.social.block()
+    return null
+  }
+
+  override fun socialRefresh() = social { refresh() }
+
+  override fun friendAdd(name: String) = social { addFriend(name) }
+
+  override fun friendRemove(name: String) = social { removeFriend(name) }
+
+  override fun block(name: String) = social { block(name) }
+
+  override fun unblock(name: String) = social { unblock(name) }
+
+  override fun profile(name: String) = social { profile(name) }
+
+  override fun guildCreate(name: String, tag: String) = social { createGuild(name, tag) }
+
+  override fun guildInvite(name: String) = social { inviteToGuild(name) }
+
+  override fun guildAnswer(accept: Boolean) = social { answerInvite(accept) }
+
+  override fun guildLeave() = social { leaveGuild() }
+
+  override fun guildKick(name: String) = social { kick(name) }
+
+  override fun guildRank(name: String, rank: Int) = social { setRank(name, rank) }
+
+  override fun guildMotd(text: String) = social { setMotd(text) }
+
+  override fun guildDisband() = social { disbandGuild() }
+
+  override fun tradePcMon(slot: Int): String? {
+    client.trade.togglePcMon(slot)
+    return null
+  }
+
+  override fun tradeHistory() = social { requestTradeHistory() }
+
+  override fun marketHistory(pokemon: Boolean, id: Int): String? {
+    client.market.requestPriceHistory(pokemon, id)
+    return null
+  }
+
+  override fun marketSales(): String? {
+    client.market.requestSales()
+    return null
+  }
+
+  override fun marketInfo(): String? {
+    client.market.requestInfo()
     return null
   }
 
