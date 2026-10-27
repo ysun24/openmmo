@@ -45,6 +45,10 @@ class SocialClient(private val send: (Any) -> Unit, private val onChange: () -> 
 
   fun removeFriend(name: String) = request(SocialOp.FRIEND_REMOVE, name)
 
+  /** Answers the friend request [name] sent. */
+  fun answerFriend(name: String, accept: Boolean) =
+      request(if (accept) SocialOp.FRIEND_ACCEPT else SocialOp.FRIEND_DECLINE, name)
+
   fun block(name: String) = request(SocialOp.BLOCK, name)
 
   fun unblock(name: String) = request(SocialOp.UNBLOCK, name)

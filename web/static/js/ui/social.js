@@ -84,10 +84,16 @@ function renderFriends() {
     friendsTab === 'friends' ? [
       h('form.row', { on: { submit: (e) => { e.preventDefault(); const n = name.value.trim(); if (n) { app.send({ t: 'friends.add', name: n }); name.value = ''; } } } },
         name, h('button.go', { type: 'submit', 'data-k': 'fadd' }, 'Add friend')),
+      // Integration: friend requests wait for an answer; only mutual friends see each other.
+      (s.requests || []).length ? h('div.list.requests', h('p.muted', 'Friend requests'), s.requests.map((n) => h('div.item.friend.req',
+        h('span.nm', n, h('small', 'wants to be your friend')),
+        h('span.act',
+          h('button.go', { type: 'button', 'data-k': 'fa' + n, on: { click: () => app.send({ t: 'friends.accept', name: n }) } }, 'Accept'),
+          h('button.danger', { type: 'button', 'data-k': 'fd' + n, on: { click: () => app.send({ t: 'friends.decline', name: n }) } }, 'Decline'))))) : null,
       h('div.list', s.friends.length ? s.friends.map((f) => h('div.item.friend', { class: f.online ? 'on' : 'off' },
         h('span.dot', { title: f.online ? 'online' : 'offline' }),
         h('span.nm', f.name, f.mutual ? h('span.badge', '⇄') : null,
-          h('small', f.online ? (placeName(f.location) || 'online') : 'offline')),
+          h('small', f.mutual ? (f.online ? (placeName(f.location) || 'online') : 'offline') : 'request sent')),
         h('span.act',
           h('button', { type: 'button', 'data-k': 'fw' + f.name, title: 'Whisper', disabled: !f.online, on: { click: () => { panels.close('friends'); chat.whisper(f.name); } } }, '✉'),
           h('button', { type: 'button', 'data-k': 'fp' + f.name, title: 'Profile', on: { click: () => openProfile(f.name) } }, 'Profile'),

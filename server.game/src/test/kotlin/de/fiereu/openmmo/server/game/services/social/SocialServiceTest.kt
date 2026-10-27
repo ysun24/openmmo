@@ -118,18 +118,32 @@ class SocialServiceTest :
           fx.req(ash, SocialOp.FRIEND_ADD, "gary")
           val f = ash.friends().friends.single()
           f.name shouldBe "Gary"
-          f.online shouldBe true
-          f.location.mapId shouldBe 7
+          // A request: no location until Gary accepts.
+          f.online shouldBe false
           f.mutual shouldBe false
-          gary.notices().last() shouldBe "Ash added you as a friend."
+          gary.notices().last() shouldBe "Ash wants to be your friend. Answer in FRIENDS."
+          gary.friends().requests shouldBe listOf("Ash")
           fx.req(ash, SocialOp.FRIEND_ADD, "Gary")
           ash.notices().last() shouldBe "Gary already is your friend."
 
-          fx.req(gary, SocialOp.FRIEND_ADD, "Ash")
+          fx.req(gary, SocialOp.FRIEND_ACCEPT, "Ash")
+          gary.notices().last() shouldBe "You and Ash are now friends."
+          ash.notices().last() shouldBe "Gary accepted your friend request."
           fx.req(ash, SocialOp.REFRESH)
           ash.friends().friends.single().mutual shouldBe true
+          ash.friends().friends.single().online shouldBe true
+          ash.friends().friends.single().location.mapId shouldBe 7
+          gary.friends().requests shouldBe emptyList()
 
           fx.req(ash, SocialOp.FRIEND_REMOVE, "Gary")
+          ash.friends().friends.shouldBeEmpty()
+
+          // Declining removes the request.
+          fx.req(gary, SocialOp.FRIEND_REMOVE, "Ash")
+          fx.req(ash, SocialOp.FRIEND_ADD, "Gary")
+          fx.req(gary, SocialOp.FRIEND_DECLINE, "Ash")
+          gary.friends().requests shouldBe emptyList()
+          fx.req(ash, SocialOp.REFRESH)
           ash.friends().friends.shouldBeEmpty()
         }
       }

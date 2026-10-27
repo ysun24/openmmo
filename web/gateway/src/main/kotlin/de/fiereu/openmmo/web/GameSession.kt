@@ -373,6 +373,8 @@ class GameSession(val client: GameClient) : GameActions {
 
   override fun friendRemove(name: String) = social { removeFriend(name) }
 
+  override fun friendAnswer(name: String, accept: Boolean) = social { answerFriend(name, accept) }
+
   override fun block(name: String) = social { block(name) }
 
   override fun unblock(name: String) = social { unblock(name) }

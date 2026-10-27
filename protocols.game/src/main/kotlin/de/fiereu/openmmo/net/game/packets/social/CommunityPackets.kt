@@ -48,6 +48,10 @@ enum class SocialOp {
   GUILD_MOTD,
   GUILD_DISBAND,
   TRADE_HISTORY,
+  /** Integration: accept the friend request [name] sent (adds them back: mutual friends). */
+  FRIEND_ACCEPT,
+  /** Integration: decline the friend request [name] sent. */
+  FRIEND_DECLINE,
 }
 
 /** c2s 0xFC: one social action. Unused fields are empty / 0. */
@@ -167,7 +171,12 @@ data class TradeRecord(val epoch: Long, val partner: String, val gave: String, v
 
 /** One s2c community message. Wrapped in [CommunityPacket] so the protocol has one type. */
 sealed interface CommunityBody {
-  data class Friends(val friends: List<FriendView>, val blocked: List<String>) : CommunityBody
+  data class Friends(
+      val friends: List<FriendView>,
+      val blocked: List<String>,
+      /** Integration: players who added you and wait for your answer (FRIEND_ACCEPT / DECLINE). */
+      val requests: List<String> = emptyList(),
+  ) : CommunityBody
 
   data class Profile(
       val name: String,
@@ -388,7 +397,9 @@ object CommunityPacketCodec : Codec<CommunityPacket> {
   override fun read(buf: ReadBuffer): CommunityPacket {
     val body: CommunityBody =
         when (val tag = U8.read(buf)) {
-          FRIENDS -> CommunityBody.Friends(FriendViewCodec.list().read(buf), StrList.read(buf))
+          FRIENDS ->
+              CommunityBody.Friends(
+                  FriendViewCodec.list().read(buf), StrList.read(buf), StrList.read(buf))
           PROFILE ->
               CommunityBody.Profile(
                   Str.read(buf),
@@ -448,6 +459,7 @@ object CommunityPacketCodec : Codec<CommunityPacket> {
         U8.write(buf, FRIENDS)
         FriendViewCodec.list().write(buf, v.friends)
         StrList.write(buf, v.blocked)
+        StrList.write(buf, v.requests)
       }
       is CommunityBody.Profile -> {
         U8.write(buf, PROFILE)

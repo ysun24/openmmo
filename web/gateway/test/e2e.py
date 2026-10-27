@@ -561,13 +561,16 @@ def main():
             p.send(t="unblock", name=other)
             p.wait(lambda q: other not in social(q)["blocked"], 5, "clean blocks")
     A.send(t="friends.add", name=nb)
-    A.wait(lambda q: any(f["name"] == nb and f["online"] and f["location"] for f in social(q)["friends"]),
-           5, "friend online with location")
-    B.wait(lambda q: any(f"{na} added you as a friend." in c["text"] for c in chat_lines(q)), 5,
-           "friend notice on B")
-    B.send(t="friends.add", name=na)
+    A.wait(lambda q: any(f["name"] == nb and not f["mutual"] for f in social(q)["friends"]),
+           5, "friend request sent")
+    B.wait(lambda q: any(f"{na} wants to be your friend" in c["text"] for c in chat_lines(q)), 5,
+           "friend request notice on B")
+    B.wait(lambda q: na in (social(q).get("requests") or []), 5, "request listed on B")
+    # Integration: the accept step; only then are they mutual friends who see each other.
+    B.send(t="friends.accept", name=na)
     A.send(t="social.refresh")
-    A.wait(lambda q: any(f["name"] == nb and f["mutual"] for f in social(q)["friends"]), 5, "mutual")
+    A.wait(lambda q: any(f["name"] == nb and f["mutual"] and f["online"] and f["location"]
+                         for f in social(q)["friends"]), 5, "mutual, online with location")
     ok(f"{na} friends: {social(A)['friends']}")
     seq0 = social(A).get("profileSeq", 0)
     A.send(t="profile", name=nb)

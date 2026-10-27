@@ -148,7 +148,37 @@ constructor(
       SocialOp.GUILD_MOTD -> guilds.setMotd(session, me, p.text)
       SocialOp.GUILD_DISBAND -> guilds.disband(session, me)
       SocialOp.TRADE_HISTORY -> tradeHistory(session, me)
+      SocialOp.FRIEND_ACCEPT -> answerRequest(session, me, p.name, accept = true)
+      SocialOp.FRIEND_DECLINE -> answerRequest(session, me, p.name, accept = false)
     }
+  }
+
+  /**
+   * A friend request is a one-way row the other player wrote; accepting writes ours (mutual),
+   * declining removes theirs.
+   */
+  private suspend fun answerRequest(
+      session: SessionContext,
+      me: Long,
+      name: String,
+      accept: Boolean
+  ) {
+    val from = resolve(session, name) ?: return
+    if (from.id !in repo.friendedBy(me) || repo.friends(me).any { it.friend.id == from.id }) {
+      return tell(session, "${from.name} has not asked to be your friend.")
+    }
+    val myName = directory.nameOf(me) ?: "Someone"
+    if (accept) {
+      repo.addFriend(me, from.id, now())
+      log.info { "char=$me accepted the friend request of char=${from.id}" }
+      tell(session, "You and ${from.name} are now friends.")
+      directory.session(from.id)?.send(notice("$myName accepted your friend request."))
+    } else {
+      repo.removeFriend(from.id, me)
+      tell(session, "You declined ${from.name}'s friend request.")
+    }
+    session.send(CommunityPacket(friendsBody(me)))
+    directory.session(from.id)?.send(CommunityPacket(friendsBody(from.id)))
   }
 
   // ------------------------------------------------------------------ friends and blocks
@@ -173,12 +203,19 @@ constructor(
       return tell(session, "${target.name} already is your friend.")
     }
     log.info { "char=$me added friend char=${target.id}" }
-    tell(session, "Added ${target.name} to your friends.")
+    val mutual = target.id in repo.friendedBy(me)
+    tell(
+        session,
+        if (mutual) "You and ${target.name} are now friends."
+        else "Sent ${target.name} a friend request.")
     session.send(CommunityPacket(friendsBody(me)))
     val myName = directory.nameOf(me) ?: "Someone"
     directory.session(target.id)?.let { their ->
       if (!blocks.isBlocked(target.id, me)) {
-        their.send(notice("$myName added you as a friend."))
+        their.send(
+            notice(
+                if (mutual) "$myName accepted your friend request."
+                else "$myName wants to be your friend. Answer in FRIENDS."))
         their.send(CommunityPacket(friendsBody(target.id)))
       }
     }
@@ -216,11 +253,17 @@ constructor(
 
   /** [overrideOffline] is shown offline even if its session is still being torn down. */
   suspend fun friendsBody(me: Long, overrideOffline: Long? = null): CommunityBody.Friends {
+    val rows = repo.friends(me)
     val friends =
-        repo.friends(me).map { row ->
+        rows.map { row ->
           val id = row.friend.id
-          // Someone who blocked us does not reveal where they are.
-          val visible = id != overrideOffline && directory.isOnline(id) && !blocks.isBlocked(id, me)
+          // Someone who blocked us does not reveal where they are; nor does a request that was
+          // not accepted yet (only mutual friends see each other's location).
+          val visible =
+              id != overrideOffline &&
+                  row.mutual &&
+                  directory.isOnline(id) &&
+                  !blocks.isBlocked(id, me)
           FriendView(
               row.friend.name,
               visible,
@@ -229,7 +272,14 @@ constructor(
               row.since.toEpochSecond(ZoneOffset.UTC),
               row.mutual)
         }
-    return CommunityBody.Friends(friends, repo.blocked(me).map { it.name })
+    val mine = rows.map { it.friend.id }.toSet()
+    val blockedByMe = blocks.blockedBy(me)
+    val requests =
+        repo
+            .friendedBy(me)
+            .filter { it !in mine && it !in blockedByMe }
+            .mapNotNull { repo.findById(it)?.name }
+    return CommunityBody.Friends(friends, repo.blocked(me).map { it.name }, requests)
   }
 
   // ------------------------------------------------------------------ profile

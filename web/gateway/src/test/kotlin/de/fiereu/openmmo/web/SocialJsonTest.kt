@@ -81,7 +81,7 @@ class SocialJsonTest {
             """{"friends":[{"name":"Gary","online":true,
                  "location":{"region":1,"bank":50,"map":9,"name":"LittlerootTown"},"since":10,"mutual":true},
                {"name":"Misty","online":false,"location":null,"since":11,"mutual":false}],
-               "blocked":["Spammer"],
+               "blocked":["Spammer"],"requests":[],
                "profile":{"name":"Gary","online":true,
                  "location":{"region":1,"bank":50,"map":9,"name":"LittlerootTown"},"guild":"Rockets","tag":"RKT",
                  "party":[{"dex":25,"name":"PIKACHU","level":12,"shiny":true}],"created":5,"friend":true,
@@ -97,7 +97,7 @@ class SocialJsonTest {
         json.social(state))
     assertEquals(
         parse(
-            """{"friends":[],"blocked":[],"profile":null,"profileSeq":0,"guild":{"inGuild":false},
+            """{"friends":[],"blocked":[],"requests":[],"profile":null,"profileSeq":0,"guild":{"inGuild":false},
                "invite":null,"tradeHistory":null}"""),
         json.social(SocialClient.State()))
   }

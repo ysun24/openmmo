@@ -193,6 +193,8 @@ object Dispatcher {
         "social.refresh" -> g.socialRefresh()
         "friends.add" -> g.friendAdd(m.name("name"))
         "friends.remove" -> g.friendRemove(m.name("name"))
+        "friends.accept" -> g.friendAnswer(m.name("name"), true)
+        "friends.decline" -> g.friendAnswer(m.name("name"), false)
         "block" -> g.block(m.name("name"))
         "unblock" -> g.unblock(m.name("name"))
         "profile" -> g.profile(m.name("name"))

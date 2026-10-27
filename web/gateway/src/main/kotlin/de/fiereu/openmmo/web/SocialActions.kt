@@ -14,6 +14,8 @@ interface SocialActions {
 
   fun friendRemove(name: String): String? = UNSUPPORTED
 
+  fun friendAnswer(name: String, accept: Boolean): String? = UNSUPPORTED
+
   fun block(name: String): String? = UNSUPPORTED
 
   fun unblock(name: String): String? = UNSUPPORTED

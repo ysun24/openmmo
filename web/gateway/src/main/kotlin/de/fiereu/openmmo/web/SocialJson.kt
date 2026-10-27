@@ -49,6 +49,8 @@ class SocialJson(private val names: Names) {
       }
     }
     putJsonArray("blocked") { s.friends.blocked.forEach { add(it) } }
+    // Integration: incoming friend requests waiting for friends.accept / friends.decline.
+    putJsonArray("requests") { s.friends.requests.forEach { add(it) } }
     put("profile", s.profile?.let(::profile) ?: JsonNull)
     put("profileSeq", s.profileSeq)
     put("guild", guild(s.guild))
