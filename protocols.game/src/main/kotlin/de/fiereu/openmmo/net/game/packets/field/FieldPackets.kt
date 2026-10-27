@@ -39,6 +39,11 @@ enum class FieldAction {
    * turns that follow, until the next ACRO action (bike.c acroBikeState).
    */
   ACRO,
+  /**
+   * r4: the Pokénav Match Call: [FieldActionPacket.arg] -1 asks for the list (MatchCallListPacket),
+   * a trainer id calls that trainer.
+   */
+  MATCH_CALL,
 }
 
 /**
@@ -102,6 +107,8 @@ data class FieldAvatarPacket(
     val female: Boolean = false,
     /** r4: the Acro Bike pose others draw ([AcroTrick]; flag bits 3-5, 0 = riding normally). */
     val acro: AcroTrick = AcroTrick.NONE,
+    /** r4: with [exclaim], the "!!" emote (FRLG sMovementScript_TrainerRematch; flag bit 6). */
+    val doubleExclaim: Boolean = false,
 )
 
 object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
@@ -113,7 +120,8 @@ object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
           (if (it.running) 1 else 0) or
               (if (it.exclaim) 2 else 0) or
               (if (it.female) 4 else 0) or
-              (it.acro.ordinal shl 3)
+              (it.acro.ordinal shl 3) or
+              (if (it.doubleExclaim) 64 else 0)
         }
     return FieldAvatarPacket(
         id,
@@ -121,7 +129,8 @@ object FieldAvatarPacketCodec : PacketCodec<FieldAvatarPacket>() {
         flags and 1 != 0,
         flags and 2 != 0,
         flags and 4 != 0,
-        AcroTrick.entries.getOrElse((flags shr 3) and 7) { AcroTrick.NONE })
+        AcroTrick.entries.getOrElse((flags shr 3) and 7) { AcroTrick.NONE },
+        flags and 64 != 0)
   }
 }
 

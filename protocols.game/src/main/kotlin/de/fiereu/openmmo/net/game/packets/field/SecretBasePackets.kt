@@ -117,3 +117,43 @@ object SecretBaseActionPacketCodec : PacketCodec<SecretBaseActionPacket>() {
         SecretBaseAction.entries.getOrElse(a) { SecretBaseAction.CLOSE }, d, x, y)
   }
 }
+
+/** One registered Match Call trainer (r4). */
+data class MatchCallEntry(
+    val trainerId: Int,
+    val name: String,
+    val route: String,
+    val ready: Boolean
+)
+
+/**
+ * s2c 0xE0: the Pokénav's Match Call list (Emerald), sent when the player asks for it
+ * (FieldAction.MATCH_CALL with arg -1). Free in both directions.
+ */
+data class MatchCallListPacket(val entries: List<MatchCallEntry>)
+
+object MatchCallListPacketCodec : PacketCodec<MatchCallListPacket>() {
+  private val name = stringPrefixed(U8, Charsets.UTF_8)
+  private val list =
+      object : de.fiereu.bytecodec.Codec<List<MatchCallEntry>> {
+        override fun read(buf: de.fiereu.bytecodec.ReadBuffer): List<MatchCallEntry> {
+          val n = U8.read(buf)
+          return List(n) {
+            MatchCallEntry(U16LE.read(buf), name.read(buf), name.read(buf), U8.read(buf) != 0)
+          }
+        }
+
+        override fun write(buf: de.fiereu.bytecodec.WriteBuffer, value: List<MatchCallEntry>) {
+          U8.write(buf, value.size)
+          for (e in value) {
+            U16LE.write(buf, e.trainerId)
+            name.write(buf, e.name)
+            name.write(buf, e.route)
+            U8.write(buf, if (e.ready) 1 else 0)
+          }
+        }
+      }
+
+  override fun CodecScope<MatchCallListPacket>.body(): MatchCallListPacket =
+      MatchCallListPacket(field(list) { it.entries.take(255) })
+}

@@ -37,6 +37,7 @@ export function update(state, changed) {
     lastOpenSeq = o ? o.seq : lastOpenSeq ?? 0;
   }
   if (changed.includes('world') && panels.isOpen('field')) renderField();
+  if (changed.includes('world') && panels.isOpen('matchcall')) renderMatchCall();
 }
 
 const field = () => (app.net.state.world && app.net.state.world.field) || null;
@@ -85,6 +86,7 @@ function renderField() {
       : null,
     has('escape rope') ? act('ESCAPE ROPE', 'rope', () => app.send({ t: 'field', action: 'escaperope' }), !f.canEscape) : null,
     has('dowsing mchn') || has('itemfinder') ? act('ITEMFINDER', 'finder', () => app.send({ t: 'field', action: 'itemfinder' })) : null,
+    region === 1 ? act('MATCH CALL', 'matchcall', () => openMatchCall()) : null,
     h('p.muted', `${f.canRun ? 'Hold Shift (or Run) to run. ' : ''}F: this menu · C: bike`),
   ].flat());
   p.body.style.gridTemplateColumns = '1fr 1fr';
@@ -109,3 +111,27 @@ export function openFly() {
 }
 
 const prettyName = (n) => String(n || '?').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toUpperCase();
+
+// ------------------------------------------------------------------ r4: POKéNAV Match Call
+/** The registered trainers (beaten Match Call trainers); "!" marks one that wants a rematch. */
+export function openMatchCall() {
+  panels.open('matchcall', 'POKéNAV — MATCH CALL');
+  app.send({ t: 'matchcall', id: -1 });
+  renderMatchCall();
+}
+
+function renderMatchCall() {
+  const p = panels.get('matchcall');
+  if (!p) return;
+  const mc = app.net.state.world && app.net.state.world.matchCall;
+  const list = (mc && mc.trainers) || [];
+  rerender(p.body, () => [
+    ...list.map((t) =>
+      h('button', {
+        type: 'button', 'data-k': 'mc-' + t.id,
+        on: { click: () => { panels.close('matchcall'); app.send({ t: 'matchcall', id: t.id }); } },
+      }, `${t.ready ? '! ' : ''}${t.name} — ${t.route}`)),
+    !list.length ? h('p.muted', mc ? 'No TRAINERS registered yet. Beat route TRAINERS to register them.' : 'Calling…') : null,
+  ]);
+  setFocus(p.body, p.body.querySelector('button'));
+}

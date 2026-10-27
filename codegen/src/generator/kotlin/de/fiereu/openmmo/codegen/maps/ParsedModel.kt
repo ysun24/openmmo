@@ -58,6 +58,9 @@ data class ParsedTrainerSpot(
     val introText: Int,
     val defeatText: Int,
     val postText: Int,
+    val rematchIntroText: Int = 0,
+    val rematchDefeatText: Int = 0,
+    val rematchPostText: Int = 0,
 )
 
 data class ParsedFrameScript(

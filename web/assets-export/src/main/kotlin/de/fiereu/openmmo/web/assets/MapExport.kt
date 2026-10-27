@@ -304,6 +304,16 @@ class MapExport(private val decompRoot: File, private val out: Output) {
             FieldEffectSpec("dust", "ground_impact_dust", 16, 8, "general_0"),
             FieldEffectSpec("ashPuff", "ash_puff", 16, 16, "ash"),
             FieldEffectSpec("exclamation", "emotion_exclamation", 16, 16, null),
+            // r4: FireRed's emoticon sheet (trainer_see.c sSpriteImages_Emoticons: "!" 0-2,
+            // X 3-5, "!!" 6-8, smile 9-11, "?" 12-14), for the VS Seeker's "!!".
+            FieldEffectSpec(
+                "emoticonsKanto",
+                "../../misc/emoticons",
+                16,
+                16,
+                null,
+                game = "pokefirered",
+                outFile = "emoticons_kanto"),
         )
 
     private data class FieldEffectSpec(

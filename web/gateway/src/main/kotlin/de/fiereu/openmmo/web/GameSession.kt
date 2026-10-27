@@ -74,6 +74,14 @@ class GameSession(val client: GameClient) : GameActions {
     return if (client.fieldAction(a, arg, arg2)) null else "close the dialog first"
   }
 
+  override fun matchCall(id: Int): String? {
+    if (inBattle()) return "not in a battle"
+    return if (client.fieldAction(
+        de.fiereu.openmmo.net.game.packets.field.FieldAction.MATCH_CALL, id))
+        null
+    else "close the dialog first"
+  }
+
   override fun secretBase(action: String, decor: Int, x: Int, y: Int): String? {
     if (inBattle()) return "not in a battle"
     val a =

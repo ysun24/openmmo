@@ -18,6 +18,9 @@ interface GameActions : SocialActions {
   /** A field move / item: [action] is a lower-case FieldAction name without underscores. */
   fun field(action: String, arg: Int, arg2: Int): String? = "field moves are not supported"
 
+  /** r4: the Pokénav Match Call: [id] -1 asks for the list, a trainer id calls them. */
+  fun matchCall(id: Int): String? = "match call is not supported"
+
   /** r4: a secret base PC action (place / putaway / packup / close). */
   fun secretBase(action: String, decor: Int, x: Int, y: Int): String? =
       "secret bases are not supported"
@@ -354,6 +357,7 @@ object Dispatcher {
         "decor.close" -> g.decorClose()
         "progress.refresh" -> g.progressRefresh()
         // r3-field: a field move or field item (PROTOCOL.md "r3-field").
+        "matchcall" -> g.matchCall((m.int("id") ?: -1).coerceIn(-1, 0x7FFF))
         "secretbase" -> {
           val action = m.string("action")
           if (action !in SECRET_BASE_ACTIONS) "unknown secret base action: $action"

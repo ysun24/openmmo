@@ -232,7 +232,7 @@ export class World {
     const jumped = (e.jump || 0) > o.jumpSeq;
     const boulder = o.kind === 'npc' && o.gfx === BOULDER_GFX[this.map ? this.map.region : 0];
     o.jumpSeq = e.jump || 0;
-    if ((e.exclaim || 0) > o.exclaimSeq) o.exclaimAt = now;
+    if ((e.exclaim || 0) > o.exclaimSeq) (o.exclaimAt = now), (o.exclaimKind = e.exclaimKind || null);
     o.exclaimSeq = e.exclaim || 0;
     if (e.x !== o.x || e.y !== o.y) {
       const d = Math.abs(e.x - o.x) + Math.abs(e.y - o.y);

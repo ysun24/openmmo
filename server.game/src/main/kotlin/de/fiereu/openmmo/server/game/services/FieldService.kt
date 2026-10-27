@@ -833,6 +833,7 @@ constructor(
         val trick = AcroTrick.entries.getOrElse(event.packet.arg) { AcroTrick.NONE }
         setAcro(session, state, trick)
       }
+      FieldAction.MATCH_CALL -> matchCall(session, state, stored, map, event.packet.arg)
       FieldAction.ITEMFINDER -> {
         if (itemfinderIds.none { (stored.items[it] ?: 0) > 0 })
             return tell(session, "You don't have an ITEMFINDER.")
@@ -1066,8 +1067,9 @@ constructor(
       if (kotlin.random.Random.nextInt(100) >= Rematches.VS_SEEKER_YES_PERCENT) continue
       state.rematchReady[npc.entityIdx] = Rematches.frlgRematchTrainer(e, fought, flag)
       wants = true
-      // sMovementScript_TrainerRematch: the trainer's emote.
-      session.send(FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true))
+      // sMovementScript_TrainerRematch: MOVEMENT_ACTION_EMOTE_DOUBLE_EXCL_MARK.
+      session.send(
+          FieldAvatarPacket(entityId, TravelMode.WALK, exclaim = true, doubleExclaim = true))
     }
     log.info {
       "VS Seeker for char=${stored.info.id} on ${map.name}: ${state.rematchReady} (unfought=$unfought)"
@@ -1078,6 +1080,53 @@ constructor(
     }
     return listOf(
         "The other TRAINERS don't appear to be ready for battle.", "Let's wait till later.")
+  }
+
+  // ------------------------------------------------------------------ match call (r4)
+
+  /**
+   * The Pokénav's Match Call (match_call.c): the registered trainers are the beaten Hoenn trainers
+   * of sMatchCallTrainers; calling one picks its message like SelectMatchCallMessage: a trainer who
+   * wants a rematch asks for it (the same-route text when the player is on its route, else the
+   * different-route one), anyone else chats.
+   */
+  private fun matchCall(
+      session: SessionContext,
+      state: PlayerState,
+      stored: StoredCharacter,
+      map: MapDef,
+      arg: Int,
+  ) {
+    if (region(state) != Region.HOENN) return tell(session, "There is no POKéNAV here.")
+    val beaten = { id: Int -> "hoenn/TRAINER_DEFEATED_$id" in stored.storyFlags }
+    val registered =
+        de.fiereu.openmmo.progression.MatchCallData.trainers.filter { beaten(it.trainerId) }
+    if (arg < 0) {
+      session.send(
+          de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket(
+              registered.map {
+                de.fiereu.openmmo.net.game.packets.field.MatchCallEntry(
+                    it.trainerId,
+                    it.name,
+                    it.route,
+                    Rematches.readyFlag(Region.HOENN, it.trainerId) in stored.storyFlags)
+              }))
+      return
+    }
+    val t = registered.firstOrNull { it.trainerId == arg } ?: return tell(session, "No answer…")
+    val ready = Rematches.readyFlag(Region.HOENN, t.trainerId) in stored.storyFlags
+    val text =
+        when {
+          ready && t.mapsec == map.mapsec -> t.sameRouteText
+          ready -> t.differentRouteText
+          else -> t.generalText
+        }
+    if (text == 0) return tell(session, "No answer…")
+    run(session, state, -1) { ctx ->
+      ctx.bufferString(1, t.name)
+      ctx.bufferString(2, t.route)
+      ctx.sign(RawLine(text))
+    }
   }
 
   /** Talking to a trainer: battle if undefeated, else the post-battle line. */
@@ -1105,7 +1154,13 @@ constructor(
     // A trainer that wants a rematch (VS Seeker / Match Call) battles its next party.
     val rematch = rematchTrainer(state, map, npc)
     val trainerId = rematch ?: spot.trainerId
-    if (spot.introText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.introText))
+    // trainerbattle_rematch: the rematch's own intro and defeat lines.
+    val intro =
+        if (rematch != null && spot.rematchIntroText != 0) spot.rematchIntroText else spot.introText
+    val defeat =
+        if (rematch != null && spot.rematchDefeatText != 0) spot.rematchDefeatText
+        else spot.defeatText
+    if (intro != 0) ctx.sayNpc(npc.entityIdx, RawLine(intro))
     val result = ctx.trainerBattle(trainerId)
     if (result == BattleResult.VICTORY) {
       ctx.setFlag(defeatedFlag(map, npc))
@@ -1113,7 +1168,10 @@ constructor(
         ctx.setFlag(defeatedFlag(map, rematch))
         clearRematch(state, map, npc)
       }
-      if (spot.defeatText != 0) ctx.sayNpc(npc.entityIdx, RawLine(spot.defeatText))
+      if (defeat != 0) ctx.sayNpc(npc.entityIdx, RawLine(defeat))
+      // X_EventScript_YRematch: the rematch post-battle line right after the battle.
+      if (rematch != null && spot.rematchPostText != 0)
+          ctx.sayNpc(npc.entityIdx, RawLine(spot.rematchPostText))
     }
     log.info {
       "Trainer ${spot.constant} battle (party $trainerId) for char=${state.characterId}: $result"

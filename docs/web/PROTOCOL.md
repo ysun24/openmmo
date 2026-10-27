@@ -550,3 +550,15 @@ Static assets (manifest):
   Battle Dome's floor lights: BlendAnimPalette_BattleDome_FloorLights copies one of four palettes
   into slot 8 every 4 frames). Their metatiles are pre-rendered per palette in the same atlas and
   `combos`, so the browser animates them like tile channels with no change.
+
+### Match Call and rematches
+- Browser → gateway: `matchcall` `{id}`: `id` -1 asks for the list, a trainer id calls them
+  (c2s 0xF4 `FieldAction.MATCH_CALL`, `arg` = id). The call is a dialog: the same-route or
+  different-route battle request when the trainer wants a rematch, else its personal chat
+  (match_call.c SelectMatchCallMessage).
+- `world.matchCall`: `{seq, trainers: [{id, name, route, ready}]}` (s2c 0xE0 `MatchCallListPacket`).
+- `world.entities[]` gain `exclaimKind: "double"` when the last emote was the VS Seeker's "!!"
+  (`FieldAvatarPacket` flag bit 6). Manifest `fieldEffects.emoticonsKanto`: FireRed's emoticons
+  sheet, 16x16 cells; "!!" is pictures 3, 4, 5 (4, 4, 52 GBA frames).
+- Rematch battles use the trainer's `trainerbattle_rematch` intro / defeat texts and its rematch
+  post-battle line.

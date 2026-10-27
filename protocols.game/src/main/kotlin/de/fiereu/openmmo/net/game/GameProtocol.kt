@@ -648,6 +648,9 @@ object GameProtocol : Protocol() {
         0xF5u, de.fiereu.openmmo.net.game.packets.field.SecretBaseActionPacketCodec)
     s2c<de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacket>(
         0xEDu, de.fiereu.openmmo.net.game.packets.field.SecretBaseStatePacketCodec)
+    // r4-gaps: the Match Call list (s2c 0xE0 was free).
+    s2c<de.fiereu.openmmo.net.game.packets.field.MatchCallListPacket>(
+        0xE0u, de.fiereu.openmmo.net.game.packets.field.MatchCallListPacketCodec)
     // r3-social: OpenMMO-only social/chat/guild/market-extra packets (see packets/social).
     // c2s 0xFC-0xFE and s2c 0xFD were free in both directions; s2c 0xFC/0xFE are retail.
     c2s<SocialRequestPacket>(0xFCu, SocialRequestPacketCodec)

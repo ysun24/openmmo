@@ -98,6 +98,23 @@ class StateJson(private val names: Names) {
       put("ackSeq", s.ackSeq)
       w.field?.let { put("field", field(it, w.map)) }
       w.secretBase?.let { put("secretBase", secretBase(it)) }
+      // r4: the Pokénav Match Call list, when asked for (`seq` grows per answer).
+      w.matchCall?.let { mc ->
+        putJsonObject("matchCall") {
+          put("seq", w.matchCallSeq)
+          putJsonArray("trainers") {
+            mc.entries.forEach { e ->
+              add(
+                  buildJsonObject {
+                    put("id", e.trainerId)
+                    put("name", e.name)
+                    put("route", e.route)
+                    put("ready", e.ready)
+                  })
+            }
+          }
+        }
+      }
     }
   }
 
@@ -168,6 +185,8 @@ class StateJson(private val names: Names) {
     if (e.running) put("run", true)
     if (e.jumpSeq > 0) put("jump", e.jumpSeq)
     if (e.exclaimSeq > 0) put("exclaim", e.exclaimSeq)
+    // r4: the last emote was "!!" (the VS Seeker's rematch answer)
+    if (e.exclaimDouble) put("exclaimKind", "double")
     // Integration: another player's gender picks the female player sprite.
     if (e.female) put("female", true)
     // r4: the Acro Bike pose ("wheelie", "hop", "side_jump", "turn_jump").

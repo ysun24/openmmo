@@ -312,7 +312,15 @@ export class Renderer {
       if (b === 'TALL_GRASS' || b === 'ASH_GRASS' || b === 'LONG_GRASS') this.grassCover(tx, ty, camX, camY, b === 'LONG_GRASS');
     }
     // a trainer's "!" when it spots the player (FLDEFF_EXCLAMATION_MARK_ICON, ~1 s)
-    if (e.exclaimAt && now - e.exclaimAt < 1000) this.fxSprite('exclamation', 0, bx, by - 30 + (now - e.exclaimAt < 120 ? 4 : 0));
+    if (e.exclaimAt && now - e.exclaimAt < 1000) {
+      const t = now - e.exclaimAt;
+      if (e.exclaimKind === 'double') {
+        // sAnimCmd_DoubleExclMark: images 6, 7 (4 GBA frames each), then 8 (52), which
+        // sSpriteImages_Emoticons maps to pictures 3, 4, 5 of the 16x16 sheet
+        const f = t < 67 ? 3 : t < 133 ? 4 : 5;
+        if (!this.fxSprite('emoticonsKanto', f, bx, by - 30)) this.fxSprite('exclamation', 0, bx, by - 30);
+      } else this.fxSprite('exclamation', 0, bx, by - 30 + (t < 120 ? 4 : 0));
+    }
   }
 
   /**
