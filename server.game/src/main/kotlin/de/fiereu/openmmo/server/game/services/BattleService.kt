@@ -308,6 +308,26 @@ constructor(
     return battle.completion.await()
   }
 
+  /**
+   * r5-scripts: setwildbattle + dowildbattle (legendaries, static encounters, gift battles): a
+   * catchable wild battle the script waits on. A loss whites out like any wild battle.
+   */
+  suspend fun startScriptedWildBattle(
+      session: SessionContext,
+      dexId: Int,
+      level: Int,
+      heldItemName: String = "",
+  ): BattleResult {
+    val battle =
+        createBattle(
+            session,
+            listOf(OpponentSpec(dexId, level, emptyList(), wild = true, heldItemName = heldItemName)),
+            catchable = true,
+            escapable = true,
+        ) ?: return BattleResult.FAILED
+    return battle.completion.await()
+  }
+
   /** Runs a battle against the decomp trainer with this id and waits for its scene. */
   suspend fun startTrainerBattle(
       session: SessionContext,

@@ -130,6 +130,41 @@ tasks.register<JavaExec>("refreshDialogTable") {
   )
 }
 
+// r5: the decomp's event scripts assembled to their own bytecode for server.game's script
+// interpreter (src/main/resources/scriptvm/<region>.bin), plus codegen/dialog/<region>.script.json,
+// the text of every script line the ROM tables lack (committed; the clients read it).
+val scriptVmOut = layout.buildDirectory.dir("generated/resources/scriptvm")
+val generateScriptVm =
+    tasks.register<JavaExec>("generateScriptVm") {
+      group = "openmmo"
+      description = "Assemble the decomp event scripts for the server's script interpreter"
+      dependsOn(tasks.named("generatorClasses"))
+      val fireredDir = rootProject.layout.projectDirectory.dir("decomp/pokefirered")
+      for (d in listOf(sourceDecompDir, fireredDir)) {
+        inputs.dir(d.dir("data"))
+        inputs.dir(d.dir("asm"))
+        inputs.dir(d.dir("include"))
+        inputs.dir(d.dir("constants"))
+        inputs.dir(d.dir("src"))
+      }
+      inputs.files(fileTree(dialogDataDir) { include("*.json") ; exclude("*.script.json") })
+      outputs.dir(scriptVmOut)
+      // It also refreshes codegen/dialog/<region>.script.json, which is committed source like the
+      // other dialog tables (not declared as an output: generateDialog / generateMaps read that dir).
+      classpath = sourceSets["generator"].runtimeClasspath
+      mainClass.set("de.fiereu.openmmo.codegen.script.asm.ScriptVmMain")
+      args(
+          scriptVmOut.get().asFile.absolutePath,
+          dialogDataDir.asFile.absolutePath,
+          "hoenn|${sourceDecompDir.asFile.absolutePath}",
+          "kanto|${fireredDir.asFile.absolutePath}",
+      )
+    }
+
+sourceSets["main"].resources.srcDir(scriptVmOut)
+
+tasks.named("processResources") { dependsOn(generateScriptVm) }
+
 // One shot bootstrap of the overworld script stubs into server.game. Run by hand with
 // `gradlew :codegen:generateScriptStubs`. Deliberately not wired into the build, the emitted files
 // are committed source so hand written ports are never overwritten on a normal build.

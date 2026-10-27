@@ -24,6 +24,8 @@ import de.fiereu.openmmo.server.game.services.StoryPlayerService
 import de.fiereu.openmmo.server.game.services.StoryService
 import de.fiereu.openmmo.server.game.session.PlayerState
 import de.fiereu.openmmo.server.game.storage.CharacterStore
+import de.fiereu.openmmo.server.game.script.vm.ScriptServices
+import de.fiereu.openmmo.server.game.script.vm.ScriptVm
 
 /** What a [Script] uses to talk to the player it interacted with and read or write story state. */
 class ScriptContext
@@ -34,17 +36,21 @@ internal constructor(
     val entityId: Long,
     internal val dialog: DialogService,
     internal val story: StoryService,
-    private val movement: ScriptMovementService,
-    private val warp: ScriptWarpService? = null,
+    internal val movement: ScriptMovementService,
+    internal val warp: ScriptWarpService? = null,
     internal val player: StoryPlayerService? = null,
-    private val battles: BattleService? = null,
+    internal val battles: BattleService? = null,
     internal val characters: CharacterStore? = null,
-    private val maps: MapManager? = null,
-    private val entryScripts: MapEntryScripts? = null,
-    private val shops: ShopService? = null,
+    internal val maps: MapManager? = null,
+    internal val entryScripts: MapEntryScripts? = null,
+    internal val shops: ShopService? = null,
     /** r3-items: day care, decoration shops, badges. */
     internal val progress: ScriptProgress? = null,
+    /** r5-scripts: what the decomp script interpreter reaches besides the above. */
+    internal val services: ScriptServices? = null,
 ) {
+  /** r5-scripts: the interpreter running this script, while one is. */
+  internal var vm: ScriptVm? = null
   private val characterId: Long?
     get() = state.characterId
 
@@ -293,7 +299,85 @@ internal constructor(
     }
   }
 
+  // ---------------------------------------------------------------- r5-scripts: for specials
+
+  /** The decomp's VarGet: story vars (0x4000+), special vars (0x8000+), else the value itself. */
+  fun varGet(id: Int): Int = vm?.varGet(id) ?: 0
+
+  /** The decomp's VarSet (u16). */
+  fun varSet(id: Int, value: Int) {
+    vm?.varSet(id, value)
+  }
+
+  /** FlagGet / FlagSet / FlagClear by the decomp's flag id (trainer and special flags too). */
+  fun flagGet(id: Int): Boolean = vm?.flagGet(id) ?: false
+
+  fun flagSet(id: Int) {
+    vm?.flagSet(id)
+  }
+
+  fun flagClear(id: Int) {
+    vm?.flagClear(id)
+  }
+
+  /** gSpecialVar_0x8000 + [n] (VAR_0x8004 is specialVar(4)). */
+  fun specialVar(n: Int): Int = varGet(0x8000 + n)
+
+  fun setSpecialVar(n: Int, value: Int) = varSet(0x8000 + n, value)
+
+  /** gSpecialVar_Result. */
+  var result: Int
+    get() = varGet(VAR_RESULT)
+    set(v) = varSet(VAR_RESULT, v)
+
+  /** The decomp region whose scripts run: "kanto" (FireRed) or "hoenn" (Emerald). */
+  val regionName: String
+    get() = if (state.regionId == 1) "hoenn" else "kanto"
+
+  /** The coin case (one per character, shared by both regions; story var `coins/COINS`). */
+  var coins: Int
+    get() = getVar(COINS_KEY)
+    set(v) = setVar(COINS_KEY, v.coerceIn(0, 9999))
+
+  /** A decomp constant of the running region's scripts (e.g. "SPECIES_RAYQUAZA"), or null. */
+  fun constant(name: String): Int? = vm?.img?.constOrNull(name)
+
+  /** Fire-and-forget presentation (s2c 0xCE ScriptUiPacket, see PROTOCOL.md r5-scripts). */
+  fun ui(kind: String, body: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {}) {
+    services?.ui?.send(session, kind, body)
+  }
+
+  /** A presentation the script waits on; the client's answer, or [cancelled]. */
+  suspend fun ask(
+      kind: String,
+      cancelled: Int,
+      body: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit,
+  ): Int = services?.ui?.ask(session, kind, cancelled, body) ?: cancelled
+
+  /** The decomp's gStringVar4 for a following `message gStringVar4` (raw decomp text). */
+  fun setStringVar4(text: String) {
+    vm?.state?.stringVar4 = text
+  }
+
+  /** Shows the decomp text with this label (any script text of the region) and waits. */
+  suspend fun sayLabel(label: String) {
+    val vm = vm ?: return
+    val addr = vm.img.labels[label] ?: return
+    vm.say(vm.img.texts[addr])
+  }
+
+  /** A flag key the interpreter set: badges refresh the badge case. */
+  internal fun onFlagSet(key: String) {
+    if (key.contains("FLAG_BADGE0") && key.endsWith("_GET")) {
+      val charId = state.characterId ?: return
+      progress?.progress?.push(session, charId)
+    }
+  }
+
   private companion object {
+    const val VAR_RESULT = 0x800D
+    const val COINS_KEY = "coins/COINS"
+
     // Sign boxes have no speaker, npc boxes point at the entity.
     const val SIGN = 3
     const val NPC = 4

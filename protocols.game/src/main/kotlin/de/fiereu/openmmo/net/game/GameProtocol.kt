@@ -657,5 +657,11 @@ object GameProtocol : Protocol() {
     c2s<MarketQueryPacket>(0xFDu, MarketQueryPacketCodec)
     c2s<TradeOfferPcMonPacket>(0xFEu, TradeOfferPcMonPacketCodec)
     s2c<CommunityPacket>(0xFDu, CommunityPacketCodec)
+    // r5-scripts: the decomp script interpreter's menus / sounds / screen effects
+    // (packets/script). The reserved 0xD0-0xD3 are retail; 0xCE was free in both directions.
+    s2c<de.fiereu.openmmo.net.game.packets.script.ScriptUiPacket>(
+        0xCEu, de.fiereu.openmmo.net.game.packets.script.ScriptUiPacketCodec)
+    c2s<de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacket>(
+        0xCEu, de.fiereu.openmmo.net.game.packets.script.ScriptUiReplyPacketCodec)
   }
 }
