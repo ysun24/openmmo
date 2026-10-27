@@ -134,7 +134,7 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
     }
     on("SetDeptStoreFloor") { ctx -> 0 }
 
-    // ---- transport
+    // ---- transport (seagallop.c sSeag: where each ferry docks)
     on("CableCarWarp") { ctx ->
       val up = ctx.specialVar(4) != 0
       ctx.vm?.state?.warps?.put("cablecar", intArrayOf(if (up) 1 else 0))
@@ -368,7 +368,10 @@ class WorldSpecials @Inject constructor() : SpecialTable() {
             Triple("FourIsland_Harbor", 8, 5),
             Triple("FiveIsland_Harbor", 8, 5),
             Triple("SixIsland_Harbor", 8, 5),
-            Triple("SevenIsland_Harbor", 8, 5))
+            Triple("SevenIsland_Harbor", 8, 5),
+            Triple("CinnabarIsland", 21, 7),
+            Triple("NavelRock_Harbor", 8, 5),
+            Triple("BirthIsland_Harbor", 8, 5))
     val ABNORMAL_ROUTES =
         listOf("ROUTE 114", "ROUTE 115", "ROUTE 116", "ROUTE 118", "ROUTE 105", "ROUTE 125",
             "ROUTE 127", "ROUTE 129")

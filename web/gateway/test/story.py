@@ -167,7 +167,11 @@ class Story:
             if m:
                 v = menu(m) if menu else (m["args"].get("default") or 0)
                 if m["kind"] == "trade":
-                    time.sleep(3.2)
+                    # the browser plays the trade scene, then answers
+                    time.sleep(2.8)
+                    self.p.send(t="script.reply", seq=m["seq"], value=0)
+                    texts.append(("menu", "trade", 0))
+                    time.sleep(0.6)
                     last_busy = time.time()
                     continue
                 self.p.send(t="script.reply", seq=m["seq"], value=v)
@@ -399,6 +403,7 @@ def scene_silph(s):
     warp = map_json(0, "SilphCo_Elevator")["warp_events"][0]
     s.tp("SilphCo_Elevator", warp["x"], warp["y"] - 1, "down")
     s.step("down")
+    s.step("down")
     s.p.wait(lambda q: (q.world.get("map") or {}).get("name") == "SilphCo_11F", 10, "arrive on 11F")
     check(s.map_name() == "SilphCo_11F", "the elevator's dynamic warp leads to 11F")
     s.cmd("/script item CARD_KEY", 2)
@@ -446,10 +451,10 @@ def scene_trade(s):
 @scene(0, "sevii")
 def scene_sevii(s):
     """Vermilion harbor: the Seagallop (destination menu, ferry scene) to One Island."""
-    s.flag("FLAG_SYS_SEVII_MAP_123", True)
     s.cmd("/script item TRI_PASS", 2)
+    s.var("VAR_MAP_SCENE_VERMILION_CITY", 3)
+    s.var("VAR_MAP_SCENE_ONE_ISLAND_POKEMON_CENTER_1F", 1)
     sx, sy = npc(0, "VermilionCity", "LOCALID_VERMILION_FERRY_SAILOR")
-    s.flag("FLAG_SYS_GAME_CLEAR", True)
     s.stand_by("VermilionCity", sx, sy, "up")
     menus = []
     s.talk(choices=[True], menu=lambda m: (menus.append(m), 0)[1], timeout=40)
