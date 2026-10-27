@@ -235,6 +235,7 @@ constructor(
         broadcast(humans) { me ->
           put("phase", "play")
           put("you", me)
+          put("seats", seatsJson())
           put("frame", engine.frame)
           put("arrow", engine.arrowPos)
           put("speed", engine.speed)

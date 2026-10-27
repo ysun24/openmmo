@@ -148,7 +148,7 @@ constructor(
         for ((m, c, elig) in rows) {
           add(
               buildJsonObject {
-                ContestStatsService.monJson(m, c).forEach { (k, v) -> put(k, v) }
+                ContestStatsService.monJson(m, c, names).forEach { (k, v) -> put(k, v) }
                 put(
                     "eligible",
                     buildJsonArray {

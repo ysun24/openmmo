@@ -20,6 +20,7 @@ const pic = (dex, shiny) => app.assets.pokemon(dex, 'front', !!shiny);
 
 export function init(a) {
   app = a;
+  if (/[?&]debug=1/.test(location.search)) window.addEventListener('error', (e) => console.log('ERR', e.error && e.error.stack));
   root = h('div#r5c-root.hidden', { role: 'dialog', 'aria-modal': 'true' });
   document.body.append(root);
   const bar = $('#topbar');
@@ -100,7 +101,9 @@ function screen(cls, ...kids) {
 }
 
 const hearts = (n, cls = '') => h(`span.r5c-hearts${cls}`, '♥'.repeat(Math.max(0, n)) || '·');
-const gbaText = (t) => (t || '').split('\n').map((l, i) => [i ? h('br') : null, l]);
+const gbaText = (t) => (t || '').split('\n').flatMap((l, i) => (i ? [h('br'), l] : [l]));
+/** The party icon's first frame (the icon sheets are two 32x32 frames stacked). */
+const icon = (dex) => h('span.r5c-icon', { style: `background-image:url(${app.assets.pokemon(dex, 'icon') || ''})` });
 
 // ------------------------------------------------------------------ contest entry
 let entry = { rank: 0, category: 0, slot: -1 };
@@ -119,7 +122,7 @@ function renderEntry(d) {
         const e = elig(m);
         const why = m.egg ? 'EGG' : e === 4 ? 'FAINTED' : e === 0 ? 'NOT QUALIFIED' : e === 2 ? 'WON BEFORE' : '';
         return h('button.r5c-mon', { class: entry.slot === i ? 'on' : '', on: { click: () => ((entry.slot = i), draw()) } },
-          h('img', { src: app.assets.pokemon(m.dex, 'icon') || '', alt: '' }),
+          icon(m.dex),
           h('span.name', m.name), h('span.lv', 'Lv' + m.level),
           h('span.cond', CONDITIONS.map((c, k) => h('i', { style: `--cat:${CAT_COLOR[k]};--v:${m[c] / 255}`, title: `${c} ${m[c]}` }))),
           h('span.ribbon', m.rankRibbons ? '🎀'.repeat(m.rankRibbons[entry.category] || 0) : ''),
@@ -144,7 +147,7 @@ function stopAnim() {
 function contestFrame(d, body) {
   const order = [...(d.contestants || [])].sort((a, b) => a.turn - b.turn);
   const boxes = h('div.r5c-boxes', order.map((c) => h(`div.r5c-box#r5c-box-${c.index}`, { class: c.you ? 'you' : '' },
-    h('img', { src: app.assets.pokemon(c.dex, 'icon') || '', alt: '' }),
+    icon(c.dex),
     h('div.names', h('b', c.name), h('span', '/' + c.trainer)),
     h('div.round', hearts(0)),
     h('div.total', `♥${c.hearts}`),
@@ -238,7 +241,7 @@ function playAppeals(d) {
       }
       case 'leave': big.classList.add('out'); wait = 300; break;
       case 'appeal': case 'text': case 'skip': case 'round':
-        if (e.text) { msg.replaceChildren(...gbaText(e.text).flat()); wait = 1100; }
+        if (e.text) { msg.replaceChildren(...gbaText(e.text)); wait = 1100; }
         if (e.k === 'appeal' && box) box.classList.add('active');
         break;
       case 'hearts':
@@ -259,7 +262,7 @@ function playAppeals(d) {
       case 'crowd': {
         const m = root.querySelectorAll('.r5c-applause i');
         m.forEach((x, k) => x.classList.toggle('on', k < e.a));
-        if (e.text) { msg.replaceChildren(...gbaText(e.text).flat()); wait = 1000; }
+        if (e.text) { msg.replaceChildren(...gbaText(e.text)); wait = 1000; }
         root.querySelector('.r5c-applause').classList.toggle('cheer', e.b > 0);
         break;
       }
@@ -333,7 +336,7 @@ function renderBlender(d) {
     if (!blend.canvas || !root.contains(blend.canvas)) {
       blend.canvas = h('canvas.r5c-blender-canvas', { width: 240, height: 160 });
       blend.canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); blenderPress(); });
-      screen('r5c-blender r5c-blend-play', blend.canvas,
+      screen('r5c-blender.r5c-blend-play', blend.canvas,
         h('div.r5c-blend-info', h('span.rpm', '0.00 RPM'), h('div.r5c-progress', h('i'))),
         h('p.r5c-hint', 'Press A (or tap) when the arrow is on your mark!'));
     }
@@ -452,7 +455,7 @@ function renderPokeblocks(d) {
         h('p', `FEEL ${sel.feel}`),
         h('p.r5c-hint', 'Feed it to which POKéMON?'),
         h('div.r5c-party', (d.party || []).map((m) => h('button.r5c-mon', { disabled: m.egg || m.sheen >= 255, on: { click: () => send({ t: 'pokeblocks.feed', slot: sel.slot, mon: m.id }) } },
-          h('img', { src: app.assets.pokemon(m.dex, 'icon') || '', alt: '' }), h('span.name', m.name),
+          icon(m.dex), h('span.name', m.name),
           h('span.cond', CONDITIONS.map((c, k) => h('i', { style: `--cat:${CAT_COLOR[k]};--v:${m[c] / 255}`, title: `${c} ${m[c]}` }))),
           h('span.sheen', `✦${m.sheen}`)))),
         h('button', { on: { click: () => send({ t: 'pokeblocks.toss', slot: sel.slot }) } }, 'TOSS'),

@@ -80,7 +80,9 @@ class ContestDocs @Inject constructor() {
 
 /** Contest stats and ribbons per monster, cached over [ContestRepository]. */
 @Singleton
-class ContestStatsService @Inject constructor(private val repo: ContestRepository) {
+class ContestStatsService
+@Inject
+constructor(private val repo: ContestRepository, private val names: ContestNames) {
   private val cache = ConcurrentHashMap<Long, MonContest>()
 
   suspend fun get(monId: Long): MonContest =
@@ -107,17 +109,17 @@ class ContestStatsService @Inject constructor(private val repo: ContestRepositor
     val rows = party.sortedBy { it.containerSlot }.map { it to get(it.id) }
     return {
       putJsonArray("mons") {
-        for ((m, c) in rows) add(monJson(m, c))
+        for ((m, c) in rows) add(monJson(m, c, names))
       }
     }
   }
 
   companion object {
-    fun monJson(m: Pokemon, c: MonContest) = buildJsonObject {
+    fun monJson(m: Pokemon, c: MonContest, names: ContestNames? = null) = buildJsonObject {
       put("id", m.id.toString())
       put("slot", m.containerSlot.toInt())
       put("dex", m.dexId)
-      put("name", m.nickname)
+      put("name", m.nickname.ifBlank { names?.species(m.dexId) ?: "" })
       put("level", m.level.toInt())
       put("shiny", m.isShiny)
       put("egg", m.isEgg)
@@ -217,7 +219,7 @@ constructor(
     val c = case(charId)
     val party = characters.getCharacter(charId)?.pokemon.orEmpty().sortedBy { it.containerSlot }
     stats.preload(party.map { it.id })
-    val mons = party.map { ContestStatsService.monJson(it, stats.get(it.id)) }
+    val mons = party.map { ContestStatsService.monJson(it, stats.get(it.id), names) }
     docs.send(session, "pokeblocks") {
       put("open", open)
       put("message", message)
