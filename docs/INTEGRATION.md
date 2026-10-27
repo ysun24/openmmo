@@ -4,6 +4,70 @@ Backup tag before the merge: `pre-r5`. Lane reports: `docs/reports/r5-{scripts,c
 (r5-scripts left no REPORT.md; its summary was written from its commits). Screenshots:
 `docs/reports/r5-integration/`.
 
+## Close-out (after `24a0202`)
+One commit per item, all on `own-client`:
+- **Live stack detached** (`ea04855`): `scripts/live-stack.sh` starts each server with `setsid nohup … </dev/null`
+  (own session and process group; the pid file is the java pid, which is also the pgid), `status` checks that
+  the recorded pid is alive and is this checkout's java, `stop` kills exactly those pids.
+- **Dev command replies stay private** (`c72c044`): every ChatCommand reply already went to the caller's session
+  only (`CommandContext.reply` → a `GAME_NOTIFICATIONS` notice, shown as a ★ system line); audited all commands
+  (`/grant` additionally notices the target, by design). The leak was the other way in: a slash line sent on a
+  social channel (`CommunityBody.Chat`) or the retail chat packet was broadcast as chat. `SocialService.chat` now
+  hands any `/` line to `ChatCommandService`, so neither the command nor its reply reaches anyone else (unit test).
+- **Fame Checker from the bag** (`b76d76c`): `FameCheckerFromBag` (`BagItemScript`, FieldUseFunc_FameChecker)
+  opens the Fame Checker; the catalog gives it `use: field` and `register: true` (items.json registrability 1),
+  so USE in the bag and SELECT on the registered item both open it (unit test, driver check, shots
+  `d-fame-bag` / `d-fame-open`).
+- **FRLG Mystic / Aurora Ticket** (`5377124`): story scenes `mystic` (Vermilion sailor → MULTICHOICE_SEVII_NAVEL →
+  Seagallop 10 → Navel Rock; the summit's coord trigger → Ho-Oh, the base → Lugia) and `aurora` (→ Seagallop 12 →
+  Birth Island; the Deoxys triangle). New: `DoDeoxysTriangleInteraction` per field_specials.c (sDeoxysCoords /
+  sDeoxysStepCaps, the triangle moves with `setobjectxy`, too many steps send it home, the 11th touch awakens
+  DEOXYS) and `IncrementBirthIslandRockStepCount` in FieldStepEffects. Bug found on the way: `GetQuestLogState`
+  did not write VAR_RESULT, so `goto_if_questlog` after a menu answer of 2 (BIRTH ISLAND) ended the script.
+- **Battle Frontier REST** (`6ce4599`): `FrontierSave.rest` (`FrontierRest`: desk, streak key, next
+  battle/room/floor, the team with HP/status/PP as every field of the Pokémon, facility extras) is persisted in
+  `frontier_records.data`; REST on the between screen (Tower singles/doubles/multis with the NPC partner, Palace,
+  Arena, Factory with its rental ids), on the Pike's door screen (room, healing flag) and anywhere on a Pyramid
+  floor (the 16 squares, position, light, the Pyramid bag). The same desk resumes it once ("We've been waiting
+  for you!"); other challenge desks refuse while one is on hold. Unit test (JSON round trip) and
+  `frontier_e2e.py --only rest`: REST → the row in the database → resume at the same battle / room / square.
+- **Contest hall cutscene** (`dfbcb4a`, `6b76556`): the reception stays the multiplayer hand port (entry screen,
+  matchmaking); once the contestants are set every player is warped into ContestHall with
+  VAR_CONTEST_HALL_STATE 1 and the interpreter runs `ContestHall_EventScript_Contest`: MC and judge walk on, each
+  contestant walks to the centre with their entry text, audience hearts and vote, `startcontest` (new special:
+  waits on stage for every online entrant, then the live appeal screen), the judging lines,
+  `showcontestresults` (results screen), the winner and prize (ribbon), the exit warp, and the lobby's contest
+  artist. Contestant and audience sprites come from VAR_OBJ_GFX_ID_* (`SetContestTrainerGfxIds`, NpcService now
+  resolves OBJ_EVENT_GFX_VAR_*). Appeals play the move's type sprite from the exported battle anims
+  (`moveType` on appeal events). Fixed on the way: `GenerateContestRand` did not set VAR_RESULT (the hall's
+  heart loop spun 200k commands), an `InterestManager.members()` race (`toSet()` → NoSuchElementException on a
+  concurrent leave), and leaving mid-contest now puts the player back at the lobby counter.
+  Shots `d-c-hall-walkin` / `d-c-hall-appeal`.
+- **Starter pick in the browser**: `d-k3-pick` / `m-k3-pick` (the Bulbasaur ball's "So, … you want to go with
+  the GRASS POKéMON BULBASAUR?") and `d-k4-received` / `m-k4-received` (the ball gone, GREEN takes Charmander;
+  the party gained BULBASAUR).
+
+### Final verification (close-out)
+- Full build + tests (`spotlessCheck` and every module's tests, `installDist`): BUILD SUCCESSFUL, no failures,
+  no skips. server.game 540, protocols.game 105, server.login 54, web.gateway 42, codegen 38, protocols.login 12,
+  web.assets 8. `check-opcodes.py`: 405 registrations, 0 clashes. Assets regenerated.
+- Live stack (detached, game 7777 / login 2106 / gateway 8080): `e2e.py` **ALL OK** (52 checks);
+  `story.py` **ALL OK** in one run of both regions (19 scenes: Kanto smoke, bill, mtmoon, ssanne, hideout,
+  tower, silph, trade, sevii, mystic, aurora, gamecorner; Hoenn woods, devon, chimney, weather, regirock,
+  sootopolis, eon; the long-lived test character's party was trimmed to three offline first, since a full party
+  sends `/givemon` to the PC); `r5c_e2e.py --only contest,blender,berry` **ALL OK** (two players + two NPCs through the hall
+  cutscene), `--only feebas,link` **ALL OK**; `frontier_e2e.py` every section **ALL OK** over three runs on a
+  fresh character (tower…pike; pyramid, ttower, hill, tents, exchange; rest, multi — the first run's Pyramid
+  battle hung on a refused move, fixed in the driver, `0774607`).
+- Home bundle: `deploy/home/dist/openmmo-home-20261027-3bc89dfb.zip` (248 MB, image `openmmo:20261027-3bc89dfb`)
+  built with `build-bundle.sh --skip-gradle` from `3bc89df` (the last code commit). Smoke test: unzip,
+  `sha256sum -c` OK, `docker load`, compose project `omfinal` with `TUNNEL=off` (+ `TUNNEL_DRY_RUN=1`) on
+  127.0.0.1:8090, all services healthy, the tunnel container only printed "no public URL"; invites from
+  `login invite create`, `stack_check.py` **ALL OK** (registration with the invite, used-up invite refused,
+  login), `e2e.py` **ALL OK**; then `compose down -v` of `omfinal` only (the live `openmmo-*-db` untouched).
+  (Compose: this host has no compose plugin; a pinned docker-compose v2.29.7 binary, sha256 checked against the
+  release, was used from the session scratch dir.)
+
 ## Merged
 `feat/r5-scripts` → `feat/r5-contests` → `feat/r5-frontier` → `feat/r5-minigames`, each `--no-ff`, with the
 full build + test set and `check-opcodes.py` after every merge (all green, 0 opcode clashes). Conflicts were
@@ -88,22 +152,18 @@ the gateway's StateJson / GameSession / Dispatcher, `main.js` UIS, `net.js` sect
   db container name.
 
 ## Not done (with reasons)
-- **Frontier "Rest"** (save mid-challenge): a challenge is a running coroutine per facility in
-  `FrontierChallenges` (1.8k lines of in-memory state machines); resuming one needs each facility's state
-  serialised and re-entered at the right step. Leaving still ends the streak, as before.
-- **Frontier trainer texts**: brains now say their decomp lines; the regular trainers already use their
-  decomp easy-chat speech (that is the decomp's own data). The Dome info screens and record windows are
-  still not reproduced (lane report).
-- **Contest receptionist through the interpreter**: kept as a hand port (see above); the decomp hall
-  cutscene (`startcontest`, walk-ins, audience) does not run.
-- **FRLG Mystic / Aurora Ticket at Vermilion** was not driven by a scene (the item and flag path is the
-  same as the verified Eon Ticket one).
-- **Fame Checker from the bag**: the FAME CHECKER is a key item now, but using it from the bag does not
-  open the UI (it opens from the Link menu); only the Wailmer Pail got a bag hook.
-- **Browser starter pick**: the screenshot run shows the Oak's Lab starter scene (FireRed's
-  ChooseStarterScene) but not the ball chosen; picking it is covered by the existing Kanto e2e and the
-  story driver's party setup, not a browser shot.
-- The lanes' own "Not done" lists stand otherwise (docs/reports/r5-*.md).
+All the items of the previous list are closed (see "Close-out" above). What remains, and why:
+- **REST in the Battle Dome and the link multis**: the Dome's state is a 16-entrant bracket with per-round
+  seeding, and a link multi needs the other player to come back at the same moment; both still end the
+  challenge when left. (Battle Tents and Trainer Hill / Trainer Tower have no REST in the games either.)
+- **Per-category hall maps**: the five `ContestHall<Category>` maps only borrow ContestHall's objects and scripts
+  (`shared_events_map`), which the map codegen does not follow, so every category uses the shared ContestHall
+  itself (same stage, without the category's floor decoration).
+- **The contestants' Pokémon picture during the walk-in** (`ShowContestEntryMonPic`) is not drawn on the field;
+  the entry text names the monster and the appeal screen shows it.
+- **Navel Rock / Birth Island on foot**: the story scenes sail there through the real Vermilion script and
+  Seagallop, then teleport to the summit / base (Navel Rock's 20 maze floors are not walked by the driver).
+- The lanes' own "Not done" lists stand otherwise (docs/reports/r5-*.md, docs/reports/r3-*.md).
 
 
 ## Final verification (round 5)
@@ -254,8 +314,9 @@ were merged into one document, and colliding section numbers were renumbered.
 export JAVA_HOME=~/.jdks/jdk-25.0.5+8
 ./gradlew --no-daemon -Porg.gradle.java.installations.paths=$JAVA_HOME :keys:generateGame installDist :web.gateway:installDist
 ./gradlew --no-daemon -Porg.gradle.java.installations.paths=$JAVA_HOME :web.assets:run --args="--decomp decomp --out web/static/assets"
-scripts/live-stack.sh start     # game 7777, login 2106, gateway http://127.0.0.1:8080/ (all 127.0.0.1)
-scripts/live-stack.sh status    # pids in build/live/*.pid; stop by those pids
+scripts/live-stack.sh start     # game 7777, login 2106, gateway http://127.0.0.1:8080/ (all 127.0.0.1), detached
+scripts/live-stack.sh status    # pids (= process groups) in build/live/*.pid
+scripts/live-stack.sh stop      # stops exactly those pids; run it before installDist (it replaces the jars)
 python3 web/gateway/test/e2e.py --ws ws://127.0.0.1:8080/ws --a yicheng:pikachu123:Yicheng --b friend:bulbasaur123:Friend
 ```
 The two postgres containers (`openmmo-login-db` :20011, `openmmo-game-db` :20021) must be running.
