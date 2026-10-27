@@ -79,6 +79,7 @@ constructor(private val lane: ContestLane, private val specials: ContestSpecials
     lane.contests.enterHall(
         ctx.session, ctx.state, entry, postgame = v.flag(ctx, "FLAG_SYS_GAME_CLEAR"))
         ?: return@Script
+    special(ctx, "SetContestTrainerGfxIds")
     v.set(ctx, v.CONTEST_TYPE, entry.rank + 1) // CONTEST_TYPE_NPC_NORMAL + rank
     ctx.varSet("VAR_CONTEST_HALL_STATE", 1)
     v.setFlag(ctx, "FLAG_ENTERED_CONTEST")

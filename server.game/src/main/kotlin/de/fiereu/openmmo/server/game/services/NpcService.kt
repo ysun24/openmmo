@@ -243,6 +243,16 @@ constructor(
   }
 
   private fun resolveDynamicGraphics(ctx: SessionContext, npc: NpcDef): NpcDef {
+    // OBJ_EVENT_GFX_VAR_0..F: the sprite is VAR_OBJ_GFX_ID_n (the contest hall's contestants and
+    // audience, set by SetContestTrainerGfxIds and the hall's random audience).
+    if (npc.graphicsId in DYNAMIC_GFX_VAR_0..DYNAMIC_GFX_VAR_0 + 15) {
+      val state = ctx.attributes[PLAYER_STATE]
+      val stored = state?.characterId?.let(characterStore::getCharacter)
+      val region = if (state?.regionId == 0) "kanto" else "hoenn"
+      val n = npc.graphicsId - DYNAMIC_GFX_VAR_0
+      val gfx = stored?.storyVars?.get("$region/VAR_OBJ_GFX_ID_%X".format(n)) ?: 0
+      if (gfx in 1 until DYNAMIC_GFX_VAR_0) return npc.copy(graphicsId = gfx)
+    }
     if (npc.graphicsId != DYNAMIC_GFX_VAR_0 ||
         !(npc.script.contains("Rival", ignoreCase = true) ||
             npc.hideFlag.contains("RIVAL", ignoreCase = true))) {

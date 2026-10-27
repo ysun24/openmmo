@@ -239,7 +239,34 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
         v.set(ctx, v.V8004, 3)
         0
       }
-      "SetContestTrainerGfxIds",
+      // SetContestTrainerGfxIds: VAR_OBJ_GFX_ID_0-2 are the other contestants' overworld
+      // sprites (gContestOpponents' gfx; another player shows as BRENDAN / MAY), 3 the player.
+      "SetContestTrainerGfxIds" -> {
+        val view = l.view(ctx)
+        val img = de.fiereu.openmmo.server.game.script.vm.ScriptImage.of("hoenn")
+        val female = l.characters.getCharacter(charId)?.info?.rivalSex == 1.toByte()
+        fun gfx(name: String) = img?.constOrNull(name) ?: 0
+        for (n in 0..2) {
+          val m = view?.engine?.mons?.getOrNull(view.fromView(n))
+          val name =
+              m?.trainerGfx?.takeIf { it.isNotEmpty() }
+                  ?: if (n % 2 == 0) "OBJ_EVENT_GFX_BRENDAN_NORMAL" else "OBJ_EVENT_GFX_MAY_NORMAL"
+          ctx.varSet(
+              "VAR_OBJ_GFX_ID_$n",
+              gfx(name).takeIf { it != 0 }
+                  ?: gfx(if (n % 2 == 0) "OBJ_EVENT_GFX_BRENDAN_NORMAL" else "OBJ_EVENT_GFX_MAY_NORMAL"))
+        }
+        ctx.varSet(
+            "VAR_OBJ_GFX_ID_3",
+            gfx(if (female) "OBJ_EVENT_GFX_MAY_NORMAL" else "OBJ_EVENT_GFX_BRENDAN_NORMAL"))
+        // The audience (VAR_OBJ_GFX_ID_4-A) from ContestHall_EventScript_GetRandomAudienceGfxId's
+        // set, already before the warp: the hall's ON_TRANSITION draws them again, but the
+        // objects are on screen by then.
+        for (n in 4..10) {
+          ctx.varSet("VAR_OBJ_GFX_ID_%X".format(n), gfx(AUDIENCE[LiveRng.next() % AUDIENCE.size]))
+        }
+        0
+      }
       "SetLinkContestPlayerGfx",
       "LoadLinkContestPlayerPalettes",
       "LinkContestTryShowWirelessIndicator",
@@ -543,6 +570,11 @@ class ContestSpecials @Inject constructor(private val lane: ContestLane) : Scrip
       lane.trees.sendMapTrees(ctx.session, ctx.state)
 
   companion object {
+    /** The hall audience sprites of ContestHall_EventScript_RandomAudience*. */
+    val AUDIENCE =
+        "BEAUTY BLACK_BELT BOY_1 BOY_3 BUG_CATCHER CAMPER COOK EXPERT_F EXPERT_M FAT_MAN GIRL_1 GIRL_2 GIRL_3 LASS LITTLE_BOY LITTLE_GIRL MAN_1 MAN_3 NINJA_BOY OLD_WOMAN PICNICKER POKEFAN_F POKEFAN_M PSYCHIC_M RICH_BOY SCHOOL_KID_M SCIENTIST_1 TWIN WOMAN_2 WOMAN_4 WOMAN_5 YOUNGSTER"
+            .split(' ')
+            .map { "OBJ_EVENT_GFX_$it" }
     const val LOCALID_CONTESTANT_1 = 3
     /** lilycoveLady.contest.givenPokeblock / .category, kept as story state. */
     const val LADY_FLAG = "R5C_CONTEST_LADY_GIVEN_POKEBLOCK"
