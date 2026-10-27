@@ -13,8 +13,8 @@ data class GameServerConfig(
     val rootKey: String? = null,
     val rootKeyFile: String? = null,
     /**
-     * Login user ids whose characters are admins. The login server's bootstrap account is the
-     * first user of an empty database, so this defaults to user 1.
+     * Login user ids whose characters are admins. The login server's bootstrap account is the first
+     * user of an empty database, so this defaults to user 1.
      */
     val adminUserIds: Set<Int> = setOf(1),
 ) {

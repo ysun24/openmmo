@@ -11,11 +11,20 @@ import de.fiereu.openmmo.server.game.battle.BattleRewards
 import de.fiereu.openmmo.server.game.battle.MoveLearner
 import de.fiereu.openmmo.server.game.battle.TurnEngine
 import de.fiereu.openmmo.server.game.battle.WildMonFactory
+import de.fiereu.openmmo.server.game.config.GameServerConfig
+import de.fiereu.openmmo.server.game.progression.DaycareService
+import de.fiereu.openmmo.server.game.progression.DecorationService
+import de.fiereu.openmmo.server.game.progression.EscapeRopeService
+import de.fiereu.openmmo.server.game.progression.MonGrowth
+import de.fiereu.openmmo.server.game.progression.PlayerProgressService
+import de.fiereu.openmmo.server.game.progression.ProgressActionService
+import de.fiereu.openmmo.server.game.progression.ScriptProgress
 import de.fiereu.openmmo.server.game.script.ScriptRegistry
 import de.fiereu.openmmo.server.game.script.ScriptRunner
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogService
 import de.fiereu.openmmo.server.game.services.EncounterService
+import de.fiereu.openmmo.server.game.services.FieldItemService
 import de.fiereu.openmmo.server.game.services.MapEntryScripts
 import de.fiereu.openmmo.server.game.services.MapLoadService
 import de.fiereu.openmmo.server.game.services.MapScriptService
@@ -52,6 +61,8 @@ fun movementService(
   val story = StoryService(store)
   val battles = battleService(store, interest)
   val entryScripts = MapEntryScripts(ScriptRegistry(emptyMap()), story)
+  val runner = scriptRunner(store, mapManager, interest, battles)
+  val progress by lazy { progressActions(store, mapManager, runner, battles) }
   return MovementService(
       WarpService(mapLoad, mapManager, store, presence),
       mapLoad,
@@ -60,7 +71,8 @@ fun movementService(
       mapManager,
       store,
       EncounterService(store, battles),
-      MapScriptService(entryScripts, scriptRunner(store, mapManager, interest, battles)),
+      MapScriptService(entryScripts, runner),
+      { progress },
   )
 }
 
@@ -93,6 +105,85 @@ fun scriptRunner(
       mapManager,
       MapEntryScripts(ScriptRegistry(emptyMap()), story),
       ShopService(store, items),
+      scriptProgress(store),
+  )
+}
+
+/** The r3-items pieces, built for real over [store]. */
+fun progressService(store: CharacterStore) =
+    PlayerProgressService(store, SessionRegistry(), SpeciesRegistry())
+
+fun daycareService(
+    store: CharacterStore,
+    progress: PlayerProgressService = progressService(store)
+) =
+    DaycareService(
+        store,
+        SpeciesRegistry(),
+        LearnsetRegistry(),
+        MoveRegistry(),
+        WildMonFactory(SpeciesRegistry(), MoveRegistry(), LearnsetRegistry(), EntityIdService()),
+        progress)
+
+fun scriptProgress(
+    store: CharacterStore,
+    progress: PlayerProgressService = progressService(store),
+) =
+    ScriptProgress(
+        store, progress, daycareService(store, progress), DecorationService(store, progress))
+
+fun escapeRope(store: CharacterStore, mapManager: MapManager = MapManager()): EscapeRopeService {
+  val mapLoad = MapLoadService(mapManager)
+  val presence = PresenceService(InterestManager(), PassThroughInterestPolicy(), mapLoad, store)
+  return EscapeRopeService(
+      store, mapManager, ScriptWarpService(mapManager, mapLoad, store, presence))
+}
+
+fun fieldItemService(
+    store: CharacterStore,
+    battles: BattleService = battleService(store),
+    progress: PlayerProgressService = progressService(store),
+    mapManager: MapManager = MapManager(),
+): FieldItemService {
+  val species = SpeciesRegistry()
+  val moves = MoveRegistry()
+  return FieldItemService(
+      store,
+      ItemRegistry(),
+      species,
+      moves,
+      battles,
+      MonGrowth(species, MoveLearner(LearnsetRegistry(), moves)),
+      progress,
+      EntityIdService(),
+      escapeRope(store, mapManager))
+}
+
+fun progressActions(
+    store: CharacterStore,
+    mapManager: MapManager,
+    runner: ScriptRunner,
+    battles: BattleService,
+): ProgressActionService {
+  val progress = progressService(store)
+  val daycare = daycareService(store, progress)
+  val decorations = DecorationService(store, progress)
+  return ProgressActionService(
+      store,
+      ItemRegistry(),
+      fieldItemService(store, battles, progress, mapManager),
+      progress,
+      ScriptProgress(store, progress, daycare, decorations),
+      decorations,
+      daycare,
+      escapeRope(store, mapManager),
+      runner,
+      GameServerConfig(
+          host = "127.0.0.1",
+          port = 0,
+          checksumSize = 2,
+          rootKeyResource = "",
+          sessionSecret = ByteArray(1)),
   )
 }
 

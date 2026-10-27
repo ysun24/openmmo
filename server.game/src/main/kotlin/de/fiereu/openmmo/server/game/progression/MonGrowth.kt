@@ -1,13 +1,13 @@
 package de.fiereu.openmmo.server.game.progression
 
-import de.fiereu.openmmo.progression.Evolution
-import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.common.MAX_PARTY_SIZE
 import de.fiereu.openmmo.common.Pokemon
 import de.fiereu.openmmo.common.PokemonMove
 import de.fiereu.openmmo.common.enums.EVs
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
+import de.fiereu.openmmo.progression.Evolution
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.server.game.battle.ExpCurves
 import de.fiereu.openmmo.server.game.battle.LearnedMove
 import de.fiereu.openmmo.server.game.battle.MoveLearner
@@ -54,8 +54,7 @@ constructor(
         rescaleHp(
             mon,
             mon.copy(
-                level = (level + 1).toByte(),
-                xp = ExpCurves.totalXpFor(def.growthRate, level + 1)))
+                level = (level + 1).toByte(), xp = ExpCurves.totalXpFor(def.growthRate, level + 1)))
     val known = raised.moves.toMutableList()
     val outcome = learner.learn(known, raised.dexId, level, level + 1)
     return Growth(raised.copy(moves = known), outcome.learned, outcome.offered)
@@ -93,8 +92,8 @@ constructor(
 
   /**
    * [mon] as [evolution]'s target: new stats with the same damage taken, a nickname that was only
-   * the species name dropped, and the new species' moves for its level. [partySize] decides
-   * whether Nincada also leaves a Shedinja ([newId] gives it an id).
+   * the species name dropped, and the new species' moves for its level. [partySize] decides whether
+   * Nincada also leaves a Shedinja ([newId] gives it an id).
    */
   fun evolve(mon: Pokemon, evolution: Evolution, partySize: Int, newId: () -> Long): Growth {
     val oldName = species.get(mon.dexId)?.name
@@ -111,9 +110,9 @@ constructor(
   }
 
   private fun shedinjaFrom(nincada: Pokemon, ninjask: Pokemon, id: Long): Pokemon? {
-    val shedinja = Gen3Data.evolutions[nincada.dexId].orEmpty().firstOrNull {
-      it.method == "LEVEL_SHEDINJA"
-    } ?: return null
+    val shedinja =
+        Gen3Data.evolutions[nincada.dexId].orEmpty().firstOrNull { it.method == "LEVEL_SHEDINJA" }
+            ?: return null
     val mon = ninjask.copy(id = id, dexId = shedinja.target, nickname = "", status = 0)
     return mon.copy(hp = maxHp(mon).toShort())
   }
@@ -126,7 +125,9 @@ constructor(
     return after.copy(hp = hp.toShort())
   }
 
-  /** A copy of [evs] with [stat] set to [value] to one stat (EnumMap underneath, so never in place). */
+  /**
+   * A copy of [evs] with [stat] set to [value] to one stat (EnumMap underneath, so never in place).
+   */
   fun withEv(evs: EVs, stat: EvStat, value: Int): EVs =
       EVs().also {
         it.hp = evs.hp

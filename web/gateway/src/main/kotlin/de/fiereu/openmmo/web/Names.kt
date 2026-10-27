@@ -119,7 +119,9 @@ class CodegenNames(private val decomp: File) : Names {
     // A gen 3 TM teaches the Emerald/FireRed move of its number, not gen 5's: name it from the
     // decomp's tms_hms.h order (Gen3Data) instead of leaving the description blank.
     val def = itemRegistry.get(id) ?: return info
-    val index = Gen3Data.tmhmIndex(def) ?: return info.copy(use = info.use.takeUnless { info.pocket == "tms" })
+    val index =
+        Gen3Data.tmhmIndex(def)
+            ?: return info.copy(use = info.use.takeUnless { info.pocket == "tms" })
     val moveId = Gen3Data.tmhmMove(index) ?: return info
     val text = gen3Text.moveDescription(moveId).orEmpty()
     return info.copy(

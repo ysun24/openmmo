@@ -1,6 +1,5 @@
 package de.fiereu.openmmo.server.game.progression
 
-import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.MAX_MOVE_SLOTS
 import de.fiereu.openmmo.common.MAX_PARTY_SIZE
@@ -13,6 +12,7 @@ import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
 import de.fiereu.openmmo.net.game.packets.LocalCharacterDeltaPacket
 import de.fiereu.openmmo.pokemon.LearnsetRegistry
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.server.game.battle.BattleRng
 import de.fiereu.openmmo.server.game.battle.ExpCurves
 import de.fiereu.openmmo.server.game.battle.StatCalculator
@@ -30,9 +30,9 @@ private val log = KotlinLogging.logger {}
 
 /**
  * The Gen 3 day care (daycare.c): two monsters are raised for one exp per step, a compatible pair
- * lays an egg (rolled every 256 steps against the compatibility score), and eggs in the party
- * hatch after their species' egg cycles of 255 steps each. Taking a monster back costs 100 plus
- * 100 per level it gained, and it learns the moves of those levels, pushing out the oldest move.
+ * lays an egg (rolled every 256 steps against the compatibility score), and eggs in the party hatch
+ * after their species' egg cycles of 255 steps each. Taking a monster back costs 100 plus 100 per
+ * level it gained, and it learns the moves of those levels, pushing out the oldest move.
  */
 @Singleton
 class DaycareService
@@ -176,7 +176,11 @@ constructor(
       species.get(mon.dexId)?.let { StatCalculator.computeAll(it, mon).hp } ?: mon.hp.toInt()
 
   /** GiveMoveToMon, or DeleteFirstMoveAndGiveMoveToMon when all four slots are used. */
-  private fun giveOrPushOut(known: MutableList<PokemonMove>, moveId: Int, pp: Int): MutableList<PokemonMove> {
+  private fun giveOrPushOut(
+      known: MutableList<PokemonMove>,
+      moveId: Int,
+      pp: Int
+  ): MutableList<PokemonMove> {
     val move = PokemonMove(moveId.toShort(), pp.toByte())
     val free = known.indexOfFirst { it.id.toInt() == 0 }
     if (free >= 0) {
@@ -188,8 +192,8 @@ constructor(
   }
 
   /**
-   * One player step: day care exp, the egg roll, and egg hatching. Returns the notices to show
-   * (an egg was laid is not told, like the games; a hatch is).
+   * One player step: day care exp, the egg roll, and egg hatching. Returns the notices to show (an
+   * egg was laid is not told, like the games; a hatch is).
    */
   fun onStep(charId: Long): List<String> {
     val stored = characters.getCharacter(charId) ?: return emptyList()
@@ -222,7 +226,7 @@ constructor(
           hatched = stored.pokemon.first { it.id == eggId }
           vars[key] = 0
         } else {
-          vars[key] = left.coerceAtLeast(0)
+          vars[key] = left.coerceAtLeast(1)
         }
       }
     } else {
@@ -236,15 +240,20 @@ constructor(
     return listOf(DaycareRules.hatchText(species.get(mon.dexId)?.name ?: "POKéMON"))
   }
 
-  /** Egg cycles left after one more cycle; -1 marks an egg that hatches now. */
+  /**
+   * The stored value after one more cycle; -1 marks an egg that hatches now. The var holds the
+   * cycles left plus one, so an egg at zero cycles is not mistaken for a var that was never set.
+   */
   private fun cycleEggs(stored: StoredCharacter): Map<Long, Int> =
       stored.pokemon
           .filter { it.isEgg }
           .associate { egg ->
             val key = "${ProgressKeys.EGG_STEPS_PREFIX}${egg.id}"
-            val cycles = stored.storyVars[key] ?: (species.get(egg.dexId)?.eggCycles ?: 20)
-            egg.id to if (cycles <= 0) -1 else cycles - 1
+            val cycles = (stored.storyVars[key] ?: (eggCycles(egg.dexId) + 1)) - 1
+            egg.id to if (cycles <= 0) -1 else cycles
           }
+
+  private fun eggCycles(dexId: Int) = species.get(dexId)?.eggCycles ?: DEFAULT_EGG_CYCLES
 
   fun compatibility(mons: List<Pokemon>): Int {
     if (mons.size < 2) return 0
@@ -259,8 +268,10 @@ constructor(
     if ((stored.storyVars[ProgressKeys.DAYCARE_EGG] ?: 0) == 0) return "There is no EGG."
     if (stored.pokemon.size >= MAX_PARTY_SIZE) return "You have no room for it."
     val egg = createEgg(stored) ?: return "The EGG could not be made."
-    val placed = egg.copy(ownerId = charId, containerSlot = stored.pokemon.size.toShort(), ot = stored.info.name)
-    val cycles = species.get(egg.dexId)?.eggCycles ?: 20
+    val placed =
+        egg.copy(
+            ownerId = charId, containerSlot = stored.pokemon.size.toShort(), ot = stored.info.name)
+    val cycles = eggCycles(egg.dexId) + 1
     val ok =
         characters.commitDurably(charId) { s ->
           s.copy(
@@ -343,7 +354,11 @@ constructor(
 
   internal fun hatch(egg: Pokemon): Pokemon {
     val def = species.get(egg.dexId)
-    val mon = egg.copy(isEgg = false, caughtAt = LocalDateTime.now(), level = DaycareRules.EGG_HATCH_LEVEL.toByte())
+    val mon =
+        egg.copy(
+            isEgg = false,
+            caughtAt = LocalDateTime.now(),
+            level = DaycareRules.EGG_HATCH_LEVEL.toByte())
     val hp = def?.let { StatCalculator.computeAll(it, mon).hp } ?: 1
     return mon.copy(hp = hp.toShort())
   }
@@ -392,6 +407,7 @@ constructor(
 
   companion object {
     const val ROUTE5_SLOT = 2
+    private const val DEFAULT_EGG_CYCLES = 20
     private const val NIDORAN_F = 29
     private const val NIDORAN_M = 32
     private const val ILLUMISE = 314

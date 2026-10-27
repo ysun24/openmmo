@@ -5,10 +5,10 @@ import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
 import de.fiereu.openmmo.server.game.progression.gymTrainer
-import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
-import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -31,7 +31,8 @@ internal object FortreeCity_Gym_EventScript_Winona : Script {
       ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_AERIAL_ACE)
     }
     if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_FORTREE_GYM)) {
-      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_AERIAL_ACE)) giveTm() else ctx.say(FortreeCity_Gym.WinonaPostBattle)
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_AERIAL_ACE)) giveTm()
+      else ctx.say(FortreeCity_Gym.WinonaPostBattle)
       return
     }
     ctx.say(FortreeCity_Gym.WinonaIntro)
@@ -61,7 +62,11 @@ internal object FortreeCity_Gym_EventScript_Winona : Script {
 internal object FortreeCity_Gym_EventScript_Jared : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_JARED
-    ctx.gymTrainer(401, FortreeCity_Gym.JaredIntro, FortreeCity_Gym.JaredDefeat, FortreeCity_Gym.JaredPostBattle)
+    ctx.gymTrainer(
+        401,
+        FortreeCity_Gym.JaredIntro,
+        FortreeCity_Gym.JaredDefeat,
+        FortreeCity_Gym.JaredPostBattle)
   }
 }
 
@@ -76,7 +81,11 @@ internal object FortreeCity_Gym_EventScript_Jared : Script {
 internal object FortreeCity_Gym_EventScript_Flint : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_FLINT
-    ctx.gymTrainer(654, FortreeCity_Gym.FlintIntro, FortreeCity_Gym.FlintDefeat, FortreeCity_Gym.FlintPostBattle)
+    ctx.gymTrainer(
+        654,
+        FortreeCity_Gym.FlintIntro,
+        FortreeCity_Gym.FlintDefeat,
+        FortreeCity_Gym.FlintPostBattle)
   }
 }
 
@@ -91,7 +100,11 @@ internal object FortreeCity_Gym_EventScript_Flint : Script {
 internal object FortreeCity_Gym_EventScript_Ashley : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_ASHLEY
-    ctx.gymTrainer(655, FortreeCity_Gym.AshleyIntro, FortreeCity_Gym.AshleyDefeat, FortreeCity_Gym.AshleyPostBattle)
+    ctx.gymTrainer(
+        655,
+        FortreeCity_Gym.AshleyIntro,
+        FortreeCity_Gym.AshleyDefeat,
+        FortreeCity_Gym.AshleyPostBattle)
   }
 }
 
@@ -106,7 +119,11 @@ internal object FortreeCity_Gym_EventScript_Ashley : Script {
 internal object FortreeCity_Gym_EventScript_Edwardo : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_EDWARDO
-    ctx.gymTrainer(404, FortreeCity_Gym.EdwardoIntro, FortreeCity_Gym.EdwardoDefeat, FortreeCity_Gym.EdwardoPostBattle)
+    ctx.gymTrainer(
+        404,
+        FortreeCity_Gym.EdwardoIntro,
+        FortreeCity_Gym.EdwardoDefeat,
+        FortreeCity_Gym.EdwardoPostBattle)
   }
 }
 
@@ -136,7 +153,11 @@ internal object FortreeCity_Gym_EventScript_GymGuide : Script {
 internal object FortreeCity_Gym_EventScript_Humberto : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_HUMBERTO
-    ctx.gymTrainer(402, FortreeCity_Gym.HumbertoIntro, FortreeCity_Gym.HumbertoDefeat, FortreeCity_Gym.HumbertoPostBattle)
+    ctx.gymTrainer(
+        402,
+        FortreeCity_Gym.HumbertoIntro,
+        FortreeCity_Gym.HumbertoDefeat,
+        FortreeCity_Gym.HumbertoPostBattle)
   }
 }
 
@@ -151,7 +172,11 @@ internal object FortreeCity_Gym_EventScript_Humberto : Script {
 internal object FortreeCity_Gym_EventScript_Darius : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_DARIUS
-    ctx.gymTrainer(803, FortreeCity_Gym.DariusIntro, FortreeCity_Gym.DariusDefeat, FortreeCity_Gym.DariusPostBattle)
+    ctx.gymTrainer(
+        803,
+        FortreeCity_Gym.DariusIntro,
+        FortreeCity_Gym.DariusDefeat,
+        FortreeCity_Gym.DariusPostBattle)
   }
 }
 

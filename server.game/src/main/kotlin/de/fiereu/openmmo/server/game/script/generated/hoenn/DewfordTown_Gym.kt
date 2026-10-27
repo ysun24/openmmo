@@ -5,10 +5,10 @@ import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
 import de.fiereu.openmmo.server.game.progression.gymTrainer
-import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
-import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -31,7 +31,8 @@ internal object DewfordTown_Gym_EventScript_Brawly : Script {
       ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_BULK_UP)
     }
     if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_DEWFORD_GYM)) {
-      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_BULK_UP)) giveTm() else ctx.say(DewfordTown_Gym.BrawlyPostBattle)
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_BULK_UP)) giveTm()
+      else ctx.say(DewfordTown_Gym.BrawlyPostBattle)
       return
     }
     ctx.say(DewfordTown_Gym.BrawlyIntro)
@@ -62,7 +63,11 @@ internal object DewfordTown_Gym_EventScript_Brawly : Script {
 internal object DewfordTown_Gym_EventScript_Takao : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_TAKAO
-    ctx.gymTrainer(179, DewfordTown_Gym.TakaoIntro, DewfordTown_Gym.TakaoDefeat, DewfordTown_Gym.TakaoPostBattle)
+    ctx.gymTrainer(
+        179,
+        DewfordTown_Gym.TakaoIntro,
+        DewfordTown_Gym.TakaoDefeat,
+        DewfordTown_Gym.TakaoPostBattle)
   }
 }
 
@@ -77,7 +82,11 @@ internal object DewfordTown_Gym_EventScript_Takao : Script {
 internal object DewfordTown_Gym_EventScript_Jocelyn : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_JOCELYN
-    ctx.gymTrainer(425, DewfordTown_Gym.JocelynIntro, DewfordTown_Gym.JocelynDefeat, DewfordTown_Gym.JocelynPostBattle)
+    ctx.gymTrainer(
+        425,
+        DewfordTown_Gym.JocelynIntro,
+        DewfordTown_Gym.JocelynDefeat,
+        DewfordTown_Gym.JocelynPostBattle)
   }
 }
 
@@ -92,7 +101,11 @@ internal object DewfordTown_Gym_EventScript_Jocelyn : Script {
 internal object DewfordTown_Gym_EventScript_Laura : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_LAURA
-    ctx.gymTrainer(426, DewfordTown_Gym.LauraIntro, DewfordTown_Gym.LauraDefeat, DewfordTown_Gym.LauraPostBattle)
+    ctx.gymTrainer(
+        426,
+        DewfordTown_Gym.LauraIntro,
+        DewfordTown_Gym.LauraDefeat,
+        DewfordTown_Gym.LauraPostBattle)
   }
 }
 
@@ -122,7 +135,11 @@ internal object DewfordTown_Gym_EventScript_GymGuide : Script {
 internal object DewfordTown_Gym_EventScript_Cristian : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_CRISTIAN
-    ctx.gymTrainer(574, DewfordTown_Gym.CristianIntro, DewfordTown_Gym.CristianDefeat, DewfordTown_Gym.CristianPostBattle)
+    ctx.gymTrainer(
+        574,
+        DewfordTown_Gym.CristianIntro,
+        DewfordTown_Gym.CristianDefeat,
+        DewfordTown_Gym.CristianPostBattle)
   }
 }
 
@@ -137,7 +154,11 @@ internal object DewfordTown_Gym_EventScript_Cristian : Script {
 internal object DewfordTown_Gym_EventScript_Lilith : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_LILITH
-    ctx.gymTrainer(573, DewfordTown_Gym.LilithIntro, DewfordTown_Gym.LilithDefeat, DewfordTown_Gym.LilithPostBattle)
+    ctx.gymTrainer(
+        573,
+        DewfordTown_Gym.LilithIntro,
+        DewfordTown_Gym.LilithDefeat,
+        DewfordTown_Gym.LilithPostBattle)
   }
 }
 
@@ -152,7 +173,11 @@ internal object DewfordTown_Gym_EventScript_Lilith : Script {
 internal object DewfordTown_Gym_EventScript_Brenden : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_BRENDEN
-    ctx.gymTrainer(572, DewfordTown_Gym.BrendenIntro, DewfordTown_Gym.BrendenDefeat, DewfordTown_Gym.BrendenPostBattle)
+    ctx.gymTrainer(
+        572,
+        DewfordTown_Gym.BrendenIntro,
+        DewfordTown_Gym.BrendenDefeat,
+        DewfordTown_Gym.BrendenPostBattle)
   }
 }
 

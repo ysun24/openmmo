@@ -137,8 +137,10 @@ object FieldItemEffects {
   fun needsMove(effect: FieldItemEffect): Boolean =
       effect is FieldItemEffect.RestorePp || effect is FieldItemEffect.PpUp
 
-  /** What the bag shows: "mon" picks a party monster, "move" a monster and then a move,
-   * "teach" a monster that can learn it, "self" uses it on the spot, null not usable here. */
+  /**
+   * What the bag shows: "mon" picks a party monster, "move" a monster and then a move, "teach" a
+   * monster that can learn it, "self" uses it on the spot, null not usable here.
+   */
   fun useKind(item: ItemDef): String? =
       when (val e = of(item)) {
         null -> null

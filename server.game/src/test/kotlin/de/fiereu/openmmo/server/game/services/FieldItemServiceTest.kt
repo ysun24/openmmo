@@ -10,13 +10,12 @@ import de.fiereu.openmmo.common.enums.Region
 import de.fiereu.openmmo.items.ItemDef
 import de.fiereu.openmmo.items.ItemRegistry
 import de.fiereu.openmmo.items.generated.Items
-import de.fiereu.openmmo.moves.MoveRegistry
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
 import de.fiereu.openmmo.server.game.battle.StatCalculator
 import de.fiereu.openmmo.server.game.storage.CharacterStore
 import de.fiereu.openmmo.server.game.storage.EntityIdService
 import de.fiereu.openmmo.server.game.testsupport.FakeCharacterRepository
-import de.fiereu.openmmo.server.game.testsupport.battleService
+import de.fiereu.openmmo.server.game.testsupport.fieldItemService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -64,7 +63,7 @@ class FieldItemServiceTest :
         val mon = partyMon(charId, 0, hp)
         store.addPokemon(charId, mon)
         bag.forEach { (item, qty) -> store.addItem(charId, items.idOf(item), qty) }
-        val service = FieldItemService(store, items, species, MoveRegistry(), battleService(store))
+        val service = fieldItemService(store)
         return Fx(store, service, charId) to mon
       }
 
@@ -116,7 +115,7 @@ class FieldItemServiceTest :
         }
       }
 
-      test("a status heal finds nothing to cure out of battle") {
+      test("a status heal on a healthy monster has no effect and costs nothing") {
         runTest {
           val (f, mon) = fx(hp = 5, bag = mapOf(Items.ANTIDOTE to 1))
           f.service.use(f.charId, items.idOf(Items.ANTIDOTE), mon.id).changed shouldBe false

@@ -224,7 +224,10 @@ constructor(
     }
     val dex = stored.pokedexRows()
     if (dex.isNotEmpty()) {
-      tx.batchInsert(dex.map { (dexId, caught) -> CharacterPokedexRecord(stored.info.id, dexId.toShort(), caught) })
+      tx.batchInsert(
+              dex.map { (dexId, caught) ->
+                CharacterPokedexRecord(stored.info.id, dexId.toShort(), caught)
+              })
           .execute()
     }
     if (stored.skins.isNotEmpty()) {

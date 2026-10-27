@@ -16,7 +16,11 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
 internal object SootopolisCity_Gym_B1F_EventScript_Andrea : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_ANDREA
-    ctx.gymTrainer(613, SootopolisCity_Gym_B1F.AndreaIntro, SootopolisCity_Gym_B1F.AndreaDefeat, SootopolisCity_Gym_B1F.AndreaPostBattle)
+    ctx.gymTrainer(
+        613,
+        SootopolisCity_Gym_B1F.AndreaIntro,
+        SootopolisCity_Gym_B1F.AndreaDefeat,
+        SootopolisCity_Gym_B1F.AndreaPostBattle)
   }
 }
 
@@ -31,7 +35,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Andrea : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Connie : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_CONNIE
-    ctx.gymTrainer(128, SootopolisCity_Gym_B1F.ConnieIntro, SootopolisCity_Gym_B1F.ConnieDefeat, SootopolisCity_Gym_B1F.ConniePostBattle)
+    ctx.gymTrainer(
+        128,
+        SootopolisCity_Gym_B1F.ConnieIntro,
+        SootopolisCity_Gym_B1F.ConnieDefeat,
+        SootopolisCity_Gym_B1F.ConniePostBattle)
   }
 }
 
@@ -46,7 +54,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Connie : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Brianna : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_BRIANNA
-    ctx.gymTrainer(118, SootopolisCity_Gym_B1F.BriannaIntro, SootopolisCity_Gym_B1F.BriannaDefeat, SootopolisCity_Gym_B1F.BriannaPostBattle)
+    ctx.gymTrainer(
+        118,
+        SootopolisCity_Gym_B1F.BriannaIntro,
+        SootopolisCity_Gym_B1F.BriannaDefeat,
+        SootopolisCity_Gym_B1F.BriannaPostBattle)
   }
 }
 
@@ -61,7 +73,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Brianna : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Bridget : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_BRIDGET
-    ctx.gymTrainer(129, SootopolisCity_Gym_B1F.BridgetIntro, SootopolisCity_Gym_B1F.BridgetDefeat, SootopolisCity_Gym_B1F.BridgetPostBattle)
+    ctx.gymTrainer(
+        129,
+        SootopolisCity_Gym_B1F.BridgetIntro,
+        SootopolisCity_Gym_B1F.BridgetDefeat,
+        SootopolisCity_Gym_B1F.BridgetPostBattle)
   }
 }
 
@@ -76,7 +92,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Bridget : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Tiffany : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_TIFFANY
-    ctx.gymTrainer(131, SootopolisCity_Gym_B1F.TiffanyIntro, SootopolisCity_Gym_B1F.TiffanyDefeat, SootopolisCity_Gym_B1F.TiffanyPostBattle)
+    ctx.gymTrainer(
+        131,
+        SootopolisCity_Gym_B1F.TiffanyIntro,
+        SootopolisCity_Gym_B1F.TiffanyDefeat,
+        SootopolisCity_Gym_B1F.TiffanyPostBattle)
   }
 }
 
@@ -91,7 +111,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Tiffany : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Bethany : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_BETHANY
-    ctx.gymTrainer(301, SootopolisCity_Gym_B1F.BethanyIntro, SootopolisCity_Gym_B1F.BethanyDefeat, SootopolisCity_Gym_B1F.BethanyPostBattle)
+    ctx.gymTrainer(
+        301,
+        SootopolisCity_Gym_B1F.BethanyIntro,
+        SootopolisCity_Gym_B1F.BethanyDefeat,
+        SootopolisCity_Gym_B1F.BethanyPostBattle)
   }
 }
 
@@ -106,7 +130,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Bethany : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Crissy : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_CRISSY
-    ctx.gymTrainer(614, SootopolisCity_Gym_B1F.CrissyIntro, SootopolisCity_Gym_B1F.CrissyDefeat, SootopolisCity_Gym_B1F.CrissyPostBattle)
+    ctx.gymTrainer(
+        614,
+        SootopolisCity_Gym_B1F.CrissyIntro,
+        SootopolisCity_Gym_B1F.CrissyDefeat,
+        SootopolisCity_Gym_B1F.CrissyPostBattle)
   }
 }
 
@@ -121,7 +149,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Crissy : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Olivia : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_OLIVIA
-    ctx.gymTrainer(130, SootopolisCity_Gym_B1F.OliviaIntro, SootopolisCity_Gym_B1F.OliviaDefeat, SootopolisCity_Gym_B1F.OliviaPostBattle)
+    ctx.gymTrainer(
+        130,
+        SootopolisCity_Gym_B1F.OliviaIntro,
+        SootopolisCity_Gym_B1F.OliviaDefeat,
+        SootopolisCity_Gym_B1F.OliviaPostBattle)
   }
 }
 
@@ -136,7 +168,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Olivia : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Daphne : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_DAPHNE
-    ctx.gymTrainer(115, SootopolisCity_Gym_B1F.DaphneIntro, SootopolisCity_Gym_B1F.DaphneDefeat, SootopolisCity_Gym_B1F.DaphnePostBattle)
+    ctx.gymTrainer(
+        115,
+        SootopolisCity_Gym_B1F.DaphneIntro,
+        SootopolisCity_Gym_B1F.DaphneDefeat,
+        SootopolisCity_Gym_B1F.DaphnePostBattle)
   }
 }
 
@@ -151,7 +187,11 @@ internal object SootopolisCity_Gym_B1F_EventScript_Daphne : Script {
 internal object SootopolisCity_Gym_B1F_EventScript_Annika : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_ANNIKA
-    ctx.gymTrainer(502, SootopolisCity_Gym_B1F.AnnikaIntro, SootopolisCity_Gym_B1F.AnnikaDefeat, SootopolisCity_Gym_B1F.AnnikaPostBattle)
+    ctx.gymTrainer(
+        502,
+        SootopolisCity_Gym_B1F.AnnikaIntro,
+        SootopolisCity_Gym_B1F.AnnikaDefeat,
+        SootopolisCity_Gym_B1F.AnnikaPostBattle)
   }
 }
 

@@ -10,11 +10,11 @@ import de.fiereu.openmmo.net.game.packets.battle.moves.*
 import de.fiereu.openmmo.net.game.packets.dialog.*
 import de.fiereu.openmmo.net.game.packets.gtl.*
 import de.fiereu.openmmo.net.game.packets.guild.*
+import de.fiereu.openmmo.net.game.packets.market.*
 import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacketCodec
 import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacketCodec
-import de.fiereu.openmmo.net.game.packets.market.*
 import de.fiereu.openmmo.net.game.packets.trade.*
 
 object GameProtocol : Protocol() {

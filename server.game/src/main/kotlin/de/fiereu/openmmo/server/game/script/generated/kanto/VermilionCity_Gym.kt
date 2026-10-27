@@ -5,9 +5,9 @@ import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
 import de.fiereu.openmmo.server.game.progression.gymTrainer
-import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -31,7 +31,8 @@ internal object VermilionCity_Gym_EventScript_LtSurge : Script {
       ctx.say(VermilionCity_Gym.ExplainTM34)
     }
     if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_LT_SURGE)) {
-      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM34_FROM_SURGE)) giveTm() else ctx.say(VermilionCity_Gym.LtSurgePostBattle)
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM34_FROM_SURGE)) giveTm()
+      else ctx.say(VermilionCity_Gym.LtSurgePostBattle)
       return
     }
     ctx.say(VermilionCity_Gym.LtSurgeIntro)
@@ -56,7 +57,11 @@ internal object VermilionCity_Gym_EventScript_LtSurge : Script {
 internal object VermilionCity_Gym_EventScript_Baily : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_ENGINEER_BAILY
-    ctx.gymTrainer(220, VermilionCity_Gym.BailyIntro, VermilionCity_Gym.BailyDefeat, VermilionCity_Gym.BailyPostBattle)
+    ctx.gymTrainer(
+        220,
+        VermilionCity_Gym.BailyIntro,
+        VermilionCity_Gym.BailyDefeat,
+        VermilionCity_Gym.BailyPostBattle)
   }
 }
 
@@ -72,7 +77,11 @@ internal object VermilionCity_Gym_EventScript_Baily : Script {
 internal object VermilionCity_Gym_EventScript_Dwayne : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_SAILOR_DWAYNE
-    ctx.gymTrainer(141, VermilionCity_Gym.DwayneIntro, VermilionCity_Gym.DwayneDefeat, VermilionCity_Gym.DwaynePostBattle)
+    ctx.gymTrainer(
+        141,
+        VermilionCity_Gym.DwayneIntro,
+        VermilionCity_Gym.DwayneDefeat,
+        VermilionCity_Gym.DwaynePostBattle)
   }
 }
 
@@ -103,7 +112,11 @@ internal object VermilionCity_Gym_EventScript_GymGuy : Script {
 internal object VermilionCity_Gym_EventScript_Tucker : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_GENTLEMAN_TUCKER
-    ctx.gymTrainer(423, VermilionCity_Gym.TuckerIntro, VermilionCity_Gym.TuckerDefeat, VermilionCity_Gym.TuckerPostBattle)
+    ctx.gymTrainer(
+        423,
+        VermilionCity_Gym.TuckerIntro,
+        VermilionCity_Gym.TuckerDefeat,
+        VermilionCity_Gym.TuckerPostBattle)
   }
 }
 

@@ -1,6 +1,5 @@
 package de.fiereu.openmmo.server.game.progression
 
-import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.network.PacketEvent
 import de.fiereu.network.SessionContext
 import de.fiereu.openmmo.common.CharacterPermissions
@@ -13,6 +12,7 @@ import de.fiereu.openmmo.net.game.packets.CurrencyBalancePacket
 import de.fiereu.openmmo.net.game.packets.LocalCharacterDeltaPacket
 import de.fiereu.openmmo.net.game.packets.progress.ProgressAction
 import de.fiereu.openmmo.net.game.packets.progress.ProgressActionPacket
+import de.fiereu.openmmo.progression.Gen3Data
 import de.fiereu.openmmo.server.game.config.GameServerConfig
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
@@ -82,8 +82,7 @@ constructor(
         val decor = Gen3Data.decorations[p.arg1]
         session.send(
             notice(
-                refused
-                    ?: "Here you go! ${decor?.name ?: "It"} x${p.arg2} was sent to your PC."))
+                refused ?: "Here you go! ${decor?.name ?: "It"} x${p.arg2} was sent to your PC."))
         sendMoney(session, charId)
         progress.push(session, charId)
       }
@@ -100,7 +99,8 @@ constructor(
     }
     characters.setStoryVar(charId, ProgressKeys.REGISTERED_ITEM, itemId)
     val name = items.get(itemId)?.name
-    session.send(notice(if (name != null) "Registered the $name." else "Cancelled the registration."))
+    session.send(
+        notice(if (name != null) "Registered the $name." else "Cancelled the registration."))
     progress.push(session, charId)
   }
 
@@ -122,8 +122,8 @@ constructor(
   }
 
   /**
-   * The character is in the world: the admin bootstrap account's characters get ADMIN and
-   * DEVELOPER (so testers need no database edits), play time starts, the state goes out.
+   * The character is in the world: the admin bootstrap account's characters get ADMIN and DEVELOPER
+   * (so testers need no database edits), play time starts, the state goes out.
    */
   fun onJoin(session: SessionContext, charId: Long) {
     val stored = characters.getCharacter(charId) ?: return

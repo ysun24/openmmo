@@ -3,8 +3,8 @@ package de.fiereu.openmmo.server.game.script.generated.hoenn
 import de.fiereu.openmmo.dialog.generated.hoenn.RustboroCity_Gym
 import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
-import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
+import de.fiereu.openmmo.server.game.progression.gymTrainer
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
@@ -72,7 +72,11 @@ private suspend fun giveRockTomb(ctx: ScriptContext) {
 internal object RustboroCity_Gym_EventScript_Josh : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_JOSH
-    ctx.gymTrainer(320, RustboroCity_Gym.JoshIntro, RustboroCity_Gym.JoshDefeat, RustboroCity_Gym.JoshPostBattle)
+    ctx.gymTrainer(
+        320,
+        RustboroCity_Gym.JoshIntro,
+        RustboroCity_Gym.JoshDefeat,
+        RustboroCity_Gym.JoshPostBattle)
   }
 }
 
@@ -87,7 +91,11 @@ internal object RustboroCity_Gym_EventScript_Josh : Script {
 internal object RustboroCity_Gym_EventScript_Tommy : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_TOMMY
-    ctx.gymTrainer(321, RustboroCity_Gym.TommyIntro, RustboroCity_Gym.TommyDefeat, RustboroCity_Gym.TommyPostBattle)
+    ctx.gymTrainer(
+        321,
+        RustboroCity_Gym.TommyIntro,
+        RustboroCity_Gym.TommyDefeat,
+        RustboroCity_Gym.TommyPostBattle)
   }
 }
 
@@ -123,7 +131,11 @@ internal object RustboroCity_Gym_EventScript_GymGuide : Script {
 internal object RustboroCity_Gym_EventScript_Marc : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_MARC
-    ctx.gymTrainer(571, RustboroCity_Gym.MarcIntro, RustboroCity_Gym.MarcDefeat, RustboroCity_Gym.MarcPostBattle)
+    ctx.gymTrainer(
+        571,
+        RustboroCity_Gym.MarcIntro,
+        RustboroCity_Gym.MarcDefeat,
+        RustboroCity_Gym.MarcPostBattle)
   }
 }
 

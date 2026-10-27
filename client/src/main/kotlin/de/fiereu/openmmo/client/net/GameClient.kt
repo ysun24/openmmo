@@ -44,8 +44,8 @@ import de.fiereu.openmmo.net.game.packets.SelectCharacterPacket
 import de.fiereu.openmmo.net.game.packets.battle.BattleSidePartyPacket
 import de.fiereu.openmmo.net.game.packets.gtl.GtlSearchPagePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketInventoryPacket
-import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.market.MarketResultPacket
+import de.fiereu.openmmo.net.game.packets.progress.ProgressStatePacket
 import de.fiereu.openmmo.net.game.packets.trade.TradeStatePacket
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.bootstrap.Bootstrap

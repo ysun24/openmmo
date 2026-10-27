@@ -250,7 +250,8 @@ constructor(
         ChatMessagePacket(
             type = ChatType.GAME_NOTIFICATIONS,
             language = Language.EN,
-            message = if (name != null) "Player $name left the game." else "A player left the game.",
+            message =
+                if (name != null) "Player $name left the game." else "A player left the game.",
             sender = "",
         ),
     )

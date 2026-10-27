@@ -77,7 +77,9 @@ class ProgressJson(private val names: Names) {
     put("money", s.world.overworld?.money ?: s.tradeMoney ?: s.market.money)
     put("playSeconds", s.playSeconds.takeIf { it > 0 } ?: p.playSeconds)
     put("dexSeen", ProgressStatePacket.ids(p.seen).count { it in 1..Gen3Data.NATIONAL_DEX_SIZE })
-    put("dexCaught", ProgressStatePacket.ids(p.caught).count { it in 1..Gen3Data.NATIONAL_DEX_SIZE })
+    put(
+        "dexCaught",
+        ProgressStatePacket.ids(p.caught).count { it in 1..Gen3Data.NATIONAL_DEX_SIZE })
     putJsonObject("badges") {
       putJsonArray("kanto") { for (b in 0 until 8) add(p.badges shr b and 1 == 1) }
       putJsonArray("hoenn") { for (b in 0 until 8) add(p.badges shr (b + 8) and 1 == 1) }

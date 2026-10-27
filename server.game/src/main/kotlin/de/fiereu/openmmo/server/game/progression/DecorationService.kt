@@ -51,7 +51,9 @@ constructor(
               info = s.info.copy(money = s.info.money - cost.toInt()),
               storyVars =
                   s.storyVars.toMutableMap().apply {
-                    put(ProgressKeys.decor(decorId), (this[ProgressKeys.decor(decorId)] ?: 0) + quantity)
+                    put(
+                        ProgressKeys.decor(decorId),
+                        (this[ProgressKeys.decor(decorId)] ?: 0) + quantity)
                   },
           )
         }

@@ -12,8 +12,8 @@ private val log = KotlinLogging.logger {}
 
 /**
  * Admin only: `/grant <player> developer|admin|none` sets another online character's rank, so
- * testers get the dev commands without a database edit. Admin implies developer; `none` takes
- * both away. Only admins (the bootstrap account's characters, see GameServerConfig) may run it.
+ * testers get the dev commands without a database edit. Admin implies developer; `none` takes both
+ * away. Only admins (the bootstrap account's characters, see GameServerConfig) may run it.
  */
 @Singleton
 class GrantCommand

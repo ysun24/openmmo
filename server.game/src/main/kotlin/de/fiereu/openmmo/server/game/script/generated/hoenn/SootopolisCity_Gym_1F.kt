@@ -4,10 +4,10 @@ import de.fiereu.openmmo.dialog.generated.hoenn.SootopolisCity_Gym_1F
 import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
-import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
-import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -31,7 +31,8 @@ internal object SootopolisCity_Gym_1F_EventScript_Juan : Script {
       ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_WATER_PULSE)
     }
     if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_SOOTOPOLIS_GYM)) {
-      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_WATER_PULSE)) giveTm() else ctx.say(SootopolisCity_Gym_1F.JuanPostBattle)
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_WATER_PULSE)) giveTm()
+      else ctx.say(SootopolisCity_Gym_1F.JuanPostBattle)
       return
     }
     ctx.say(SootopolisCity_Gym_1F.JuanIntro)

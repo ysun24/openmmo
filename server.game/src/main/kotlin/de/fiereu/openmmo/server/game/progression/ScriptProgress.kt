@@ -11,9 +11,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * What map scripts of this branch reach through [de.fiereu.openmmo.server.game.script.ScriptContext]:
- * the day care (with a party / day care picker the script waits on, like the decomp's
- * ChooseSendDaycareMon and ShowDaycareLevelMenu), decoration shops and badges.
+ * What map scripts of this branch reach through
+ * [de.fiereu.openmmo.server.game.script.ScriptContext]: the day care (with a party / day care
+ * picker the script waits on, like the decomp's ChooseSendDaycareMon and ShowDaycareLevelMenu),
+ * decoration shops and badges.
  */
 @Singleton
 class ScriptProgress

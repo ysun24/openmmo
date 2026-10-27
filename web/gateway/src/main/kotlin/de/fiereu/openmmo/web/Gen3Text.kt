@@ -75,11 +75,14 @@ class Gen3Text(private val decomp: File) {
         Regex("""const u8 (\w+)\[\] = _\(((?:\s*"[^"]*")+)\s*\);""").findAll(text).associate {
           it.groupValues[1] to joinStrings(it.groupValues[2])
         }
-    Regex("""\[(MOVE_\w+) - 1\]\s*=\s*(\w+)""").findAll(text).mapNotNull {
-      val id = ids[it.groupValues[1]] ?: return@mapNotNull null
-      val s = strings[it.groupValues[2]] ?: return@mapNotNull null
-      id to s
-    }.toMap()
+    Regex("""\[(MOVE_\w+) - 1\]\s*=\s*(\w+)""")
+        .findAll(text)
+        .mapNotNull {
+          val id = ids[it.groupValues[1]] ?: return@mapNotNull null
+          val s = strings[it.groupValues[2]] ?: return@mapNotNull null
+          id to s
+        }
+        .toMap()
   }
 
   fun moveDescription(moveId: Int): String? = moveDescriptions[moveId]

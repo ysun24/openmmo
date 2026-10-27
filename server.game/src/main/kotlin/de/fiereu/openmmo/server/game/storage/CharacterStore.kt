@@ -51,8 +51,8 @@ data class StoredCharacter(
     val dexCaught: Set<Int> = emptySet(),
 ) {
   /**
-   * The same character with every species it owns registered as caught, as the games do whenever
-   * a monster is received (caught, gift, trade, evolution, hatch). Itself when nothing is new.
+   * The same character with every species it owns registered as caught, as the games do whenever a
+   * monster is received (caught, gift, trade, evolution, hatch). Itself when nothing is new.
    */
   fun withOwnedInDex(): StoredCharacter {
     val owned = (pokemon.asSequence() + pcStorage + daycare).filter { !it.isEgg }.map { it.dexId }

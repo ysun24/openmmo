@@ -93,8 +93,7 @@ object Gen3Data {
 
   fun isHmMove(moveId: Int): Boolean = moveId in tmhmMoves.subList(TM_COUNT, TM_COUNT + HM_COUNT)
 
-  fun canLearnTmhm(dexId: Int, index: Int): Boolean =
-      (tmhmBits[dexId] ?: 0L) shr index and 1L == 1L
+  fun canLearnTmhm(dexId: Int, index: Int): Boolean = (tmhmBits[dexId] ?: 0L) shr index and 1L == 1L
 
   fun eggMoves(dexId: Int): List<Int> = eggMoves[dexId].orEmpty()
 
@@ -120,7 +119,8 @@ object Gen3Data {
   private val TMHM_NAME = Regex("(TM|HM)(\\d\\d)")
 
   private fun <V> pairs(packed: String, value: (String) -> V): Map<Int, V> =
-      packed.split(';')
+      packed
+          .split(';')
           .filter { it.isNotEmpty() }
           .associate { e ->
             val i = e.indexOf(':')

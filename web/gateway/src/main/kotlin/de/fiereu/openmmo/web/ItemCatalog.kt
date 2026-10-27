@@ -167,20 +167,56 @@ class ItemCatalog(private val decomp: File) {
     const val ITEM_REGION_BLOCK = 5000
 
     /**
-     * How the server's FieldItemEffects uses an item out of battle, where the gen 5 field use
-     * says otherwise (status heals, PP items, Rare Candy, stones, vitamins, EV berries, the
-     * Escape Rope). Keys are [norm]alised names.
+     * How the server's FieldItemEffects uses an item out of battle, where the gen 5 field use says
+     * otherwise (status heals, PP items, Rare Candy, stones, vitamins, EV berries, the Escape
+     * Rope). Keys are [norm]alised names.
      */
     val FIELD_USE: Map<String, String> =
         (listOf(
-                "antidote", "burnheal", "iceheal", "awakening", "paralyzeheal", "fullheal",
-                "healpowder", "lavacookie", "rarecandy", "firestone", "waterstone",
-                "thunderstone", "leafstone", "moonstone", "sunstone", "hpup", "protein", "iron",
-                "carbos", "calcium", "zinc", "pomegberry", "kelpsyberry", "qualotberry",
-                "hondewberry", "grepaberry", "tamatoberry", "oranberry", "sitrusberry",
-                "cheriberry", "chestoberry", "pechaberry", "rawstberry", "aspearberry", "lumberry",
-                "fullrestore", "revive", "maxrevive", "revivalherb", "energypowder", "energyroot",
-                "berryjuice", "elixir", "maxelixir")
+                "antidote",
+                "burnheal",
+                "iceheal",
+                "awakening",
+                "paralyzeheal",
+                "fullheal",
+                "healpowder",
+                "lavacookie",
+                "rarecandy",
+                "firestone",
+                "waterstone",
+                "thunderstone",
+                "leafstone",
+                "moonstone",
+                "sunstone",
+                "hpup",
+                "protein",
+                "iron",
+                "carbos",
+                "calcium",
+                "zinc",
+                "pomegberry",
+                "kelpsyberry",
+                "qualotberry",
+                "hondewberry",
+                "grepaberry",
+                "tamatoberry",
+                "oranberry",
+                "sitrusberry",
+                "cheriberry",
+                "chestoberry",
+                "pechaberry",
+                "rawstberry",
+                "aspearberry",
+                "lumberry",
+                "fullrestore",
+                "revive",
+                "maxrevive",
+                "revivalherb",
+                "energypowder",
+                "energyroot",
+                "berryjuice",
+                "elixir",
+                "maxelixir")
             .associateWith { "mon" } +
             listOf("ether", "maxether", "leppaberry", "ppup", "ppmax").associateWith { "move" } +
             listOf("escaperope", "repel", "superrepel", "maxrepel").associateWith { "field" })
@@ -188,9 +224,22 @@ class ItemCatalog(private val decomp: File) {
     /** Key items the GBA lets the player register to SELECT. */
     val REGISTRABLE =
         setOf(
-            "bicycle", "machbike", "acrobike", "oldrod", "goodrod", "superrod", "itemfinder",
-            "dowsingmchn", "vsseeker", "wailmerpail", "sprayduck", "pokeflute", "townmap",
-            "coinCase".lowercase(), "devonscope", "silphscope")
+            "bicycle",
+            "machbike",
+            "acrobike",
+            "oldrod",
+            "goodrod",
+            "superrod",
+            "itemfinder",
+            "dowsingmchn",
+            "vsseeker",
+            "wailmerpail",
+            "sprayduck",
+            "pokeflute",
+            "townmap",
+            "coinCase".lowercase(),
+            "devonscope",
+            "silphscope")
     val TM = Regex("[TH]M\\d+")
 
     fun norm(s: String) =

@@ -24,8 +24,8 @@ class BadgeService @Inject constructor(private val characters: CharacterStore) {
       (1..BADGES).count { hasBadge(characterId, region, it) }
 
   /**
-   * Whether [moveId] may be used in the field in [region] (the decomp's field move checks): each
-   * HM needs its region's badge. Moves that are no HM are not gated here.
+   * Whether [moveId] may be used in the field in [region] (the decomp's field move checks): each HM
+   * needs its region's badge. Moves that are no HM are not gated here.
    */
   fun canUseFieldMove(characterId: Long, region: Region, moveId: Int): Boolean {
     val badge = fieldMoveBadge(region, moveId) ?: return true
@@ -48,7 +48,8 @@ class BadgeService @Inject constructor(private val characters: CharacterStore) {
     fun flag(region: Region, badge: Int): String =
         "${region.name.lowercase()}/FLAG_BADGE0${badge}_GET"
 
-    fun has(s: StoredCharacter, region: Region, badge: Int): Boolean = flag(region, badge) in s.storyFlags
+    fun has(s: StoredCharacter, region: Region, badge: Int): Boolean =
+        flag(region, badge) in s.storyFlags
 
     fun mask(s: StoredCharacter): Int {
       var m = 0

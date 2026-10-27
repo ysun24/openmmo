@@ -235,7 +235,8 @@ object Dispatcher {
           val i = m["index"]
           g.daycareWithdraw(if (i == null || i is JsonNull) null else m.reqInt("index", 0..1))
         }
-        "decor.buy" -> g.decorBuy(m.reqInt("id", 1..Short.MAX_VALUE.toInt()), m.reqInt("qty", 1..99))
+        "decor.buy" ->
+            g.decorBuy(m.reqInt("id", 1..Short.MAX_VALUE.toInt()), m.reqInt("qty", 1..99))
         "decor.close" -> g.decorClose()
         "progress.refresh" -> g.progressRefresh()
         else -> "unknown message type: $t"

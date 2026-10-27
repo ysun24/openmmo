@@ -13,11 +13,13 @@ class ProgressClient(
     private val send: (Any) -> Unit,
     private val onChange: () -> Unit,
 ) {
-  @Volatile var state: ProgressStatePacket? = null
+  @Volatile
+  var state: ProgressStatePacket? = null
     private set
 
   /** When [state] arrived, so play time keeps ticking between pushes. */
-  @Volatile var receivedAtMs: Long = 0
+  @Volatile
+  var receivedAtMs: Long = 0
     private set
 
   fun onState(p: ProgressStatePacket) {

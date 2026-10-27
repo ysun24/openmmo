@@ -229,51 +229,51 @@ class StateJson(private val names: Names) {
 
   fun party(party: List<Pokemon>, progress: ProgressStatePacket? = null): JsonElement =
       buildJsonArray {
-    party
-        .sortedBy { it.containerSlot }
-        .map { ProgressJson.withExtras(it, progress) }
-        .forEachIndexed { i, mon ->
-          addJsonObject {
-            put("slot", i)
-            put("dex", mon.dexId)
-            val species = names.species(mon.dexId)
-            put("name", if (mon.isEgg) "EGG" else species)
-            put(
-                "nick",
-                mon.nickname.takeIf { it.isNotEmpty() && !it.equals(species, ignoreCase = true) })
-            put("level", mon.level.toInt())
-            put("hp", mon.hp.toInt())
-            put("maxHp", names.maxHp(mon))
-            put("id", mon.id.toString())
-            names.summary(mon)?.let { sum ->
-              putJsonObject("stats") { sum.stats.forEach { (k, v) -> put(k, v) } }
-              put("nature", sum.nature)
-              put("ability", sum.ability)
-              putJsonArray("types") { sum.types.forEach { add(it) } }
-            }
-            putJsonArray("moves") {
-              mon.moves.forEachIndexed { slot, it ->
-                if (it.id.toInt() == 0) return@forEachIndexed
-                addJsonObject {
-                  put("slot", slot)
-                  put("id", it.id.toInt())
-                  put("name", names.move(it.id.toInt()))
-                  put("pp", it.pp.toInt())
-                  put(
-                      "maxPp",
-                      MonStatus.maxPp(names.maxPp(it.id.toInt()), mon.ppBonuses, slot))
-                  put("ppUps", (mon.ppBonuses shr (slot * 2)) and 3)
+        party
+            .sortedBy { it.containerSlot }
+            .map { ProgressJson.withExtras(it, progress) }
+            .forEachIndexed { i, mon ->
+              addJsonObject {
+                put("slot", i)
+                put("dex", mon.dexId)
+                val species = names.species(mon.dexId)
+                put("name", if (mon.isEgg) "EGG" else species)
+                put(
+                    "nick",
+                    mon.nickname.takeIf {
+                      it.isNotEmpty() && !it.equals(species, ignoreCase = true)
+                    })
+                put("level", mon.level.toInt())
+                put("hp", mon.hp.toInt())
+                put("maxHp", names.maxHp(mon))
+                put("id", mon.id.toString())
+                names.summary(mon)?.let { sum ->
+                  putJsonObject("stats") { sum.stats.forEach { (k, v) -> put(k, v) } }
+                  put("nature", sum.nature)
+                  put("ability", sum.ability)
+                  putJsonArray("types") { sum.types.forEach { add(it) } }
                 }
+                putJsonArray("moves") {
+                  mon.moves.forEachIndexed { slot, it ->
+                    if (it.id.toInt() == 0) return@forEachIndexed
+                    addJsonObject {
+                      put("slot", slot)
+                      put("id", it.id.toInt())
+                      put("name", names.move(it.id.toInt()))
+                      put("pp", it.pp.toInt())
+                      put("maxPp", MonStatus.maxPp(names.maxPp(it.id.toInt()), mon.ppBonuses, slot))
+                      put("ppUps", (mon.ppBonuses shr (slot * 2)) and 3)
+                    }
+                  }
+                }
+                put("status", MonStatus.label(mon.status))
+                if (mon.isEgg) put("egg", true)
+                put("ot", mon.ot)
+                put("xp", mon.xp)
+                put("shiny", mon.isShiny)
               }
             }
-            put("status", MonStatus.label(mon.status))
-            if (mon.isEgg) put("egg", true)
-            put("ot", mon.ot)
-            put("xp", mon.xp)
-            put("shiny", mon.isShiny)
-          }
-        }
-  }
+      }
 
   /** The PC boxes, and whether the player stands where the PC can be used. */
   fun pc(s: Sources): JsonElement = buildJsonObject {

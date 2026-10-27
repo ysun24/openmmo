@@ -12,8 +12,8 @@ import de.fiereu.openmmo.moves.MoveRegistry
 import de.fiereu.openmmo.net.game.packets.FieldItemUsePacket
 import de.fiereu.openmmo.net.game.packets.progress.LearnPrompt
 import de.fiereu.openmmo.pokemon.SpeciesRegistry
-import de.fiereu.openmmo.server.game.progression.EscapeRopeService
 import de.fiereu.openmmo.progression.Gen3Data
+import de.fiereu.openmmo.server.game.progression.EscapeRopeService
 import de.fiereu.openmmo.server.game.progression.Growth
 import de.fiereu.openmmo.server.game.progression.MonGrowth
 import de.fiereu.openmmo.server.game.progression.PlayerProgressService
@@ -34,10 +34,10 @@ private const val MIN_PP_FOR_PP_UP = 5
 
 /**
  * Bag items used outside a battle, as the decomp's item_use.c and party_menu.c do it: medicine,
- * status cures, PP restorers (all moves or one chosen move), Rare Candy, evolution stones,
- * vitamins and EV berries, PP Up / PP Max, TMs and HMs, Repels and the Escape Rope. The item is
- * taken first, so a failed write never hands out a free effect; every refusal is reported to the
- * player as a notice and costs nothing.
+ * status cures, PP restorers (all moves or one chosen move), Rare Candy, evolution stones, vitamins
+ * and EV berries, PP Up / PP Max, TMs and HMs, Repels and the Escape Rope. The item is taken first,
+ * so a failed write never hands out a free effect; every refusal is reported to the player as a
+ * notice and costs nothing.
  */
 @Singleton
 class FieldItemService
@@ -58,7 +58,9 @@ constructor(
     handle(event.session, event.packet.itemId.toInt(), event.packet.pokemonId, -1, -1)
   }
 
-  /** Uses an item, on [moveSlot] of the monster when the item needs a move, and syncs the player. */
+  /**
+   * Uses an item, on [moveSlot] of the monster when the item needs a move, and syncs the player.
+   */
   suspend fun handle(
       session: SessionContext,
       itemId: Int,
@@ -140,7 +142,13 @@ constructor(
       FieldItemEffect.RareCandy -> return rareCandy(charId, itemId, mon, name)
       FieldItemEffect.EvolutionStone -> return stone(charId, item, itemId, mon, name)
       is FieldItemEffect.TeachMachine ->
-          return teach(charId, item, itemId, mon, name, effect.index,
+          return teach(
+              charId,
+              item,
+              itemId,
+              mon,
+              name,
+              effect.index,
               if (forgetSlot >= 0) forgetSlot else moveSlot)
       else -> {}
     }
@@ -172,8 +180,7 @@ constructor(
         mon.copy(hp = (maxHp * effect.fraction).toInt().coerceIn(1, maxHp).toShort(), status = 0)
       }
       is FieldItemEffect.RestoreAllPp -> {
-        val restored =
-            mon.moves.mapIndexed { i, m -> restorePp(mon, m, i, effect.amount) }
+        val restored = mon.moves.mapIndexed { i, m -> restorePp(mon, m, i, effect.amount) }
         if (restored == mon.moves) null else mon.copy(moves = restored)
       }
       is FieldItemEffect.RestorePp -> {
@@ -190,15 +197,17 @@ constructor(
       is FieldItemEffect.Vitamin -> {
         val current = ev(mon.eVs, effect.stat)
         if (mon.eVs.total >= MAX_TOTAL_EVS || current >= EV_ITEM_RAISE_LIMIT) return null
-        val add =
-            minOf(EV_STEP, EV_ITEM_RAISE_LIMIT - current, MAX_TOTAL_EVS - mon.eVs.total)
+        val add = minOf(EV_STEP, EV_ITEM_RAISE_LIMIT - current, MAX_TOTAL_EVS - mon.eVs.total)
         rescaled(mon, mon.copy(eVs = growth.withEv(mon.eVs, effect.stat, current + add)))
       }
       is FieldItemEffect.EvBerry -> {
         val current = ev(mon.eVs, effect.stat)
         // The decomp still raises friendship at 0 EVs; friendship is not kept here, so nothing.
         if (current == 0) return null
-        rescaled(mon, mon.copy(eVs = growth.withEv(mon.eVs, effect.stat, (current - EV_STEP).coerceAtLeast(0))))
+        rescaled(
+            mon,
+            mon.copy(
+                eVs = growth.withEv(mon.eVs, effect.stat, (current - EV_STEP).coerceAtLeast(0))))
       }
       is FieldItemEffect.PpUp -> {
         val m = mon.moves.getOrNull(moveSlot) ?: return null
@@ -207,10 +216,14 @@ constructor(
         val ups = (mon.ppBonuses shr (moveSlot * 2)) and 3
         if (ups >= MAX_PP_UPS) return null
         val newUps = (ups + effect.steps).coerceAtMost(MAX_PP_UPS)
-        val bonuses = (mon.ppBonuses and (3 shl (moveSlot * 2)).inv()) or (newUps shl (moveSlot * 2))
-        val gain = MonStatus.maxPp(base, bonuses, moveSlot) - MonStatus.maxPp(base, mon.ppBonuses, moveSlot)
+        val bonuses =
+            (mon.ppBonuses and (3 shl (moveSlot * 2)).inv()) or (newUps shl (moveSlot * 2))
+        val gain =
+            MonStatus.maxPp(base, bonuses, moveSlot) -
+                MonStatus.maxPp(base, mon.ppBonuses, moveSlot)
         val moved = PokemonMove(m.id, (m.pp + gain).toByte())
-        mon.copy(ppBonuses = bonuses, moves = mon.moves.toMutableList().also { it[moveSlot] = moved })
+        mon.copy(
+            ppBonuses = bonuses, moves = mon.moves.toMutableList().also { it[moveSlot] = moved })
       }
       else -> null
     }
@@ -237,7 +250,9 @@ constructor(
     if (evo != null) {
       val party = characters.getCharacter(charId)?.pokemon?.size ?: 6
       val evolved = growth.evolve(grown.mon, evo, party, entityIds::newMonsterId)
-      result = evolved.copy(offered = grown.offered + evolved.offered, learned = grown.learned + evolved.learned)
+      result =
+          evolved.copy(
+              offered = grown.offered + evolved.offered, learned = grown.learned + evolved.learned)
       lines += "Congratulations! Your $name evolved into ${speciesName(evolved.mon.dexId)}!"
       lines += evolved.learned.map { "${speciesName(evolved.mon.dexId)} learned ${it.name}!" }
     }
@@ -275,7 +290,8 @@ constructor(
       index: Int,
       forget: Int,
   ): Outcome {
-    val moveId = Gen3Data.tmhmMove(index) ?: return Outcome("${item.name} can't be used here.", false)
+    val moveId =
+        Gen3Data.tmhmMove(index) ?: return Outcome("${item.name} can't be used here.", false)
     val move = moves.get(moveId) ?: return Outcome("${item.name} can't be used here.", false)
     if (!Gen3Data.canLearnTmhm(mon.dexId, index)) {
       return Outcome("$name can't learn ${move.name}.", false)
@@ -291,8 +307,9 @@ constructor(
       return Outcome("HM moves can't be forgotten now.", false)
     }
     val forgotten = if (full) moves.get(mon.moves[forget].id.toInt())?.name else null
-    val taught = growth.teach(mon, moveId, move.pp, if (full) forget else -1)
-        ?: return Outcome("It won't have any effect.", false)
+    val taught =
+        growth.teach(mon, moveId, move.pp, if (full) forget else -1)
+            ?: return Outcome("It won't have any effect.", false)
     // TMs are used up in Gen 3; HMs are not.
     val isHm = index >= Gen3Data.TM_COUNT
     if (!isHm && !characters.addItem(charId, itemId, -1)) return Outcome("", false)
@@ -309,12 +326,10 @@ constructor(
       val stored = characters.getCharacter(charId)
       if (stored != null && stored.pokemon.size < 6) {
         characters.addPokemon(
-            charId,
-            extra.copy(ownerId = charId, containerSlot = stored.pokemon.size.toShort()))
+            charId, extra.copy(ownerId = charId, containerSlot = stored.pokemon.size.toShort()))
       }
     }
-    progress.queueLearn(
-        charId, g.offered.map { LearnPrompt(before.id, it.moveId.toShort()) })
+    progress.queueLearn(charId, g.offered.map { LearnPrompt(before.id, it.moveId.toShort()) })
   }
 
   /** The learn prompt's answer: forget [slot] (0-3) for the offered move, or -1 to give it up. */
@@ -343,7 +358,8 @@ constructor(
   ): String =
       when (effect) {
         is FieldItemEffect.Heal ->
-            if (after.hp != before.hp) "$name's HP was restored by ${after.hp - before.hp} point(s)."
+            if (after.hp != before.hp)
+                "$name's HP was restored by ${after.hp - before.hp} point(s)."
             else "$name was cured."
         is FieldItemEffect.Revive -> "$name was revived by the ${item.name}!"
         is FieldItemEffect.RestoreAllPp -> "$name's PP was restored."
@@ -360,8 +376,7 @@ constructor(
   /** The decomp's cure strings (gText_PkmnCuredOfPoison & co.). */
   private fun cureText(name: String, cured: Int): String =
       when {
-        cured and MonStatus.ANY_POISON.inv() == 0 ->
-            "$name was cured of its poisoning."
+        cured and MonStatus.ANY_POISON.inv() == 0 -> "$name was cured of its poisoning."
         cured == MonStatus.BURN -> "$name's burn was healed."
         cured == MonStatus.FREEZE -> "$name was thawed out."
         cured and MonStatus.SLEEP.inv() == 0 -> "$name woke up."

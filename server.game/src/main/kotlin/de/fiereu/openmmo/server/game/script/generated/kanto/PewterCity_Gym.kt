@@ -5,10 +5,10 @@ import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
 import de.fiereu.openmmo.server.game.progression.gymTrainer
-import de.fiereu.openmmo.story.generated.kanto.KantoFlags
-import de.fiereu.openmmo.story.generated.kanto.KantoVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
+import de.fiereu.openmmo.story.generated.kanto.KantoVars
 
 /**
  * Not ported yet. Decomp body:
@@ -32,7 +32,8 @@ internal object PewterCity_Gym_EventScript_Brock : Script {
       ctx.say(PewterCity_Gym.ExplainTM39)
     }
     if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_BROCK)) {
-      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM39_FROM_BROCK)) giveTm() else ctx.say(PewterCity_Gym.BrockPostBattle)
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM39_FROM_BROCK)) giveTm()
+      else ctx.say(PewterCity_Gym.BrockPostBattle)
       return
     }
     ctx.say(PewterCity_Gym.BrockIntro)
@@ -58,7 +59,8 @@ internal object PewterCity_Gym_EventScript_Brock : Script {
 internal object PewterCity_Gym_EventScript_Liam : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_CAMPER_LIAM
-    ctx.gymTrainer(142, PewterCity_Gym.LiamIntro, PewterCity_Gym.LiamDefeat, PewterCity_Gym.LiamPostBattle)
+    ctx.gymTrainer(
+        142, PewterCity_Gym.LiamIntro, PewterCity_Gym.LiamDefeat, PewterCity_Gym.LiamPostBattle)
   }
 }
 

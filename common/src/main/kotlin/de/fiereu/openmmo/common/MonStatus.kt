@@ -1,8 +1,8 @@
 package de.fiereu.openmmo.common
 
 /**
- * The Gen 3 non-volatile status bits (`STATUS1_*` in the decomp's include/constants/battle.h). Sleep
- * keeps its remaining turns in the low three bits.
+ * The Gen 3 non-volatile status bits (`STATUS1_*` in the decomp's include/constants/battle.h).
+ * Sleep keeps its remaining turns in the low three bits.
  */
 object MonStatus {
   const val NONE = 0

@@ -3,9 +3,9 @@ package de.fiereu.openmmo.server.game.script.generated.hoenn
 import de.fiereu.openmmo.dialog.generated.hoenn.Misc
 import de.fiereu.openmmo.dialog.generated.hoenn.Route104_PrettyPetalFlowerShop
 import de.fiereu.openmmo.items.generated.Items
-import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
 import java.time.LocalDate
 
 /**
@@ -41,7 +41,9 @@ internal object Route104_PrettyPetalFlowerShop_EventScript_ShopOwner : Script {
           ctx.setFlag(HoennFlags.FLAG_MET_PRETTY_PETAL_SHOP_OWNER)
           ctx.askYesNo(Route104_PrettyPetalFlowerShop.IntroLearnAboutBerries)
         }
-    ctx.say(if (learn) Route104_PrettyPetalFlowerShop.BerriesExplanation else Route104_PrettyPetalFlowerShop.FlowersBringHappiness)
+    ctx.say(
+        if (learn) Route104_PrettyPetalFlowerShop.BerriesExplanation
+        else Route104_PrettyPetalFlowerShop.FlowersBringHappiness)
   }
 }
 
@@ -93,7 +95,8 @@ internal object Route104_PrettyPetalFlowerShop_EventScript_RandomBerryGirl : Scr
     // FLAG_DAILY_FLOWER_SHOP_RECEIVED_BERRY is cleared every day by dotimebasedevents; the day
     // number it was set on stands in for it.
     val today = LocalDate.now().toEpochDay().toInt()
-    if (ctx.getVar(DAILY_BERRY_DAY) == today) return ctx.say(Route104_PrettyPetalFlowerShop.MachineMixesBerries)
+    if (ctx.getVar(DAILY_BERRY_DAY) == today)
+        return ctx.say(Route104_PrettyPetalFlowerShop.MachineMixesBerries)
     ctx.say(Route104_PrettyPetalFlowerShop.ImGrowingFlowers)
     // random 8 + FIRST_BERRY_INDEX: one of the first eight berries.
     val berry = FIRST_EIGHT_BERRIES.random()

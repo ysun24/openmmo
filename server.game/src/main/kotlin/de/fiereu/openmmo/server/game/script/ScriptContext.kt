@@ -11,13 +11,13 @@ import de.fiereu.openmmo.net.game.packets.dialog.DialogMessageArg
 import de.fiereu.openmmo.net.game.packets.dialog.TextPokemonSpeciesArg
 import de.fiereu.openmmo.net.game.packets.dialog.TextStringArg
 import de.fiereu.openmmo.server.game.battle.BattleResult
+import de.fiereu.openmmo.server.game.progression.ScriptProgress
 import de.fiereu.openmmo.server.game.services.BattleService
 import de.fiereu.openmmo.server.game.services.DialogPresentation
 import de.fiereu.openmmo.server.game.services.DialogService
 import de.fiereu.openmmo.server.game.services.MapEntryScripts
 import de.fiereu.openmmo.server.game.services.ScriptMovementService
 import de.fiereu.openmmo.server.game.services.ScriptWarpService
-import de.fiereu.openmmo.server.game.progression.ScriptProgress
 import de.fiereu.openmmo.server.game.services.ShopService
 import de.fiereu.openmmo.server.game.services.StoryClientState
 import de.fiereu.openmmo.server.game.services.StoryPlayerService

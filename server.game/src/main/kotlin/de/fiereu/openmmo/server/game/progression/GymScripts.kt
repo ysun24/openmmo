@@ -38,8 +38,8 @@ private fun ScriptContext.regionKey(): String =
 
 /**
  * A plain trainer that is talked to (`trainerbattle_single` + one msgbox): the intro, the battle,
- * and once beaten only the post-battle line. The decomp's trainer flags are numbered after the
- * flag table, so the beaten state is kept as `<region>/OPENMMO_TRAINER_<id>`.
+ * and once beaten only the post-battle line. The decomp's trainer flags are numbered after the flag
+ * table, so the beaten state is kept as `<region>/OPENMMO_TRAINER_<id>`.
  */
 suspend fun ScriptContext.gymTrainer(
     trainerId: Int,

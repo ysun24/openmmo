@@ -4,10 +4,10 @@ import de.fiereu.openmmo.dialog.generated.hoenn.LavaridgeTown_Gym_1F
 import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
-import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
-import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
+import de.fiereu.openmmo.story.generated.hoenn.HoennVars
 
 /**
  * Not ported yet. Decomp body:
@@ -30,7 +30,8 @@ internal object LavaridgeTown_Gym_1F_EventScript_Flannery : Script {
       ctx.setFlag(HoennFlags.FLAG_RECEIVED_TM_OVERHEAT)
     }
     if (ctx.isFlagSet(HoennFlags.FLAG_DEFEATED_LAVARIDGE_GYM)) {
-      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_OVERHEAT)) giveTm() else ctx.say(LavaridgeTown_Gym_1F.FlanneryPostBattle)
+      if (!ctx.isFlagSet(HoennFlags.FLAG_RECEIVED_TM_OVERHEAT)) giveTm()
+      else ctx.say(LavaridgeTown_Gym_1F.FlanneryPostBattle)
       return
     }
     ctx.say(LavaridgeTown_Gym_1F.FlanneryIntro)

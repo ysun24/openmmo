@@ -1,12 +1,12 @@
 package de.fiereu.openmmo.server.game.script.generated.hoenn
 
 import de.fiereu.openmmo.dialog.generated.hoenn.PetalburgCity_Gym
-import de.fiereu.openmmo.server.game.script.MovementStep.SET_INVISIBLE
-import de.fiereu.openmmo.server.game.script.MovementStep.WALK_DOWN
-import de.fiereu.openmmo.server.game.progression.gymTrainer
+import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
-import de.fiereu.openmmo.items.generated.Items
+import de.fiereu.openmmo.server.game.progression.gymTrainer
+import de.fiereu.openmmo.server.game.script.MovementStep.SET_INVISIBLE
+import de.fiereu.openmmo.server.game.script.MovementStep.WALK_DOWN
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
 import de.fiereu.openmmo.story.generated.hoenn.HoennFlags
@@ -137,7 +137,11 @@ private suspend fun beginWallyTutorial(ctx: ScriptContext) {
 internal object PetalburgCity_Gym_EventScript_Mary : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_MARY
-    ctx.gymTrainer(89, PetalburgCity_Gym.MaryIntro, PetalburgCity_Gym.MaryDefeat, PetalburgCity_Gym.MaryPostBattle)
+    ctx.gymTrainer(
+        89,
+        PetalburgCity_Gym.MaryIntro,
+        PetalburgCity_Gym.MaryDefeat,
+        PetalburgCity_Gym.MaryPostBattle)
   }
 }
 
@@ -153,7 +157,11 @@ internal object PetalburgCity_Gym_EventScript_Mary : Script {
 internal object PetalburgCity_Gym_EventScript_Randall : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_RANDALL
-    ctx.gymTrainer(71, PetalburgCity_Gym.RandallIntro, PetalburgCity_Gym.RandallDefeat, PetalburgCity_Gym.RandallPostBattle)
+    ctx.gymTrainer(
+        71,
+        PetalburgCity_Gym.RandallIntro,
+        PetalburgCity_Gym.RandallDefeat,
+        PetalburgCity_Gym.RandallPostBattle)
   }
 }
 
@@ -169,7 +177,11 @@ internal object PetalburgCity_Gym_EventScript_Randall : Script {
 internal object PetalburgCity_Gym_EventScript_Parker : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_PARKER
-    ctx.gymTrainer(72, PetalburgCity_Gym.ParkerIntro, PetalburgCity_Gym.ParkerDefeat, PetalburgCity_Gym.ParkerPostBattle)
+    ctx.gymTrainer(
+        72,
+        PetalburgCity_Gym.ParkerIntro,
+        PetalburgCity_Gym.ParkerDefeat,
+        PetalburgCity_Gym.ParkerPostBattle)
   }
 }
 
@@ -185,7 +197,11 @@ internal object PetalburgCity_Gym_EventScript_Parker : Script {
 internal object PetalburgCity_Gym_EventScript_Alexia : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_ALEXIA
-    ctx.gymTrainer(90, PetalburgCity_Gym.AlexiaIntro, PetalburgCity_Gym.AlexiaDefeat, PetalburgCity_Gym.AlexiaPostBattle)
+    ctx.gymTrainer(
+        90,
+        PetalburgCity_Gym.AlexiaIntro,
+        PetalburgCity_Gym.AlexiaDefeat,
+        PetalburgCity_Gym.AlexiaPostBattle)
   }
 }
 
@@ -201,7 +217,11 @@ internal object PetalburgCity_Gym_EventScript_Alexia : Script {
 internal object PetalburgCity_Gym_EventScript_George : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_GEORGE
-    ctx.gymTrainer(73, PetalburgCity_Gym.GeorgeIntro, PetalburgCity_Gym.GeorgeDefeat, PetalburgCity_Gym.GeorgePostBattle)
+    ctx.gymTrainer(
+        73,
+        PetalburgCity_Gym.GeorgeIntro,
+        PetalburgCity_Gym.GeorgeDefeat,
+        PetalburgCity_Gym.GeorgePostBattle)
   }
 }
 
@@ -217,7 +237,11 @@ internal object PetalburgCity_Gym_EventScript_George : Script {
 internal object PetalburgCity_Gym_EventScript_Jody : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_JODY
-    ctx.gymTrainer(91, PetalburgCity_Gym.JodyIntro, PetalburgCity_Gym.JodyDefeat, PetalburgCity_Gym.JodyPostBattle)
+    ctx.gymTrainer(
+        91,
+        PetalburgCity_Gym.JodyIntro,
+        PetalburgCity_Gym.JodyDefeat,
+        PetalburgCity_Gym.JodyPostBattle)
   }
 }
 
@@ -233,7 +257,11 @@ internal object PetalburgCity_Gym_EventScript_Jody : Script {
 internal object PetalburgCity_Gym_EventScript_Berke : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_BERKE
-    ctx.gymTrainer(74, PetalburgCity_Gym.BerkeIntro, PetalburgCity_Gym.BerkeDefeat, PetalburgCity_Gym.BerkePostBattle)
+    ctx.gymTrainer(
+        74,
+        PetalburgCity_Gym.BerkeIntro,
+        PetalburgCity_Gym.BerkeDefeat,
+        PetalburgCity_Gym.BerkePostBattle)
   }
 }
 

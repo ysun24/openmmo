@@ -5,9 +5,9 @@ import de.fiereu.openmmo.items.generated.Items
 import de.fiereu.openmmo.server.game.battle.BattleResult
 import de.fiereu.openmmo.server.game.progression.badgeAwarded
 import de.fiereu.openmmo.server.game.progression.gymTrainer
-import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 import de.fiereu.openmmo.server.game.script.Script
 import de.fiereu.openmmo.server.game.script.ScriptContext
+import de.fiereu.openmmo.story.generated.kanto.KantoFlags
 
 /**
  * Not ported yet. Decomp body:
@@ -21,7 +21,11 @@ import de.fiereu.openmmo.server.game.script.ScriptContext
 internal object CeruleanCity_Gym_EventScript_Luis : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_SWIMMER_MALE_LUIS
-    ctx.gymTrainer(234, CeruleanCity_Gym.LuisIntro, CeruleanCity_Gym.LuisDefeat, CeruleanCity_Gym.LuisPostBattle)
+    ctx.gymTrainer(
+        234,
+        CeruleanCity_Gym.LuisIntro,
+        CeruleanCity_Gym.LuisDefeat,
+        CeruleanCity_Gym.LuisPostBattle)
   }
 }
 
@@ -36,7 +40,11 @@ internal object CeruleanCity_Gym_EventScript_Luis : Script {
 internal object CeruleanCity_Gym_EventScript_Diana : Script {
   override suspend fun run(ctx: ScriptContext) {
     // TRAINER_PICNICKER_DIANA
-    ctx.gymTrainer(150, CeruleanCity_Gym.DianaIntro, CeruleanCity_Gym.DianaDefeat, CeruleanCity_Gym.DianaPostBattle)
+    ctx.gymTrainer(
+        150,
+        CeruleanCity_Gym.DianaIntro,
+        CeruleanCity_Gym.DianaDefeat,
+        CeruleanCity_Gym.DianaPostBattle)
   }
 }
 
@@ -62,7 +70,8 @@ internal object CeruleanCity_Gym_EventScript_Misty : Script {
       ctx.say(CeruleanCity_Gym.ExplainTM03)
     }
     if (ctx.isFlagSet(KantoFlags.FLAG_DEFEATED_MISTY)) {
-      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM03_FROM_MISTY)) giveTm() else ctx.say(CeruleanCity_Gym.ExplainTM03)
+      if (!ctx.isFlagSet(KantoFlags.FLAG_GOT_TM03_FROM_MISTY)) giveTm()
+      else ctx.say(CeruleanCity_Gym.ExplainTM03)
       return
     }
     ctx.say(CeruleanCity_Gym.MistyIntro)

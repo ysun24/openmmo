@@ -147,7 +147,8 @@ constructor(
           3 -> stored.daycare.filter { it.containerSlot.toInt() == DaycareService.ROUTE5_SLOT }
           else -> stored.daycare
         }.sortedBy { it.containerSlot }
-    val gained = mons.map { DaycareRules.levelsGained(stored, it, species.get(it.dexId)?.growthRate) }
+    val gained =
+        mons.map { DaycareRules.levelsGained(stored, it, species.get(it.dexId)?.growthRate) }
     return DaycareView(
         open = mode,
         mons = mons,

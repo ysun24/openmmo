@@ -198,7 +198,9 @@ internal object DaycareScripts {
     val mons = ctx.p().daycare.main(ctx.stored())
     val index =
         if (mons.size == 1) 0
-        else ctx.p().pick(ctx.session, ctx.charId(), PICK_DAYCARE)?.toInt() ?: return ctx.say(t.comeAgain)
+        else
+            ctx.p().pick(ctx.session, ctx.charId(), PICK_DAYCARE)?.toInt()
+                ?: return ctx.say(t.comeAgain)
     val mon = mons.getOrNull(index) ?: return ctx.say(t.comeAgain)
     val stored = ctx.stored()
     val fee = DaycareRules.fee(ctx.p().daycare.levelsGained(stored, mon))
@@ -245,7 +247,11 @@ internal object DaycareScripts {
       DaycareService.State.TWO -> {
         ctx.say(t.yourMonsAreDoingFine)
         // SetDaycareCompatibilityString: one of four lines by score.
-        ctx.p().tell(ctx.session, compatibilityText(ctx.p().daycare.compatibility(ctx.p().daycare.main(ctx.stored()))))
+        ctx.p()
+            .tell(
+                ctx.session,
+                compatibilityText(
+                    ctx.p().daycare.compatibility(ctx.p().daycare.main(ctx.stored()))))
       }
       DaycareService.State.EMPTY -> ctx.say(t.seeWife)
     }
@@ -274,7 +280,8 @@ internal object DaycareScripts {
       if (!ctx.askYesNo(Route5_PokemonDayCare.OweMeXForMonsReturn)) {
         return ctx.say(Route5_PokemonDayCare.ComeAnytimeYouLike)
       }
-      if (ctx.stored().pokemon.size >= PARTY_SIZE) return ctx.say(Route5_PokemonDayCare.YouveGotNoRoomForIt)
+      if (ctx.stored().pokemon.size >= PARTY_SIZE)
+          return ctx.say(Route5_PokemonDayCare.YouveGotNoRoomForIt)
       if (ctx.stored().info.money < DaycareRules.fee(gained)) {
         return ctx.say(Route5_PokemonDayCare.DontHaveEnoughMoney)
       }
@@ -287,8 +294,10 @@ internal object DaycareScripts {
       ctx.say(Route5_PokemonDayCare.PlayerGotMonBack)
       return
     }
-    if (!ctx.askYesNo(Route5_PokemonDayCare.WantMeToRaiseMon)) return ctx.say(Route5_PokemonDayCare.ComeAgain)
-    if (ctx.stored().pokemon.count { !it.isEgg } == 1) return ctx.say(Route5_PokemonDayCare.OnlyHaveOneMonWithYou)
+    if (!ctx.askYesNo(Route5_PokemonDayCare.WantMeToRaiseMon))
+        return ctx.say(Route5_PokemonDayCare.ComeAgain)
+    if (ctx.stored().pokemon.count { !it.isEgg } == 1)
+        return ctx.say(Route5_PokemonDayCare.OnlyHaveOneMonWithYou)
     ctx.say(Route5_PokemonDayCare.WhichMonShouldIRaise)
     val monId =
         ctx.p().pick(ctx.session, ctx.charId(), PICK_PARTY)
